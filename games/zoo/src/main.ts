@@ -203,7 +203,9 @@ async function begin(slot: number, data: SaveData | undefined): Promise<void> {
   resumeAmbience();
   const clock = new THREE.Clock();
   view.renderer.setAnimationLoop(() => {
-    game.update(Math.min(clock.getDelta(), 0.1));
+    const dt = clock.getDelta();
+    view.adapt(dt);
+    game.update(Math.min(dt, 0.1));
     view.render();
   });
 }

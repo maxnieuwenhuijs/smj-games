@@ -31,7 +31,9 @@ export interface AnimalWorld {
 
 type State = 'idle' | 'walk' | 'eat' | 'poop' | 'pee' | 'rest' | 'emote';
 
-const HUNGER_PER_SEC = 1 / 150;
+// Een volle bak (vier porties) houdt twee dieren ongeveer drie minuten zoet; daarna duurt het nog een
+// paar minuten voor ze echt honger hebben. Zo houdt een kind ook zes verblijven bij.
+const HUNGER_PER_SEC = 1 / 220;
 const NEED_KIND: Record<FenceNeed, number> = { wall: 3, net: 4 };
 const SEEK_FOOD = 0.4;
 const HUNGRY = 0.6;
@@ -63,7 +65,7 @@ export class Animal {
   private eatAt: Trough | null = null;
   private anim = '';
   private heading = Math.random() * Math.PI * 2;
-  private poopIn = 45 + Math.random() * 60;
+  private poopIn = 60 + Math.random() * 80;
   private dropped = false;
   /** Zoveel seconden slapen zodra het dier op zijn slaapplek aankomt. */
   private napFor = 0;
@@ -226,7 +228,7 @@ export class Animal {
       return;
     }
     if (this.poopIn <= 0) {
-      this.poopIn = 90 + Math.random() * 80;
+      this.poopIn = 120 + Math.random() * 100;
       this.state = 'poop';
       this.timeLeft = 2.6;
       this.dropped = false;

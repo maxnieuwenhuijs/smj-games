@@ -7,6 +7,8 @@
 //
 // De proefspeler bouwt verblijven, voert, ruimt op, geneest en vangt zoals een speler dat doet, maar
 // zonder muis. Met T.honest = true vult hij de kas nooit bij: dan zie je of de munten kloppen.
+// Met T.kid = 8 doet hij maar één ding per acht seconden, zoals een kind: dan zie je of het zorgen bij
+// te houden is. T.lost telt de dieren die door verwaarlozing zijn opgehaald.
 const data = await import('/src/data.ts');
 const { goalProgress } = await import('/src/levels.ts');
 const models = await import('/src/models.ts');
@@ -28,6 +30,9 @@ export const T = {
   log: [],
   topups: 0,
   honest: false,
+  kid: 0,
+  nextAct: 0,
+  lost: 0,
   home: {},        // soort -> nummer van de plek
   order: [],       // soorten in volgorde van bouwen
   pathsDone: false,
@@ -131,9 +136,61 @@ export const T = {
     }
   },
 
+  /** Het vangen van een ontsnapt dier, met dezelfde tik als bij een speler. */
+  catch(a) {
+    const game = z();
+    const slot = SLOTS[this.home[a.species]];
+    if (!slot) return;
+    game.moving = a;
+    const s = game.view.toScreen(slot.x0 + 1.5, slot.y1 + 0.5, 0);
+    game.tap(s.x, s.y);
+    if (a.escaped) {
+      game.moving = null;
+      a.moveTo(slot.x0 + 1.5, slot.y1 + 0.5);
+      game.caught++;
+    }
+  },
+
+  /** Zoals een kind: één handeling per keer, het dringendste eerst. */
+  careLikeAKid() {
+    const game = z();
+    if (game.clock < this.nextAct) return;
+    this.nextAct = game.clock + this.kid;
+    const sick = game.animals.find(a => a.sick);
+    if (sick) return game.heal(sick);
+    const loose = game.animals.find(a => a.escaped);
+    if (loose) return this.catch(loose);
+    // de bak van de dieren met de meeste honger
+    let worst = null;
+    for (const sp of this.order) {
+      const slot = SLOTS[this.home[sp]];
+      const tr = game.troughs.find(t => t.x === slot.x0 && t.y === slot.y0);
+      const mine = this.animalsOf(sp);
+      if (!tr || !mine.length || (tr.food === SPECIES[sp].food && tr.amount > 0)) continue;
+      const hunger = Math.max(...mine.map(a => a.hunger));
+      if (!worst || hunger > worst.hunger) worst = { tr, sp, hunger };
+    }
+    if (worst && worst.hunger > 0.35) return game.feed(worst.tr, SPECIES[worst.sp].food);
+    // het vieste verblijf: alle poepjes daar
+    const dirty = game.pens.map(p => ({ p, n: game.poopsIn(p.region.id) })).sort((a, b) => b.n - a.n)[0];
+    if (dirty && dirty.n >= 2) return game.poopsOf(dirty.p.region.id).forEach(p => game.cleanPoop(p));
+    if (game.litter.length) return game.cleanLitter(game.litter[0]);
+    if (worst) return game.feed(worst.tr, SPECIES[worst.sp].food);
+    if (dirty && dirty.n) game.cleanPoop(game.poopsOf(dirty.p.region.id)[0]);
+  },
+
   /** Wat een speler tussendoor doet: voeren, opruimen, genezen en vangen. */
   care() {
     const game = z();
+    if (!game.takeAwayCounted) {
+      const original = game.takeAway.bind(game);
+      game.takeAway = a => {
+        this.lost++;
+        original(a);
+      };
+      game.takeAwayCounted = true;
+    }
+    if (this.kid) return this.careLikeAKid();
     for (const sp of this.order) {
       const slot = SLOTS[this.home[sp]];
       const tr = game.troughs.find(t => t.x === slot.x0 && t.y === slot.y0);
@@ -142,19 +199,7 @@ export const T = {
     for (const p of [...game.poops]) game.cleanPoop(p);
     for (const p of [...game.litter]) game.cleanLitter(p);
     for (const a of game.animals) if (a.sick) game.heal(a);
-    for (const a of game.animals.filter(k => k.escaped)) {
-      const slot = SLOTS[this.home[a.species]];
-      if (!slot) continue;
-      // oppakken en terugzetten gaat via dezelfde tik als bij een speler
-      game.moving = a;
-      const s = game.view.toScreen(slot.x0 + 1.5, slot.y1 + 0.5, 0);
-      game.tap(s.x, s.y);
-      if (a.escaped) {
-        game.moving = null;
-        a.moveTo(slot.x0 + 1.5, slot.y1 + 0.5);
-        game.caught++;
-      }
-    }
+    for (const a of game.animals.filter(k => k.escaped)) this.catch(a);
   },
 
   /** Alles klaarzetten wat de doelen van dit level vragen. */
@@ -233,7 +278,7 @@ export const T = {
           return this.log;
         }
       }
-      this.log.push({ level: L + 1, seconds: Math.round(game.clock - start), topups: this.topups - tops, coins: game.coins });
+      this.log.push({ level: L + 1, seconds: Math.round(game.clock - start), topups: this.topups - tops, coins: game.coins, lost: this.lost });
     }
     return this.log;
   },

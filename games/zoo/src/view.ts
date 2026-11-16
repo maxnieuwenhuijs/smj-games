@@ -292,6 +292,10 @@ export class View {
 
   private flashes: { meshes: THREE.Mesh[]; mat: THREE.MeshBasicMaterial; life: number }[] = [];
   private flashGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  private sun = new THREE.DirectionalLight(0xfff4dd, 2.2);
+  /** 2 = alles aan, 1 = minder scherp, 0 = ook zonder schaduwen. */
+  private quality = 2;
+  private slowFor = 0;
   private outerMat = new THREE.MeshStandardMaterial({ color: 0x6fb44c, roughness: 1 });
   private leafMats = [0x4f9e45, 0x5bab4c, 0x468f3e].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 1 }));
 
@@ -304,7 +308,7 @@ export class View {
     this.scene.background = new THREE.Color(0xbfe6ff);
 
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x9ad07a, 1.6));
-    const sun = new THREE.DirectionalLight(0xfff4dd, 2.2);
+    const sun = this.sun;
     sun.position.set(-8, 20, 11);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -640,6 +644,23 @@ export class View {
       }
     }
     this.flashes = this.flashes.filter(f => f.life > 0);
+  }
+
+  /**
+   * Houdt het beeld vloeiend op een traag apparaat: blijft het een paar tellen haperen, dan wordt het
+   * beeld eerst minder scherp en daarna gaan de schaduwen uit. `dt` is de echte tijd van het vorige beeldje.
+   */
+  adapt(dt: number): void {
+    if (dt > 0.5 || this.quality === 0) return; // het tabblad was even weg, of er valt niets meer te winnen
+    this.slowFor = dt > 1 / 26 ? this.slowFor + dt : Math.max(0, this.slowFor - dt * 2);
+    if (this.slowFor < 3) return;
+    this.slowFor = 0;
+    this.quality--;
+    if (this.quality === 1 && this.renderer.getPixelRatio() > 1) this.renderer.setPixelRatio(1);
+    else {
+      this.quality = 0;
+      this.sun.castShadow = false;
+    }
   }
 
   render(): void {
