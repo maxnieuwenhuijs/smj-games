@@ -8,11 +8,17 @@ Zelfde tien botten met dezelfde namen en ouders, zelfde twaalf animaties:
 
 Het draaipunt van de romp ligt in de heup. Kantelt de romp, dan blijven de voeten dus staan.
 Elke houding gaat door bip_fix: die rekent met de echte punten van het model uit waar het laagste
-punt zit en zet het dier precies op de grond. Niets zakt daardoor onder z = 0.
+punt zit en zet het dier precies op de grond. Niets zakt daardoor onder z = 0. De sleutelbeelden
+krijgen rechte lijnen ertussen (bip_linear), zodat dat ook tussen twee sleutelbeelden blijft kloppen.
+
+Een poot is een enkel bot zonder knie. Zakken gaat daarom zo: de poot schuift de romp in (hurken,
+zitten, liggen) en wat niet past draait naar voren. Lange poten liggen bij zitten en liggen dus
+gestrekt naar voren. Vogels zonder nek (uil, pinguin) kiepen bij het eten voorover tot op de borst.
 
 Controleren (alle namen van dit pakket beginnen met bip_):
   blender --background --python tools/animals/build_animals.py -- out/biped check chicken duck
-  BIP_DEBUG=1 ... info chicken    toont per animatie het laagste punt en de hoogte van de voeten
+  BIP_DEBUG=1 ... info chicken    toont de vaste hoeken (eten, slapen, verdriet) en het laagste punt in rust
+  BIP_DEBUG=2 ... info chicken    toont ook per animatie het laagste punt en de hoogte van de voeten
 """
 import numpy as bip_np
 
@@ -127,7 +133,12 @@ def bip_fold(M, hp, pitch=0.0):
             a, w = 0.0, (0.0, L - hp)
         else:
             ua = min(M['hide_a'], L * 0.5)
-            a = math.acos(max(0.0, min(1.0, (hp + u) / (L - ua))))
+            for _ in range(8):   # het bovenste stuk van de poot mag niet boven uit de rug steken
+                a = math.acos(max(0.0, min(1.0, (hp + u) / (L - ua))))
+                over = u + (ua + M['ltop']) * math.cos(a) - (M['hide'] + M['ltop'])
+                if over <= 1e-4:
+                    break
+                u = max(0.0, u - over)
             w = (ua * math.sin(a), u + ua * math.cos(a))
     th = math.radians(-pitch)   # verplaatsing omrekenen naar het (gekantelde) stelsel van de romp
     loc = (0.0, w[0] * math.cos(th) - w[1] * math.sin(th), w[0] * math.sin(th) + w[1] * math.cos(th))
@@ -210,8 +221,31 @@ def bip_solve_head(G, pose, a0, a1, ground):
 
 
 # ---------------------------------------------------------------- houdingen
+def bip_linear(G):
+    """make_actions vraagt per sleutelbeeld een houding op. Hier krijgt het sleutelbeeld dat er net is
+    neergezet rechte lijnen naar het volgende (Blender maakt er anders vloeiende bochten van, per kanaal
+    verschillend). Dan klopt tussen twee sleutelbeelden ook wat op de beelden zelf klopt: voeten op de
+    grond, niets erdoor. Bij plaatjes is er geen animatie en gebeurt er niets."""
+    try:
+        ad = G['bip']['rig'].animation_data
+        act = ad.action if ad else None
+        if not act:
+            return
+        try:      # Blender 4.4 en later: lagen met kanalenbakken
+            curves = [fc for layer in act.layers for strip in layer.strips for bag in strip.channelbags
+                      for fc in bag.fcurves]
+        except AttributeError:
+            curves = list(act.fcurves)
+        for fc in curves:
+            if len(fc.keyframe_points):
+                fc.keyframe_points[-1].interpolation = 'LINEAR'
+    except (ReferenceError, KeyError, AttributeError):
+        pass
+
+
 def bip_pose(name, t, G):
     """Houding op lus-moment t (0..1), zelfde soort antwoord als anim_pose."""
+    bip_linear(G)
     M = G['bip']
     A, L = M['A'], M['L']
     w = 2 * math.pi * t
@@ -551,7 +585,8 @@ def bip_build(species, variant, style, name):
     M = dict(L=L, A=A, rest={},
              piv={bn: bip_np.array(piv[bn], dtype=float) * s for bn in BONES},
              pts={bn: bip_np.array(pts[bn], dtype=float).reshape(-1, 3) for bn in BONES},
-             hide=hide, hide_a=D.get('hide_a', 0.0), ext=max(0.0, ltop - 0.02), trail=D.get('trail', 60.0),
+             hide=hide, hide_a=D.get('hide_a', 0.0) * P.get('body_l', 1.0), ltop=ltop, ext=max(0.0, ltop - 0.02),
+             trail=D.get('trail', 60.0),
              max_drop=D.get('max_drop'), tail_rest=bool(D.get('tail_rest')), arms=bool(D.get('arms')),
              hops=bool(D.get('hops')), lid_slide=c.extra['lid_slide'], side_tail=0.0)
     M['step'] = min(max(0.25 * L, 0.03), max(hide, 0.02), 0.12)
@@ -582,12 +617,7 @@ def bip_build(species, variant, style, name):
     G['eat'], G['sleep'], G['lie'], G['sad'] = (int(round(v)) for v in (M['eat_a'], M['sleep_a'], A['lie_head'],
                                                                          M['sad_a']))
     G['eat_pitch'] = M['eat_p']
-    # Sleutelbeelden van dit dier met rechte lijnen ertussen: wat op de sleutelbeelden klopt (voeten op de
-    # grond, niets erdoor) klopt dan ook ertussenin. Geldt alleen voor dit dier: reset() zet het weer terug.
-    try:
-        bpy.context.preferences.edit.keyframe_new_interpolation_type = 'LINEAR'
-    except Exception:
-        pass
+    M['rig'] = rig   # voor bip_linear
     if BIP_DEBUG:
         print('BIPCHK %s eat=%d/%d sleep=%d sad=%d hide=%.2f squat=%.2f step=%.2f rust=%.3f'
               % (name, M['eat_p'], M['eat_a'], M['sleep_a'], M['sad_a'], hide, M['squat'], M['step'],
@@ -891,7 +921,7 @@ def bip_ostrich(c):
     exk, ezk = c.D['eye']
     e = c.D['eye_e'] * k * P.get('eye_k', 1.0)
     for sx in (1, -1):   # een krulletje aan de buitenste ooghoek
-        b.box('head', C['lash'], (e * 0.5, 0.03 * k, e * 0.16), (sx * (exk * k + e * 0.74), face - 0.008 * k, hz + ezk * k + e * 0.5),
+        b.box('head', C['lash'], (e * 0.38, 0.03 * k, e * 0.12), (sx * (exk * k + e * 0.68), face - 0.008 * k, hz + ezk * k + e * 0.52),
               bevel=0, ry=-sx * 32)
     b.ball('head', C['fuzz'], (0.075 * k, 0.085 * k, 0.045 * k), (0, hcy + 0.01 * k, hz + hh / 2))
     for bone, x, y in c.legs:   # dikke dijen en knieën
@@ -957,7 +987,7 @@ SPECIES['flamingo'] = dict(
     dims=dict(leg_len=0.74, leg=(0.045, 0.045), leg_x=0.085, hip_y=0.03, foot=(0.13, 0.16, 0.03), foot_kind='web',
               body=(0.32, 0.50, 0.32), body_bevel=0.4, neck_at=(0.08, -0.10), neck=(0.14, 0.66),
               head=(0.19, 0.22, 0.19), head_bevel=0.2, eye=(0.058, 0.02), eye_e=0.055,
-              wing=(0.05, 0.38, 0.22), wing_at=(0.03, 0.02), hide_a=0.16,
+              wing=(0.05, 0.38, 0.22), wing_at=(0.03, 0.02), hide_a=0.12,
               pose=dict(walk=20, run=34, eat_pitch=35, eat_max=95, sleep_max=80, sad_max=26, bob=0.045)),
     col=dict(tip='#221C1E'),
     variants={

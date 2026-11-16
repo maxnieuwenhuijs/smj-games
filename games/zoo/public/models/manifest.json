@@ -172,25 +172,25 @@
    "height": 0.559,
    "back": 0.146,
    "length": 0.489,
-   "v": "87688b95"
+   "v": "0d8cada6"
   },
   "chicken_male": {
    "height": 0.644,
    "back": 0.156,
    "length": 0.728,
-   "v": "d96b2ac5"
+   "v": "e5d16d48"
   },
   "chicken_young_f": {
    "height": 0.367,
    "back": 0.077,
    "length": 0.298,
-   "v": "18534d65"
+   "v": "6c490723"
   },
   "chicken_young_m": {
    "height": 0.351,
    "back": 0.077,
    "length": 0.298,
-   "v": "5055f33d"
+   "v": "1502fec6"
   },
   "cow_female": {
    "height": 1.243,
@@ -268,25 +268,25 @@
    "height": 0.5,
    "back": 0.186,
    "length": 0.637,
-   "v": "aeb09578"
+   "v": "a8500579"
   },
   "duck_male": {
    "height": 0.525,
    "back": 0.198,
    "length": 0.68,
-   "v": "feb50368"
+   "v": "41f34730"
   },
   "duck_young_f": {
    "height": 0.319,
    "back": 0.097,
    "length": 0.411,
-   "v": "2455976f"
+   "v": "8de12772"
   },
   "duck_young_m": {
    "height": 0.319,
    "back": 0.097,
    "length": 0.411,
-   "v": "e1138929"
+   "v": "bf9bc8f8"
   },
   "elephant_female": {
    "height": 1.682,
@@ -316,25 +316,25 @@
    "height": 1.257,
    "back": 0.177,
    "length": 0.747,
-   "v": "20fdd166"
+   "v": "1e538a7e"
   },
   "flamingo_male": {
    "height": 1.345,
    "back": 0.19,
    "length": 0.8,
-   "v": "40b74054"
+   "v": "d9801da2"
   },
   "flamingo_young_f": {
    "height": 0.624,
    "back": 0.106,
    "length": 0.509,
-   "v": "2a03dbc2"
+   "v": "5e453179"
   },
   "flamingo_young_m": {
    "height": 0.624,
    "back": 0.106,
    "length": 0.509,
-   "v": "56527569"
+   "v": "aebc553e"
   },
   "gazelle_female": {
    "height": 1.057,
@@ -484,25 +484,25 @@
    "height": 1.037,
    "back": 0.18,
    "length": 1.092,
-   "v": "8ec1037c"
+   "v": "e04f5277"
   },
   "kangaroo_male": {
    "height": 1.152,
    "back": 0.2,
    "length": 1.213,
-   "v": "90dc3284"
+   "v": "27bd610a"
   },
   "kangaroo_young_f": {
    "height": 0.684,
    "back": 0.115,
    "length": 0.705,
-   "v": "7a88e756"
+   "v": "047b7ed7"
   },
   "kangaroo_young_m": {
    "height": 0.684,
    "back": 0.115,
    "length": 0.705,
-   "v": "c064c615"
+   "v": "eb96eb2a"
   },
   "koala_female": {
    "height": 0.693,
@@ -604,25 +604,25 @@
    "height": 1.509,
    "back": 0.251,
    "length": 0.946,
-   "v": "d9e1d0b5"
+   "v": "c82532a8"
   },
   "ostrich_male": {
    "height": 1.628,
    "back": 0.271,
    "length": 1.021,
-   "v": "85ba67be"
+   "v": "33c138a5"
   },
   "ostrich_young_f": {
    "height": 0.827,
    "back": 0.149,
    "length": 0.649,
-   "v": "d20e1a43"
+   "v": "58eb338c"
   },
   "ostrich_young_m": {
    "height": 0.827,
    "back": 0.149,
    "length": 0.649,
-   "v": "aa665d48"
+   "v": "7f680ef0"
   },
   "otter_female": {
    "height": 0.472,
@@ -652,25 +652,25 @@
    "height": 0.622,
    "back": 0.134,
    "length": 0.422,
-   "v": "12657e42"
+   "v": "15d8e1e7"
   },
   "owl_male": {
    "height": 0.575,
    "back": 0.124,
    "length": 0.39,
-   "v": "ddba0561"
+   "v": "547a1385"
   },
   "owl_young_f": {
    "height": 0.362,
    "back": 0.072,
    "length": 0.245,
-   "v": "66f6a4f3"
+   "v": "c6a9e45f"
   },
   "owl_young_m": {
    "height": 0.333,
    "back": 0.072,
    "length": 0.245,
-   "v": "276b546a"
+   "v": "401e8eb5"
   },
   "panda_female": {
    "height": 1.023,
@@ -724,97 +724,97 @@
    "height": 0.53,
    "back": 0.117,
    "length": 0.641,
-   "v": "9a6a9ec5"
+   "v": "97a37504"
   },
   "parrot_male": {
    "height": 0.552,
    "back": 0.12,
    "length": 0.675,
-   "v": "16305eef"
+   "v": "9df27a91"
   },
   "parrot_young_f": {
    "height": 0.323,
    "back": 0.074,
    "length": 0.337,
-   "v": "f89df6d8"
+   "v": "fa326565"
   },
   "parrot_young_m": {
    "height": 0.323,
    "back": 0.072,
    "length": 0.337,
-   "v": "15105b7d"
+   "v": "3e1c35f8"
   },
   "peacock_female": {
    "height": 0.735,
    "back": 0.161,
    "length": 0.689,
-   "v": "aa62ad5d"
+   "v": "85937158"
   },
   "peacock_male": {
    "height": 0.849,
    "back": 0.177,
    "length": 0.63,
-   "v": "166490a3"
+   "v": "32703c3c"
   },
   "peacock_young_f": {
    "height": 0.406,
    "back": 0.079,
    "length": 0.326,
-   "v": "ce07be76"
+   "v": "bf1881c2"
   },
   "peacock_young_m": {
    "height": 0.406,
    "back": 0.079,
    "length": 0.326,
-   "v": "a169b2a1"
+   "v": "49999915"
   },
   "pelican_female": {
    "height": 0.782,
    "back": 0.261,
    "length": 1.033,
-   "v": "cc3cc0cc"
+   "v": "c0e878e7"
   },
   "pelican_male": {
    "height": 0.867,
    "back": 0.284,
    "length": 1.163,
-   "v": "a0fbd495"
+   "v": "355e09ed"
   },
   "pelican_young_f": {
    "height": 0.468,
    "back": 0.135,
    "length": 0.57,
-   "v": "3a7174ee"
+   "v": "30588ef7"
   },
   "pelican_young_m": {
    "height": 0.507,
    "back": 0.135,
    "length": 0.57,
-   "v": "8fc11140"
+   "v": "04d32aa6"
   },
   "penguin_female": {
    "height": 0.685,
    "back": 0.139,
    "length": 0.462,
-   "v": "ce18ccd2"
+   "v": "476d0e81"
   },
   "penguin_male": {
    "height": 0.748,
    "back": 0.151,
    "length": 0.504,
-   "v": "60c1b385"
+   "v": "54a83ec5"
   },
   "penguin_young_f": {
    "height": 0.461,
    "back": 0.09,
    "length": 0.332,
-   "v": "9f7f83a4"
+   "v": "b1916391"
   },
   "penguin_young_m": {
    "height": 0.424,
    "back": 0.09,
    "length": 0.332,
-   "v": "c1973420"
+   "v": "4798864b"
   },
   "pig_female": {
    "height": 0.645,
@@ -1060,25 +1060,25 @@
    "height": 0.519,
    "back": 0.143,
    "length": 0.769,
-   "v": "fa19a750"
+   "v": "221e4c48"
   },
   "toucan_male": {
    "height": 0.561,
    "back": 0.155,
    "length": 0.878,
-   "v": "b0cda6c6"
+   "v": "bbd4a33c"
   },
   "toucan_young_f": {
    "height": 0.346,
    "back": 0.076,
    "length": 0.423,
-   "v": "13478f9c"
+   "v": "6362ed97"
   },
   "toucan_young_m": {
    "height": 0.346,
    "back": 0.076,
    "length": 0.438,
-   "v": "41fe2768"
+   "v": "bfb2efa5"
   },
   "turtle_female": {
    "height": 0.533,
