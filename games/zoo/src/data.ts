@@ -90,13 +90,13 @@ export const LEVELS: Level[] = [
   { goals: [shop('drinkstall'), happy('donkey'), goal('guests', 5)], reward: 'goat' },
   { goals: [happy('goat'), goal('born', 1), goal('coins', 15)], reward: 'alpaca' },
   // savanne
-  { goals: [happy('alpaca'), goal('guests', 8), goal('cleaned', 5)], reward: 'zebra' },
+  { goals: [happy('alpaca'), goal('guests', 6), goal('cleaned', 5)], reward: 'zebra' },
   { goals: [happy('zebra'), shop('bench', 2), goal('coins', 20)], reward: 'giraffe' },
-  { goals: [happy('giraffe'), goal('born', 2), goal('guests', 10)], reward: 'lion' },
+  { goals: [happy('giraffe'), goal('born', 2), goal('guests', 8)], reward: 'lion' },
   { goals: [happy('lion'), goal('coins', 25)], reward: 'camel' },
-  { goals: [happy('camel'), goal('guests', 12)], reward: 'rhino' },
+  { goals: [happy('camel'), goal('guests', 10)], reward: 'rhino' },
   { goals: [happy('rhino'), goal('born', 3)], reward: 'hippo' },
-  { goals: [happy('hippo'), goal('guests', 14), goal('coins', 30)], reward: 'elephant' },
+  { goals: [happy('hippo'), goal('guests', 12), goal('coins', 30)], reward: 'elephant' },
 ];
 
 /** Soorten die vrij zijn als je `done` levels hebt gehaald. */

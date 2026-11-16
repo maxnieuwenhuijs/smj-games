@@ -79,6 +79,206 @@
    "height": 0.434,
    "back": 0.211,
    "length": 0.633
+  },
+  "horse_male": {
+   "height": 1.975,
+   "back": 0.563,
+   "length": 2.174
+  },
+  "horse_female": {
+   "height": 1.806,
+   "back": 0.519,
+   "length": 1.988
+  },
+  "horse_young_m": {
+   "height": 1.033,
+   "back": 0.241,
+   "length": 1.12
+  },
+  "horse_young_f": {
+   "height": 1.033,
+   "back": 0.241,
+   "length": 1.12
+  },
+  "donkey_male": {
+   "height": 1.375,
+   "back": 0.387,
+   "length": 1.42
+  },
+  "donkey_female": {
+   "height": 1.253,
+   "back": 0.357,
+   "length": 1.298
+  },
+  "donkey_young_m": {
+   "height": 0.816,
+   "back": 0.168,
+   "length": 0.77
+  },
+  "donkey_young_f": {
+   "height": 0.816,
+   "back": 0.168,
+   "length": 0.77
+  },
+  "goat_male": {
+   "height": 0.814,
+   "back": 0.24,
+   "length": 0.828
+  },
+  "goat_female": {
+   "height": 0.677,
+   "back": 0.222,
+   "length": 0.757
+  },
+  "goat_young_m": {
+   "height": 0.411,
+   "back": 0.11,
+   "length": 0.459
+  },
+  "goat_young_f": {
+   "height": 0.387,
+   "back": 0.11,
+   "length": 0.459
+  },
+  "alpaca_male": {
+   "height": 1.417,
+   "back": 0.45,
+   "length": 1.222
+  },
+  "alpaca_female": {
+   "height": 1.297,
+   "back": 0.415,
+   "length": 1.118
+  },
+  "alpaca_young_m": {
+   "height": 0.74,
+   "back": 0.217,
+   "length": 0.653
+  },
+  "alpaca_young_f": {
+   "height": 0.74,
+   "back": 0.217,
+   "length": 0.653
+  },
+  "zebra_male": {
+   "height": 1.677,
+   "back": 0.483,
+   "length": 1.806
+  },
+  "zebra_female": {
+   "height": 1.536,
+   "back": 0.446,
+   "length": 1.653
+  },
+  "zebra_young_m": {
+   "height": 0.895,
+   "back": 0.208,
+   "length": 0.94
+  },
+  "zebra_young_f": {
+   "height": 0.895,
+   "back": 0.208,
+   "length": 0.94
+  },
+  "giraffe_male": {
+   "height": 2.521,
+   "back": 0.449,
+   "length": 1.803
+  },
+  "giraffe_female": {
+   "height": 2.319,
+   "back": 0.415,
+   "length": 1.651
+  },
+  "giraffe_young_m": {
+   "height": 1.19,
+   "back": 0.199,
+   "length": 0.944
+  },
+  "giraffe_young_f": {
+   "height": 1.19,
+   "back": 0.199,
+   "length": 0.944
+  },
+  "elephant_male": {
+   "height": 1.847,
+   "back": 0.735,
+   "length": 2.535
+  },
+  "elephant_female": {
+   "height": 1.682,
+   "back": 0.676,
+   "length": 2.308
+  },
+  "elephant_young_m": {
+   "height": 1.132,
+   "back": 0.325,
+   "length": 1.368
+  },
+  "elephant_young_f": {
+   "height": 1.132,
+   "back": 0.325,
+   "length": 1.368
+  },
+  "rhino_male": {
+   "height": 1.346,
+   "back": 0.682,
+   "length": 2.401
+  },
+  "rhino_female": {
+   "height": 1.183,
+   "back": 0.63,
+   "length": 2.191
+  },
+  "rhino_young_m": {
+   "height": 0.756,
+   "back": 0.302,
+   "length": 1.312
+  },
+  "rhino_young_f": {
+   "height": 0.756,
+   "back": 0.302,
+   "length": 1.312
+  },
+  "hippo_male": {
+   "height": 1.166,
+   "back": 0.656,
+   "length": 2.291
+  },
+  "hippo_female": {
+   "height": 1.061,
+   "back": 0.604,
+   "length": 2.075
+  },
+  "hippo_young_m": {
+   "height": 0.688,
+   "back": 0.29,
+   "length": 1.238
+  },
+  "hippo_young_f": {
+   "height": 0.688,
+   "back": 0.29,
+   "length": 1.232
+  },
+  "camel_male": {
+   "height": 2.06,
+   "back": 0.562,
+   "length": 2.113
+  },
+  "camel_female": {
+   "height": 1.885,
+   "back": 0.517,
+   "length": 1.926
+  },
+  "camel_young_m": {
+   "height": 1.094,
+   "back": 0.248,
+   "length": 1.114
+  },
+  "camel_young_f": {
+   "height": 1.094,
+   "back": 0.248,
+   "length": 1.114
   }
  },
  "animations": [

@@ -66,12 +66,13 @@ Verblijf, voer en een schoon hok tellen zwaar. Ondergrond, slaapplek, een vriend
 - De kas gaat nooit hoger dan 30, zodat tellen makkelijk blijft. Je begint met 10.
 - Bijna alles levert 1 munt op: een poepje opruimen, een jong dat geboren wordt, een gast die iets koopt. Een gehaald level geeft 5.
 - Een voerbak of slaapplek kost 1, een bankje 1, een kraam 3. Dieren kosten 1 tot 15. Hekken en ondergrond zijn gratis.
+- Een blij paar krijgt om de anderhalve minuut een jong. Zijn er al twee jongen, dan verhuist de oudste naar een andere dierentuin en krijg je 2 munten.
 - Gasten kopen alleen als ze het naar hun zin hebben, hooguit één keer eten en één keer drinken per bezoek.
 - Terugverdienen: heeft het park net veel uitgegeven, dan krijgen gasten wat sneller trek. Zo is een aankoop binnen een paar minuten terugverdiend, zolang de gasten tevreden zijn.
 
 ## Gasten
 
-Gasten komen binnen bij de ingang zodra daar een pad ligt. Ze lopen alleen over pad, kijken bij verblijven met dieren (blije dieren en een schoon hok geven meer plezier), kopen bij een kraam die aan het pad staat en rusten op een bankje. Wie zich verveelt, gaat eerder weg.
+Gasten komen binnen bij de ingang zodra daar een pad ligt. Hoe meer volwassen dieren, hoe meer gasten (hooguit 24). Ze lopen alleen over pad, kijken bij verblijven met dieren (blije dieren en een schoon hok geven meer plezier), kopen bij een kraam die aan het pad staat en rusten op een bankje. Wie zich verveelt, gaat eerder weg.
 
 ## Wat je kunt aantikken
 
@@ -97,13 +98,13 @@ Elk level speelt een dier vrij. Er zijn nu 14 levels uitgeschreven; een level do
 | 5 | Eetkraam, 2 blije paarden, 8 munten | Ezel |
 | 6 | Drinkkraam, 2 blije ezels, 5 blije gasten | Geit |
 | 7 | 2 blije geiten, 1 jong, 15 munten | Alpaca |
-| 8 | 2 blije alpaca's, 8 blije gasten, 5 poepjes | Zebra |
+| 8 | 2 blije alpaca's, 6 blije gasten, 5 poepjes | Zebra |
 | 9 | 2 blije zebra's, 2 bankjes, 20 munten | Giraf |
-| 10 | 2 blije giraffen, 2 jongen, 10 blije gasten | Leeuw |
+| 10 | 2 blije giraffen, 2 jongen, 8 blije gasten | Leeuw |
 | 11 | 2 blije leeuwen, 25 munten | Kameel |
-| 12 | 2 blije kamelen, 12 blije gasten | Neushoorn |
+| 12 | 2 blije kamelen, 10 blije gasten | Neushoorn |
 | 13 | 2 blije neushoorns, 3 jongen | Nijlpaard |
-| 14 | 2 blije nijlpaarden, 14 blije gasten, 30 munten | Olifant |
+| 14 | 2 blije nijlpaarden, 12 blije gasten, 30 munten | Olifant |
 
 De vijf werelden blijven het doel: boerderij (1 t/m 10), savanne (11 t/m 20), jungle, ijs en bergen, water en verre landen. Vogels, apen en zwemmers hebben elk een eigen skelet nodig en komen daarna.
 

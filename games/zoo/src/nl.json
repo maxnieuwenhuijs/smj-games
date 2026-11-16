@@ -61,7 +61,7 @@
   "animal.rename": "Naam",
   "animal.sedate": "Slapen",
   "animal.move": "Verzet",
-  "names.pens": "Zonneweide,Klaverveld,Modderhoek,Bloemenwei,Appelhof,Vlinderveld,Eikenhoek,Madeliefje,Regenboogwei,Sterrenveld,Kersenhof,Beekdal",
+  "names.pens": "Zonneweide,Klaverveld,Modderhoek,Bloemenwei,Appelhof,Vlinderveld,Eikenhoek,Madeliefje,Regenboogwei,Sterrenveld,Kersenhof,Beekdal,Berkenlaan,Zandheuvel,Palmhof,Wilgenhoek,Maanveld,Kikkerpoel,Notenhof,Bessenweide,Duinpan,Rietland,Lindenhof,Zonnebloem",
   "level": "Level {n}",
   "level.new": "Nieuw dier:",
   "level.next": "Verder",
@@ -151,5 +151,6 @@
   "cash.short": "Niet genoeg munten. Ruim poep op of wacht op gasten!",
   "cash.full": "De kas is vol!",
   "guest.title": "Gast",
-  "guest.wave": "Zwaaien"
+  "guest.wave": "Zwaaien",
+  "say.grown": "{name} is groot en verhuist naar een andere dierentuin. Je krijgt 2 munten!"
 }

@@ -324,7 +324,7 @@ export class Game implements AnimalWorld, GuestWorld {
   }
 
   capacity(): number {
-    return this.has('paths') ? Math.min(12, 2 + this.animals.length) : 0;
+    return this.has('paths') ? Math.min(24, 2 + Math.floor(this.animals.filter(a => !a.young).length * 1.5)) : 0;
   }
 
   sells(kind: ShopKind): boolean {
@@ -533,7 +533,11 @@ export class Game implements AnimalWorld, GuestWorld {
     const all = t(listKey).split(',');
     const free = all.filter(n => !used.includes(n));
     if (free.length) return free[Math.floor(Math.random() * free.length)];
-    return `${all[Math.floor(Math.random() * all.length)]} ${used.length + 1}`;
+    // alle namen zijn op: dezelfde namen opnieuw, met een volgnummer
+    for (let n = 2; ; n++) {
+      const again = all.filter(name => !used.includes(`${name} ${n}`));
+      if (again.length) return `${again[Math.floor(Math.random() * again.length)]} ${n}`;
+    }
   }
 
   private penText(pen: Pen): void {
@@ -715,7 +719,7 @@ export class Game implements AnimalWorld, GuestWorld {
     const region = this.grid.enclosureAt(x, y);
     if (!region || this.troughAt(x, y)) return false;
     if ((this.penAt(x, y)?.closedUntil ?? 0) > this.clock) return false;
-    return this.animalsIn(region.id).filter(a => a !== mover).length < penCap(region);
+    return this.animalsIn(region.id).filter(a => a !== mover && !a.young).length < penCap(region);
   }
 
   private placeTrough(x: number, y: number): void {
@@ -814,7 +818,10 @@ export class Game implements AnimalWorld, GuestWorld {
     this.sayNow({ who: 'keeper', mood: 'urgent', key: 'say.taken', vars });
   }
 
-  /** Een blije jongen en een blij meisje van dezelfde soort krijgen na een poosje een jong. */
+  /**
+   * Een blije jongen en een blij meisje van dezelfde soort krijgen na een poosje een jong.
+   * Zijn er al twee jongen, dan is de oudste groot genoeg en verhuist naar een andere dierentuin.
+   */
   private checkBirths(): void {
     for (const pen of this.pens) {
       if (pen.closedUntil) continue;
@@ -822,8 +829,7 @@ export class Game implements AnimalWorld, GuestWorld {
       for (const sp of new Set(here.map(a => a.species))) {
         const same = here.filter(a => a.species === sp);
         const mother = same.find(a => a.variant === 'female' && a.happy);
-        const pair = mother && same.some(a => a.variant === 'male' && a.happy);
-        if (!pair || same.filter(a => a.young).length >= 2 || here.length >= penCap(pen.region)) {
+        if (!mother || !same.some(a => a.variant === 'male' && a.happy)) {
           pen.love[sp] = Math.min(pen.love[sp] ?? 0, 0);
           if (pen.love[sp] < 0) pen.love[sp] += 0.4;
           continue;
@@ -831,6 +837,13 @@ export class Game implements AnimalWorld, GuestWorld {
         pen.love[sp] = (pen.love[sp] ?? 0) + 0.4;
         if (pen.love[sp] < BIRTH_SECONDS) continue;
         pen.love[sp] = -40; // even rust voor het volgende jong
+        const young = same.filter(a => a.young);
+        if (young.length >= 2) {
+          const grown = young[0];
+          this.lines.push({ who: 'keeper', mood: 'happy', key: 'say.grown', vars: { name: grown.name } });
+          this.earn(2, grown.gx, grown.gy);
+          this.removeAnimal(grown);
+        }
         const baby = this.addAnimal(sp, Math.random() < 0.5 ? 'young_m' : 'young_f', mother.gx, mother.gy);
         baby.hunger = 0.2;
         this.born++;

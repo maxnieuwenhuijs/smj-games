@@ -315,7 +315,7 @@ export class GuestManager {
     if (this.open && this.guests.length < this.world.capacity()) {
       this.spawnIn -= dt;
       if (this.spawnIn <= 0) {
-        this.spawnIn = 7 + Math.random() * 6;
+        this.spawnIn = Math.max(3, 100 / this.world.capacity()) * (0.7 + Math.random() * 0.6);
         const guest = new Guest(ENTRANCE);
         this.scene.add(guest.mesh);
         this.guests.push(guest);
