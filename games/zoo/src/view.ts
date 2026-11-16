@@ -1,11 +1,13 @@
-// Het beeld: isometrische camera, tegels, hekken en voerbakken.
+// Het beeld: isometrische camera, tegels, hekken, voerbakken en het voorbeeld van wat je gaat plaatsen.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { FOODS, TERRAINS, TERRAIN_INFO, type FoodId } from './data';
-import { Grid, H, W, edgeKey, type Edge } from './grid';
+import { TERRAINS, TERRAIN_INFO, type BedKind, type FoodId } from './data';
+import { Grid, H, W, edgeKey, tileXY, type Edge } from './grid';
 
 const SQRT2 = Math.SQRT2;
 const SQRT3 = Math.sqrt(3);
+const OK_COLOR = 0x7dff7d;
+const BAD_COLOR = 0xff5a4a;
 
 function boxAt(w: number, h: number, d: number, x: number, y: number, z: number): THREE.BufferGeometry {
   const g = new THREE.BoxGeometry(w, h, d);
@@ -20,22 +22,67 @@ const FENCE_GEO = mergeGeometries([
   boxAt(1, 0.08, 0.06, 0.5, 0.17, 0),
   boxAt(1, 0.08, 0.06, 0.5, 0.37, 0),
 ])!;
+// De poort is van hetzelfde hout, maar hoger en met een deurtje.
 const GATE_GEO = mergeGeometries([
   boxAt(0.15, 0.72, 0.15, 0, 0.36, 0),
   boxAt(0.15, 0.72, 0.15, 1, 0.36, 0),
   boxAt(1.15, 0.1, 0.15, 0.5, 0.75, 0),
-  boxAt(0.82, 0.4, 0.06, 0.5, 0.25, 0),
+  boxAt(0.82, 0.07, 0.06, 0.5, 0.12, 0),
+  boxAt(0.82, 0.07, 0.06, 0.5, 0.42, 0),
+  boxAt(0.07, 0.36, 0.06, 0.2, 0.27, 0),
+  boxAt(0.07, 0.36, 0.06, 0.5, 0.27, 0),
+  boxAt(0.07, 0.36, 0.06, 0.8, 0.27, 0),
 ])!;
+const TROUGH_GEO = mergeGeometries([
+  boxAt(0.8, 0.06, 0.48, 0, 0.03, 0),
+  boxAt(0.8, 0.2, 0.06, 0, 0.13, -0.21),
+  boxAt(0.8, 0.2, 0.06, 0, 0.13, 0.21),
+  boxAt(0.06, 0.2, 0.36, -0.37, 0.13, 0),
+  boxAt(0.06, 0.2, 0.36, 0.37, 0.13, 0),
+])!;
+// Slaapplekken. Het stalletje heeft alleen achterwanden en een afdakje, zodat je het slapende dier blijft zien.
+const STRAW_GEO = mergeGeometries([
+  boxAt(0.86, 0.07, 0.86, 0, 0.035, 0),
+  boxAt(0.6, 0.06, 0.6, 0.03, 0.1, -0.02),
+])!;
+const SHED_WALL_GEO = mergeGeometries([
+  boxAt(0.94, 0.62, 0.06, 0, 0.31, -0.44),
+  boxAt(0.06, 0.62, 0.94, -0.44, 0.31, 0),
+  boxAt(0.08, 0.62, 0.08, 0.44, 0.31, 0.44),
+])!;
+const SHED_ROOF_GEO = mergeGeometries([
+  boxAt(1.08, 0.07, 0.5, 0, 0.66, -0.3),
+  boxAt(0.5, 0.07, 1.08, -0.3, 0.66, 0),
+])!;
+const STRAW_MAT = new THREE.MeshStandardMaterial({ color: 0xe9d05a, roughness: 1 });
+const ROOF_MAT = new THREE.MeshStandardMaterial({ color: 0xc0523f, roughness: 0.9 });
 const FENCE_MAT = new THREE.MeshStandardMaterial({ color: 0xc58a4b, roughness: 0.9 });
-const GATE_MAT = new THREE.MeshStandardMaterial({ color: 0xe0584f, roughness: 0.9 });
 const WOOD_MAT = new THREE.MeshStandardMaterial({ color: 0xa8743f, roughness: 0.9 });
+const DARK_MAT = new THREE.MeshStandardMaterial({ color: 0x5a3d22, roughness: 1 });
+
+// Losse stukjes voer: een bak met vier porties toont vier stukjes.
+const CARROT_GEO = new THREE.ConeGeometry(0.06, 0.28, 6).rotateX(Math.PI / 2);
+const LEAF_GEO = new THREE.BoxGeometry(0.05, 0.05, 0.08).translate(0, 0, -0.17);
+const BALE_GEO = new THREE.BoxGeometry(0.14, 0.12, 0.3);
+const FOOD_MATS = {
+  carrot: new THREE.MeshStandardMaterial({ color: 0xf08a2c, roughness: 0.8 }),
+  leaf: new THREE.MeshStandardMaterial({ color: 0x5fa544, roughness: 0.8 }),
+  hay: new THREE.MeshStandardMaterial({ color: 0xe9d05a, roughness: 1 }),
+};
+
+function foodPiece(food: FoodId): THREE.Object3D {
+  if (food === 'hay') return new THREE.Mesh(BALE_GEO, FOOD_MATS.hay);
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(CARROT_GEO, FOOD_MATS.carrot), new THREE.Mesh(LEAF_GEO, FOOD_MATS.leaf));
+  return g;
+}
 
 export const toWorldX = (gx: number): number => gx - W / 2;
 export const toWorldZ = (gy: number): number => gy - H / 2;
 
 export interface TroughMesh {
   group: THREE.Group;
-  content: THREE.Mesh;
+  food: THREE.Group;
 }
 
 export class View {
@@ -45,13 +92,30 @@ export class View {
   /** Het punt op de grond waar de camera naar kijkt. */
   readonly target = new THREE.Vector3(0, 0, 0);
   /** Hoeveel tegels er verticaal in beeld passen. */
-  zoom = 9.5;
+  zoom = 11;
 
   private ground: THREE.InstancedMesh;
   private fences = new Map<string, THREE.Mesh>();
   private raycaster = new THREE.Raycaster();
   private plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private tmp = new THREE.Vector3();
+
+  // voorbeeld van wat je gaat plaatsen
+  private ghostMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.6, depthWrite: false });
+  private ghostFenceMesh = new THREE.Mesh(FENCE_GEO, this.ghostMat);
+  private ghostGateMesh = new THREE.Mesh(GATE_GEO, this.ghostMat);
+  private ghostTroughMesh = new THREE.Mesh(TROUGH_GEO, this.ghostMat);
+  private ghostStrawMesh = new THREE.Mesh(STRAW_GEO, this.ghostMat);
+  private ghostShedMesh = new THREE.Mesh(mergeGeometries([SHED_WALL_GEO, SHED_ROOF_GEO])!, this.ghostMat);
+  private ghostTileMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.75, depthWrite: false });
+  private ghostTileMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.94, 0.94).rotateX(-Math.PI / 2), this.ghostTileMat);
+  private ghostRingMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.85, depthWrite: false });
+  private ghostRing = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.44, 28).rotateX(-Math.PI / 2), this.ghostRingMat);
+  private ghostAnimals = new Map<string, THREE.Object3D>();
+  private ghosts: THREE.Object3D[] = [];
+
+  private flashes: { meshes: THREE.Mesh[]; mat: THREE.MeshBasicMaterial; life: number }[] = [];
+  private flashGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
 
   constructor(parent: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -63,10 +127,10 @@ export class View {
 
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x9ad07a, 1.6));
     const sun = new THREE.DirectionalLight(0xfff4dd, 2.2);
-    sun.position.set(-6, 14, 8);
+    sun.position.set(-8, 20, 11);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    Object.assign(sun.shadow.camera, { left: -13, right: 13, top: 13, bottom: -13, near: 1, far: 40 });
+    Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 60 });
     this.scene.add(sun);
 
     // omgeving rond het park
@@ -90,6 +154,15 @@ export class View {
         this.ground.setMatrixAt(x + y * W, m);
       }
     this.scene.add(this.ground);
+
+    this.ghostTileMesh.position.y = 0.012;
+    this.ghostRing.position.y = 0.014;
+    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostTroughMesh, this.ghostStrawMesh, this.ghostShedMesh, this.ghostTileMesh, this.ghostRing];
+    for (const g of this.ghosts) {
+      g.visible = false;
+      g.renderOrder = 5;
+      this.scene.add(g);
+    }
 
     addEventListener('resize', () => this.resize());
     this.resize();
@@ -147,7 +220,7 @@ export class View {
   }
 
   zoomBy(factor: number): void {
-    this.zoom = Math.max(5, Math.min(22, this.zoom * factor));
+    this.zoom = Math.max(5, Math.min(30, this.zoom * factor));
     this.resize();
   }
 
@@ -175,6 +248,11 @@ export class View {
     this.ground.instanceColor!.needsUpdate = true;
   }
 
+  private placeEdge(mesh: THREE.Object3D, e: Edge): void {
+    mesh.position.set(toWorldX(e.x), 0, toWorldZ(e.y));
+    mesh.rotation.y = e.o === 'v' ? -Math.PI / 2 : 0;
+  }
+
   syncFences(grid: Grid): void {
     const wanted = new Map<string, { e: Edge; kind: number }>();
     for (const item of grid.edges()) wanted.set(edgeKey(item.e) + ':' + item.kind, item);
@@ -185,34 +263,62 @@ export class View {
       }
     for (const [key, { e, kind }] of wanted) {
       if (this.fences.has(key)) continue;
-      const mesh = new THREE.Mesh(kind === 2 ? GATE_GEO : FENCE_GEO, kind === 2 ? GATE_MAT : FENCE_MAT);
-      mesh.position.set(toWorldX(e.x), 0, toWorldZ(e.y));
-      if (e.o === 'v') mesh.rotation.y = -Math.PI / 2;
+      const mesh = new THREE.Mesh(kind === 2 ? GATE_GEO : FENCE_GEO, FENCE_MAT);
+      this.placeEdge(mesh, e);
       mesh.castShadow = true;
       this.scene.add(mesh);
       this.fences.set(key, mesh);
     }
   }
 
+  // ------------------------------------------------------------ voerbak
   makeTrough(x: number, y: number): TroughMesh {
     const group = new THREE.Group();
-    const base = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.2, 0.44), WOOD_MAT);
-    base.position.y = 0.1;
-    const rim = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.07, 0.52), FENCE_MAT);
-    rim.position.y = 0.2;
-    const content = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.1, 0.36), new THREE.MeshStandardMaterial({ roughness: 1 }));
-    content.position.y = 0.24;
-    content.visible = false;
-    group.add(base, rim, content);
-    group.traverse(o => { o.castShadow = true; });
+    const box = new THREE.Mesh(TROUGH_GEO, WOOD_MAT);
+    const bottom = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.02, 0.36), DARK_MAT);
+    bottom.position.y = 0.07;
+    const food = new THREE.Group();
+    group.add(box, bottom, food);
+    box.castShadow = true;
     group.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
     this.scene.add(group);
-    return { group, content };
+    return { group, food };
   }
 
+  /** Toont net zoveel stukjes voer als er porties in de bak zitten. */
   fillTrough(mesh: TroughMesh, food: FoodId | null, amount: number): void {
-    mesh.content.visible = !!food && amount > 0;
-    if (food) (mesh.content.material as THREE.MeshStandardMaterial).color.setHex(FOODS[food].color);
+    mesh.food.clear();
+    if (!food) return;
+    for (let i = 0; i < amount; i++) {
+      const piece = foodPiece(food);
+      piece.position.set(-0.255 + i * 0.17, food === 'hay' ? 0.14 : 0.13, 0);
+      piece.rotation.y = food === 'hay' ? 0 : (i % 2 ? 0.25 : -0.25);
+      piece.traverse(o => { o.castShadow = true; });
+      mesh.food.add(piece);
+    }
+  }
+
+  makeBed(x: number, y: number, kind: BedKind): THREE.Group {
+    const group = new THREE.Group();
+    const straw = new THREE.Mesh(STRAW_GEO, STRAW_MAT);
+    straw.receiveShadow = true;
+    group.add(straw);
+    if (kind === 'shed') {
+      const walls = new THREE.Mesh(SHED_WALL_GEO, WOOD_MAT);
+      const roof = new THREE.Mesh(SHED_ROOF_GEO, ROOF_MAT);
+      walls.castShadow = roof.castShadow = true;
+      group.add(walls, roof);
+    }
+    group.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
+    this.scene.add(group);
+    return group;
+  }
+
+  ghostBed(x: number, y: number, kind: BedKind, ok: boolean): void {
+    const mesh = kind === 'shed' ? this.ghostShedMesh : this.ghostStrawMesh;
+    this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
+    mesh.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
+    mesh.visible = true;
   }
 
   makePuddle(gx: number, gy: number): THREE.Mesh {
@@ -223,6 +329,87 @@ export class View {
     mesh.position.set(toWorldX(gx), 0.006, toWorldZ(gy));
     this.scene.add(mesh);
     return mesh;
+  }
+
+  // ------------------------------------------------------------ voorbeeld
+  hideGhost(): void {
+    for (const g of this.ghosts) g.visible = false;
+    for (const g of this.ghostAnimals.values()) g.visible = false;
+  }
+
+  ghostFence(e: Edge, gate: boolean, ok: boolean): void {
+    const mesh = gate ? this.ghostGateMesh : this.ghostFenceMesh;
+    this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
+    this.placeEdge(mesh, e);
+    mesh.visible = true;
+  }
+
+  ghostTile(x: number, y: number, color: number): void {
+    this.ghostTileMat.color.setHex(color);
+    this.ghostTileMesh.position.set(toWorldX(x + 0.5), 0.012, toWorldZ(y + 0.5));
+    this.ghostTileMesh.visible = true;
+  }
+
+  ghostTrough(x: number, y: number, ok: boolean): void {
+    this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
+    this.ghostTroughMesh.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
+    this.ghostTroughMesh.visible = true;
+  }
+
+  /** Doorzichtig dier op de tegel, met een ring in de kleur van jongen of meisje. */
+  ghostAnimal(key: string, make: () => THREE.Object3D, x: number, y: number, ok: boolean, ringColor: number): void {
+    let ghost = this.ghostAnimals.get(key);
+    if (!ghost) {
+      ghost = make();
+      ghost.traverse(o => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const mat = (mesh.material as THREE.MeshStandardMaterial).clone();
+        mat.transparent = true;
+        mat.opacity = 0.6;
+        mesh.material = mat;
+        mesh.castShadow = false;
+      });
+      this.ghostAnimals.set(key, ghost);
+      this.scene.add(ghost);
+    }
+    ghost.traverse(o => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh) (mesh.material as THREE.MeshStandardMaterial).color.setHex(ok ? 0xffffff : 0xff7a6a);
+    });
+    ghost.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
+    ghost.rotation.y = Math.PI / 4;
+    ghost.visible = true;
+    this.ghostRingMat.color.setHex(ok ? ringColor : BAD_COLOR);
+    this.ghostRing.position.set(toWorldX(x + 0.5), 0.014, toWorldZ(y + 0.5));
+    this.ghostRing.visible = true;
+  }
+
+  // ------------------------------------------------------------ effecten
+  /** Witte gloed over een stel tegels, bijvoorbeeld als een hek een verblijf is geworden. */
+  flash(tiles: number[]): void {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false });
+    const meshes = tiles.map(i => {
+      const [x, y] = tileXY(i);
+      const mesh = new THREE.Mesh(this.flashGeo, mat);
+      mesh.position.set(toWorldX(x + 0.5), 0.02, toWorldZ(y + 0.5));
+      mesh.renderOrder = 4;
+      this.scene.add(mesh);
+      return mesh;
+    });
+    this.flashes.push({ meshes, mat, life: 1 });
+  }
+
+  update(dt: number): void {
+    for (const f of this.flashes) {
+      f.life -= dt / 1.1;
+      f.mat.opacity = Math.max(0, f.life) * 0.85;
+      if (f.life <= 0) {
+        for (const m of f.meshes) this.scene.remove(m);
+        f.mat.dispose();
+      }
+    }
+    this.flashes = this.flashes.filter(f => f.life > 0);
   }
 
   render(): void {

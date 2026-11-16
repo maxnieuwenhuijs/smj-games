@@ -4,6 +4,7 @@ import type { Goal, Level } from './data';
 export interface Stats {
   enclosures: number;
   troughs: number;
+  beds: number;
   animals: Record<string, number>;
   happy: Record<string, number>;
   fed: number;
@@ -11,7 +12,7 @@ export interface Stats {
 }
 
 export function emptyStats(): Stats {
-  return { enclosures: 0, troughs: 0, animals: {}, happy: {}, fed: 0, cleaned: 0 };
+  return { enclosures: 0, troughs: 0, beds: 0, animals: {}, happy: {}, fed: 0, cleaned: 0 };
 }
 
 export function goalProgress(goal: Goal, s: Stats): number {
@@ -19,6 +20,7 @@ export function goalProgress(goal: Goal, s: Stats): number {
   switch (goal.type) {
     case 'enclosure': value = s.enclosures; break;
     case 'trough': value = s.troughs; break;
+    case 'bed': value = s.beds; break;
     case 'animals': value = s.animals[goal.species ?? ''] ?? 0; break;
     case 'happy': value = s.happy[goal.species ?? ''] ?? 0; break;
     case 'fed': value = s.fed; break;

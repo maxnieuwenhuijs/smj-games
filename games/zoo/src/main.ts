@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { askPersistence, saveDel, saveGet, setStrings, t } from '@smj/shared';
 import { SPECIES, type SpeciesId, type Variant } from './data';
 import { Game, slotKey, type SaveData } from './game';
+import { icon, type IconId } from './icons';
 import { loadManifest, loadModel } from './models';
 import strings from './nl.json';
 import './style.css';
@@ -12,7 +13,7 @@ setStrings(strings);
 document.title = t('title');
 
 const $ = (id: string): HTMLElement => document.getElementById(id)!;
-const AVATARS = ['🦁', '🐼', '🐧'];
+const AVATARS: IconId[] = ['pig', 'cow', 'sheep'];
 const VARIANTS: Variant[] = ['male', 'female', 'young_m', 'young_f'];
 const HOLD_MS = 1200;
 
@@ -27,14 +28,14 @@ async function showStart(): Promise<void> {
     const b = document.createElement('button');
     b.className = 'slot';
     b.dataset.slot = String(i);
-    b.innerHTML = `<span>${AVATARS[i - 1]}</span>${data ? `⭐ ${data.level + 1}` : t('slot.new')}`;
+    b.innerHTML = `${icon(AVATARS[i - 1])}<b>${data ? `${icon('star', 'mini')} ${data.level + 1}` : t('slot.new')}</b>`;
     b.addEventListener('click', () => void begin(i, data));
     wrap.append(b);
     if (data) {
       // wissen kan alleen door de knop even vast te houden, zodat het niet per ongeluk gebeurt
       const del = document.createElement('button');
       del.className = 'slot-del';
-      del.textContent = '🗑️';
+      del.innerHTML = icon('trash');
       del.setAttribute('aria-label', t('slot.delete'));
       let timer = 0;
       const stop = () => {
@@ -55,6 +56,7 @@ async function showStart(): Promise<void> {
 
 async function begin(slot: number, data: SaveData | undefined): Promise<void> {
   $('start').hidden = true;
+  $('loading').innerHTML = icon('paw');
   $('loading').hidden = false;
   askPersistence();
   try {
@@ -62,7 +64,7 @@ async function begin(slot: number, data: SaveData | undefined): Promise<void> {
     const keys = (Object.keys(SPECIES) as SpeciesId[]).flatMap(s => VARIANTS.map(v => `${s}_${v}`));
     await Promise.all([...keys, 'poop'].map(loadModel));
   } catch (err) {
-    $('loading').textContent = '⚠️';
+    $('loading').innerHTML = icon('cross');
     throw err;
   }
   $('loading').hidden = true;

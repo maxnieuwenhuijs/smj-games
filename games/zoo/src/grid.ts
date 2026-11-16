@@ -1,7 +1,7 @@
 // Het raster: tegels van 1 bij 1, hekken op de randen van tegels.
 // Geen Three.js hier, zodat dit los te testen is.
-export const W = 14;
-export const H = 14;
+export const W = 20;
+export const H = 20;
 export const MIN_ENCLOSURE = 4;
 
 /** 0 = niets, 1 = hek, 2 = poort. */

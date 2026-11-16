@@ -4,6 +4,12 @@ import { Grid, tileIndex, tileXY } from './grid';
 import { MODEL_SCALE, modelInfo, spawnModel, type ModelInfo, type Spawned } from './models';
 import { toWorldX, toWorldZ } from './view';
 
+export interface Bed {
+  x: number;
+  y: number;
+  kind: string;
+}
+
 export interface Trough {
   x: number;
   y: number;
@@ -15,6 +21,7 @@ export interface Trough {
 export interface AnimalWorld {
   grid: Grid;
   troughs: Trough[];
+  beds: Bed[];
   animals: Animal[];
   poopsIn(regionId: number): number;
   dropPoop(gx: number, gy: number): void;
@@ -35,6 +42,9 @@ export class Animal {
   gx: number;
   gy: number;
   hunger = 0.7;
+  name = '';
+  /** Loopt op zolang het dier iets mist; bij te veel wordt het opgehaald. */
+  neglect = 0;
   happy = false;
   unmet: WishId | null = 'enclosure';
 
@@ -46,6 +56,8 @@ export class Animal {
   private heading = Math.random() * Math.PI * 2;
   private poopIn = 25 + Math.random() * 30;
   private dropped = false;
+  /** Zoveel seconden slapen zodra het dier op zijn slaapplek aankomt. */
+  private napFor = 0;
   /** Vaste kleine afwijking, zodat dieren niet precies op elkaar staan. */
   private ox = (Math.random() - 0.5) * 0.36;
   private oy = (Math.random() - 0.5) * 0.36;
@@ -96,17 +108,60 @@ export class Animal {
     this.play(name);
   }
 
+  get sleeping(): boolean {
+    return this.anim === 'Sleep';
+  }
+
+  get hungry(): boolean {
+    return this.hunger > 0.25;
+  }
+
+  private stop(): void {
+    this.route = [];
+    this.eatAt = null;
+    this.napFor = 0;
+  }
+
+  /** Slaapt een poosje, wat er ook gebeurt. */
+  sedate(seconds: number): void {
+    this.stop();
+    this.state = 'rest';
+    this.timeLeft = seconds;
+    this.play('Sleep');
+  }
+
+  /** Krijgt voer uit de hand: meteen eten, honger is weg. */
+  handFeed(): void {
+    this.stop();
+    this.hunger = 0;
+    this.state = 'eat';
+    this.timeLeft = 2.2;
+    this.play('Eat');
+  }
+
+  /** Wordt opgetild en ergens anders neergezet. */
+  moveTo(gx: number, gy: number): void {
+    this.stop();
+    this.gx = gx;
+    this.gy = gy;
+    this.state = 'idle';
+    this.timeLeft = 0.8;
+    this.play('Idle');
+    this.place();
+  }
+
   /** Welke wensen zijn vervuld? */
   checkWishes(w: AnimalWorld): Record<WishId, boolean> {
     const [x, y] = tileXY(this.tile);
     const region = w.grid.enclosureAt(x, y);
     const info = SPECIES[this.species];
-    const result: Record<WishId, boolean> = { enclosure: !!region, food: this.hunger < HUNGRY, terrain: false, friend: false, clean: false };
+    const result: Record<WishId, boolean> = { enclosure: !!region, food: this.hunger < HUNGRY, bed: false, terrain: false, friend: false, clean: false };
     if (region) {
       const want = TERRAINS.indexOf(info.terrain);
       result.terrain = region.tiles.filter(i => w.grid.terrain[i] === want).length * 2 >= region.tiles.length;
       result.friend = w.animals.some(a => a !== this && a.species === this.species && w.grid.regionOf[a.tile] === region.id);
       result.clean = w.poopsIn(region.id) <= MAX_POOPS_CLEAN;
+      result.bed = w.beds.some(b => b.kind === info.bed && w.grid.regionOf[tileIndex(b.x, b.y)] === region.id);
     }
     this.unmet = WISH_ORDER.find(k => !result[k]) ?? null;
     this.happy = this.unmet === null;
@@ -117,6 +172,7 @@ export class Animal {
     const [x, y] = tileXY(this.tile);
     const region = w.grid.enclosureAt(x, y);
     this.eatAt = null;
+    this.napFor = 0;
     if (!region) {
       this.state = 'emote';
       this.timeLeft = 3;
@@ -157,7 +213,17 @@ export class Animal {
     }
     if (r < 0.66) return this.rest('Sit', 4 + Math.random() * 3);
     if (r < 0.76) return this.rest('Lie', 5 + Math.random() * 3);
-    if (r < 0.82 && this.happy) return this.rest('Sleep', 8 + Math.random() * 4);
+    if (r < 0.88) {
+      // naar de eigen slaapplek lopen en daar gaan slapen
+      const mine = w.beds.filter(b => b.kind === SPECIES[this.species].bed && w.grid.regionOf[tileIndex(b.x, b.y)] === region.id);
+      const bed = mine[Math.floor(Math.random() * mine.length)];
+      const route = bed ? w.grid.path(this.tile, tileIndex(bed.x, bed.y), isTrough) : null;
+      if (route) {
+        this.napFor = 10 + Math.random() * 6;
+        return this.startWalk(route);
+      }
+      if (r < 0.82 && this.happy) return this.rest('Sleep', 8 + Math.random() * 4);
+    }
     if (r < 0.92) return this.emote(this.happy ? 'Play' : 'Sad', 3);
     if (r < 0.96) {
       this.state = 'pee';
@@ -201,7 +267,11 @@ export class Animal {
     if (this.state === 'walk') {
       const next = this.route[0];
       if (next === undefined) {
-        if (this.eatAt && this.eatAt.amount > 0) {
+        if (this.napFor) {
+          const seconds = this.napFor;
+          this.napFor = 0;
+          this.rest('Sleep', seconds);
+        } else if (this.eatAt && this.eatAt.amount > 0) {
           this.state = 'eat';
           this.timeLeft = 3;
           this.play('Eat');
