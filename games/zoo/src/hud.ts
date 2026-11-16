@@ -122,10 +122,14 @@ export class Hud {
   }
 
   // ------------------------------------------------------------ doelen
-  setGoals(levelNumber: number | null, goals: GoalView[]): void {
+  setGoals(levelNumber: number | null, goals: GoalView[], world = ''): void {
     this.goals.replaceChildren();
     this.goalRows = [];
-    this.goals.append(el('div', 'level', levelNumber === null ? icon('trophy') : `${icon('star')}<b>${levelNumber}</b>`));
+    const head = el('div', 'level', levelNumber === null ? icon('trophy') : `${icon('star')}<b>${levelNumber}</b>`);
+    const where = el('span', 'world');
+    where.textContent = world;
+    head.append(where);
+    this.goals.append(head);
     goals.forEach((g, i) => {
       const row = el('button', 'goal');
       row.title = g.label;

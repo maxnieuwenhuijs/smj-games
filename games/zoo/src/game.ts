@@ -404,6 +404,10 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     sfx(kind, { volume: 0.4, every: 5 });
   }
 
+  messy(): boolean {
+    return this.goalOpen('tidy');
+  }
+
   dropLitter(gx: number, gy: number): void {
     if (this.litter.length >= MAX_LITTER) return;
     this.litter.push({ gx, gy, mesh: this.view.makeLitter(gx, gy) });
@@ -565,7 +569,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   private refreshGoals(): void {
     const level = this.levelDef();
     const sp = level?.goals.find(x => x.species)?.species;
-    this.hud.setGoals(level ? this.level + 1 : null, level ? level.goals.map(g => this.goalView(g, sp)) : []);
+    this.hud.setGoals(level ? this.level + 1 : null, level ? level.goals.map(g => this.goalView(g, sp)) : [], t(`world.${this.world()}`));
   }
 
   // ------------------------------------------------------------ figuren

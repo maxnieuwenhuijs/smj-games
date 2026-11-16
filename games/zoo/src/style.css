@@ -83,6 +83,7 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 }
 #goals .level { display: flex; align-items: center; gap: 6px; font-size: 24px; }
 #goals .level b { font-size: 20px; font-weight: 800; }
+#goals .level .world { font-size: 13px; font-weight: 700; opacity: 0.6; margin-left: 4px; }
 .goal { display: flex; align-items: center; gap: 7px; border: 0; background: none; padding: 2px; cursor: pointer; border-radius: 12px; width: 100%; }
 .goal:active { background: #eef3e8; }
 .goal .who { width: 34px; height: 34px; flex: none; }

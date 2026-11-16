@@ -9,6 +9,21 @@
         "dev"
       ],
       "port": 5173
+    },
+    {
+      "name": "zoo-gebouwd",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "preview",
+        "-w",
+        "@smj/zoo",
+        "--",
+        "--port",
+        "4173",
+        "--strictPort"
+      ],
+      "port": 4173
     }
   ]
 }

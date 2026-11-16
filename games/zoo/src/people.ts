@@ -42,6 +42,8 @@ export interface GuestWorld {
   litterOn(tile: number): boolean;
   /** Geluidje bij iets wat een gast doet. */
   guestSound(kind: 'flush'): void;
+  /** Vraagt het level om afval op te ruimen? Dan laten gasten ook naast een afvalbak weleens iets vallen. */
+  messy(): boolean;
 }
 
 // ------------------------------------------------------------ poppetje
@@ -100,6 +102,7 @@ function swing(limbs: THREE.Mesh[], amount: number): void {
 
 // ------------------------------------------------------------ gast
 type GuestState = 'idle' | 'walk' | 'watch' | 'buy' | 'sit';
+const MAX_PURCHASES = 3;
 const NEED_SHOP = { food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', sit: 'bench' } as const;
 
 export class Guest {
@@ -145,6 +148,10 @@ export class Guest {
   private leaving = false;
   /** Zoveel seconden loopt de gast nog met afval in zijn hand. */
   private trash = 0;
+  /** Deze gast let niet op en laat zijn afval vallen, ook als er een bak staat. */
+  private sloppy = false;
+  /** Een gast koopt per bezoek hooguit zoveel dingen; zo stroomt de kas niet over. */
+  private purchases = 0;
   private wantsBalloon: boolean;
   private ox = (Math.random() - 0.5) * 0.4;
   private oy = (Math.random() - 0.5) * 0.4;
@@ -207,8 +214,8 @@ export class Guest {
     if (this.thirst > 0.6) return 'drink';
     if (this.hunger > 0.6) return 'food';
     if (this.tired > 0.75) return 'sit';
-    if (this.treat > 0.7 && this.fun >= 0.5) return 'icecream';
-    if (this.balloon > 0.7 && this.fun >= 0.5) return 'balloon';
+    if (this.purchases < MAX_PURCHASES && this.treat > 0.7 && this.fun >= 0.5) return 'icecream';
+    if (this.purchases < MAX_PURCHASES && this.balloon > 0.7 && this.fun >= 0.5) return 'balloon';
     return null;
   }
 
@@ -306,6 +313,7 @@ export class Guest {
         w.guestSound('flush');
       } else if (w.buy(this.shop, this)) {
         this.bought[kind] = (this.bought[kind] ?? 0) + 1;
+        this.purchases++;
         if (kind === 'foodstall') this.hunger = 0;
         else if (kind === 'drinkstall') {
           this.thirst = 0;
@@ -316,7 +324,10 @@ export class Guest {
           this.addBalloon();
         }
         this.fun = Math.min(1, this.fun + (kind === 'icecream' || kind === 'balloon' ? 0.2 : 0.1));
-        if (kind !== 'balloon') this.trash = 10 + Math.random() * 10;
+        if (kind !== 'balloon') {
+          this.trash = 10 + Math.random() * 10;
+          this.sloppy = w.messy() && Math.random() < 0.45;
+        }
       } else this.fun = Math.max(0, this.fun - 0.1);
     }
     this.wish = null;
@@ -337,7 +348,7 @@ export class Guest {
     if (w.sells('foodstall') && !this.bought.foodstall) this.hunger = Math.min(1, this.hunger + (dt / 160) * demand);
     if (w.sells('drinkstall') && !this.bought.drinkstall) this.thirst = Math.min(1, this.thirst + (dt / 130) * demand);
     if (w.sells('toilet')) this.bladder = Math.min(1, this.bladder + dt / 170);
-    if (w.sells('icecream') && !this.bought.icecream) this.treat = Math.min(1, this.treat + (dt / 150) * demand);
+    if (w.sells('icecream') && !this.bought.icecream) this.treat = Math.min(1, this.treat + (dt / 190) * demand);
     if (w.sells('balloon') && this.wantsBalloon && !this.bought.balloon) this.balloon = Math.min(1, this.balloon + (dt / 110) * demand);
     if (w.sells('bench')) this.tired = Math.min(1, this.tired + dt / 180);
     this.fun = Math.max(0, this.fun - dt / 240);
@@ -348,7 +359,7 @@ export class Guest {
     // afval: in de bak als er een vlakbij staat, anders valt het na een poosje op het pad
     if (this.trash > 0) {
       const near = w.shops.some(s => s.kind === 'bin' && Math.abs(s.x + 0.5 - this.gx) < 1.6 && Math.abs(s.y + 0.5 - this.gy) < 1.6);
-      if (near) this.trash = 0;
+      if (near && !this.sloppy) this.trash = 0;
       else {
         this.trash -= dt;
         if (this.trash <= 0 && w.sells('bin')) w.dropLitter(this.gx, this.gy);
