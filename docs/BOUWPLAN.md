@@ -246,6 +246,23 @@ De proefspeler bouwt zonder muis en zonder na te denken, dus de tijden zeggen ni
 
 De eerste versie van het zorgtempo was te zwaar: daarmee raakte de proefspeler-als-kind vanaf level 14 honderden dieren kwijt. Daarom eten en poepen dieren nu minder vaak en zijn verzorgers al vanaf level 13 te huur.
 
+## Bekende zwakke punten van de modellen
+
+De modellen zijn op stilstaande beelden bekeken en doorgemeten (niets zakt meer dan een centimeter door de grond), maar geen enkele animatie is in beweging beoordeeld. Wat de modelbouwers zelf als zwak aanmerkten:
+
+- **Alle dieren:** een poot is één bot zonder knie. Zitten en liggen gaat door de poten in de romp te schuiven; bij lange poten (giraf, struisvogel, flamingo) steken ze dan recht naar voren. Voor- en achterpoten zijn even lang, dus gorilla, luiaard en konijn hebben geen echt langere armen of kortere voorpoten.
+- **Man en vrouw:** bij panda, gorilla, bever, maki en rode panda verschillen ze alleen in grootte of tint.
+- **Krokodil:** de bek kan niet open.
+- **Walrus:** de slagtanden raken eerst de grond, dus bij eten blijft de bek boven het voer.
+- **Jak en schildpad:** zitten lijkt bijna op staan.
+- **Otter:** het minst herkenbaar van allemaal; het kopplaatje kan voor een beer doorgaan.
+- **Pauw:** de waaier staat altijd open, ook bij lopen en slapen.
+- **Pinguïn en uil:** eten door voorover op de borst te kiepen.
+- **Kangoeroe:** ligt op zijn zij; het jong in de buidel is erg klein.
+- **Vogels:** zeven soorten slapen met de kop naar achteren gedraaid; de overgang van liggen naar slapen kan daardoor een rare draai geven.
+- **Maki:** het wolkje zweeft boven de punt van de staart, omdat de hoogte van het model de staart meetelt.
+- **Poep:** valt bij dieren met een lange of platte staart (otter, bever, rode panda, krokodil) onder de staart.
+
 ## Onderhoud
 
 - Dier toevoegen of aanpassen: `tools/animals/packs/*.py`, exporteren met Blender, daarna `node tools/animals/optimize.mjs`.
