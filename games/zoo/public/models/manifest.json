@@ -1,172 +1,10 @@
 {
  "models": {
-  "lion_male": {
-   "height": 1.176,
-   "back": 0.475,
-   "length": 1.95,
-   "v": "76f0d401"
-  },
-  "lion_female": {
-   "height": 0.993,
-   "back": 0.437,
-   "length": 1.777,
-   "v": "66d64b3d"
-  },
-  "lion_young_m": {
-   "height": 0.646,
-   "back": 0.207,
-   "length": 1.058,
-   "v": "bfa6e2a0"
-  },
-  "lion_young_f": {
-   "height": 0.646,
-   "back": 0.207,
-   "length": 1.058,
-   "v": "8fc61461"
-  },
-  "pig_male": {
-   "height": 0.7,
-   "back": 0.33,
-   "length": 1.003,
-   "v": "97dca0db"
-  },
-  "pig_female": {
-   "height": 0.645,
-   "back": 0.308,
-   "length": 0.928,
-   "v": "905e5646"
-  },
-  "pig_young_m": {
-   "height": 0.438,
-   "back": 0.151,
-   "length": 0.551,
-   "v": "5192041a"
-  },
-  "pig_young_f": {
-   "height": 0.438,
-   "back": 0.151,
-   "length": 0.551,
-   "v": "c1e52b8a"
-  },
-  "cow_male": {
-   "height": 1.441,
-   "back": 0.577,
-   "length": 1.847,
-   "v": "035c8c84"
-  },
-  "cow_female": {
-   "height": 1.243,
-   "back": 0.535,
-   "length": 1.687,
-   "v": "27656407"
-  },
-  "cow_young_m": {
-   "height": 0.73,
-   "back": 0.252,
-   "length": 0.958,
-   "v": "f510eb21"
-  },
-  "cow_young_f": {
-   "height": 0.696,
-   "back": 0.252,
-   "length": 0.958,
-   "v": "3e5f8beb"
-  },
-  "sheep_male": {
-   "height": 0.696,
-   "back": 0.427,
-   "length": 1.12,
-   "v": "c51ed7cb"
-  },
-  "sheep_female": {
-   "height": 0.642,
-   "back": 0.399,
-   "length": 1.036,
-   "v": "94511175"
-  },
-  "sheep_young_m": {
-   "height": 0.434,
-   "back": 0.211,
-   "length": 0.633,
-   "v": "257ebe72"
-  },
-  "sheep_young_f": {
-   "height": 0.434,
-   "back": 0.211,
-   "length": 0.633,
-   "v": "6bf59fea"
-  },
-  "horse_male": {
-   "height": 1.975,
-   "back": 0.563,
-   "length": 2.174,
-   "v": "fa0640cb"
-  },
-  "horse_female": {
-   "height": 1.806,
-   "back": 0.519,
-   "length": 1.988,
-   "v": "ef5ee978"
-  },
-  "horse_young_m": {
-   "height": 1.033,
-   "back": 0.241,
-   "length": 1.12,
-   "v": "1bd87c34"
-  },
-  "horse_young_f": {
-   "height": 1.033,
-   "back": 0.241,
-   "length": 1.12,
-   "v": "fa572312"
-  },
-  "donkey_male": {
-   "height": 1.375,
-   "back": 0.387,
-   "length": 1.42,
-   "v": "84ce876e"
-  },
-  "donkey_female": {
-   "height": 1.253,
-   "back": 0.357,
-   "length": 1.298,
-   "v": "eaf63948"
-  },
-  "donkey_young_m": {
-   "height": 0.816,
-   "back": 0.168,
-   "length": 0.77,
-   "v": "d6d06d0c"
-  },
-  "donkey_young_f": {
-   "height": 0.816,
-   "back": 0.168,
-   "length": 0.77,
-   "v": "bff1dbc1"
-  },
-  "goat_male": {
-   "height": 0.814,
-   "back": 0.24,
-   "length": 0.828,
-   "v": "d8825d7b"
-  },
-  "goat_female": {
-   "height": 0.677,
-   "back": 0.222,
-   "length": 0.757,
-   "v": "c472b863"
-  },
-  "goat_young_m": {
-   "height": 0.411,
-   "back": 0.11,
-   "length": 0.459,
-   "v": "3c408274"
-  },
-  "goat_young_f": {
-   "height": 0.387,
-   "back": 0.11,
-   "length": 0.459,
-   "v": "e92f2f67"
+  "alpaca_female": {
+   "height": 1.297,
+   "back": 0.415,
+   "length": 1.118,
+   "v": "b466fa70"
   },
   "alpaca_male": {
    "height": 1.417,
@@ -174,11 +12,11 @@
    "length": 1.222,
    "v": "99d4b4ba"
   },
-  "alpaca_female": {
-   "height": 1.297,
-   "back": 0.415,
-   "length": 1.118,
-   "v": "b466fa70"
+  "alpaca_young_f": {
+   "height": 0.74,
+   "back": 0.217,
+   "length": 0.653,
+   "v": "969091ed"
   },
   "alpaca_young_m": {
    "height": 0.74,
@@ -186,137 +24,101 @@
    "length": 0.653,
    "v": "1bf7c021"
   },
-  "alpaca_young_f": {
-   "height": 0.74,
-   "back": 0.217,
-   "length": 0.653,
-   "v": "969091ed"
+  "arcticfox_female": {
+   "height": 0.489,
+   "back": 0.171,
+   "length": 0.856,
+   "v": "8510746f"
   },
-  "zebra_male": {
-   "height": 1.677,
-   "back": 0.483,
-   "length": 1.806,
-   "v": "73b1713a"
+  "arcticfox_male": {
+   "height": 0.54,
+   "back": 0.186,
+   "length": 0.939,
+   "v": "1e36aaa7"
   },
-  "zebra_female": {
-   "height": 1.536,
-   "back": 0.446,
-   "length": 1.653,
-   "v": "14c1a01e"
+  "arcticfox_young_f": {
+   "height": 0.398,
+   "back": 0.103,
+   "length": 0.633,
+   "v": "77d26e14"
   },
-  "zebra_young_m": {
-   "height": 0.895,
-   "back": 0.208,
-   "length": 0.94,
-   "v": "076300a9"
+  "arcticfox_young_m": {
+   "height": 0.398,
+   "back": 0.103,
+   "length": 0.633,
+   "v": "e954b093"
   },
-  "zebra_young_f": {
-   "height": 0.895,
-   "back": 0.208,
-   "length": 0.94,
-   "v": "567ed6cf"
+  "bear_female": {
+   "height": 1.228,
+   "back": 0.54,
+   "length": 1.786,
+   "v": "1ba9b9e3"
   },
-  "giraffe_male": {
-   "height": 2.521,
-   "back": 0.449,
-   "length": 1.803,
-   "v": "e17789ba"
+  "bear_male": {
+   "height": 1.404,
+   "back": 0.61,
+   "length": 2.039,
+   "v": "392d97c9"
   },
-  "giraffe_female": {
-   "height": 2.319,
-   "back": 0.415,
-   "length": 1.651,
-   "v": "a6467d2a"
+  "bear_young_f": {
+   "height": 0.767,
+   "back": 0.25,
+   "length": 1.023,
+   "v": "cf38d989"
   },
-  "giraffe_young_m": {
-   "height": 1.19,
-   "back": 0.199,
-   "length": 0.944,
-   "v": "dd0d16e9"
+  "bear_young_m": {
+   "height": 0.767,
+   "back": 0.25,
+   "length": 1.023,
+   "v": "2ede5f6a"
   },
-  "giraffe_young_f": {
-   "height": 1.19,
-   "back": 0.199,
-   "length": 0.944,
-   "v": "0af1be98"
+  "beaver_female": {
+   "height": 0.541,
+   "back": 0.273,
+   "length": 1.281,
+   "v": "efed37a8"
   },
-  "elephant_male": {
-   "height": 1.847,
-   "back": 0.735,
-   "length": 2.535,
-   "v": "db54ccb0"
+  "beaver_male": {
+   "height": 0.595,
+   "back": 0.296,
+   "length": 1.402,
+   "v": "716f7223"
   },
-  "elephant_female": {
-   "height": 1.682,
-   "back": 0.676,
-   "length": 2.308,
-   "v": "e0e7ca1c"
+  "beaver_young_f": {
+   "height": 0.402,
+   "back": 0.15,
+   "length": 0.867,
+   "v": "ffa5f6d1"
   },
-  "elephant_young_m": {
-   "height": 1.132,
-   "back": 0.325,
-   "length": 1.368,
-   "v": "41eda9cf"
+  "beaver_young_m": {
+   "height": 0.402,
+   "back": 0.15,
+   "length": 0.867,
+   "v": "8e92d952"
   },
-  "elephant_young_f": {
-   "height": 1.132,
-   "back": 0.325,
-   "length": 1.368,
-   "v": "ce893c22"
+  "bison_female": {
+   "height": 1.196,
+   "back": 0.609,
+   "length": 1.913,
+   "v": "4574b5a8"
   },
-  "rhino_male": {
-   "height": 1.346,
-   "back": 0.682,
-   "length": 2.401,
-   "v": "ddb52f7c"
+  "bison_male": {
+   "height": 1.495,
+   "back": 0.689,
+   "length": 2.181,
+   "v": "947ee8cc"
   },
-  "rhino_female": {
-   "height": 1.183,
-   "back": 0.63,
-   "length": 2.191,
-   "v": "a876f68c"
+  "bison_young_f": {
+   "height": 0.669,
+   "back": 0.297,
+   "length": 1.122,
+   "v": "2363c585"
   },
-  "rhino_young_m": {
-   "height": 0.756,
-   "back": 0.302,
-   "length": 1.312,
-   "v": "1ca79299"
-  },
-  "rhino_young_f": {
-   "height": 0.756,
-   "back": 0.302,
-   "length": 1.312,
-   "v": "edccb283"
-  },
-  "hippo_male": {
-   "height": 1.166,
-   "back": 0.656,
-   "length": 2.291,
-   "v": "40f13414"
-  },
-  "hippo_female": {
-   "height": 1.061,
-   "back": 0.604,
-   "length": 2.075,
-   "v": "f10e3eef"
-  },
-  "hippo_young_m": {
-   "height": 0.688,
-   "back": 0.29,
-   "length": 1.238,
-   "v": "7c2920da"
-  },
-  "hippo_young_f": {
-   "height": 0.688,
-   "back": 0.29,
-   "length": 1.232,
-   "v": "b1a4c145"
-  },
-  "camel_male": {
-   "height": 2.06,
-   "back": 0.562,
-   "length": 2.113,
-   "v": "165a52ea"
+  "bison_young_m": {
+   "height": 0.669,
+   "back": 0.297,
+   "length": 1.122,
+   "v": "9b247a1a"
   },
   "camel_female": {
    "height": 1.885,
@@ -324,17 +126,1079 @@
    "length": 1.926,
    "v": "837f94ff"
   },
-  "camel_young_m": {
-   "height": 1.094,
-   "back": 0.248,
-   "length": 1.114,
-   "v": "002e141d"
+  "camel_male": {
+   "height": 2.06,
+   "back": 0.562,
+   "length": 2.113,
+   "v": "165a52ea"
   },
   "camel_young_f": {
    "height": 1.094,
    "back": 0.248,
    "length": 1.114,
    "v": "10910f30"
+  },
+  "camel_young_m": {
+   "height": 1.094,
+   "back": 0.248,
+   "length": 1.114,
+   "v": "002e141d"
+  },
+  "cheetah_female": {
+   "height": 1.039,
+   "back": 0.396,
+   "length": 1.641,
+   "v": "f965a4a4"
+  },
+  "cheetah_male": {
+   "height": 1.145,
+   "back": 0.432,
+   "length": 1.805,
+   "v": "6921865e"
+  },
+  "cheetah_young_f": {
+   "height": 0.646,
+   "back": 0.201,
+   "length": 1.02,
+   "v": "8f06f478"
+  },
+  "cheetah_young_m": {
+   "height": 0.646,
+   "back": 0.201,
+   "length": 1.02,
+   "v": "bc0350cd"
+  },
+  "chicken_female": {
+   "height": 0.559,
+   "back": 0.146,
+   "length": 0.489,
+   "v": "87688b95"
+  },
+  "chicken_male": {
+   "height": 0.644,
+   "back": 0.156,
+   "length": 0.728,
+   "v": "d96b2ac5"
+  },
+  "chicken_young_f": {
+   "height": 0.367,
+   "back": 0.077,
+   "length": 0.298,
+   "v": "18534d65"
+  },
+  "chicken_young_m": {
+   "height": 0.351,
+   "back": 0.077,
+   "length": 0.298,
+   "v": "5055f33d"
+  },
+  "cow_female": {
+   "height": 1.243,
+   "back": 0.535,
+   "length": 1.687,
+   "v": "27656407"
+  },
+  "cow_male": {
+   "height": 1.441,
+   "back": 0.577,
+   "length": 1.847,
+   "v": "035c8c84"
+  },
+  "cow_young_f": {
+   "height": 0.696,
+   "back": 0.252,
+   "length": 0.958,
+   "v": "3e5f8beb"
+  },
+  "cow_young_m": {
+   "height": 0.73,
+   "back": 0.252,
+   "length": 0.958,
+   "v": "f510eb21"
+  },
+  "crocodile_female": {
+   "height": 0.373,
+   "back": 0.382,
+   "length": 2.133,
+   "v": "ad1f5b79"
+  },
+  "crocodile_male": {
+   "height": 0.42,
+   "back": 0.423,
+   "length": 2.387,
+   "v": "ebc1b9f7"
+  },
+  "crocodile_young_f": {
+   "height": 0.296,
+   "back": 0.221,
+   "length": 1.398,
+   "v": "f1eadecf"
+  },
+  "crocodile_young_m": {
+   "height": 0.296,
+   "back": 0.221,
+   "length": 1.398,
+   "v": "440b69ee"
+  },
+  "donkey_female": {
+   "height": 1.253,
+   "back": 0.357,
+   "length": 1.298,
+   "v": "eaf63948"
+  },
+  "donkey_male": {
+   "height": 1.375,
+   "back": 0.387,
+   "length": 1.42,
+   "v": "84ce876e"
+  },
+  "donkey_young_f": {
+   "height": 0.816,
+   "back": 0.168,
+   "length": 0.77,
+   "v": "bff1dbc1"
+  },
+  "donkey_young_m": {
+   "height": 0.816,
+   "back": 0.168,
+   "length": 0.77,
+   "v": "d6d06d0c"
+  },
+  "duck_female": {
+   "height": 0.5,
+   "back": 0.186,
+   "length": 0.637,
+   "v": "aeb09578"
+  },
+  "duck_male": {
+   "height": 0.525,
+   "back": 0.198,
+   "length": 0.68,
+   "v": "feb50368"
+  },
+  "duck_young_f": {
+   "height": 0.319,
+   "back": 0.097,
+   "length": 0.411,
+   "v": "2455976f"
+  },
+  "duck_young_m": {
+   "height": 0.319,
+   "back": 0.097,
+   "length": 0.411,
+   "v": "e1138929"
+  },
+  "elephant_female": {
+   "height": 1.682,
+   "back": 0.676,
+   "length": 2.308,
+   "v": "e0e7ca1c"
+  },
+  "elephant_male": {
+   "height": 1.847,
+   "back": 0.735,
+   "length": 2.535,
+   "v": "db54ccb0"
+  },
+  "elephant_young_f": {
+   "height": 1.132,
+   "back": 0.325,
+   "length": 1.368,
+   "v": "ce893c22"
+  },
+  "elephant_young_m": {
+   "height": 1.132,
+   "back": 0.325,
+   "length": 1.368,
+   "v": "41eda9cf"
+  },
+  "flamingo_female": {
+   "height": 1.257,
+   "back": 0.177,
+   "length": 0.747,
+   "v": "20fdd166"
+  },
+  "flamingo_male": {
+   "height": 1.345,
+   "back": 0.19,
+   "length": 0.8,
+   "v": "40b74054"
+  },
+  "flamingo_young_f": {
+   "height": 0.624,
+   "back": 0.106,
+   "length": 0.509,
+   "v": "2a03dbc2"
+  },
+  "flamingo_young_m": {
+   "height": 0.624,
+   "back": 0.106,
+   "length": 0.509,
+   "v": "56527569"
+  },
+  "gazelle_female": {
+   "height": 1.057,
+   "back": 0.269,
+   "length": 0.956,
+   "v": "db398ef3"
+  },
+  "gazelle_male": {
+   "height": 1.381,
+   "back": 0.291,
+   "length": 1.042,
+   "v": "63139aa6"
+  },
+  "gazelle_young_f": {
+   "height": 0.645,
+   "back": 0.144,
+   "length": 0.614,
+   "v": "29461de1"
+  },
+  "gazelle_young_m": {
+   "height": 0.645,
+   "back": 0.144,
+   "length": 0.614,
+   "v": "b5992caa"
+  },
+  "giraffe_female": {
+   "height": 2.319,
+   "back": 0.415,
+   "length": 1.651,
+   "v": "a6467d2a"
+  },
+  "giraffe_male": {
+   "height": 2.521,
+   "back": 0.449,
+   "length": 1.803,
+   "v": "e17789ba"
+  },
+  "giraffe_young_f": {
+   "height": 1.19,
+   "back": 0.199,
+   "length": 0.944,
+   "v": "0af1be98"
+  },
+  "giraffe_young_m": {
+   "height": 1.19,
+   "back": 0.199,
+   "length": 0.944,
+   "v": "dd0d16e9"
+  },
+  "goat_female": {
+   "height": 0.677,
+   "back": 0.222,
+   "length": 0.757,
+   "v": "c472b863"
+  },
+  "goat_male": {
+   "height": 0.814,
+   "back": 0.24,
+   "length": 0.828,
+   "v": "d8825d7b"
+  },
+  "goat_young_f": {
+   "height": 0.387,
+   "back": 0.11,
+   "length": 0.459,
+   "v": "e92f2f67"
+  },
+  "goat_young_m": {
+   "height": 0.411,
+   "back": 0.11,
+   "length": 0.459,
+   "v": "3c408274"
+  },
+  "gorilla_female": {
+   "height": 1.198,
+   "back": 0.381,
+   "length": 1.159,
+   "v": "7af3252c"
+  },
+  "gorilla_male": {
+   "height": 1.407,
+   "back": 0.443,
+   "length": 1.361,
+   "v": "7366895c"
+  },
+  "gorilla_young_f": {
+   "height": 0.774,
+   "back": 0.215,
+   "length": 0.738,
+   "v": "5dcabea8"
+  },
+  "gorilla_young_m": {
+   "height": 0.841,
+   "back": 0.215,
+   "length": 0.738,
+   "v": "dd695d52"
+  },
+  "hippo_female": {
+   "height": 1.061,
+   "back": 0.604,
+   "length": 2.075,
+   "v": "f10e3eef"
+  },
+  "hippo_male": {
+   "height": 1.166,
+   "back": 0.656,
+   "length": 2.291,
+   "v": "40f13414"
+  },
+  "hippo_young_f": {
+   "height": 0.688,
+   "back": 0.29,
+   "length": 1.232,
+   "v": "b1a4c145"
+  },
+  "hippo_young_m": {
+   "height": 0.688,
+   "back": 0.29,
+   "length": 1.238,
+   "v": "7c2920da"
+  },
+  "horse_female": {
+   "height": 1.806,
+   "back": 0.519,
+   "length": 1.988,
+   "v": "ef5ee978"
+  },
+  "horse_male": {
+   "height": 1.975,
+   "back": 0.563,
+   "length": 2.174,
+   "v": "fa0640cb"
+  },
+  "horse_young_f": {
+   "height": 1.033,
+   "back": 0.241,
+   "length": 1.12,
+   "v": "fa572312"
+  },
+  "horse_young_m": {
+   "height": 1.033,
+   "back": 0.241,
+   "length": 1.12,
+   "v": "1bd87c34"
+  },
+  "kangaroo_female": {
+   "height": 1.037,
+   "back": 0.18,
+   "length": 1.092,
+   "v": "8ec1037c"
+  },
+  "kangaroo_male": {
+   "height": 1.152,
+   "back": 0.2,
+   "length": 1.213,
+   "v": "90dc3284"
+  },
+  "kangaroo_young_f": {
+   "height": 0.684,
+   "back": 0.115,
+   "length": 0.705,
+   "v": "7a88e756"
+  },
+  "kangaroo_young_m": {
+   "height": 0.684,
+   "back": 0.115,
+   "length": 0.705,
+   "v": "c064c615"
+  },
+  "koala_female": {
+   "height": 0.693,
+   "back": 0.233,
+   "length": 0.739,
+   "v": "f2579aff"
+  },
+  "koala_male": {
+   "height": 0.764,
+   "back": 0.253,
+   "length": 0.814,
+   "v": "80710db6"
+  },
+  "koala_young_f": {
+   "height": 0.5,
+   "back": 0.132,
+   "length": 0.501,
+   "v": "9e91e212"
+  },
+  "koala_young_m": {
+   "height": 0.5,
+   "back": 0.132,
+   "length": 0.501,
+   "v": "11653205"
+  },
+  "lemur_female": {
+   "height": 0.9,
+   "back": 0.205,
+   "length": 0.837,
+   "v": "32846751"
+  },
+  "lemur_male": {
+   "height": 0.984,
+   "back": 0.224,
+   "length": 0.924,
+   "v": "e4805280"
+  },
+  "lemur_young_f": {
+   "height": 0.511,
+   "back": 0.115,
+   "length": 0.558,
+   "v": "39e38383"
+  },
+  "lemur_young_m": {
+   "height": 0.511,
+   "back": 0.115,
+   "length": 0.558,
+   "v": "1a76553d"
+  },
+  "lion_female": {
+   "height": 0.993,
+   "back": 0.437,
+   "length": 1.777,
+   "v": "66d64b3d"
+  },
+  "lion_male": {
+   "height": 1.176,
+   "back": 0.475,
+   "length": 1.95,
+   "v": "76f0d401"
+  },
+  "lion_young_f": {
+   "height": 0.646,
+   "back": 0.207,
+   "length": 1.058,
+   "v": "8fc61461"
+  },
+  "lion_young_m": {
+   "height": 0.646,
+   "back": 0.207,
+   "length": 1.058,
+   "v": "bfa6e2a0"
+  },
+  "monkey_female": {
+   "height": 0.564,
+   "back": 0.183,
+   "length": 0.876,
+   "v": "fd765148"
+  },
+  "monkey_male": {
+   "height": 0.66,
+   "back": 0.203,
+   "length": 0.978,
+   "v": "3c15d486"
+  },
+  "monkey_young_f": {
+   "height": 0.431,
+   "back": 0.104,
+   "length": 0.631,
+   "v": "82889629"
+  },
+  "monkey_young_m": {
+   "height": 0.484,
+   "back": 0.104,
+   "length": 0.631,
+   "v": "80bd89bc"
+  },
+  "ostrich_female": {
+   "height": 1.509,
+   "back": 0.251,
+   "length": 0.946,
+   "v": "d9e1d0b5"
+  },
+  "ostrich_male": {
+   "height": 1.628,
+   "back": 0.271,
+   "length": 1.021,
+   "v": "85ba67be"
+  },
+  "ostrich_young_f": {
+   "height": 0.827,
+   "back": 0.149,
+   "length": 0.649,
+   "v": "d20e1a43"
+  },
+  "ostrich_young_m": {
+   "height": 0.827,
+   "back": 0.149,
+   "length": 0.649,
+   "v": "aa665d48"
+  },
+  "otter_female": {
+   "height": 0.472,
+   "back": 0.426,
+   "length": 1.791,
+   "v": "a1515b65"
+  },
+  "otter_male": {
+   "height": 0.525,
+   "back": 0.468,
+   "length": 1.98,
+   "v": "cf74d4e5"
+  },
+  "otter_young_f": {
+   "height": 0.355,
+   "back": 0.215,
+   "length": 1.097,
+   "v": "986e8b66"
+  },
+  "otter_young_m": {
+   "height": 0.355,
+   "back": 0.215,
+   "length": 1.087,
+   "v": "9612cf21"
+  },
+  "owl_female": {
+   "height": 0.622,
+   "back": 0.134,
+   "length": 0.422,
+   "v": "12657e42"
+  },
+  "owl_male": {
+   "height": 0.575,
+   "back": 0.124,
+   "length": 0.39,
+   "v": "ddba0561"
+  },
+  "owl_young_f": {
+   "height": 0.362,
+   "back": 0.072,
+   "length": 0.245,
+   "v": "66f6a4f3"
+  },
+  "owl_young_m": {
+   "height": 0.333,
+   "back": 0.072,
+   "length": 0.245,
+   "v": "276b546a"
+  },
+  "panda_female": {
+   "height": 1.023,
+   "back": 0.378,
+   "length": 1.302,
+   "v": "058f5b25"
+  },
+  "panda_male": {
+   "height": 1.151,
+   "back": 0.42,
+   "length": 1.462,
+   "v": "8bf5b6e9"
+  },
+  "panda_young_f": {
+   "height": 0.697,
+   "back": 0.188,
+   "length": 0.802,
+   "v": "8fc0a5a5"
+  },
+  "panda_young_m": {
+   "height": 0.697,
+   "back": 0.188,
+   "length": 0.802,
+   "v": "8ebacb1c"
+  },
+  "panther_female": {
+   "height": 0.911,
+   "back": 0.44,
+   "length": 1.765,
+   "v": "7d35f162"
+  },
+  "panther_male": {
+   "height": 1.009,
+   "back": 0.48,
+   "length": 1.938,
+   "v": "efa12a2f"
+  },
+  "panther_young_f": {
+   "height": 0.602,
+   "back": 0.214,
+   "length": 1.074,
+   "v": "f5b8da09"
+  },
+  "panther_young_m": {
+   "height": 0.602,
+   "back": 0.214,
+   "length": 1.071,
+   "v": "aecf4a8e"
+  },
+  "parrot_female": {
+   "height": 0.53,
+   "back": 0.117,
+   "length": 0.641,
+   "v": "9a6a9ec5"
+  },
+  "parrot_male": {
+   "height": 0.552,
+   "back": 0.12,
+   "length": 0.675,
+   "v": "16305eef"
+  },
+  "parrot_young_f": {
+   "height": 0.323,
+   "back": 0.074,
+   "length": 0.337,
+   "v": "f89df6d8"
+  },
+  "parrot_young_m": {
+   "height": 0.323,
+   "back": 0.072,
+   "length": 0.337,
+   "v": "15105b7d"
+  },
+  "peacock_female": {
+   "height": 0.735,
+   "back": 0.161,
+   "length": 0.689,
+   "v": "aa62ad5d"
+  },
+  "peacock_male": {
+   "height": 0.849,
+   "back": 0.177,
+   "length": 0.63,
+   "v": "166490a3"
+  },
+  "peacock_young_f": {
+   "height": 0.406,
+   "back": 0.079,
+   "length": 0.326,
+   "v": "ce07be76"
+  },
+  "peacock_young_m": {
+   "height": 0.406,
+   "back": 0.079,
+   "length": 0.326,
+   "v": "a169b2a1"
+  },
+  "pelican_female": {
+   "height": 0.782,
+   "back": 0.261,
+   "length": 1.033,
+   "v": "cc3cc0cc"
+  },
+  "pelican_male": {
+   "height": 0.867,
+   "back": 0.284,
+   "length": 1.163,
+   "v": "a0fbd495"
+  },
+  "pelican_young_f": {
+   "height": 0.468,
+   "back": 0.135,
+   "length": 0.57,
+   "v": "3a7174ee"
+  },
+  "pelican_young_m": {
+   "height": 0.507,
+   "back": 0.135,
+   "length": 0.57,
+   "v": "8fc11140"
+  },
+  "penguin_female": {
+   "height": 0.685,
+   "back": 0.139,
+   "length": 0.462,
+   "v": "ce18ccd2"
+  },
+  "penguin_male": {
+   "height": 0.748,
+   "back": 0.151,
+   "length": 0.504,
+   "v": "60c1b385"
+  },
+  "penguin_young_f": {
+   "height": 0.461,
+   "back": 0.09,
+   "length": 0.332,
+   "v": "9f7f83a4"
+  },
+  "penguin_young_m": {
+   "height": 0.424,
+   "back": 0.09,
+   "length": 0.332,
+   "v": "c1973420"
+  },
+  "pig_female": {
+   "height": 0.645,
+   "back": 0.308,
+   "length": 0.928,
+   "v": "905e5646"
+  },
+  "pig_male": {
+   "height": 0.7,
+   "back": 0.33,
+   "length": 1.003,
+   "v": "97dca0db"
+  },
+  "pig_young_f": {
+   "height": 0.438,
+   "back": 0.151,
+   "length": 0.551,
+   "v": "c1e52b8a"
+  },
+  "pig_young_m": {
+   "height": 0.438,
+   "back": 0.151,
+   "length": 0.551,
+   "v": "5192041a"
+  },
+  "polarbear_female": {
+   "height": 1.288,
+   "back": 0.638,
+   "length": 2.3,
+   "v": "f7af7f33"
+  },
+  "polarbear_male": {
+   "height": 1.456,
+   "back": 0.715,
+   "length": 2.599,
+   "v": "24e4aabe"
+  },
+  "polarbear_young_f": {
+   "height": 0.731,
+   "back": 0.294,
+   "length": 1.21,
+   "v": "9c17e429"
+  },
+  "polarbear_young_m": {
+   "height": 0.735,
+   "back": 0.294,
+   "length": 1.21,
+   "v": "7bb263e2"
+  },
+  "rabbit_female": {
+   "height": 0.639,
+   "back": 0.174,
+   "length": 0.69,
+   "v": "6d56e678"
+  },
+  "rabbit_male": {
+   "height": 0.716,
+   "back": 0.192,
+   "length": 0.77,
+   "v": "fa8c38ac"
+  },
+  "rabbit_young_f": {
+   "height": 0.571,
+   "back": 0.104,
+   "length": 0.527,
+   "v": "0424caa1"
+  },
+  "rabbit_young_m": {
+   "height": 0.571,
+   "back": 0.104,
+   "length": 0.527,
+   "v": "9eaf00ad"
+  },
+  "redpanda_female": {
+   "height": 0.634,
+   "back": 0.251,
+   "length": 1.229,
+   "v": "27aba976"
+  },
+  "redpanda_male": {
+   "height": 0.701,
+   "back": 0.274,
+   "length": 1.35,
+   "v": "7b787061"
+  },
+  "redpanda_young_f": {
+   "height": 0.468,
+   "back": 0.134,
+   "length": 0.752,
+   "v": "fd81ac54"
+  },
+  "redpanda_young_m": {
+   "height": 0.468,
+   "back": 0.134,
+   "length": 0.752,
+   "v": "b2a589c1"
+  },
+  "reindeer_female": {
+   "height": 1.544,
+   "back": 0.43,
+   "length": 1.5,
+   "v": "9f124978"
+  },
+  "reindeer_male": {
+   "height": 2.02,
+   "back": 0.476,
+   "length": 1.673,
+   "v": "4302ec19"
+  },
+  "reindeer_young_f": {
+   "height": 0.722,
+   "back": 0.208,
+   "length": 0.875,
+   "v": "abbb3eba"
+  },
+  "reindeer_young_m": {
+   "height": 0.795,
+   "back": 0.208,
+   "length": 0.875,
+   "v": "8eaf245f"
+  },
+  "rhino_female": {
+   "height": 1.183,
+   "back": 0.63,
+   "length": 2.191,
+   "v": "a876f68c"
+  },
+  "rhino_male": {
+   "height": 1.346,
+   "back": 0.682,
+   "length": 2.401,
+   "v": "ddb52f7c"
+  },
+  "rhino_young_f": {
+   "height": 0.756,
+   "back": 0.302,
+   "length": 1.312,
+   "v": "edccb283"
+  },
+  "rhino_young_m": {
+   "height": 0.756,
+   "back": 0.302,
+   "length": 1.312,
+   "v": "1ca79299"
+  },
+  "seal_female": {
+   "height": 0.649,
+   "back": 0.789,
+   "length": 1.468,
+   "v": "18074c21"
+  },
+  "seal_male": {
+   "height": 0.713,
+   "back": 0.855,
+   "length": 1.603,
+   "v": "b421fed7"
+  },
+  "seal_young_f": {
+   "height": 0.534,
+   "back": 0.491,
+   "length": 0.974,
+   "v": "6693f576"
+  },
+  "seal_young_m": {
+   "height": 0.471,
+   "back": 0.491,
+   "length": 0.974,
+   "v": "81a774dd"
+  },
+  "sheep_female": {
+   "height": 0.642,
+   "back": 0.399,
+   "length": 1.036,
+   "v": "94511175"
+  },
+  "sheep_male": {
+   "height": 0.696,
+   "back": 0.427,
+   "length": 1.12,
+   "v": "c51ed7cb"
+  },
+  "sheep_young_f": {
+   "height": 0.434,
+   "back": 0.211,
+   "length": 0.633,
+   "v": "6bf59fea"
+  },
+  "sheep_young_m": {
+   "height": 0.434,
+   "back": 0.211,
+   "length": 0.633,
+   "v": "257ebe72"
+  },
+  "sloth_female": {
+   "height": 0.627,
+   "back": 0.208,
+   "length": 0.669,
+   "v": "f051113a"
+  },
+  "sloth_male": {
+   "height": 0.683,
+   "back": 0.224,
+   "length": 0.729,
+   "v": "135ceec4"
+  },
+  "sloth_young_f": {
+   "height": 0.445,
+   "back": 0.116,
+   "length": 0.456,
+   "v": "09194934"
+  },
+  "sloth_young_m": {
+   "height": 0.488,
+   "back": 0.116,
+   "length": 0.456,
+   "v": "a85ec85f"
+  },
+  "tiger_female": {
+   "height": 1.012,
+   "back": 0.465,
+   "length": 1.827,
+   "v": "d0be2d5c"
+  },
+  "tiger_male": {
+   "height": 1.126,
+   "back": 0.51,
+   "length": 2.022,
+   "v": "109f8f44"
+  },
+  "tiger_young_f": {
+   "height": 0.658,
+   "back": 0.222,
+   "length": 1.09,
+   "v": "a5ea0c03"
+  },
+  "tiger_young_m": {
+   "height": 0.658,
+   "back": 0.222,
+   "length": 1.09,
+   "v": "ec4dea64"
+  },
+  "toucan_female": {
+   "height": 0.519,
+   "back": 0.143,
+   "length": 0.769,
+   "v": "fa19a750"
+  },
+  "toucan_male": {
+   "height": 0.561,
+   "back": 0.155,
+   "length": 0.878,
+   "v": "b0cda6c6"
+  },
+  "toucan_young_f": {
+   "height": 0.346,
+   "back": 0.076,
+   "length": 0.423,
+   "v": "13478f9c"
+  },
+  "toucan_young_m": {
+   "height": 0.346,
+   "back": 0.076,
+   "length": 0.438,
+   "v": "41fe2768"
+  },
+  "turtle_female": {
+   "height": 0.533,
+   "back": 0.378,
+   "length": 1.179,
+   "v": "9929d797"
+  },
+  "turtle_male": {
+   "height": 0.62,
+   "back": 0.414,
+   "length": 1.3,
+   "v": "b42bf086"
+  },
+  "turtle_young_f": {
+   "height": 0.335,
+   "back": 0.211,
+   "length": 0.737,
+   "v": "a3b76864"
+  },
+  "turtle_young_m": {
+   "height": 0.335,
+   "back": 0.211,
+   "length": 0.737,
+   "v": "c5b4b23e"
+  },
+  "walrus_female": {
+   "height": 1.039,
+   "back": 1.13,
+   "length": 2.161,
+   "v": "5acfbbd2"
+  },
+  "walrus_male": {
+   "height": 1.172,
+   "back": 1.261,
+   "length": 2.429,
+   "v": "768d6c49"
+  },
+  "walrus_young_f": {
+   "height": 0.764,
+   "back": 0.646,
+   "length": 1.316,
+   "v": "2defa9fa"
+  },
+  "walrus_young_m": {
+   "height": 0.684,
+   "back": 0.646,
+   "length": 1.316,
+   "v": "cfc4af0c"
+  },
+  "wolf_female": {
+   "height": 1.125,
+   "back": 0.366,
+   "length": 1.451,
+   "v": "d8092be1"
+  },
+  "wolf_male": {
+   "height": 1.231,
+   "back": 0.396,
+   "length": 1.584,
+   "v": "09dcca5b"
+  },
+  "wolf_young_f": {
+   "height": 0.705,
+   "back": 0.174,
+   "length": 0.865,
+   "v": "d58f33c7"
+  },
+  "wolf_young_m": {
+   "height": 0.705,
+   "back": 0.174,
+   "length": 0.865,
+   "v": "36d2a73d"
+  },
+  "yak_female": {
+   "height": 1.109,
+   "back": 0.587,
+   "length": 1.778,
+   "v": "be67f5b7"
+  },
+  "yak_male": {
+   "height": 1.405,
+   "back": 0.652,
+   "length": 1.992,
+   "v": "ab4ce503"
+  },
+  "yak_young_f": {
+   "height": 0.66,
+   "back": 0.293,
+   "length": 1.052,
+   "v": "9fa5a0b7"
+  },
+  "yak_young_m": {
+   "height": 0.66,
+   "back": 0.293,
+   "length": 1.052,
+   "v": "7bb94c14"
+  },
+  "zebra_female": {
+   "height": 1.536,
+   "back": 0.446,
+   "length": 1.653,
+   "v": "14c1a01e"
+  },
+  "zebra_male": {
+   "height": 1.677,
+   "back": 0.483,
+   "length": 1.806,
+   "v": "73b1713a"
+  },
+  "zebra_young_f": {
+   "height": 0.895,
+   "back": 0.208,
+   "length": 0.94,
+   "v": "567ed6cf"
+  },
+  "zebra_young_m": {
+   "height": 0.895,
+   "back": 0.208,
+   "length": 0.94,
+   "v": "076300a9"
   }
  },
  "animations": [

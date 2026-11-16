@@ -21,8 +21,8 @@ Elke wereld heeft tien levels en tien dieren. De lucht, het land en de bomen ron
 | Wereld | Levels | Nieuw in deze wereld |
 |---|---|---|
 | Boerderij | 1 t/m 10 | Verblijf, voer, slaapplek, poep opruimen, pad, gasten, eetkraam, drinkkraam, jongen, wc, bankje, nest, water |
-| Savanne | 11 t/m 20 | Zand, stenen muur voor sterke dieren, ijskraam, bloemen, afval en afvalbakken, meer soorten tegelijk blij |
-| Jungle | 21 t/m 30 | Bosgrond, hoog net voor klimmers en vliegers, klimboom, hol, bamboe, zieke dieren, ballonnen, verzorgers |
+| Savanne | 11 t/m 20 | Zand, stenen muur voor sterke dieren, ijskraam, verzorgers, bloemen, afval en afvalbakken, meer soorten tegelijk blij |
+| Jungle | 21 t/m 30 | Bosgrond, hoog net voor klimmers en vliegers, klimboom, hol, bamboe, zieke dieren, ballonnen |
 | IJs en bergen | 31 t/m 40 | Sneeuw, vis, dieren die ontsnappen |
 | Verre landen | 41 t/m 50 | Alles door elkaar, en steeds meer tegelijk |
 
@@ -98,10 +98,12 @@ Elke wereld heeft tien levels en tien dieren. De lucht, het land en de bomen ron
 
 Ziek zijn, ontsnapt zijn, een open hek, honger en een vies hok tellen zwaar. Het soort hek, ondergrond, slaapplek en een vriendje tellen licht. De tijden staan bovenaan `games/zoo/src/game.ts`.
 
+Hoe vaak je moet zorgen: een volle voerbak houdt twee volwassen dieren ruim vijf minuten zoet, en een verblijf met twee dieren is na een minuut of zeven vies. Jongen eten mee zonder dat de bak leger wordt en poepen niet. Zo is een boerderij met tien verblijven met de hand bij te houden. Wordt het park groter, dan zijn er verzorgers. Wordt er een dier opgehaald uit een verblijf zonder verzorger, dan geeft de verzorger de tip om hulp aan te nemen.
+
 ## Gebeurtenissen
 
+- **Verzorger (vanaf level 13):** tik op een verblijf en neem voor 5 munten een verzorger aan. Die vult de voerbakken en ruimt de poep op in dat verblijf.
 - **Ziek (vanaf level 21):** af en toe wordt een dier ziek en gaat liggen. Tik erop en kies de dokter.
-- **Verzorger (vanaf level 24):** tik op een verblijf en neem voor 5 munten een verzorger aan. Die vult de voerbakken en ruimt de poep op.
 - **Ontsnapt (vanaf level 31):** af en toe springt een dier uit zijn verblijf en loopt buiten rond. Tik erop om het op te pakken en tik dan in een verblijf om het terug te zetten.
 
 Vraagt een level om zieke of ontsnapte dieren, dan gebeurt het vaker, zodat je niet lang hoeft te wachten.
@@ -159,8 +161,8 @@ Elk level speelt een dier vrij en vraagt om twee blije dieren van de soort die j
 | 10 | 2 blije eenden, 3 soorten blij, 15 munten | Konijn |
 | 11 | 2 blije konijnen, 2 jongen, 8 blije gasten | Zebra |
 | 12 | 2 blije zebra's, ijskraam, 18 munten | Giraf |
-| 13 | 2 blije giraffen, 4 soorten blij, 9 blije gasten | Leeuw |
-| 14 | 2 blije leeuwen, 6 poepjes, 20 munten | Kameel |
+| 13 | 2 blije giraffen, 1 verzorger, 9 blije gasten | Leeuw |
+| 14 | 2 blije leeuwen, 4 soorten blij, 20 munten | Kameel |
 | 15 | 2 blije kamelen, 3 bloembakken, 10 blije gasten | Neushoorn |
 | 16 | 2 blije neushoorns, 2 jongen, 12 blije dieren | Nijlpaard |
 | 17 | 2 blije nijlpaarden, 5 soorten blij, 22 munten | Olifant |
@@ -170,11 +172,11 @@ Elk level speelt een dier vrij en vraagt om twee blije dieren van de soort die j
 | 21 | 2 blije gazellen, 1 ziek dier beter, 14 blije dieren | Aap |
 | 22 | 2 blije apen, ballonnenkraam, 14 blije gasten | Papegaai |
 | 23 | 2 blije papegaaien, 2 zieke dieren beter, 26 munten | Tijger |
-| 24 | 2 blije tijgers, 1 verzorger, 8 poepjes | Gorilla |
+| 24 | 2 blije tijgers, 3 verzorgers, 8 poepjes | Gorilla |
 | 25 | 2 blije gorilla's, 7 soorten blij, 15 blije gasten | Krokodil |
 | 26 | 2 blije krokodillen, 3 jongen, 6 keer afval | Panda |
 | 27 | 2 blije panda's, 16 blije dieren, 28 munten | Pauw |
-| 28 | 2 blije pauwen, 2 verzorgers, 2 zieke dieren beter | Toekan |
+| 28 | 2 blije pauwen, 4 verzorgers, 2 zieke dieren beter | Toekan |
 | 29 | 2 blije toekans, 8 soorten blij, 16 blije gasten | Luiaard |
 | 30 | 2 blije luiaards, 4 jongen, 18 blije dieren, 30 munten | Panter |
 | 31 | 2 blije panters, 1 dier gevangen, 16 blije gasten | Pinguïn |
@@ -182,7 +184,7 @@ Elk level speelt een dier vrij en vraagt om twee blije dieren van de soort die j
 | 33 | 2 blije zeehonden, 2 dieren gevangen, 30 munten | IJsbeer |
 | 34 | 2 blije ijsberen, 9 soorten blij, 17 blije gasten | Rendier |
 | 35 | 2 blije rendieren, 4 jongen, 8 keer afval | Wolf |
-| 36 | 2 blije wolven, 3 verzorgers, 20 blije dieren | Poolvos |
+| 36 | 2 blije wolven, 6 verzorgers, 20 blije dieren | Poolvos |
 | 37 | 2 blije poolvossen, 3 zieke dieren beter, 2 dieren gevangen, 18 blije gasten | Beer |
 | 38 | 2 blije beren, 10 soorten blij, 30 munten | Jak |
 | 39 | 2 blije jakken, 5 jongen, 22 blije dieren | Sneeuwuil |
@@ -190,7 +192,7 @@ Elk level speelt een dier vrij en vraagt om twee blije dieren van de soort die j
 | 41 | 2 blije walrussen, 10 soorten blij, 20 blije gasten | Flamingo |
 | 42 | 2 blije flamingo's, 5 jongen, 3 dieren gevangen | Schildpad |
 | 43 | 2 blije schildpadden, 24 blije dieren, 30 munten | Otter |
-| 44 | 2 blije otters, 4 verzorgers, 4 zieke dieren beter | Bever |
+| 44 | 2 blije otters, 8 verzorgers, 4 zieke dieren beter | Bever |
 | 45 | 2 blije bevers, 11 soorten blij, 21 blije gasten | Pelikaan |
 | 46 | 2 blije pelikanen, 6 jongen, 10 keer afval | Koala |
 | 47 | 2 blije koala's, 26 blije dieren, 3 dieren gevangen, 30 munten | Rode panda |
@@ -230,6 +232,19 @@ Op het startscherm staat rechtsonder een knop die je drie tellen vasthoudt. Daar
 | 10. Vertalen | Engels met stem | Gebouwd |
 
 Alles is gebouwd en door een proefspeler (script) doorgespeeld. Wat nog ontbreekt is spelen met een kind en op een tablet: daar komen de echte verbeterpunten vandaan.
+
+## Wat de proefspeler liet zien (16 november 2026)
+
+De proefspeler bouwt zonder muis en zonder na te denken, dus de tijden zeggen niets over hoe lang een kind erover doet. Ze laten wel zien of een level haalbaar is en of het zorgen bij te houden is.
+
+| Proef | Uitkomst |
+|---|---|
+| Snel en foutloos, kas wordt bijgevuld als hij leeg is | Alle 50 levels gehaald, geen dier kwijt, de kas 3 keer bijgevuld |
+| Als een kind: één handeling per 8 seconden, kas nooit bijgevuld, neemt verzorgers aan zodra het kan | Alle 50 levels gehaald, geen dier kwijt |
+| Als een trager kind: één handeling per 15 seconden, verder hetzelfde | Alle 50 levels gehaald, geen dier kwijt |
+| Als een kind dat alleen verzorgers aanneemt als een level erom vraagt | Goed tot en met level 24, daarna dieren kwijt en vast in level 26 |
+
+De eerste versie van het zorgtempo was te zwaar: daarmee raakte de proefspeler-als-kind vanaf level 14 honderden dieren kwijt. Daarom eten en poepen dieren nu minder vaak en zijn verzorgers al vanaf level 13 te huur.
 
 ## Onderhoud
 

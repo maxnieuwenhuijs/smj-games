@@ -81,6 +81,7 @@ export const say = {
   escaped: (tr: Tr, sp: SpeciesId): Line => ({ who: 'keeper', mood: 'urgent', key: 'say.escaped', vars: speciesVars(tr, sp), id: `say.escaped.${sp}` }),
   caught: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.caught' }),
   hired: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.hired' }),
+  tipKeeper: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.tip.keeper' }),
   host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
   cash: (key: 'short' | 'full'): Line => ({ who: 'cashier', mood: key === 'full' ? 'happy' : 'worried', key: `cash.${key}` }),
 };
@@ -138,6 +139,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.healed());
   add(say.caught());
   add(say.hired());
+  add(say.tipKeeper());
   for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter'] as const) add(say.host(key));
   add(say.cash('short'));
   add(say.cash('full'));

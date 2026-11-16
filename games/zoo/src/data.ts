@@ -141,7 +141,7 @@ const shop = (kind: ShopKind, n = 1): Goal => ({ type: 'shop', shop: kind, n });
 /**
  * Vijftig levels in vijf werelden van tien. Elk level speelt één dier vrij en vraagt om twee blije dieren
  * van de soort die je net kreeg. De rest loopt op: meer gasten, meer soorten tegelijk blij, en vanaf de
- * jungle ook zieke dieren, verzorgers en ontsnapte dieren.
+ * savanne verzorgers die helpen, en later zieke en ontsnapte dieren.
  */
 export const LEVELS: Level[] = [
   // ---- wereld 1: boerderij. Eén nieuw ding per level.
@@ -158,8 +158,8 @@ export const LEVELS: Level[] = [
   // ---- wereld 2: savanne. Stenen muren, meer soorten tegelijk, meer gasten.
   { goals: [happy('rabbit'), goal('born', 2), goal('guests', 8)], reward: 'zebra' },
   { goals: [happy('zebra'), shop('icecream'), goal('coins', 18)], reward: 'giraffe' },
-  { goals: [happy('giraffe'), goal('kinds', 4), goal('guests', 9)], reward: 'lion' },
-  { goals: [happy('lion'), goal('cleaned', 6), goal('coins', 20)], reward: 'camel' },
+  { goals: [happy('giraffe'), goal('keeper', 1), goal('guests', 9)], reward: 'lion' },
+  { goals: [happy('lion'), goal('kinds', 4), goal('coins', 20)], reward: 'camel' },
   { goals: [happy('camel'), shop('flowers', 3), goal('guests', 10)], reward: 'rhino' },
   { goals: [happy('rhino'), goal('born', 2), goal('happyany', 12)], reward: 'hippo' },
   { goals: [happy('hippo'), goal('kinds', 5), goal('coins', 22)], reward: 'elephant' },
@@ -170,11 +170,11 @@ export const LEVELS: Level[] = [
   { goals: [happy('gazelle'), goal('healed', 1), goal('happyany', 14)], reward: 'monkey' },
   { goals: [happy('monkey'), shop('balloon'), goal('guests', 14)], reward: 'parrot' },
   { goals: [happy('parrot'), goal('healed', 2), goal('coins', 26)], reward: 'tiger' },
-  { goals: [happy('tiger'), goal('keeper', 1), goal('cleaned', 8)], reward: 'gorilla' },
+  { goals: [happy('tiger'), goal('keeper', 3), goal('cleaned', 8)], reward: 'gorilla' },
   { goals: [happy('gorilla'), goal('kinds', 7), goal('guests', 15)], reward: 'crocodile' },
   { goals: [happy('crocodile'), goal('born', 3), goal('tidy', 6)], reward: 'panda' },
   { goals: [happy('panda'), goal('happyany', 16), goal('coins', 28)], reward: 'peacock' },
-  { goals: [happy('peacock'), goal('keeper', 2), goal('healed', 2)], reward: 'toucan' },
+  { goals: [happy('peacock'), goal('keeper', 4), goal('healed', 2)], reward: 'toucan' },
   { goals: [happy('toucan'), goal('kinds', 8), goal('guests', 16)], reward: 'sloth' },
   { goals: [happy('sloth'), goal('born', 4), goal('happyany', 18), goal('coins', 30)], reward: 'panther' },
   // ---- wereld 4: ijs en bergen. Sneeuw, vis en dieren die ontsnappen.
@@ -183,7 +183,7 @@ export const LEVELS: Level[] = [
   { goals: [happy('seal'), goal('caught', 2), goal('coins', 30)], reward: 'polarbear' },
   { goals: [happy('polarbear'), goal('kinds', 9), goal('guests', 17)], reward: 'reindeer' },
   { goals: [happy('reindeer'), goal('born', 4), goal('tidy', 8)], reward: 'wolf' },
-  { goals: [happy('wolf'), goal('keeper', 3), goal('happyany', 20)], reward: 'arcticfox' },
+  { goals: [happy('wolf'), goal('keeper', 6), goal('happyany', 20)], reward: 'arcticfox' },
   { goals: [happy('arcticfox'), goal('healed', 3), goal('caught', 2), goal('guests', 18)], reward: 'bear' },
   { goals: [happy('bear'), goal('kinds', 10), goal('coins', 30)], reward: 'yak' },
   { goals: [happy('yak'), goal('born', 5), goal('happyany', 22)], reward: 'owl' },
@@ -192,7 +192,7 @@ export const LEVELS: Level[] = [
   { goals: [happy('walrus'), goal('kinds', 10), goal('guests', 20)], reward: 'flamingo' },
   { goals: [happy('flamingo'), goal('born', 5), goal('caught', 3)], reward: 'turtle' },
   { goals: [happy('turtle'), goal('happyany', 24), goal('coins', 30)], reward: 'otter' },
-  { goals: [happy('otter'), goal('keeper', 4), goal('healed', 4)], reward: 'beaver' },
+  { goals: [happy('otter'), goal('keeper', 8), goal('healed', 4)], reward: 'beaver' },
   { goals: [happy('beaver'), goal('kinds', 11), goal('guests', 21)], reward: 'pelican' },
   { goals: [happy('pelican'), goal('born', 6), goal('tidy', 10)], reward: 'koala' },
   { goals: [happy('koala'), goal('happyany', 26), goal('caught', 3), goal('coins', 30)], reward: 'redpanda' },
@@ -218,8 +218,8 @@ export const FEATURE = {
   /** Vanaf hier kunnen dieren ziek worden. */
   sick: 20,
   balloon: 21,
-  /** Vanaf hier kun je een verzorger aannemen. */
-  keeper: 23,
+  /** Vanaf hier kun je een verzorger aannemen: zodra het park te groot wordt om alles zelf te doen. */
+  keeper: 12,
   /** Vanaf hier kan er een dier ontsnappen. */
   escape: 30,
 };

@@ -31,6 +31,7 @@ export const T = {
   topups: 0,
   honest: false,
   kid: 0,
+  noHelp: false,   // true: neemt alleen verzorgers aan als een level erom vraagt
   nextAct: 0,
   lost: 0,
   home: {},        // soort -> nummer van de plek
@@ -97,9 +98,16 @@ export const T = {
     this.order.push(sp);
     this.terrain(slot.x0, slot.y0, slot.x1, slot.y1, info.terrain);
     this.fence(slot, info.need ? KIND[info.need] : 1);
-    if (!game.troughs.some(t => t.x === slot.x0 && t.y === slot.y0) && this.pay(PRICE.trough)) game.addTrough(slot.x0, slot.y0, null, 0);
-    if (this.pay(PRICE.bed)) game.addBed(slot.x1, slot.y0, info.bed);
+    this.furnish(sp);
     return slot;
+  },
+
+  /** Voerbak en slaapplek; lukt het nu niet (geen munten), dan een volgende keer. */
+  furnish(sp) {
+    const game = z();
+    const slot = SLOTS[this.home[sp]];
+    if (!game.troughs.some(t => t.x === slot.x0 && t.y === slot.y0) && this.pay(PRICE.trough)) game.addTrough(slot.x0, slot.y0, null, 0);
+    if (!game.beds.some(b => b.x === slot.x1 && b.y === slot.y0) && this.pay(PRICE.bed)) game.addBed(slot.x1, slot.y0, SPECIES[sp].bed);
   },
 
   /** Zorgt dat er minstens `n` volwassen dieren van de soort zijn (om en om jongen en meisje). */
@@ -210,6 +218,15 @@ export const T = {
     const done = game.level;
     const have = LEVELS.slice(0, done).map(l => l.reward).filter(models.hasSpecies);
     if (done === 0) this.pen('pig');
+    for (const sp of this.order) this.furnish(sp);
+    // een kind dat het druk krijgt, neemt hulp aan zodra dat kan en er munten over zijn
+    if (this.kid && !this.noHelp && done >= FEATURE.keeper && game.coins >= PRICE.keeper + 4 && game.pens.length >= 5) {
+      const busy = game.pens.filter(p => !p.keeper && game.animalsIn(p.region.id).length).sort((a, b) => game.poopsIn(b.region.id) - game.poopsIn(a.region.id))[0];
+      if (busy) {
+        game.penMenu(busy);
+        document.querySelector('#menu [data-item="keeper"]')?.click();
+      }
+    }
     for (const g of level.goals) if (g.species) await this.stock(g.species, Math.max(2, g.type === 'animals' ? g.n : 2));
     if (done >= FEATURE.paths) this.paths();
     for (const kind of ['foodstall', 'drinkstall', 'toilet', 'bench', 'icecream', 'balloon', 'bin']) if (done >= FEATURE[kind]) this.shop(kind, 1);

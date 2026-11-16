@@ -27,13 +27,16 @@ export interface AnimalWorld {
   dropPoop(gx: number, gy: number): void;
   dropPuddle(gx: number, gy: number): void;
   ate(trough: Trough): void;
+  /** Hoe snel dieren moeten poepen; sneller als het level om opruimen vraagt. */
+  poopRate(): number;
 }
 
 type State = 'idle' | 'walk' | 'eat' | 'poop' | 'pee' | 'rest' | 'emote';
 
-// Een volle bak (vier porties) houdt twee dieren ongeveer drie minuten zoet; daarna duurt het nog een
-// paar minuten voor ze echt honger hebben. Zo houdt een kind ook zes verblijven bij.
-const HUNGER_PER_SEC = 1 / 220;
+// Een volle bak (vier porties) houdt twee volwassen dieren ruim vijf minuten zoet; daarna duurt het nog
+// een paar minuten voor ze echt honger hebben. Jongen eten mee zonder dat de bak er leger van wordt, en
+// poepen niet. Zo wordt het zorgen niet zwaarder als er jongen bij komen.
+const HUNGER_PER_SEC = 1 / 400;
 const NEED_KIND: Record<FenceNeed, number> = { wall: 3, net: 4 };
 const SEEK_FOOD = 0.4;
 const HUNGRY = 0.6;
@@ -65,7 +68,7 @@ export class Animal {
   private eatAt: Trough | null = null;
   private anim = '';
   private heading = Math.random() * Math.PI * 2;
-  private poopIn = 60 + Math.random() * 80;
+  private poopIn = 90 + Math.random() * 120;
   private dropped = false;
   /** Zoveel seconden slapen zodra het dier op zijn slaapplek aankomt. */
   private napFor = 0;
@@ -227,8 +230,8 @@ export class Animal {
       this.play('Sad');
       return;
     }
-    if (this.poopIn <= 0) {
-      this.poopIn = 120 + Math.random() * 100;
+    if (this.poopIn <= 0 && !this.young) {
+      this.poopIn = 200 + Math.random() * 160;
       this.state = 'poop';
       this.timeLeft = 2.6;
       this.dropped = false;
@@ -309,8 +312,8 @@ export class Animal {
 
   update(dt: number, w: AnimalWorld): void {
     this.model.mixer.update(dt);
-    this.hunger = Math.min(1, this.hunger + dt * HUNGER_PER_SEC);
-    this.poopIn -= dt;
+    this.hunger = Math.min(1, this.hunger + dt * HUNGER_PER_SEC * (this.young ? 0.5 : 1));
+    this.poopIn -= dt * w.poopRate();
 
     if (this.state === 'walk') {
       const next = this.route[0];
@@ -350,7 +353,7 @@ export class Animal {
         this.turnTo(Math.atan2(this.eatAt.x + 0.5 - this.gx, this.eatAt.y + 0.5 - this.gy), dt);
         if (this.timeLeft <= 0) {
           this.hunger = 0;
-          w.ate(this.eatAt);
+          if (!this.young) w.ate(this.eatAt);
           this.eatAt = null;
         }
       }

@@ -812,6 +812,10 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     this.poops.push({ gx, gy, mesh });
   }
 
+  poopRate(): number {
+    return this.goalOpen('cleaned') ? 2.5 : 1;
+  }
+
   dropPuddle(gx: number, gy: number): void {
     this.puddles.push({ mesh: this.view.makePuddle(gx, gy), life: 14 });
   }
@@ -955,6 +959,8 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     this.lines = [];
     sfx('sad');
     this.sayNow(say.taken(t, species));
+    // wie het niet meer bijhoudt, krijgt de tip om hulp aan te nemen
+    if (this.has('keeper') && pen && !pen.keeper) this.lines.push(say.tipKeeper());
   }
 
   /**
