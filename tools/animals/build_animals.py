@@ -9,6 +9,13 @@ Modus:
   all     export en render
   sheet   alle twaalf houdingen van een soort
   styles  de leeuw in de drie stijlen (A blok, B rond, C facet)
+  check   snelle controle per soort: familieplaatje + houdingen van het mannetje van opzij
+  icons   kopplaatjes voor de knoppen (128x128, doorzichtig) naar games/zoo/public/icons
+
+Voorbeeld voor een enkele soort:
+  blender --background --python tools/animals/build_animals.py -- out export giraffe
+  blender --background --python tools/animals/build_animals.py -- out check giraffe
+  blender --background --python tools/animals/build_animals.py -- out icons giraffe
 
 Alle viervoeters delen hetzelfde skelet en dezelfde twaalf animaties.
 """
@@ -20,6 +27,7 @@ ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 OUT = os.path.abspath(ARGS[0] if ARGS else 'out')
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MODELS = os.path.join(ROOT, 'games', 'zoo', 'public', 'models')
+ICONS = os.path.join(ROOT, 'games', 'zoo', 'public', 'icons')
 os.makedirs(OUT, exist_ok=True)
 FPS = 24
 STYLE = 'blok'
@@ -114,6 +122,24 @@ class Builder:
                             profile=0.5, affect='EDGES')
         self._add(tmp, bone, color, loc, rx, ry)
 
+    def band(self, bone, color, size, loc, bev, axis=1, seg=2, rx=0.0, ry=0.0, cut=None):
+        """Band, streep of vlek: een doos waarvan alleen de randen langs `axis` zijn afgeschuind (bev in meters).
+        Met dezelfde bev als de doos eronder volgt de band die doos als een schil.
+        cut=(as, grens, kant) haalt alles weg aan de plus-kant (kant 1) of min-kant (kant -1) van de grens."""
+        tmp = bmesh.new()
+        bmesh.ops.create_cube(tmp, size=1.0)
+        bmesh.ops.scale(tmp, vec=Vector(size), verts=tmp.verts)
+        edges = [e for e in tmp.edges if abs((e.verts[0].co - e.verts[1].co)[axis]) > 1e-6]
+        room = min(size[i] for i in range(3) if i != axis) * 0.49
+        bmesh.ops.bevel(tmp, geom=edges, offset=min(bev, room), segments=seg, profile=0.5, affect='EDGES')
+        if cut:
+            ax, lim, side = cut
+            co, no = Vector((0, 0, 0)), Vector((0, 0, 0))
+            co[ax], no[ax] = lim, side
+            geom = list(tmp.verts) + list(tmp.edges) + list(tmp.faces)
+            bmesh.ops.bisect_plane(tmp, geom=geom, dist=1e-5, plane_co=co, plane_no=no, clear_outer=True)
+        self._add(tmp, bone, color, loc, rx, ry)
+
     def ball(self, bone, color, radii, loc, sub=2, rx=0.0, spiky=0.0):
         st = self.style
         tmp = bmesh.new()
@@ -160,15 +186,15 @@ def get_material():
 
 
 # ---------------------------------------------------------------- gedeelde onderdelen
-def tail_chain(c, tp, a1, a2, L1, L2, w1, w2, col1, col2, tuft=None, tuft_out=0.04):
+def tail_chain(c, tp, a1, a2, L1, L2, w1, w2, col1, col2, tuft=None, tuft_out=0.04, seg=2):
     """Staart in twee stukken; a1 en a2 zijn hoeken in graden (0 = recht naar achteren, plus = omhoog)."""
     b = c.b
     tp = Vector(tp)
     d1 = Vector((0, math.cos(math.radians(a1)), math.sin(math.radians(a1))))
     d2 = Vector((0, math.cos(math.radians(a2)), math.sin(math.radians(a2))))
     p2 = tp + d1 * L1
-    b.box('tail1', col1, (w1, L1 + 0.05, w1), tp + d1 * L1 / 2, rx=a1)
-    b.box('tail2', col2, (w2, L2 + 0.05, w2), p2 + d2 * L2 / 2, rx=a2)
+    b.box('tail1', col1, (w1, L1 + 0.05, w1), tp + d1 * L1 / 2, rx=a1, seg=seg)
+    b.box('tail2', col2, (w2, L2 + 0.05, w2), p2 + d2 * L2 / 2, rx=a2, seg=seg)
     if tuft:
         b.ball('tail2', tuft[1], tuft[0], p2 + d2 * (L2 + tuft_out), sub=1, rx=a2)
     c.piv['tail1'], c.piv['tail2'] = tp, p2

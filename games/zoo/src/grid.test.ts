@@ -54,6 +54,16 @@ describe('verblijven', () => {
     expect(g.enclosures()).toHaveLength(2);
   });
 
+  it('een houten hek is niet sterk genoeg, een stenen muur wel', () => {
+    const g = new Grid();
+    const edges = fenceBox(g, 3, 3, 4, 4);
+    expect(g.penStrength(g.enclosureAt(3, 3)!)).toBe(1);
+    for (const e of edges) g.setEdge(e, 3);
+    expect(g.penStrength(g.enclosureAt(3, 3)!)).toBe(2);
+    g.setEdge(edges[0], 2);
+    expect(g.penStrength(g.enclosureAt(3, 3)!)).toBe(2);
+  });
+
   it('een route gaat niet door een hek', () => {
     const g = new Grid();
     fenceBox(g, 3, 3, 5, 4);
@@ -91,7 +101,8 @@ describe('levels', () => {
   it('elk level speelt een dier vrij', () => {
     expect(unlockedSpecies(0)).toEqual([]);
     expect(unlockedSpecies(1)).toEqual(['pig']);
-    expect(unlockedSpecies(LEVELS.length)).toEqual(['pig', 'cow', 'sheep']);
+    expect(unlockedSpecies(3)).toEqual(['pig', 'cow', 'sheep']);
+    expect(new Set(unlockedSpecies(LEVELS.length)).size).toBe(LEVELS.length);
   });
 
   it('voortgang loopt niet over het doel heen', () => {

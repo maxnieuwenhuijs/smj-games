@@ -45,6 +45,8 @@ export class Animal {
   name = '';
   /** Loopt op zolang het dier iets mist; bij te veel wordt het opgehaald. */
   neglect = 0;
+  /** Sterk dier in een verblijf met een houten hek: het wil een stenen muur. */
+  needsWall = false;
   happy = false;
   unmet: WishId | null = 'enclosure';
 
@@ -155,7 +157,8 @@ export class Animal {
     const [x, y] = tileXY(this.tile);
     const region = w.grid.enclosureAt(x, y);
     const info = SPECIES[this.species];
-    const result: Record<WishId, boolean> = { enclosure: !!region, food: this.hunger < HUNGRY, bed: false, terrain: false, friend: false, clean: false };
+    this.needsWall = !!region && !!info.strong && w.grid.penStrength(region) < 2;
+    const result: Record<WishId, boolean> = { enclosure: !!region && !this.needsWall, food: this.hunger < HUNGRY, bed: false, terrain: false, friend: false, clean: false };
     if (region) {
       const want = TERRAINS.indexOf(info.terrain);
       result.terrain = region.tiles.filter(i => w.grid.terrain[i] === want).length * 2 >= region.tiles.length;

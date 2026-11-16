@@ -10,6 +10,9 @@ export interface ToolOption {
   label: string;
   /** Extra kleur, bijvoorbeeld blauw voor jongen en roze voor meisje. */
   tone?: 'boy' | 'girl';
+  /** Prijs in munten, en of je die nu kunt betalen. */
+  price?: number;
+  cant?: boolean;
 }
 export interface ToolDef extends ToolOption {
   /** Rijen met keuzes die boven de knop verschijnen als hij aan staat. */
@@ -32,7 +35,8 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = '
 }
 
 function button(opt: ToolOption, cls: string): HTMLButtonElement {
-  const b = el('button', `tool ${cls} ${opt.tone ?? ''}`, `${opt.icon}<b>${opt.label}</b>`);
+  const price = opt.price ? `<i class="price${opt.cant ? ' cant' : ''}">${opt.price}</i>` : '';
+  const b = el('button', `tool ${cls} ${opt.tone ?? ''}`, `${opt.icon}<b>${opt.label}</b>${price}`);
   b.dataset.id = opt.id;
   return b;
 }
@@ -45,6 +49,8 @@ export class Hud {
   private menu = $('menu');
   private overlay = $('overlay');
   private speech = $('speech');
+  private wallet = $('wallet');
+  private walletKey = '';
   private canvasHost = $('app');
   private goalRows: { fill: HTMLElement; count: HTMLElement; row: HTMLElement; n: number }[] = [];
   private speechTimer = 0;
@@ -87,6 +93,16 @@ export class Hud {
 
   setCursor(css: string): void {
     this.canvasHost.style.cursor = css;
+  }
+
+  /** De kas (munten) en het aantal gasten in het park. */
+  setWallet(coins: number, cap: number, guests: number | null): void {
+    const key = `${coins}/${guests}`;
+    if (key === this.walletKey) return;
+    this.walletKey = key;
+    this.wallet.innerHTML =
+      `<span class="pill${coins >= cap ? ' full' : ''}" title="${t('wallet.coins')}">${icon('coin')}<b>${coins}</b></span>` +
+      (guests === null ? '' : `<span class="pill" title="${t('wallet.guests')}">${icon('guest')}<b>${guests}</b></span>`);
   }
 
   // ------------------------------------------------------------ doelen

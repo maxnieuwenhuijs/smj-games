@@ -5,14 +5,20 @@ export interface Stats {
   enclosures: number;
   troughs: number;
   beds: number;
+  paths: number;
+  /** Blije gasten die nu in het park lopen. */
+  guests: number;
+  coins: number;
+  shops: Record<string, number>;
   animals: Record<string, number>;
   happy: Record<string, number>;
   fed: number;
   cleaned: number;
+  born: number;
 }
 
 export function emptyStats(): Stats {
-  return { enclosures: 0, troughs: 0, beds: 0, animals: {}, happy: {}, fed: 0, cleaned: 0 };
+  return { enclosures: 0, troughs: 0, beds: 0, paths: 0, guests: 0, coins: 0, shops: {}, animals: {}, happy: {}, fed: 0, cleaned: 0, born: 0 };
 }
 
 export function goalProgress(goal: Goal, s: Stats): number {
@@ -21,10 +27,15 @@ export function goalProgress(goal: Goal, s: Stats): number {
     case 'enclosure': value = s.enclosures; break;
     case 'trough': value = s.troughs; break;
     case 'bed': value = s.beds; break;
+    case 'path': value = s.paths; break;
+    case 'guests': value = s.guests; break;
+    case 'coins': value = s.coins; break;
+    case 'shop': value = s.shops[goal.shop ?? ''] ?? 0; break;
     case 'animals': value = s.animals[goal.species ?? ''] ?? 0; break;
     case 'happy': value = s.happy[goal.species ?? ''] ?? 0; break;
     case 'fed': value = s.fed; break;
     case 'cleaned': value = s.cleaned; break;
+    case 'born': value = s.born; break;
   }
   return Math.max(0, Math.min(goal.n, value));
 }

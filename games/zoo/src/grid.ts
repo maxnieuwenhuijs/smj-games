@@ -4,8 +4,8 @@ export const W = 20;
 export const H = 20;
 export const MIN_ENCLOSURE = 4;
 
-/** 0 = niets, 1 = hek, 2 = poort. */
-export type EdgeKind = 0 | 1 | 2;
+/** 0 = niets, 1 = houten hek, 2 = poort, 3 = stenen muur. */
+export type EdgeKind = 0 | 1 | 2 | 3;
 
 /** 'h' ligt aan de noordkant van tegel (x,y); 'v' aan de westkant. */
 export interface Edge {
@@ -120,6 +120,25 @@ export class Grid {
 
   enclosures(): Region[] {
     return this.regions.filter(r => r.enclosed && r.tiles.length >= MIN_ENCLOSURE);
+  }
+
+  /** 2 als het verblijf rondom van steen of poort is, 1 zodra er ergens een houten hek in zit. */
+  penStrength(region: Region): number {
+    const inside = new Set(region.tiles);
+    for (const i of region.tiles) {
+      const [x, y] = tileXY(i);
+      const sides: [number, number, number][] = [
+        [0, -1, this.h[x + y * W]],
+        [0, 1, this.h[x + (y + 1) * W]],
+        [-1, 0, this.v[x + y * (W + 1)]],
+        [1, 0, this.v[x + 1 + y * (W + 1)]],
+      ];
+      for (const [dx, dy, kind] of sides) {
+        const out = !this.inBounds(x + dx, y + dy) || !inside.has(tileIndex(x + dx, y + dy));
+        if (out && kind === 1) return 1;
+      }
+    }
+    return 2;
   }
 
   neighbors(i: number): number[] {

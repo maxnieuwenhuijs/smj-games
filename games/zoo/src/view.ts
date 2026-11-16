@@ -1,7 +1,7 @@
 // Het beeld: isometrische camera, tegels, hekken, voerbakken en het voorbeeld van wat je gaat plaatsen.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { TERRAINS, TERRAIN_INFO, type BedKind, type FoodId } from './data';
+import { TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind } from './data';
 import { Grid, H, W, edgeKey, tileXY, type Edge } from './grid';
 
 const SQRT2 = Math.SQRT2;
@@ -33,6 +33,13 @@ const GATE_GEO = mergeGeometries([
   boxAt(0.07, 0.36, 0.06, 0.5, 0.27, 0),
   boxAt(0.07, 0.36, 0.06, 0.8, 0.27, 0),
 ])!;
+// Stenen muur voor sterke dieren.
+const WALL_GEO = mergeGeometries([
+  boxAt(1.1, 0.46, 0.2, 0.5, 0.23, 0),
+  boxAt(0.22, 0.12, 0.24, 0.12, 0.52, 0),
+  boxAt(0.22, 0.12, 0.24, 0.5, 0.52, 0),
+  boxAt(0.22, 0.12, 0.24, 0.88, 0.52, 0),
+])!;
 const TROUGH_GEO = mergeGeometries([
   boxAt(0.8, 0.06, 0.48, 0, 0.03, 0),
   boxAt(0.8, 0.2, 0.06, 0, 0.13, -0.21),
@@ -58,23 +65,72 @@ const STRAW_MAT = new THREE.MeshStandardMaterial({ color: 0xe9d05a, roughness: 1
 const ROOF_MAT = new THREE.MeshStandardMaterial({ color: 0xc0523f, roughness: 0.9 });
 const FENCE_MAT = new THREE.MeshStandardMaterial({ color: 0xc58a4b, roughness: 0.9 });
 const WOOD_MAT = new THREE.MeshStandardMaterial({ color: 0xa8743f, roughness: 0.9 });
+const STONE_MAT = new THREE.MeshStandardMaterial({ color: 0xa9adb3, roughness: 1 });
+const ROCK_MAT = new THREE.MeshStandardMaterial({ color: 0x8f949c, roughness: 1 });
+const LEAF_MAT = new THREE.MeshStandardMaterial({ color: 0x5fa544, roughness: 1 });
+const WHITE_MAT = new THREE.MeshStandardMaterial({ color: 0xf7f4ec, roughness: 0.9 });
+
+// Slaapplekken voor de savanne: een platte rots en een boom met schaduw.
+const ROCK_GEO = mergeGeometries([boxAt(0.84, 0.16, 0.74, 0, 0.08, 0), boxAt(0.5, 0.13, 0.46, -0.1, 0.22, 0.06)])!;
+const TRUNK_GEO = boxAt(0.13, 1.05, 0.13, -0.36, 0.525, -0.36);
+const CANOPY_GEO = mergeGeometries([boxAt(0.95, 0.2, 0.95, -0.18, 1.14, -0.18), boxAt(0.6, 0.16, 0.6, -0.2, 1.32, -0.2)])!;
+
+// Winkels: een kraam met gestreept afdak, en een bankje.
+const STALL_GEO = mergeGeometries([
+  boxAt(0.86, 0.42, 0.46, 0, 0.21, 0.14),
+  boxAt(0.07, 0.98, 0.07, -0.4, 0.49, -0.3),
+  boxAt(0.07, 0.98, 0.07, 0.4, 0.49, -0.3),
+  boxAt(0.07, 0.98, 0.07, -0.4, 0.49, 0.4),
+  boxAt(0.07, 0.98, 0.07, 0.4, 0.49, 0.4),
+])!;
+const AWNING_A_GEO = mergeGeometries([boxAt(0.2, 0.07, 0.96, -0.4, 1.0, 0.05), boxAt(0.2, 0.07, 0.96, 0, 1.0, 0.05), boxAt(0.2, 0.07, 0.96, 0.4, 1.0, 0.05)])!;
+const AWNING_B_GEO = mergeGeometries([boxAt(0.2, 0.07, 0.96, -0.2, 1.0, 0.05), boxAt(0.2, 0.07, 0.96, 0.2, 1.0, 0.05)])!;
+const GOODS_GEO = mergeGeometries([boxAt(0.14, 0.14, 0.14, -0.22, 0.49, 0.2), boxAt(0.14, 0.2, 0.14, 0, 0.52, 0.2), boxAt(0.14, 0.14, 0.14, 0.22, 0.49, 0.2)])!;
+const BENCH_GEO = mergeGeometries([
+  boxAt(0.8, 0.06, 0.28, 0, 0.24, 0.02),
+  boxAt(0.8, 0.26, 0.05, 0, 0.42, -0.12),
+  boxAt(0.07, 0.24, 0.07, -0.33, 0.12, -0.08),
+  boxAt(0.07, 0.24, 0.07, 0.33, 0.12, -0.08),
+  boxAt(0.07, 0.24, 0.07, -0.33, 0.12, 0.12),
+  boxAt(0.07, 0.24, 0.07, 0.33, 0.12, 0.12),
+])!;
+const STALL_COLORS: Record<string, [number, number]> = { foodstall: [0xe0584f, 0xf5a623], drinkstall: [0x4a90e2, 0x9fd8f5] };
 const DARK_MAT = new THREE.MeshStandardMaterial({ color: 0x5a3d22, roughness: 1 });
 
 // Losse stukjes voer: een bak met vier porties toont vier stukjes.
+const FOOD_MATS = {
+  carrot: new THREE.MeshStandardMaterial({ color: 0xf08a2c, roughness: 0.8 }),
+  leaf: LEAF_MAT,
+  hay: new THREE.MeshStandardMaterial({ color: 0xe9d05a, roughness: 1 }),
+  apple: new THREE.MeshStandardMaterial({ color: 0xe0453a, roughness: 0.6 }),
+  grain: new THREE.MeshStandardMaterial({ color: 0xe3c88f, roughness: 1 }),
+  meat: new THREE.MeshStandardMaterial({ color: 0xc9553f, roughness: 0.8 }),
+  bone: WHITE_MAT,
+};
 const CARROT_GEO = new THREE.ConeGeometry(0.06, 0.28, 6).rotateX(Math.PI / 2);
 const LEAF_GEO = new THREE.BoxGeometry(0.05, 0.05, 0.08).translate(0, 0, -0.17);
 const BALE_GEO = new THREE.BoxGeometry(0.14, 0.12, 0.3);
-const FOOD_MATS = {
-  carrot: new THREE.MeshStandardMaterial({ color: 0xf08a2c, roughness: 0.8 }),
-  leaf: new THREE.MeshStandardMaterial({ color: 0x5fa544, roughness: 0.8 }),
-  hay: new THREE.MeshStandardMaterial({ color: 0xe9d05a, roughness: 1 }),
-};
+const APPLE_GEO = new THREE.IcosahedronGeometry(0.075, 0).translate(0, 0.02, 0);
+const STALK_GEO = new THREE.BoxGeometry(0.03, 0.05, 0.03).translate(0, 0.1, 0);
+const GRAIN_GEO = new THREE.BoxGeometry(0.14, 0.09, 0.28);
+const MEAT_GEO = new THREE.BoxGeometry(0.13, 0.1, 0.2).translate(0, 0, -0.03);
+const BONE_GEO = new THREE.BoxGeometry(0.04, 0.04, 0.12).translate(0, 0, 0.12);
+const LEAVES_GEO = mergeGeometries([boxAt(0.13, 0.05, 0.3, 0, 0, 0), boxAt(0.1, 0.05, 0.2, 0.02, 0.05, 0.02)])!;
 
 function foodPiece(food: FoodId): THREE.Object3D {
-  if (food === 'hay') return new THREE.Mesh(BALE_GEO, FOOD_MATS.hay);
-  const g = new THREE.Group();
-  g.add(new THREE.Mesh(CARROT_GEO, FOOD_MATS.carrot), new THREE.Mesh(LEAF_GEO, FOOD_MATS.leaf));
-  return g;
+  const pair = (a: THREE.BufferGeometry, am: THREE.Material, b: THREE.BufferGeometry, bm: THREE.Material): THREE.Group => {
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(a, am), new THREE.Mesh(b, bm));
+    return g;
+  };
+  switch (food) {
+    case 'hay': return new THREE.Mesh(BALE_GEO, FOOD_MATS.hay);
+    case 'grain': return new THREE.Mesh(GRAIN_GEO, FOOD_MATS.grain);
+    case 'leaves': return new THREE.Mesh(LEAVES_GEO, FOOD_MATS.leaf);
+    case 'fruit': return pair(APPLE_GEO, FOOD_MATS.apple, STALK_GEO, FOOD_MATS.leaf);
+    case 'meat': return pair(MEAT_GEO, FOOD_MATS.meat, BONE_GEO, FOOD_MATS.bone);
+    default: return pair(CARROT_GEO, FOOD_MATS.carrot, LEAF_GEO, FOOD_MATS.leaf);
+  }
 }
 
 export const toWorldX = (gx: number): number => gx - W / 2;
@@ -105,8 +161,15 @@ export class View {
   private ghostFenceMesh = new THREE.Mesh(FENCE_GEO, this.ghostMat);
   private ghostGateMesh = new THREE.Mesh(GATE_GEO, this.ghostMat);
   private ghostTroughMesh = new THREE.Mesh(TROUGH_GEO, this.ghostMat);
-  private ghostStrawMesh = new THREE.Mesh(STRAW_GEO, this.ghostMat);
-  private ghostShedMesh = new THREE.Mesh(mergeGeometries([SHED_WALL_GEO, SHED_ROOF_GEO])!, this.ghostMat);
+  private ghostWallMesh = new THREE.Mesh(WALL_GEO, this.ghostMat);
+  private ghostBeds: Record<BedKind, THREE.Mesh> = {
+    straw: new THREE.Mesh(STRAW_GEO, this.ghostMat),
+    shed: new THREE.Mesh(mergeGeometries([SHED_WALL_GEO, SHED_ROOF_GEO])!, this.ghostMat),
+    rock: new THREE.Mesh(ROCK_GEO, this.ghostMat),
+    shade: new THREE.Mesh(mergeGeometries([TRUNK_GEO, CANOPY_GEO])!, this.ghostMat),
+  };
+  private ghostStall = new THREE.Mesh(mergeGeometries([STALL_GEO, AWNING_A_GEO, AWNING_B_GEO])!, this.ghostMat);
+  private ghostBench = new THREE.Mesh(BENCH_GEO, this.ghostMat);
   private ghostTileMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.75, depthWrite: false });
   private ghostTileMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.94, 0.94).rotateX(-Math.PI / 2), this.ghostTileMat);
   private ghostRingMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.85, depthWrite: false });
@@ -142,6 +205,7 @@ export class View {
     outer.receiveShadow = true;
     this.scene.add(outer);
     this.addTrees();
+    this.addEntrance();
 
     // tegels
     const tileGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
@@ -157,7 +221,7 @@ export class View {
 
     this.ghostTileMesh.position.y = 0.012;
     this.ghostRing.position.y = 0.014;
-    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostTroughMesh, this.ghostStrawMesh, this.ghostShedMesh, this.ghostTileMesh, this.ghostRing];
+    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostWallMesh, this.ghostTroughMesh, ...Object.values(this.ghostBeds), this.ghostStall, this.ghostBench, this.ghostTileMesh, this.ghostRing];
     for (const g of this.ghosts) {
       g.visible = false;
       g.renderOrder = 5;
@@ -166,6 +230,25 @@ export class View {
 
     addEventListener('resize', () => this.resize());
     this.resize();
+  }
+
+  /** De ingang van het park: hier komen de gasten binnen. */
+  private addEntrance(): void {
+    const x = toWorldX(Math.floor(W / 2)), z = toWorldZ(H) + 0.12;
+    const gate = new THREE.Group();
+    for (const dx of [-0.12, 1.12]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.22, 1.5, 0.22), WOOD_MAT);
+      post.position.set(x + dx, 0.75, z);
+      gate.add(post);
+    }
+    const sign = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.44, 0.14), ROOF_MAT);
+    sign.position.set(x + 0.5, 1.6, z);
+    const star = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.18), STRAW_MAT);
+    star.position.set(x + 0.5, 1.6, z);
+    star.rotation.z = Math.PI / 4;
+    gate.add(sign, star);
+    gate.traverse(o => { o.castShadow = true; });
+    this.scene.add(gate);
   }
 
   private addTrees(): void {
@@ -263,7 +346,7 @@ export class View {
       }
     for (const [key, { e, kind }] of wanted) {
       if (this.fences.has(key)) continue;
-      const mesh = new THREE.Mesh(kind === 2 ? GATE_GEO : FENCE_GEO, FENCE_MAT);
+      const mesh = new THREE.Mesh(kind === 3 ? WALL_GEO : kind === 2 ? GATE_GEO : FENCE_GEO, kind === 3 ? STONE_MAT : FENCE_MAT);
       this.placeEdge(mesh, e);
       mesh.castShadow = true;
       this.scene.add(mesh);
@@ -292,33 +375,66 @@ export class View {
     for (let i = 0; i < amount; i++) {
       const piece = foodPiece(food);
       piece.position.set(-0.255 + i * 0.17, food === 'hay' ? 0.14 : 0.13, 0);
-      piece.rotation.y = food === 'hay' ? 0 : (i % 2 ? 0.25 : -0.25);
+      piece.rotation.y = food === 'veg' || food === 'meat' ? (i % 2 ? 0.25 : -0.25) : 0;
       piece.traverse(o => { o.castShadow = true; });
       mesh.food.add(piece);
     }
   }
 
+  private at<T extends THREE.Object3D>(obj: T, x: number, y: number): T {
+    obj.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
+    return obj;
+  }
+
   makeBed(x: number, y: number, kind: BedKind): THREE.Group {
     const group = new THREE.Group();
-    const straw = new THREE.Mesh(STRAW_GEO, STRAW_MAT);
-    straw.receiveShadow = true;
-    group.add(straw);
+    const add = (geo: THREE.BufferGeometry, m: THREE.Material, shadow = true): void => {
+      const mesh = new THREE.Mesh(geo, m);
+      mesh.castShadow = shadow;
+      mesh.receiveShadow = !shadow;
+      group.add(mesh);
+    };
+    if (kind === 'straw' || kind === 'shed') add(STRAW_GEO, STRAW_MAT, false);
     if (kind === 'shed') {
-      const walls = new THREE.Mesh(SHED_WALL_GEO, WOOD_MAT);
-      const roof = new THREE.Mesh(SHED_ROOF_GEO, ROOF_MAT);
-      walls.castShadow = roof.castShadow = true;
-      group.add(walls, roof);
+      add(SHED_WALL_GEO, WOOD_MAT);
+      add(SHED_ROOF_GEO, ROOF_MAT);
     }
-    group.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
-    this.scene.add(group);
+    if (kind === 'rock') add(ROCK_GEO, ROCK_MAT);
+    if (kind === 'shade') {
+      add(TRUNK_GEO, WOOD_MAT);
+      add(CANOPY_GEO, LEAF_MAT);
+    }
+    this.scene.add(this.at(group, x, y));
     return group;
   }
 
   ghostBed(x: number, y: number, kind: BedKind, ok: boolean): void {
-    const mesh = kind === 'shed' ? this.ghostShedMesh : this.ghostStrawMesh;
     this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
-    mesh.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
-    mesh.visible = true;
+    this.at(this.ghostBeds[kind], x, y).visible = true;
+  }
+
+  makeShop(x: number, y: number, kind: ShopKind): THREE.Group {
+    const group = new THREE.Group();
+    const add = (geo: THREE.BufferGeometry, m: THREE.Material): void => {
+      const mesh = new THREE.Mesh(geo, m);
+      mesh.castShadow = true;
+      group.add(mesh);
+    };
+    if (kind === 'bench') add(BENCH_GEO, FENCE_MAT);
+    else {
+      const [stripe, goods] = STALL_COLORS[kind];
+      add(STALL_GEO, WOOD_MAT);
+      add(AWNING_A_GEO, new THREE.MeshStandardMaterial({ color: stripe, roughness: 0.9 }));
+      add(AWNING_B_GEO, WHITE_MAT);
+      add(GOODS_GEO, new THREE.MeshStandardMaterial({ color: goods, roughness: 0.8 }));
+    }
+    this.scene.add(this.at(group, x, y));
+    return group;
+  }
+
+  ghostShop(x: number, y: number, kind: ShopKind, ok: boolean): void {
+    this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
+    this.at(kind === 'bench' ? this.ghostBench : this.ghostStall, x, y).visible = true;
   }
 
   makePuddle(gx: number, gy: number): THREE.Mesh {
@@ -337,8 +453,8 @@ export class View {
     for (const g of this.ghostAnimals.values()) g.visible = false;
   }
 
-  ghostFence(e: Edge, gate: boolean, ok: boolean): void {
-    const mesh = gate ? this.ghostGateMesh : this.ghostFenceMesh;
+  ghostFence(e: Edge, kind: number, ok: boolean): void {
+    const mesh = kind === 3 ? this.ghostWallMesh : kind === 2 ? this.ghostGateMesh : this.ghostFenceMesh;
     this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
     this.placeEdge(mesh, e);
     mesh.visible = true;

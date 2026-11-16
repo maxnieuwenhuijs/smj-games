@@ -26,12 +26,12 @@ button { font: inherit; color: inherit; }
 
 /* ---------- knoppen ---------- */
 .tool {
-  width: min(84px, 12.6vw); height: min(84px, 12.6vw); border: 0; border-radius: 22px; cursor: pointer; padding: 0;
+  width: min(84px, 11vw); height: min(84px, 11vw); border: 0; border-radius: 22px; position: relative; cursor: pointer; padding: 0;
   background: var(--card); box-shadow: 0 5px 0 var(--shade); color: var(--ink);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
 }
-.tool .ic { font-size: min(42px, 6.8vw); }
-.tool b { font-size: clamp(8px, 2.1vw, 13px); font-weight: 700; line-height: 1.1; }
+.tool .ic { font-size: min(42px, 6vw); }
+.tool b { font-size: clamp(7px, 1.9vw, 13px); font-weight: 700; line-height: 1.1; }
 .tool.small { width: min(70px, 13vw); height: min(70px, 13vw); border-radius: 18px; }
 .tool.small .ic { font-size: min(34px, 6.4vw); }
 .tool.on { background: var(--sun); box-shadow: 0 5px 0 var(--sun-shade); }
@@ -46,15 +46,31 @@ button { font: inherit; color: inherit; }
   50% { transform: translateY(-8px); box-shadow: 0 13px 0 var(--shade), 0 0 0 10px rgba(255, 190, 40, 0); }
 }
 
+/* prijs in munten op een knop */
+.tool .price {
+  position: absolute; top: -6px; right: -6px; min-width: 24px; height: 24px; padding: 0 4px; border-radius: 12px; font-style: normal;
+  background: #ffd23f; border: 2px solid #e5b520; color: #5a4200; font: 800 13px/20px system-ui, sans-serif; text-align: center;
+}
+.tool .price.cant { background: #e7e3da; border-color: #c9c4b8; color: #8a857a; }
+img.ic { object-fit: contain; -webkit-user-drag: none; }
+
 /* ---------- spelbeeld ---------- */
 #ui { position: fixed; inset: 0; pointer-events: none; }
 #ui button, #goals, #menu, #overlay { pointer-events: auto; }
 
 #bottom { position: absolute; left: 0; right: 0; bottom: 14px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-#toolbar, .row { display: flex; gap: min(10px, 1.2vw); justify-content: center; }
+#toolbar, .row { display: flex; gap: min(10px, 1vw); justify-content: center; flex-wrap: wrap; }
 #options { display: flex; flex-direction: column; gap: 8px; }
 
 #home { position: absolute; top: 12px; right: 12px; }
+#wallet { position: absolute; top: 20px; right: 92px; display: flex; gap: 8px; }
+@media (max-width: 900px) { #wallet { top: 92px; right: 12px; flex-direction: column; align-items: flex-end; } }
+.pill {
+  display: flex; align-items: center; gap: 5px; background: rgba(255, 255, 255, 0.92); border-radius: 18px; padding: 5px 12px 5px 6px;
+  font-size: 26px; box-shadow: 0 4px 0 var(--shade);
+}
+.pill b { font-size: 20px; font-weight: 800; min-width: 22px; text-align: center; }
+.pill.full { background: #ffe58a; box-shadow: 0 4px 0 var(--sun-shade); }
 
 #goals {
   position: absolute; top: 12px; left: 12px; display: flex; flex-direction: column; gap: 6px;
@@ -104,6 +120,7 @@ button { font: inherit; color: inherit; }
 .float.word {
   font-size: 16px; font-weight: 800; background: #fff; border-radius: 12px; padding: 3px 10px; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15);
 }
+.float.coin { font-size: 30px; }
 .float.word.boy { background: var(--boy); color: #fff; }
 .float.word.girl { background: var(--girl); color: #fff; }
 @keyframes rise {
@@ -126,8 +143,8 @@ button { font: inherit; color: inherit; }
 
 /* ---------- praatvenster ---------- */
 /* Bovenin tussen de doelen en de huisknop; op een smal scherm even over de doelen heen. */
-#speechbar { position: absolute; top: 12px; left: 250px; right: 96px; display: flex; justify-content: center; z-index: 2; }
-@media (max-width: 760px) { #speechbar { left: 12px; right: 12px; } }
+#speechbar { position: absolute; top: 12px; left: 250px; right: 250px; display: flex; justify-content: center; z-index: 2; }
+@media (max-width: 900px) { #speechbar { left: 12px; right: 12px; } }
 #speech {
   display: flex; align-items: center; gap: 12px; text-align: left; border: 0; cursor: pointer; background: #fff;
   border-radius: 26px; padding: 8px 18px 8px 8px; max-width: 540px;

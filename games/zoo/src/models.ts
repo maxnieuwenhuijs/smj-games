@@ -1,7 +1,9 @@
 // Laden van de diermodellen. Elk dier in het park krijgt een eigen kopie met een eigen animatiespeler.
+// Een soort wordt pas geladen als hij vrijgespeeld is, zodat het spel snel start.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { ICON_IDS, icon, type IconId } from './icons';
 
 /** Maten van een model in model-eenheden (zie tools/animals). */
 export interface ModelInfo {
@@ -12,13 +14,16 @@ export interface ModelInfo {
 
 /** Eén model-eenheid is zoveel tegels. */
 export const MODEL_SCALE = 0.62;
+const VARIANTS = ['male', 'female', 'young_m', 'young_f'];
 
 const loader = new GLTFLoader();
 const cache = new Map<string, { scene: THREE.Object3D; clips: THREE.AnimationClip[] }>();
+const pending = new Map<string, Promise<void>>();
+const pngIcons = new Set<string>();
 let manifest: Record<string, ModelInfo> = {};
 
 export async function loadManifest(): Promise<void> {
-  const res = await fetch('./models/manifest.json');
+  const res = await fetch('./models/manifest.json', { cache: 'no-cache' });
   manifest = ((await res.json()) as { models: Record<string, ModelInfo> }).models;
 }
 
@@ -26,16 +31,35 @@ export function modelInfo(key: string): ModelInfo {
   return manifest[key] ?? { height: 1, back: 0.4, length: 1.2 };
 }
 
-export async function loadModel(key: string): Promise<void> {
-  if (cache.has(key)) return;
-  const gltf = await loader.loadAsync(`./models/${key}.glb`);
-  gltf.scene.traverse(o => {
-    if ((o as THREE.Mesh).isMesh) {
-      o.castShadow = true;
-      o.frustumCulled = false;
-    }
-  });
-  cache.set(key, { scene: gltf.scene, clips: gltf.animations });
+/** Is er een model voor deze soort? Levels met een soort zonder model doen nog niet mee. */
+export function hasSpecies(species: string): boolean {
+  return `${species}_male` in manifest && `${species}_female` in manifest;
+}
+
+export function loadModel(key: string): Promise<void> {
+  if (cache.has(key)) return Promise.resolve();
+  let p = pending.get(key);
+  if (!p) {
+    p = loader.loadAsync(`./models/${key}.glb`).then(gltf => {
+      gltf.scene.traverse(o => {
+        if ((o as THREE.Mesh).isMesh) {
+          o.castShadow = true;
+          o.frustumCulled = false;
+        }
+      });
+      cache.set(key, { scene: gltf.scene, clips: gltf.animations });
+    });
+    pending.set(key, p);
+  }
+  return p;
+}
+
+export function loadSpecies(species: string): Promise<unknown> {
+  return Promise.all(VARIANTS.filter(v => `${species}_${v}` in manifest).map(v => loadModel(`${species}_${v}`)));
+}
+
+export function modelReady(key: string): boolean {
+  return cache.has(key);
 }
 
 export interface Spawned {
@@ -61,4 +85,28 @@ export function spawnStatic(key: string): THREE.Object3D {
   const root = src.scene.clone();
   root.scale.setScalar(MODEL_SCALE);
   return root;
+}
+
+// ------------------------------------------------------------ plaatjes van de soorten
+/** Kijkt welke soorten een eigen kopplaatje hebben (public/icons); de rest krijgt een getekend plaatje. */
+export function probeIcons(species: string[]): Promise<unknown> {
+  return Promise.all(
+    species.map(
+      sp =>
+        new Promise<void>(resolve => {
+          const img = new Image();
+          img.onload = () => {
+            pngIcons.add(sp);
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = `./icons/${sp}.png`;
+        }),
+    ),
+  );
+}
+
+export function speciesIcon(species: string, cls = ''): string {
+  if (pngIcons.has(species)) return `<img class="ic ${cls}" src="./icons/${species}.png" alt="" draggable="false">`;
+  return icon((ICON_IDS as string[]).includes(species) ? (species as IconId) : 'paw', cls);
 }

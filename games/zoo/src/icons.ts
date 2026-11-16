@@ -56,6 +56,38 @@ const ICONS = {
   shed:
     `<rect x="9" y="20" width="30" height="22" fill="${WOOD_D}"/><rect x="14" y="26" width="20" height="16" rx="2" fill="${INK}" opacity=".45"/>` +
     '<ellipse cx="24" cy="41" rx="12" ry="3.5" fill="#e9d05a"/><path d="M3 23 L24 6 L45 23 L41 27 L24 13 L7 27Z" fill="#c0523f"/>',
+  rock: '<path d="M5 37 L10 20 L22 12 L36 16 L44 30 L40 38Z" fill="#a9adb3"/><path d="M10 20 L22 25 L36 16 M22 25 L24 38" fill="none" stroke="#7d8189" stroke-width="2"/>',
+  shade:
+    `<rect x="21" y="24" width="6" height="19" rx="2" fill="${WOOD_D}"/><ellipse cx="24" cy="18" rx="19" ry="13" fill="${GRASS_D}"/><ellipse cx="18" cy="14" rx="8" ry="5" fill="${GRASS}"/>`,
+  wall:
+    '<g fill="#a9adb3"><rect x="6" y="8" width="8" height="8" rx="1"/><rect x="20" y="8" width="8" height="8" rx="1"/><rect x="34" y="8" width="8" height="8" rx="1"/><rect x="4" y="14" width="40" height="26" rx="2"/></g>' +
+    '<path d="M4 23 H44 M4 31 H44 M16 14 V23 M30 14 V23 M10 23 V31 M24 23 V31 M38 23 V31 M16 31 V40 M30 31 V40" fill="none" stroke="#7d8189" stroke-width="2"/>',
+  sand: tile('#ecd591') + '<g fill="#d3b96c"><circle cx="16" cy="24" r="1.8"/><circle cx="25" cy="30" r="1.8"/><circle cx="30" cy="20" r="1.8"/><circle cx="22" cy="18" r="1.4"/><circle cx="34" cy="27" r="1.4"/></g>',
+  water: tile('#6ec3e8') + '<path d="M12 23 q3 -3 6 0 t6 0 M22 30 q3 -3 6 0 t6 0 M24 17 q3 -3 6 0" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>',
+  path: tile('#d8c7ab') + '<g fill="#b9a686"><ellipse cx="15" cy="24" rx="4" ry="2.2"/><ellipse cx="26" cy="29" rx="4" ry="2.2"/><ellipse cx="30" cy="20" rx="4" ry="2.2"/><ellipse cx="21" cy="17" rx="3" ry="1.7"/></g>',
+  fruit:
+    `<path d="M24 15 C12 9 6 20 9 30 C12 41 20 43 24 40 C28 43 36 41 39 30 C42 20 36 9 24 15Z" fill="#e0453a"/><path d="M24 15 Q24 8 28 5" fill="none" stroke="${WOOD_D}" stroke-width="3" stroke-linecap="round"/>` +
+    `<path d="M27 9 Q35 4 38 10 Q31 14 27 9Z" fill="${GRASS_D}"/><ellipse cx="16" cy="24" rx="3" ry="5" fill="#f0766c"/>`,
+  grain:
+    '<path d="M12 16 Q24 22 36 16 L40 38 Q24 46 8 38Z" fill="#e3c88f"/><path d="M14 12 Q24 6 34 12 Q24 20 14 12Z" fill="#cfae6e"/>' +
+    '<path d="M24 23 V37 M24 27 l-5 -4 M24 27 l5 -4 M24 32 l-5 -4 M24 32 l5 -4" fill="none" stroke="#b08a45" stroke-width="2.5" stroke-linecap="round"/>',
+  meat:
+    '<path d="M29 29 L39 39" stroke="#f4ead8" stroke-width="6" stroke-linecap="round"/><circle cx="40" cy="36" r="4" fill="#f4ead8"/><circle cx="36" cy="40" r="4" fill="#f4ead8"/>' +
+    '<ellipse cx="20" cy="20" rx="15" ry="12" fill="#c9553f" transform="rotate(-35 20 20)"/><ellipse cx="16" cy="16" rx="6" ry="3.5" fill="#e0806a" transform="rotate(-35 16 16)"/>',
+  leaves:
+    `<path d="M8 41 Q24 30 41 8" fill="none" stroke="${WOOD_D}" stroke-width="3" stroke-linecap="round"/>` +
+    `<g fill="${GRASS_D}"><ellipse cx="14" cy="28" rx="8" ry="4.5" transform="rotate(-60 14 28)"/><ellipse cx="27" cy="33" rx="8" ry="4.5" transform="rotate(15 27 33)"/><ellipse cx="24" cy="17" rx="8" ry="4.5" transform="rotate(-65 24 17)"/><ellipse cx="37" cy="21" rx="8" ry="4.5" transform="rotate(10 37 21)"/></g>`,
+  coin: `<circle cx="24" cy="24" r="19" fill="${SUN}" stroke="${SUN_D}" stroke-width="4"/><circle cx="24" cy="24" r="10" fill="none" stroke="${SUN_D}" stroke-width="2.5"/>`,
+  guest: `<path d="M6 45 Q6 29 24 29 Q42 29 42 45Z" fill="#4a90e2"/><circle cx="24" cy="17" r="11" fill="${SKIN}"/><path d="M13 15 Q24 1 35 15 Q24 10 13 15Z" fill="#7a4a22"/><circle cx="20" cy="18" r="1.8" fill="${INK}"/><circle cx="28" cy="18" r="1.8" fill="${INK}"/>`,
+  foodstall:
+    `<rect x="8" y="24" width="32" height="18" rx="2" fill="${WOOD}"/><path d="M4 10 H44 L46 23 H2Z" fill="#fff"/><path d="M4 10 H12 L10.5 23 H2Z M20 10 H28 L28.5 23 H19.5Z M36 10 H44 L46 23 H37.5Z" fill="${RED}"/>` +
+    `<path d="M17 36 Q24 26 31 36Z" fill="#e9a23b"/><rect x="16" y="36" width="16" height="3" rx="1.5" fill="#7a4a22"/>`,
+  drinkstall:
+    `<rect x="8" y="24" width="32" height="18" rx="2" fill="${WOOD}"/><path d="M4 10 H44 L46 23 H2Z" fill="#fff"/><path d="M4 10 H12 L10.5 23 H2Z M20 10 H28 L28.5 23 H19.5Z M36 10 H44 L46 23 H37.5Z" fill="#4a90e2"/>` +
+    '<path d="M19 28 H29 L27.5 40 H20.5Z" fill="#cfeaff"/><path d="M26 28 L29 22" stroke="#e0584f" stroke-width="2" stroke-linecap="round"/>',
+  bench:
+    `<g fill="${WOOD_D}"><rect x="9" y="18" width="5" height="24" rx="1.5"/><rect x="34" y="18" width="5" height="24" rx="1.5"/></g><rect x="5" y="26" width="38" height="6" rx="2" fill="${WOOD}"/><rect x="5" y="12" width="38" height="9" rx="2" fill="${WOOD}"/>`,
+  born: `${HEART}<g transform="translate(25 25) scale(.46)"><circle cx="24" cy="24" r="22" fill="#6cc04a" stroke="#fff" stroke-width="4"/><path d="M24 13 V35 M13 24 H35" stroke="#fff" stroke-width="6" stroke-linecap="round"/></g>`,
   paw:
     '<g fill="#7a4a22"><ellipse cx="24" cy="31" rx="10" ry="8"/><ellipse cx="11" cy="21" rx="4" ry="5.5"/><ellipse cx="19.5" cy="13" rx="4" ry="5.5"/>' +
     '<ellipse cx="28.5" cy="13" rx="4" ry="5.5"/><ellipse cx="37" cy="21" rx="4" ry="5.5"/></g>',

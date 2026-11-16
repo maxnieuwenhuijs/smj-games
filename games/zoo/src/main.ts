@@ -1,10 +1,10 @@
 // Opstarten: startscherm met drie opslagplekken, daarna het spel.
 import * as THREE from 'three';
 import { askPersistence, saveDel, saveGet, setStrings, t } from '@smj/shared';
-import { SPECIES, type SpeciesId, type Variant } from './data';
+import { LEVELS, SPECIES, unlockedSpecies } from './data';
 import { Game, slotKey, type SaveData } from './game';
 import { icon, type IconId } from './icons';
-import { loadManifest, loadModel } from './models';
+import { hasSpecies, loadManifest, loadModel, loadSpecies, probeIcons } from './models';
 import strings from './nl.json';
 import './style.css';
 import { View } from './view';
@@ -14,7 +14,6 @@ document.title = t('title');
 
 const $ = (id: string): HTMLElement => document.getElementById(id)!;
 const AVATARS: IconId[] = ['pig', 'cow', 'sheep'];
-const VARIANTS: Variant[] = ['male', 'female', 'young_m', 'young_f'];
 const HOLD_MS = 1200;
 
 async function showStart(): Promise<void> {
@@ -61,8 +60,10 @@ async function begin(slot: number, data: SaveData | undefined): Promise<void> {
   askPersistence();
   try {
     await loadManifest();
-    const keys = (Object.keys(SPECIES) as SpeciesId[]).flatMap(s => VARIANTS.map(v => `${s}_${v}`));
-    await Promise.all([...keys, 'poop'].map(loadModel));
+    await probeIcons(Object.keys(SPECIES));
+    // alleen de soorten laden die al vrijgespeeld zijn of in het opgeslagen park staan
+    const needed = new Set<string>([...unlockedSpecies(Math.min(data?.level ?? 0, LEVELS.length)), ...(data?.animals ?? []).map(a => a.species)]);
+    await Promise.all([loadModel('poop'), ...[...needed].filter(hasSpecies).map(loadSpecies)]);
   } catch (err) {
     $('loading').innerHTML = icon('cross');
     throw err;
