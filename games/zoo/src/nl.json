@@ -1,0 +1,37 @@
+{
+  "title": "Dierentuin",
+  "home": "Terug",
+  "slot.new": "Nieuw",
+  "slot.delete": "Wissen (vasthouden)",
+
+  "tool.hand": "Hand",
+  "tool.terrain": "Grond",
+  "tool.fence": "Hek",
+  "tool.trough": "Voerbak",
+  "tool.animal": "Dier",
+  "tool.erase": "Weg",
+
+  "terrain.grass": "Gras",
+  "terrain.mud": "Modder",
+  "fence.fence": "Hek",
+  "fence.gate": "Poort",
+
+  "species.pig": "Varken",
+  "species.cow": "Koe",
+  "species.sheep": "Schaap",
+
+  "food.veg": "Groente",
+  "food.hay": "Hooi",
+
+  "goal.enclosure": "Bouw een verblijf",
+  "goal.trough": "Zet een voerbak neer",
+  "goal.animals": "Zet dieren neer: {name}",
+  "goal.happy": "Maak dieren blij: {name}",
+  "goal.fed": "Geef het goede voer",
+  "goal.cleaned": "Ruim poepjes op",
+
+  "level": "Level {n}",
+  "level.done": "Goed gedaan!",
+  "level.new": "Nieuw dier:",
+  "level.next": "Verder"
+}

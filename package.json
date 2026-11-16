@@ -1,0 +1,14 @@
+{
+  "name": "smj-games",
+  "private": true,
+  "workspaces": [
+    "games/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @smj/zoo",
+    "build": "npm run build -w @smj/zoo",
+    "test": "npm run test -w @smj/zoo",
+    "typecheck": "npm run typecheck -w @smj/zoo"
+  }
+}

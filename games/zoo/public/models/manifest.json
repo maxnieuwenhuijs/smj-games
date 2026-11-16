@@ -1,0 +1,98 @@
+{
+ "models": {
+  "lion_male": {
+   "height": 1.176,
+   "back": 0.475,
+   "length": 1.95
+  },
+  "lion_female": {
+   "height": 0.993,
+   "back": 0.437,
+   "length": 1.777
+  },
+  "lion_young_m": {
+   "height": 0.646,
+   "back": 0.207,
+   "length": 1.058
+  },
+  "lion_young_f": {
+   "height": 0.646,
+   "back": 0.207,
+   "length": 1.058
+  },
+  "pig_male": {
+   "height": 0.7,
+   "back": 0.33,
+   "length": 1.003
+  },
+  "pig_female": {
+   "height": 0.645,
+   "back": 0.308,
+   "length": 0.928
+  },
+  "pig_young_m": {
+   "height": 0.438,
+   "back": 0.151,
+   "length": 0.551
+  },
+  "pig_young_f": {
+   "height": 0.438,
+   "back": 0.151,
+   "length": 0.551
+  },
+  "cow_male": {
+   "height": 1.441,
+   "back": 0.577,
+   "length": 1.847
+  },
+  "cow_female": {
+   "height": 1.243,
+   "back": 0.535,
+   "length": 1.687
+  },
+  "cow_young_m": {
+   "height": 0.73,
+   "back": 0.252,
+   "length": 0.958
+  },
+  "cow_young_f": {
+   "height": 0.696,
+   "back": 0.252,
+   "length": 0.958
+  },
+  "sheep_male": {
+   "height": 0.696,
+   "back": 0.427,
+   "length": 1.12
+  },
+  "sheep_female": {
+   "height": 0.642,
+   "back": 0.399,
+   "length": 1.036
+  },
+  "sheep_young_m": {
+   "height": 0.434,
+   "back": 0.211,
+   "length": 0.633
+  },
+  "sheep_young_f": {
+   "height": 0.434,
+   "back": 0.211,
+   "length": 0.633
+  }
+ },
+ "animations": [
+  "Idle",
+  "Walk",
+  "Run",
+  "Eat",
+  "Sit",
+  "Lie",
+  "Sleep",
+  "Poop",
+  "Pee",
+  "Play",
+  "Happy",
+  "Sad"
+ ]
+}
