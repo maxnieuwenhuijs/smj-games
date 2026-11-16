@@ -2,6 +2,8 @@
 
 Browserspellen voor kinderen vanaf 4 jaar.
 
+Spelen: https://maxnieuwenhuijs.github.io/smj-games/
+
 - `games/zoo`: het dierentuinspel (Three.js, TypeScript, Vite).
 - `packages/shared`: gedeelde code voor teksten en opslaan.
 - `tools/animals`: het Blender-script dat de diermodellen maakt.

@@ -55,7 +55,7 @@ Een park dat blijft groeien. Elk level heeft een tot drie doelen met voortgangsb
 | Fase | Wat | Klaar als |
 |---|---|---|
 | 0. Proef | Leeuwenfamilie in stijl A, twaalf animaties, bouwscript, testpagina | **Klaar** |
-| 1. Opzet | Repo-indeling (`games/zoo`, `packages/shared`, `tools`), Vite, Three.js, automatisch publiceren | **Gebouwd.** Online zodra GitHub Pages in de repo-instellingen aanstaat |
+| 1. Opzet | Repo-indeling (`games/zoo`, `packages/shared`, `tools`), Vite, Three.js, automatisch publiceren | **Klaar.** Het spel staat op https://maxnieuwenhuijs.github.io/smj-games/zoo/ |
 | 2. Speelbare kern | Raster, camera, ondergrond, hek en poort, verblijfherkenning, dieren plaatsen, vier wensen, voerbak met twee voersoorten, poepjes opruimen, levels 1 t/m 3, opslaan | **Gebouwd en zelf doorgespeeld.** Nog niet met een kind getest. Levels 1 t/m 3 gebruiken varken, koe en schaap |
 | 3. Figuren | Vijf portretten, opdrachtvenster, portret naast elke voortgangsbalk, alle teksten in het tekstenbestand | Elke opdracht komt van het juiste figuur |
 | 4. Stem en geluid | ElevenLabs-script voor stemmen en geluiden, een stem per figuur, mond beweegt mee, een geluid per dier en per handeling | Het spel is speelbaar zonder te lezen en elke tik geeft geluid |
