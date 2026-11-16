@@ -1,0 +1,227 @@
+{
+ "alarm": [
+  "alarm-1-2ba1cd.mp3"
+ ],
+ "amb.far": [
+  "amb.far-1-9cd98b.mp3"
+ ],
+ "amb.farm": [
+  "amb.farm-1-fad163.mp3"
+ ],
+ "amb.ice": [
+  "amb.ice-1-fbee9e.mp3"
+ ],
+ "amb.jungle": [
+  "amb.jungle-1-94fd89.mp3"
+ ],
+ "amb.savanna": [
+  "amb.savanna-1-44ede3.mp3"
+ ],
+ "animal.alpaca": [
+  "animal.alpaca-1-6dac47.mp3"
+ ],
+ "animal.arcticfox": [
+  "animal.arcticfox-1-ac7d62.mp3"
+ ],
+ "animal.bear": [
+  "animal.bear-1-1a47fd.mp3"
+ ],
+ "animal.beaver": [
+  "animal.beaver-1-0c1dae.mp3"
+ ],
+ "animal.bison": [
+  "animal.bison-1-37582b.mp3"
+ ],
+ "animal.camel": [
+  "animal.camel-1-bd8d03.mp3"
+ ],
+ "animal.cheetah": [
+  "animal.cheetah-1-811177.mp3"
+ ],
+ "animal.chicken": [
+  "animal.chicken-1-262539.mp3"
+ ],
+ "animal.cow": [
+  "animal.cow-1-d1a31b.mp3"
+ ],
+ "animal.crocodile": [
+  "animal.crocodile-1-5097c7.mp3"
+ ],
+ "animal.donkey": [
+  "animal.donkey-1-13e9d0.mp3"
+ ],
+ "animal.duck": [
+  "animal.duck-1-da811b.mp3"
+ ],
+ "animal.elephant": [
+  "animal.elephant-1-3be60a.mp3"
+ ],
+ "animal.flamingo": [
+  "animal.flamingo-1-b5cd9d.mp3"
+ ],
+ "animal.gazelle": [
+  "animal.gazelle-1-2f86ab.mp3"
+ ],
+ "animal.giraffe": [
+  "animal.giraffe-1-fe4c5c.mp3"
+ ],
+ "animal.goat": [
+  "animal.goat-1-3263ba.mp3"
+ ],
+ "animal.gorilla": [
+  "animal.gorilla-1-a91c49.mp3"
+ ],
+ "animal.hippo": [
+  "animal.hippo-1-78eeec.mp3"
+ ],
+ "animal.horse": [
+  "animal.horse-1-c21ad2.mp3"
+ ],
+ "animal.kangaroo": [
+  "animal.kangaroo-1-2f9869.mp3"
+ ],
+ "animal.koala": [
+  "animal.koala-1-3b9c3d.mp3"
+ ],
+ "animal.lemur": [
+  "animal.lemur-1-54baa5.mp3"
+ ],
+ "animal.lion": [
+  "animal.lion-1-b0a90c.mp3"
+ ],
+ "animal.monkey": [
+  "animal.monkey-1-ac175d.mp3"
+ ],
+ "animal.ostrich": [
+  "animal.ostrich-1-4c4407.mp3"
+ ],
+ "animal.otter": [
+  "animal.otter-1-8a738b.mp3"
+ ],
+ "animal.owl": [
+  "animal.owl-1-e0a4b0.mp3"
+ ],
+ "animal.panda": [
+  "animal.panda-1-753cc7.mp3"
+ ],
+ "animal.panther": [
+  "animal.panther-1-fa1486.mp3"
+ ],
+ "animal.parrot": [
+  "animal.parrot-1-c906ea.mp3"
+ ],
+ "animal.peacock": [
+  "animal.peacock-1-0977f0.mp3"
+ ],
+ "animal.pelican": [
+  "animal.pelican-1-7227e6.mp3"
+ ],
+ "animal.penguin": [
+  "animal.penguin-1-c11557.mp3"
+ ],
+ "animal.pig": [
+  "animal.pig-1-2a9765.mp3"
+ ],
+ "animal.polarbear": [
+  "animal.polarbear-1-39237a.mp3"
+ ],
+ "animal.rabbit": [
+  "animal.rabbit-1-511d6a.mp3"
+ ],
+ "animal.redpanda": [
+  "animal.redpanda-1-0fefae.mp3"
+ ],
+ "animal.reindeer": [
+  "animal.reindeer-1-805068.mp3"
+ ],
+ "animal.rhino": [
+  "animal.rhino-1-48117c.mp3"
+ ],
+ "animal.seal": [
+  "animal.seal-1-01eda9.mp3"
+ ],
+ "animal.sheep": [
+  "animal.sheep-1-52d43d.mp3"
+ ],
+ "animal.sloth": [
+  "animal.sloth-1-36c62e.mp3"
+ ],
+ "animal.tiger": [
+  "animal.tiger-1-6d6ecc.mp3"
+ ],
+ "animal.toucan": [
+  "animal.toucan-1-b26a8d.mp3"
+ ],
+ "animal.turtle": [
+  "animal.turtle-1-04b08f.mp3"
+ ],
+ "animal.walrus": [
+  "animal.walrus-1-47aec8.mp3"
+ ],
+ "animal.wolf": [
+  "animal.wolf-1-8ea7c3.mp3"
+ ],
+ "animal.yak": [
+  "animal.yak-1-afe801.mp3"
+ ],
+ "animal.zebra": [
+  "animal.zebra-1-c447fc.mp3"
+ ],
+ "born": [
+  "born-1-9d7146.mp3"
+ ],
+ "cheer": [
+  "cheer-1-ccb9b4.mp3"
+ ],
+ "chime": [
+  "chime-1-638856.mp3"
+ ],
+ "coin": [
+  "coin-1-3a7e62.mp3"
+ ],
+ "erase": [
+  "erase-1-4ec770.mp3"
+ ],
+ "fanfare": [
+  "fanfare-1-349153.mp3"
+ ],
+ "fence": [
+  "fence-1-1fa13d.mp3"
+ ],
+ "flush": [
+  "flush-1-5c0550.mp3"
+ ],
+ "heal": [
+  "heal-1-5a4c40.mp3"
+ ],
+ "heart": [
+  "heart-1-a05caf.mp3"
+ ],
+ "net": [
+  "net-1-e1c99e.mp3"
+ ],
+ "nope": [
+  "nope-1-6f8886.mp3"
+ ],
+ "paint": [
+  "paint-1-b35234.mp3"
+ ],
+ "place": [
+  "place-1-8773c4.mp3"
+ ],
+ "pour": [
+  "pour-1-b9eb8e.mp3"
+ ],
+ "sad": [
+  "sad-1-b32151.mp3"
+ ],
+ "stone": [
+  "stone-1-6b6fdf.mp3"
+ ],
+ "sweep": [
+  "sweep-1-f9d106.mp3"
+ ],
+ "tap": [
+  "tap-1-c1f3ab.mp3"
+ ]
+}

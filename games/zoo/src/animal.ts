@@ -1,5 +1,5 @@
 // Eén dier: wat het wil, wat het doet en welke animatie daarbij hoort.
-import { MAX_POOPS_CLEAN, SPECIES, TERRAINS, WISH_ORDER, type SpeciesId, type Variant, type WishId } from './data';
+import { MAX_POOPS_CLEAN, SPECIES, TERRAINS, WISH_ORDER, type FenceNeed, type SpeciesId, type Variant, type WishId } from './data';
 import { Grid, tileIndex, tileXY } from './grid';
 import { MODEL_SCALE, modelInfo, spawnModel, type ModelInfo, type Spawned } from './models';
 import { toWorldX, toWorldZ } from './view';
@@ -31,9 +31,12 @@ export interface AnimalWorld {
 
 type State = 'idle' | 'walk' | 'eat' | 'poop' | 'pee' | 'rest' | 'emote';
 
-const HUNGER_PER_SEC = 1 / 80;
+const HUNGER_PER_SEC = 1 / 150;
+const NEED_KIND: Record<FenceNeed, number> = { wall: 3, net: 4 };
 const SEEK_FOOD = 0.4;
 const HUNGRY = 0.6;
+
+const isTroughTile = (w: AnimalWorld, i: number): boolean => w.troughs.some(t => tileIndex(t.x, t.y) === i);
 
 export class Animal {
   readonly model: Spawned;
@@ -45,8 +48,12 @@ export class Animal {
   name = '';
   /** Loopt op zolang het dier iets mist; bij te veel wordt het opgehaald. */
   neglect = 0;
-  /** Sterk dier in een verblijf met een houten hek: het wil een stenen muur. */
-  needsWall = false;
+  /** Het verblijf heeft niet het hek dat dit dier nodig heeft: 'wall' (stenen muur) of 'net' (hoog net). */
+  needsFence: FenceNeed | null = null;
+  /** Ziek: het dier ligt stil tot de dokter is geweest. */
+  sick = false;
+  /** Ontsnapt: het dier loopt buiten zijn verblijf rond tot je het terugzet. */
+  escaped = false;
   happy = false;
   unmet: WishId | null = 'enclosure';
 
@@ -56,7 +63,7 @@ export class Animal {
   private eatAt: Trough | null = null;
   private anim = '';
   private heading = Math.random() * Math.PI * 2;
-  private poopIn = 25 + Math.random() * 30;
+  private poopIn = 45 + Math.random() * 60;
   private dropped = false;
   /** Zoveel seconden slapen zodra het dier op zijn slaapplek aankomt. */
   private napFor = 0;
@@ -141,9 +148,32 @@ export class Animal {
     this.play('Eat');
   }
 
+  /** Wordt ziek en gaat liggen. */
+  fallIll(): void {
+    this.stop();
+    this.sick = true;
+    this.state = 'rest';
+    this.timeLeft = 4;
+    this.play('Lie');
+  }
+
+  /** De dokter is geweest. */
+  heal(): void {
+    this.sick = false;
+    this.emote('Happy', 1.6);
+  }
+
+  /** Springt uit het verblijf en gaat rondlopen. */
+  escape(gx: number, gy: number): void {
+    this.moveTo(gx, gy);
+    this.escaped = true;
+    this.emote('Play', 1.2);
+  }
+
   /** Wordt opgetild en ergens anders neergezet. */
   moveTo(gx: number, gy: number): void {
     this.stop();
+    this.escaped = false;
     this.gx = gx;
     this.gy = gy;
     this.state = 'idle';
@@ -157,8 +187,10 @@ export class Animal {
     const [x, y] = tileXY(this.tile);
     const region = w.grid.enclosureAt(x, y);
     const info = SPECIES[this.species];
-    this.needsWall = !!region && !!info.strong && w.grid.penStrength(region) < 2;
-    const result: Record<WishId, boolean> = { enclosure: !!region && !this.needsWall, food: this.hunger < HUNGRY, bed: false, terrain: false, friend: false, clean: false };
+    this.needsFence = region && info.need && w.grid.penKind(region) !== NEED_KIND[info.need] ? info.need : null;
+    const result: Record<WishId, boolean> = {
+      health: !this.sick, enclosure: !!region && !this.needsFence, food: this.hunger < HUNGRY, bed: false, terrain: false, friend: false, clean: false,
+    };
     if (region) {
       const want = TERRAINS.indexOf(info.terrain);
       result.terrain = region.tiles.filter(i => w.grid.terrain[i] === want).length * 2 >= region.tiles.length;
@@ -176,14 +208,25 @@ export class Animal {
     const region = w.grid.enclosureAt(x, y);
     this.eatAt = null;
     this.napFor = 0;
+    if (this.sick) return this.rest(Math.random() < 0.5 ? 'Lie' : 'Sad', 4);
     if (!region) {
+      if (this.escaped) {
+        // buiten rondlopen: een paar stappen naar een willekeurige kant
+        const route = [this.tile];
+        for (let k = 0; k < 3; k++) {
+          const options = w.grid.neighbors(route[route.length - 1]).filter(i => !route.includes(i) && !isTroughTile(w, i));
+          if (!options.length) break;
+          route.push(options[Math.floor(Math.random() * options.length)]);
+        }
+        if (route.length > 1) return this.startWalk(route);
+      }
       this.state = 'emote';
       this.timeLeft = 3;
       this.play('Sad');
       return;
     }
     if (this.poopIn <= 0) {
-      this.poopIn = 40 + Math.random() * 40;
+      this.poopIn = 90 + Math.random() * 80;
       this.state = 'poop';
       this.timeLeft = 2.6;
       this.dropped = false;

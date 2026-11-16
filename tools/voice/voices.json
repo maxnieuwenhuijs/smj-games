@@ -1,0 +1,21 @@
+{
+  "model": "eleven_v4",
+  "format": "mp3_44100_64",
+  "settings": { "stability": 0.5, "similarity_boost": 0.75 },
+  "languages": {
+    "nl": {
+      "director": { "voice": "lyMhRNSScIYS9YRQitfK", "name": "YME: volle, warme mannenstem" },
+      "keeper": { "voice": "7qdUFMklKPaaAVMsBTBt", "name": "Roos: jonge, vrolijke vrouwenstem" },
+      "builder": { "voice": "AVIlLDn2TVmdaDycgbo3", "name": "Eric: nuchtere mannenstem" },
+      "host": { "voice": "OlBRrVAItyi00MuGMbna", "name": "Emma: rustige, heldere vrouwenstem" },
+      "cashier": { "voice": "JoZAnrliG62q9Iogun7f", "name": "Marti: jonge mannenstem" }
+    },
+    "en": {
+      "director": { "voice": "JBFqnCBsd6RMkjVDRZzb", "name": "George: warm British storyteller" },
+      "keeper": { "voice": "cgSgspJ2msm6clMCkdW9", "name": "Jessica: playful, bright, warm" },
+      "builder": { "voice": "iP95p4xoKVk53GoZ742B", "name": "Chris: charming, down-to-earth" },
+      "host": { "voice": "Xb7hH8MSUJpSbSDYk0k2", "name": "Alice: clear, engaging" },
+      "cashier": { "voice": "bIHbv24MWmeRgasZH58o", "name": "Will: relaxed optimist" }
+    }
+  }
+}

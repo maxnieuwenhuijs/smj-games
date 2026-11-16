@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Dierentuin</title>
+<meta name="theme-color" content="#bfe6ff">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./app/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./app/icon-180.png">
 </head>
 <body>
 <div id="app"></div>
@@ -11,6 +17,7 @@
 <div id="ui" hidden>
   <div id="goals"></div>
   <button id="home" class="tool small"></button>
+  <button id="sound" class="tool small"></button>
   <div id="wallet"></div>
   <div id="bubbles"></div>
   <div id="menu" hidden></div>
@@ -32,7 +39,10 @@
 <div id="start">
   <h1 id="title"></h1>
   <div id="slots"></div>
+  <button id="parents"></button>
 </div>
+
+<div id="parentpanel" hidden></div>
 
 <script type="module" src="/src/main.ts"></script>
 </body>

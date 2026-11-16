@@ -2,6 +2,7 @@
 // Een soort wordt pas geladen als hij vrijgespeeld is, zodat het spel snel start.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { ICON_IDS, icon, type IconId } from './icons';
 
@@ -10,13 +11,16 @@ export interface ModelInfo {
   height: number;
   back: number;
   length: number;
+  /** Vingerafdruk van het bestand; verandert als het model verandert. */
+  v?: string;
 }
 
 /** Eén model-eenheid is zoveel tegels. */
 export const MODEL_SCALE = 0.62;
 const VARIANTS = ['male', 'female', 'young_m', 'young_f'];
 
-const loader = new GLTFLoader();
+// de modellen zijn ingepakt met meshopt (tools/animals/optimize.mjs)
+const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const cache = new Map<string, { scene: THREE.Object3D; clips: THREE.AnimationClip[] }>();
 const pending = new Map<string, Promise<void>>();
 const pngIcons = new Set<string>();
@@ -40,7 +44,8 @@ export function loadModel(key: string): Promise<void> {
   if (cache.has(key)) return Promise.resolve();
   let p = pending.get(key);
   if (!p) {
-    p = loader.loadAsync(`./models/${key}.glb`).then(gltf => {
+    const v = manifest[key]?.v;
+    p = loader.loadAsync(`./models/${key}.glb${v ? `?v=${v}` : ''}`).then(gltf => {
       gltf.scene.traverse(o => {
         if ((o as THREE.Mesh).isMesh) {
           o.castShadow = true;
@@ -88,6 +93,12 @@ export function spawnStatic(key: string): THREE.Object3D {
 }
 
 // ------------------------------------------------------------ plaatjes van de soorten
+/** Het kopplaatje krijgt dezelfde vingerafdruk als het model, zodat een nieuw plaatje ook echt wordt opgehaald. */
+function iconUrl(species: string): string {
+  const v = manifest[`${species}_male`]?.v;
+  return `./icons/${species}.png${v ? `?v=${v}` : ''}`;
+}
+
 /** Kijkt welke soorten een eigen kopplaatje hebben (public/icons); de rest krijgt een getekend plaatje. */
 export function probeIcons(species: string[]): Promise<unknown> {
   return Promise.all(
@@ -100,13 +111,13 @@ export function probeIcons(species: string[]): Promise<unknown> {
             resolve();
           };
           img.onerror = () => resolve();
-          img.src = `./icons/${sp}.png`;
+          img.src = iconUrl(sp);
         }),
     ),
   );
 }
 
 export function speciesIcon(species: string, cls = ''): string {
-  if (pngIcons.has(species)) return `<img class="ic ${cls}" src="./icons/${species}.png" alt="" draggable="false">`;
+  if (pngIcons.has(species)) return `<img class="ic ${cls}" src="${iconUrl(species)}" alt="" draggable="false">`;
   return icon((ICON_IDS as string[]).includes(species) ? (species as IconId) : 'paw', cls);
 }

@@ -3,282 +3,338 @@
   "lion_male": {
    "height": 1.176,
    "back": 0.475,
-   "length": 1.95
+   "length": 1.95,
+   "v": "76f0d401"
   },
   "lion_female": {
    "height": 0.993,
    "back": 0.437,
-   "length": 1.777
+   "length": 1.777,
+   "v": "66d64b3d"
   },
   "lion_young_m": {
    "height": 0.646,
    "back": 0.207,
-   "length": 1.058
+   "length": 1.058,
+   "v": "bfa6e2a0"
   },
   "lion_young_f": {
    "height": 0.646,
    "back": 0.207,
-   "length": 1.058
+   "length": 1.058,
+   "v": "8fc61461"
   },
   "pig_male": {
    "height": 0.7,
    "back": 0.33,
-   "length": 1.003
+   "length": 1.003,
+   "v": "97dca0db"
   },
   "pig_female": {
    "height": 0.645,
    "back": 0.308,
-   "length": 0.928
+   "length": 0.928,
+   "v": "905e5646"
   },
   "pig_young_m": {
    "height": 0.438,
    "back": 0.151,
-   "length": 0.551
+   "length": 0.551,
+   "v": "5192041a"
   },
   "pig_young_f": {
    "height": 0.438,
    "back": 0.151,
-   "length": 0.551
+   "length": 0.551,
+   "v": "c1e52b8a"
   },
   "cow_male": {
    "height": 1.441,
    "back": 0.577,
-   "length": 1.847
+   "length": 1.847,
+   "v": "035c8c84"
   },
   "cow_female": {
    "height": 1.243,
    "back": 0.535,
-   "length": 1.687
+   "length": 1.687,
+   "v": "27656407"
   },
   "cow_young_m": {
    "height": 0.73,
    "back": 0.252,
-   "length": 0.958
+   "length": 0.958,
+   "v": "f510eb21"
   },
   "cow_young_f": {
    "height": 0.696,
    "back": 0.252,
-   "length": 0.958
+   "length": 0.958,
+   "v": "3e5f8beb"
   },
   "sheep_male": {
    "height": 0.696,
    "back": 0.427,
-   "length": 1.12
+   "length": 1.12,
+   "v": "c51ed7cb"
   },
   "sheep_female": {
    "height": 0.642,
    "back": 0.399,
-   "length": 1.036
+   "length": 1.036,
+   "v": "94511175"
   },
   "sheep_young_m": {
    "height": 0.434,
    "back": 0.211,
-   "length": 0.633
+   "length": 0.633,
+   "v": "257ebe72"
   },
   "sheep_young_f": {
    "height": 0.434,
    "back": 0.211,
-   "length": 0.633
+   "length": 0.633,
+   "v": "6bf59fea"
   },
   "horse_male": {
    "height": 1.975,
    "back": 0.563,
-   "length": 2.174
+   "length": 2.174,
+   "v": "fa0640cb"
   },
   "horse_female": {
    "height": 1.806,
    "back": 0.519,
-   "length": 1.988
+   "length": 1.988,
+   "v": "ef5ee978"
   },
   "horse_young_m": {
    "height": 1.033,
    "back": 0.241,
-   "length": 1.12
+   "length": 1.12,
+   "v": "1bd87c34"
   },
   "horse_young_f": {
    "height": 1.033,
    "back": 0.241,
-   "length": 1.12
+   "length": 1.12,
+   "v": "fa572312"
   },
   "donkey_male": {
    "height": 1.375,
    "back": 0.387,
-   "length": 1.42
+   "length": 1.42,
+   "v": "84ce876e"
   },
   "donkey_female": {
    "height": 1.253,
    "back": 0.357,
-   "length": 1.298
+   "length": 1.298,
+   "v": "eaf63948"
   },
   "donkey_young_m": {
    "height": 0.816,
    "back": 0.168,
-   "length": 0.77
+   "length": 0.77,
+   "v": "d6d06d0c"
   },
   "donkey_young_f": {
    "height": 0.816,
    "back": 0.168,
-   "length": 0.77
+   "length": 0.77,
+   "v": "bff1dbc1"
   },
   "goat_male": {
    "height": 0.814,
    "back": 0.24,
-   "length": 0.828
+   "length": 0.828,
+   "v": "d8825d7b"
   },
   "goat_female": {
    "height": 0.677,
    "back": 0.222,
-   "length": 0.757
+   "length": 0.757,
+   "v": "c472b863"
   },
   "goat_young_m": {
    "height": 0.411,
    "back": 0.11,
-   "length": 0.459
+   "length": 0.459,
+   "v": "3c408274"
   },
   "goat_young_f": {
    "height": 0.387,
    "back": 0.11,
-   "length": 0.459
+   "length": 0.459,
+   "v": "e92f2f67"
   },
   "alpaca_male": {
    "height": 1.417,
    "back": 0.45,
-   "length": 1.222
+   "length": 1.222,
+   "v": "99d4b4ba"
   },
   "alpaca_female": {
    "height": 1.297,
    "back": 0.415,
-   "length": 1.118
+   "length": 1.118,
+   "v": "b466fa70"
   },
   "alpaca_young_m": {
    "height": 0.74,
    "back": 0.217,
-   "length": 0.653
+   "length": 0.653,
+   "v": "1bf7c021"
   },
   "alpaca_young_f": {
    "height": 0.74,
    "back": 0.217,
-   "length": 0.653
+   "length": 0.653,
+   "v": "969091ed"
   },
   "zebra_male": {
    "height": 1.677,
    "back": 0.483,
-   "length": 1.806
+   "length": 1.806,
+   "v": "73b1713a"
   },
   "zebra_female": {
    "height": 1.536,
    "back": 0.446,
-   "length": 1.653
+   "length": 1.653,
+   "v": "14c1a01e"
   },
   "zebra_young_m": {
    "height": 0.895,
    "back": 0.208,
-   "length": 0.94
+   "length": 0.94,
+   "v": "076300a9"
   },
   "zebra_young_f": {
    "height": 0.895,
    "back": 0.208,
-   "length": 0.94
+   "length": 0.94,
+   "v": "567ed6cf"
   },
   "giraffe_male": {
    "height": 2.521,
    "back": 0.449,
-   "length": 1.803
+   "length": 1.803,
+   "v": "e17789ba"
   },
   "giraffe_female": {
    "height": 2.319,
    "back": 0.415,
-   "length": 1.651
+   "length": 1.651,
+   "v": "a6467d2a"
   },
   "giraffe_young_m": {
    "height": 1.19,
    "back": 0.199,
-   "length": 0.944
+   "length": 0.944,
+   "v": "dd0d16e9"
   },
   "giraffe_young_f": {
    "height": 1.19,
    "back": 0.199,
-   "length": 0.944
+   "length": 0.944,
+   "v": "0af1be98"
   },
   "elephant_male": {
    "height": 1.847,
    "back": 0.735,
-   "length": 2.535
+   "length": 2.535,
+   "v": "db54ccb0"
   },
   "elephant_female": {
    "height": 1.682,
    "back": 0.676,
-   "length": 2.308
+   "length": 2.308,
+   "v": "e0e7ca1c"
   },
   "elephant_young_m": {
    "height": 1.132,
    "back": 0.325,
-   "length": 1.368
+   "length": 1.368,
+   "v": "41eda9cf"
   },
   "elephant_young_f": {
    "height": 1.132,
    "back": 0.325,
-   "length": 1.368
+   "length": 1.368,
+   "v": "ce893c22"
   },
   "rhino_male": {
    "height": 1.346,
    "back": 0.682,
-   "length": 2.401
+   "length": 2.401,
+   "v": "ddb52f7c"
   },
   "rhino_female": {
    "height": 1.183,
    "back": 0.63,
-   "length": 2.191
+   "length": 2.191,
+   "v": "a876f68c"
   },
   "rhino_young_m": {
    "height": 0.756,
    "back": 0.302,
-   "length": 1.312
+   "length": 1.312,
+   "v": "1ca79299"
   },
   "rhino_young_f": {
    "height": 0.756,
    "back": 0.302,
-   "length": 1.312
+   "length": 1.312,
+   "v": "edccb283"
   },
   "hippo_male": {
    "height": 1.166,
    "back": 0.656,
-   "length": 2.291
+   "length": 2.291,
+   "v": "40f13414"
   },
   "hippo_female": {
    "height": 1.061,
    "back": 0.604,
-   "length": 2.075
+   "length": 2.075,
+   "v": "f10e3eef"
   },
   "hippo_young_m": {
    "height": 0.688,
    "back": 0.29,
-   "length": 1.238
+   "length": 1.238,
+   "v": "7c2920da"
   },
   "hippo_young_f": {
    "height": 0.688,
    "back": 0.29,
-   "length": 1.232
+   "length": 1.232,
+   "v": "b1a4c145"
   },
   "camel_male": {
    "height": 2.06,
    "back": 0.562,
-   "length": 2.113
+   "length": 2.113,
+   "v": "165a52ea"
   },
   "camel_female": {
    "height": 1.885,
    "back": 0.517,
-   "length": 1.926
+   "length": 1.926,
+   "v": "837f94ff"
   },
   "camel_young_m": {
    "height": 1.094,
    "back": 0.248,
-   "length": 1.114
+   "length": 1.114,
+   "v": "002e141d"
   },
   "camel_young_f": {
    "height": 1.094,
    "back": 0.248,
-   "length": 1.114
+   "length": 1.114,
+   "v": "10910f30"
   }
  },
  "animations": [

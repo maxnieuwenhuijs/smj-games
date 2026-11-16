@@ -4,8 +4,8 @@ export const W = 20;
 export const H = 20;
 export const MIN_ENCLOSURE = 4;
 
-/** 0 = niets, 1 = houten hek, 2 = poort, 3 = stenen muur. */
-export type EdgeKind = 0 | 1 | 2 | 3;
+/** 0 = niets, 1 = houten hek, 2 = poort, 3 = stenen muur, 4 = hoog net. */
+export type EdgeKind = 0 | 1 | 2 | 3 | 4;
 
 /** 'h' ligt aan de noordkant van tegel (x,y); 'v' aan de westkant. */
 export interface Edge {
@@ -122,9 +122,13 @@ export class Grid {
     return this.regions.filter(r => r.enclosed && r.tiles.length >= MIN_ENCLOSURE);
   }
 
-  /** 2 als het verblijf rondom van steen of poort is, 1 zodra er ergens een houten hek in zit. */
-  penStrength(region: Region): number {
+  /**
+   * Waar is de rand van het verblijf van gemaakt? Geeft 3 als alles steen is, 4 als alles hoog net is
+   * en anders 1. Poorten tellen niet mee: die passen bij elk hek.
+   */
+  penKind(region: Region): EdgeKind {
     const inside = new Set(region.tiles);
+    let found: EdgeKind = 0;
     for (const i of region.tiles) {
       const [x, y] = tileXY(i);
       const sides: [number, number, number][] = [
@@ -135,10 +139,30 @@ export class Grid {
       ];
       for (const [dx, dy, kind] of sides) {
         const out = !this.inBounds(x + dx, y + dy) || !inside.has(tileIndex(x + dx, y + dy));
-        if (out && kind === 1) return 1;
+        if (!out || kind === 2) continue;
+        if (kind === 1 || (found && found !== kind)) return 1;
+        found = kind as EdgeKind;
       }
     }
-    return 2;
+    return found || 1;
+  }
+
+  /** De randen (geen poorten) aan de buitenkant van een verblijf. */
+  borderEdges(region: Region): Edge[] {
+    const inside = new Set(region.tiles);
+    const out: Edge[] = [];
+    for (const i of region.tiles) {
+      const [x, y] = tileXY(i);
+      const sides: [number, number, Edge][] = [
+        [0, -1, { o: 'h', x, y }],
+        [0, 1, { o: 'h', x, y: y + 1 }],
+        [-1, 0, { o: 'v', x, y }],
+        [1, 0, { o: 'v', x: x + 1, y }],
+      ];
+      for (const [dx, dy, e] of sides)
+        if (!this.inBounds(x + dx, y + dy) || !inside.has(tileIndex(x + dx, y + dy))) out.push(e);
+    }
+    return out;
   }
 
   neighbors(i: number): number[] {

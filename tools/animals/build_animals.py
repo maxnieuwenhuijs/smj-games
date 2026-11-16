@@ -964,6 +964,8 @@ SPECIES = {
 # ---------------------------------------------------------------- viervoeter
 def build_animal(species, variant, style, name):
     R = SPECIES[species]
+    if R.get('build'):   # eigen bouwfunctie uit een pakket (bijvoorbeeld de tweevoeters)
+        return R['build'](species, variant, style, name)
     P, S, D = R['variants'][variant], STYLES[style], R['dims']
     C = dict(BASE_COL, **R['col'])
     C.update(P['col'])
@@ -1223,6 +1225,11 @@ def anim_pose(name, t, G):
     return {}
 
 
+def pose_of(name, t, G):
+    """Houding van dit dier: een pakket kan in G['poser'] eigen houdingen meegeven."""
+    return (G.get('poser') or anim_pose)(name, t, G)
+
+
 def apply_pose(rig, pose, s):
     for pb in rig.pose.bones:
         d = pose.get(pb.name, {})
@@ -1241,7 +1248,7 @@ def make_actions(rig, G):
         act = bpy.data.actions.new(name)
         ad.action = act
         for f in range(0, n + 1, step):
-            apply_pose(rig, anim_pose(name, f / n, G), G['s'])
+            apply_pose(rig, pose_of(name, f / n, G), G['s'])
             for pb in rig.pose.bones:
                 pb.keyframe_insert('rotation_quaternion', frame=f + 1)
                 pb.keyframe_insert('location', frame=f + 1)
@@ -1284,13 +1291,7 @@ def build_poop(style, name='poop'):
 def export_models(species_list, style):
     os.makedirs(MODELS, exist_ok=True)
     mpath = os.path.join(MODELS, 'manifest.json')
-    manifest = {'models': {}}
-    if os.path.exists(mpath):
-        try:
-            manifest = json.load(open(mpath, encoding='utf-8'))
-        except Exception:
-            pass
-    manifest.setdefault('models', {})
+    mine = {}
     report = {}
     expect = sorted(a[0] for a in ANIMS)
     for sp in species_list:
@@ -1303,13 +1304,22 @@ def export_models(species_list, style):
             bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', export_animations=True,
                                       export_animation_mode='ACTIONS')
             info = glb_info(path)
-            manifest['models'][key] = dict(height=G['height'], back=G['body_back'], length=G['length'])
+            mine[key] = dict(height=G['height'], back=G['body_back'], length=G['length'])
             report[key] = dict(kb=info['kb'], tris=G['tris'], anims=len(info['animations']),
                                anims_ok=sorted(info['animations']) == expect, prims=info['primitives'],
                                joints=info['joints'])
     reset()
     build_poop(style)
     bpy.ops.export_scene.gltf(filepath=os.path.join(MODELS, 'poop.glb'), export_format='GLB')
+    # het lijstje pas nu inlezen en alleen de eigen soorten bijwerken: er kan tegelijk nog iemand exporteren
+    manifest = {'models': {}}
+    if os.path.exists(mpath):
+        try:
+            manifest = json.load(open(mpath, encoding='utf-8'))
+        except Exception:
+            pass
+    manifest.setdefault('models', {}).update(mine)
+    manifest['models'] = dict(sorted(manifest['models'].items()))
     manifest['animations'] = [a[0] for a in ANIMS]
     with open(mpath, 'w', encoding='utf-8') as f:
         json.dump(manifest, f, indent=1)
@@ -1414,7 +1424,7 @@ def place(species, variant, style, name, pos, anim, t=None, rot=22):
     rig, obj, G = build_animal(species, variant, style, name)
     rig.location = pos
     rig.rotation_euler.z = math.radians(rot)
-    apply_pose(rig, anim_pose(anim, SHOW_T[anim] if t is None else t, G), G['s'])
+    apply_pose(rig, pose_of(anim, SHOW_T[anim] if t is None else t, G), G['s'])
     if anim == 'Poop':
         turn = Matrix.Rotation(math.radians(rot), 3, 'Z')
         build_poop(style, 'poop_' + name).location = Vector(pos) + turn @ Vector((0, G['body_back'] + 0.28 * G['s'], 0))
@@ -1568,8 +1578,31 @@ def render_styles():
     render(os.path.join(OUT, 'stijlen.png'))
 
 
+# ---------------------------------------------------------------- pakketten
+# Extra soorten staan in tools/animals/packs/*.py. Elk bestand draait in deze module en kan dus alles
+# hierboven gebruiken (Builder, neck, belly, tail_chain, shell, stance, merge, ...). Een pakket voegt
+# soorten toe met SPECIES['naam'] = dict(decor=..., dims=..., col=..., variants=...).
+# Met SPECIES['naam']['build'] = functie bouwt een pakket het dier helemaal zelf (tweevoeters);
+# die functie geeft (rig, obj, G) terug en zet in G['poser'] de functie voor de houdingen.
+PACKS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'packs')
+if os.path.isdir(PACKS):
+    for _f in sorted(os.listdir(PACKS)):
+        if not _f.endswith('.py'):
+            continue
+        try:
+            with open(os.path.join(PACKS, _f), encoding='utf-8') as _h:
+                exec(compile(_h.read(), os.path.join(PACKS, _f), 'exec'), globals())
+        except Exception as _err:   # een kapot pakket mag de andere soorten niet tegenhouden
+            import traceback
+            print('PACK FAILED %s' % _f)
+            traceback.print_exc()
+
 mode = ARGS[1] if len(ARGS) > 1 else 'all'
-species_list = [a for a in ARGS[2:] if a in SPECIES] or list(SPECIES)
+_unknown = [a for a in ARGS[2:] if a not in SPECIES]
+if _unknown:
+    print('ONBEKENDE SOORT: %s' % ', '.join(_unknown))
+    sys.exit(1)
+species_list = ARGS[2:] or list(SPECIES)
 if mode in ('all', 'export'):
     print('REPORT ' + json.dumps(export_models(species_list, STYLE)))
 if mode in ('all', 'render'):

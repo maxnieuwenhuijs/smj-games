@@ -1,5 +1,6 @@
 // De knoppen, balken, menu's en het praatvenster bovenop het spelbeeld. Alles is gewone HTML.
 import { t } from '@smj/shared';
+import { isMuted, setMuted, sfx, type Voice } from './audio';
 import { portrait, type FigureId, type Mood, type Mouth } from './figures';
 import { icon } from './icons';
 
@@ -53,8 +54,8 @@ export class Hud {
   private walletKey = '';
   private canvasHost = $('app');
   private goalRows: { fill: HTMLElement; count: HTMLElement; row: HTMLElement; n: number }[] = [];
-  private speechTimer = 0;
   private mouthTimer = 0;
+  private voice: Voice | null = null;
 
   constructor(private on: { tool(id: string, row?: string, option?: string): void; home(): void; goal(index: number): void }) {
     const home = $('home');
@@ -62,6 +63,21 @@ export class Hud {
     home.setAttribute('aria-label', t('home'));
     home.addEventListener('click', () => this.on.home());
     this.speech.addEventListener('click', () => this.hush());
+    const sound = $('sound');
+    const showSound = (): void => {
+      sound.innerHTML = icon(isMuted() ? 'sound_off' : 'sound_on');
+    };
+    sound.setAttribute('aria-label', t('sound'));
+    sound.addEventListener('click', () => {
+      setMuted(!isMuted());
+      if (isMuted()) this.hush();
+      showSound();
+    });
+    showSound();
+    // elke knop geeft een tikje
+    document.addEventListener('click', e => {
+      if ((e.target as HTMLElement).closest?.('button')) sfx('tap', { volume: 0.7 });
+    }, true);
   }
 
   // ------------------------------------------------------------ knoppen
@@ -142,11 +158,11 @@ export class Hud {
     return b;
   }
 
-  /** Naambordje van een verblijf. */
-  makeLabel(text: string, click: () => void): HTMLElement {
-    const b = el('button', 'penname', `${icon('pen')}<b></b>`);
+  /** Bordje boven een verblijf dat even dicht is. De naam van een verblijf zie je pas als je erop tikt. */
+  makeSign(text: string): HTMLElement {
+    const b = el('div', 'penname closed', `${icon('pen')}<b></b>`);
     b.querySelector('b')!.textContent = text;
-    b.addEventListener('click', click);
+    b.hidden = true;
     this.layer.append(b);
     return b;
   }
@@ -197,8 +213,11 @@ export class Hud {
     return !this.speech.hidden;
   }
 
-  /** Een figuur zegt iets. Het mondje beweegt zolang het praat. */
-  say(who: FigureId, mood: Mood, text: string): void {
+  /**
+   * Een figuur zegt iets. Met een ingesproken zin beweegt het mondje mee met het geluid en gaat het
+   * venster dicht als de zin uit is; zonder stem praat het figuur op een klokje.
+   */
+  say(who: FigureId, mood: Mood, text: string, voice: Voice | null = null): void {
     this.hush();
     const face = this.speech.querySelector<HTMLElement>('.portrait')!;
     this.speech.querySelector('.name')!.textContent = t(`figure.${who}`);
@@ -206,21 +225,40 @@ export class Hud {
     this.speech.dataset.mood = mood;
     this.speech.hidden = false;
     face.innerHTML = portrait(who, mood, 0);
+    this.voice = voice;
     const talkMs = Math.max(1200, Math.min(4500, text.length * 60));
     const frames: Mouth[] = [1, 2, 1, 0];
     const start = performance.now();
-    let i = 0;
+    let shown: Mouth = 0, quiet = 0, tick = 0, peak = 0.03;
+    const show = (m: Mouth): void => {
+      if (m === shown) return;
+      shown = m;
+      face.innerHTML = portrait(who, mood, m);
+    };
     this.mouthTimer = window.setInterval(() => {
-      const talking = performance.now() - start < talkMs;
-      face.innerHTML = portrait(who, mood, talking ? frames[i++ % frames.length] : 0);
-      if (!talking) clearInterval(this.mouthTimer);
-    }, 130);
-    this.speechTimer = window.setTimeout(() => this.hush(), talkMs + 3000);
+      const ms = performance.now() - start;
+      tick++;
+      if (voice && !voice.done && (voice.started || ms < 2500)) {
+        // hoe hard er nu gepraat wordt, afgezet tegen het hardste stukje van deze zin
+        const level = voice.level();
+        peak = Math.max(peak * 0.99, level, 0.03);
+        show(level > peak * 0.5 ? 2 : level > peak * 0.18 ? 1 : 0);
+      } else if (voice?.started) {
+        // de zin is uit: nog even laten staan
+        show(0);
+        quiet += 65;
+        if (quiet > 1100) this.hush();
+      } else {
+        if (tick % 2 === 0) show(ms < talkMs ? frames[(tick / 2) % frames.length] : 0);
+        if (ms > talkMs + 3000) this.hush();
+      }
+    }, 65);
   }
 
   hush(): void {
-    clearTimeout(this.speechTimer);
     clearInterval(this.mouthTimer);
+    this.voice?.stop();
+    this.voice = null;
     this.speech.hidden = true;
   }
 

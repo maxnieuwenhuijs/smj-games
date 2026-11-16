@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { LEVELS, unlockedSpecies } from './data';
+import { FEATURE, LEVELS, SHOPS, SPECIES, migrateLevel, unlockedSpecies, worldOf, type SpeciesId } from './data';
+import en from './en.json';
 import { Grid, H, W, edgeAlong, nearestEdge, tileIndex, type Edge } from './grid';
 import { emptyStats, goalProgress, levelDone } from './levels';
+import { allLines, fill, goalLine, textOf, voiceId, type Tr } from './lines';
+import nl from './nl.json';
 
 /** Zet een hek om het blok tegels van (x0,y0) tot en met (x1,y1). */
 function fenceBox(g: Grid, x0: number, y0: number, x1: number, y1: number): Edge[] {
@@ -54,14 +57,25 @@ describe('verblijven', () => {
     expect(g.enclosures()).toHaveLength(2);
   });
 
-  it('een houten hek is niet sterk genoeg, een stenen muur wel', () => {
+  it('een verblijf is van hout, van steen of van net; een poort past overal bij', () => {
     const g = new Grid();
     const edges = fenceBox(g, 3, 3, 4, 4);
-    expect(g.penStrength(g.enclosureAt(3, 3)!)).toBe(1);
+    expect(g.penKind(g.enclosureAt(3, 3)!)).toBe(1);
     for (const e of edges) g.setEdge(e, 3);
-    expect(g.penStrength(g.enclosureAt(3, 3)!)).toBe(2);
+    expect(g.penKind(g.enclosureAt(3, 3)!)).toBe(3);
     g.setEdge(edges[0], 2);
-    expect(g.penStrength(g.enclosureAt(3, 3)!)).toBe(2);
+    expect(g.penKind(g.enclosureAt(3, 3)!)).toBe(3);
+    for (const e of edges.slice(1)) g.setEdge(e, 4);
+    expect(g.penKind(g.enclosureAt(3, 3)!)).toBe(4);
+    // één stukje steen in een net: niet meer helemaal van net
+    g.setEdge(edges[1], 3);
+    expect(g.penKind(g.enclosureAt(3, 3)!)).toBe(1);
+  });
+
+  it('kent de buitenrand van een verblijf', () => {
+    const g = new Grid();
+    fenceBox(g, 3, 3, 4, 4);
+    expect(g.borderEdges(g.enclosureAt(3, 3)!)).toHaveLength(8);
   });
 
   it('een route gaat niet door een hek', () => {
@@ -118,5 +132,103 @@ describe('levels', () => {
     expect(levelDone(LEVELS[0], s)).toBe(false);
     s.troughs = 1;
     expect(levelDone(LEVELS[0], s)).toBe(true);
+  });
+});
+
+describe('vijftig levels', () => {
+  const species = Object.keys(SPECIES) as SpeciesId[];
+
+  it('er zijn vijftig levels en vijftig dieren, elk dier één keer', () => {
+    expect(LEVELS).toHaveLength(50);
+    expect(species).toHaveLength(50);
+    expect(new Set(LEVELS.map(l => l.reward)).size).toBe(50);
+    expect(worldOf(0)).toBe('farm');
+    expect(worldOf(10)).toBe('savanna');
+    expect(worldOf(49)).toBe('far');
+  });
+
+  it('elk level vraagt om het dier dat je net kreeg', () => {
+    LEVELS.forEach((level, i) => {
+      if (i < 2) return;
+      const happy = level.goals.find(g => g.type === 'happy');
+      expect(happy?.species, `level ${i + 1}`).toBe(LEVELS[i - 1].reward);
+    });
+  });
+
+  it('een doel vraagt nooit om iets wat nog niet vrij is', () => {
+    LEVELS.forEach((level, i) => {
+      for (const g of level.goals) {
+        if (g.type === 'shop') expect(FEATURE[g.shop!], `level ${i + 1} ${g.shop}`).toBeLessThanOrEqual(i);
+        if (g.type === 'guests' || g.type === 'path') expect(FEATURE.paths).toBeLessThanOrEqual(i);
+        if (g.type === 'healed') expect(FEATURE.sick).toBeLessThanOrEqual(i);
+        if (g.type === 'caught') expect(FEATURE.escape).toBeLessThanOrEqual(i);
+        if (g.type === 'keeper') expect(FEATURE.keeper).toBeLessThanOrEqual(i);
+        if (g.type === 'tidy') expect(FEATURE.bin).toBeLessThanOrEqual(i);
+        if (g.type === 'kinds') expect(g.n).toBeLessThanOrEqual(i);
+        if (g.species) expect(unlockedSpecies(i)).toContain(g.species);
+      }
+    });
+    for (const kind of SHOPS) expect(FEATURE[kind]).toBeGreaterThan(0);
+  });
+
+  it('de doelen worden per wereld zwaarder', () => {
+    const most = (type: string, from: number, to: number): number =>
+      Math.max(0, ...LEVELS.slice(from, to).flatMap(l => l.goals.filter(g => g.type === type).map(g => g.n)));
+    for (const type of ['guests', 'kinds', 'happyany'])
+      for (let w = 1; w < 5; w++) expect(most(type, w * 10, w * 10 + 10), `${type} wereld ${w + 1}`).toBeGreaterThanOrEqual(most(type, (w - 1) * 10, w * 10));
+  });
+
+  it('een oud opgeslagen spel gaat verder waar het was', () => {
+    expect(migrateLevel(5, 1)).toBe(5);
+    expect(migrateLevel(7, 1)).toBe(7);
+    expect(migrateLevel(9, 1)).toBe(12);
+    expect(migrateLevel(9, 2)).toBe(9);
+    // wie de zebra al had (acht levels klaar), heeft hem na het verhuizen nog steeds
+    expect(unlockedSpecies(migrateLevel(8, 1))).toContain('zebra');
+  });
+});
+
+describe('teksten en stemmen', () => {
+  const tables: Record<string, Record<string, string>> = { nl, en };
+
+  it('Nederlands en Engels hebben dezelfde teksten', () => {
+    expect(Object.keys(en).sort()).toEqual(Object.keys(nl).sort());
+  });
+
+  for (const [lang, table] of Object.entries(tables)) {
+    const tr: Tr = (key, vars) => fill(table[key] ?? `?${key}?`, vars);
+
+    it(`${lang}: elke zin die kan klinken is compleet`, () => {
+      const lines = allLines(tr);
+      expect(lines.length).toBeGreaterThan(500);
+      for (const line of lines) {
+        expect(line.text, line.text).not.toMatch(/[{}?]\w*[{}?]|\{|\}|\?\w+\?/);
+        expect(line.text.length).toBeGreaterThan(3);
+      }
+      // geen twee zinnen met dezelfde vingerafdruk
+      expect(new Set(lines.map(l => voiceId(l.who, l.text))).size).toBe(lines.length);
+    });
+
+    it(`${lang}: elk dier, elke grond, elk voer en elke winkel heeft een naam`, () => {
+      for (const sp of Object.keys(SPECIES)) for (const suffix of ['', '.the', '.many']) expect(table[`species.${sp}${suffix}`], sp).toBeTruthy();
+      for (const info of Object.values(SPECIES)) {
+        expect(table[`terrain.${info.terrain}`]).toBeTruthy();
+        expect(table[`terrain.${info.terrain}.want`]).toBeTruthy();
+        expect(table[`food.${info.food}`]).toBeTruthy();
+        expect(table[`bed.${info.bed}`]).toBeTruthy();
+        expect(table[`bed.${info.bed}.a`]).toBeTruthy();
+      }
+      for (const kind of SHOPS) expect(table[`shop.${kind}`]).toBeTruthy();
+      LEVELS.forEach((level, i) => {
+        expect(table[`say.level.${i + 1}`]).toBeTruthy();
+        for (const g of level.goals) expect(textOf(tr, goalLine(tr, g))).not.toContain('?');
+      });
+    });
+  }
+
+  it('de vingerafdruk van een zin is altijd dezelfde', () => {
+    expect(voiceId('director', 'Goed gedaan!')).toBe(voiceId('director', 'Goed gedaan!'));
+    expect(voiceId('director', 'Goed gedaan!')).not.toBe(voiceId('keeper', 'Goed gedaan!'));
+    expect(voiceId('director', 'Goed gedaan!')).toMatch(/^[0-9a-f]{16}$/);
   });
 });

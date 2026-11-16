@@ -12,13 +12,24 @@ export interface Stats {
   shops: Record<string, number>;
   animals: Record<string, number>;
   happy: Record<string, number>;
+  /** Alle blije dieren bij elkaar. */
+  happyAll: number;
+  /** Aantal soorten waarvan er minstens twee blij zijn. */
+  kinds: number;
   fed: number;
   cleaned: number;
   born: number;
+  healed: number;
+  caught: number;
+  keepers: number;
+  tidied: number;
 }
 
 export function emptyStats(): Stats {
-  return { enclosures: 0, troughs: 0, beds: 0, paths: 0, guests: 0, coins: 0, shops: {}, animals: {}, happy: {}, fed: 0, cleaned: 0, born: 0 };
+  return {
+    enclosures: 0, troughs: 0, beds: 0, paths: 0, guests: 0, coins: 0, shops: {}, animals: {}, happy: {},
+    happyAll: 0, kinds: 0, fed: 0, cleaned: 0, born: 0, healed: 0, caught: 0, keepers: 0, tidied: 0,
+  };
 }
 
 export function goalProgress(goal: Goal, s: Stats): number {
@@ -36,6 +47,12 @@ export function goalProgress(goal: Goal, s: Stats): number {
     case 'fed': value = s.fed; break;
     case 'cleaned': value = s.cleaned; break;
     case 'born': value = s.born; break;
+    case 'kinds': value = s.kinds; break;
+    case 'happyany': value = s.happyAll; break;
+    case 'healed': value = s.healed; break;
+    case 'caught': value = s.caught; break;
+    case 'keeper': value = s.keepers; break;
+    case 'tidy': value = s.tidied; break;
   }
   return Math.max(0, Math.min(goal.n, value));
 }

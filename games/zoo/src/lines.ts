@@ -1,0 +1,145 @@
+// Alles wat de figuren kunnen zeggen. Het spel bouwt zijn zinnen hier, en het stemmenscript
+// (tools/voice) vraagt hier de volledige lijst op, zodat elke zin ook ingesproken kan worden.
+// Geen DOM en geen Three.js in dit bestand: het draait ook buiten de browser.
+import { GOAL_OWNER, LEVELS, SPECIES, type FenceNeed, type Goal, type SpeciesId, type WishId } from './data';
+import type { FigureId, Mood } from './figures';
+
+export type Vars = Record<string, string | number>;
+export type Tr = (key: string, vars?: Vars) => string;
+
+/** Eén zin van een figuur. */
+export interface Line {
+  who: FigureId;
+  mood: Mood;
+  key: string;
+  vars?: Vars;
+  /** Voor de wachttijd tussen twee dezelfde meldingen. */
+  id?: string;
+}
+
+const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Invullen van {zo} in een tekst. */
+export function fill(text: string, vars?: Vars): string {
+  let s = text;
+  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));
+  return s;
+}
+
+export function speciesVars(tr: Tr, sp: SpeciesId): Vars {
+  const the = tr(`species.${sp}.the`);
+  const info = SPECIES[sp];
+  return {
+    the,
+    The: cap(the),
+    many: tr(`species.${sp}.many`),
+    food: tr(`food.${info.food}`).toLowerCase(),
+    terrain: tr(`terrain.${info.terrain}.want`),
+    bed: tr(`bed.${info.bed}.a`),
+  };
+}
+
+export function goalKey(g: Goal): string {
+  if (g.type === 'shop') return `goal.shop.${g.shop}${g.n > 1 ? '.n' : ''}`;
+  return g.n === 1 && (g.type === 'born' || g.type === 'healed' || g.type === 'caught' || g.type === 'keeper') ? `goal.${g.type}.1` : `goal.${g.type}`;
+}
+
+export function goalVars(tr: Tr, g: Goal): Vars {
+  return { n: g.n, many: g.species ? tr(`species.${g.species}.many`) : '' };
+}
+
+export function goalLine(tr: Tr, g: Goal): Line {
+  return { who: GOAL_OWNER[g.type], mood: 'happy', key: goalKey(g), vars: goalVars(tr, g) };
+}
+
+/** Een dier wacht al een poos op iets. */
+export function wishLine(tr: Tr, wish: WishId, sp: SpeciesId, need: FenceNeed | null, urgent: boolean): Line {
+  const fence = wish === 'enclosure' && need;
+  return {
+    who: wish === 'enclosure' ? 'builder' : 'keeper',
+    mood: urgent ? 'urgent' : 'worried',
+    key: fence ? `alert.${need}` : `alert.${wish}`,
+    vars: speciesVars(tr, sp),
+    id: `alert.${wish}.${sp}`,
+  };
+}
+
+export const say = {
+  welcome: (): Line => ({ who: 'director', mood: 'happy', key: 'say.welcome' }),
+  level: (n: number): Line => ({ who: 'director', mood: 'happy', key: `say.level.${n}` }),
+  free: (): Line => ({ who: 'director', mood: 'happy', key: 'say.free' }),
+  soon: (): Line => ({ who: 'director', mood: 'happy', key: 'say.soon' }),
+  done: (): Line => ({ who: 'director', mood: 'happy', key: 'say.done' }),
+  pen: (name: string): Line => ({ who: 'builder', mood: 'happy', key: 'say.pen', vars: { name } }),
+  reopen: (name: string): Line => ({ who: 'builder', mood: 'happy', key: 'say.reopen', vars: { name } }),
+  wrongFood: (tr: Tr, sp: SpeciesId): Line => ({ who: 'keeper', mood: 'worried', key: 'alert.wrongfood', vars: speciesVars(tr, sp) }),
+  taken: (tr: Tr, sp: SpeciesId): Line => ({ who: 'keeper', mood: 'urgent', key: 'say.taken', vars: speciesVars(tr, sp) }),
+  born: (name: string): Line => ({ who: 'keeper', mood: 'happy', key: 'say.born', vars: { name } }),
+  grown: (name: string): Line => ({ who: 'keeper', mood: 'happy', key: 'say.grown', vars: { name } }),
+  sick: (tr: Tr, sp: SpeciesId): Line => wishLine(tr, 'health', sp, null, false),
+  healed: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.healed' }),
+  escaped: (tr: Tr, sp: SpeciesId): Line => ({ who: 'keeper', mood: 'urgent', key: 'say.escaped', vars: speciesVars(tr, sp), id: `say.escaped.${sp}` }),
+  caught: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.caught' }),
+  hired: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.hired' }),
+  host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
+  cash: (key: 'short' | 'full'): Line => ({ who: 'cashier', mood: key === 'full' ? 'happy' : 'worried', key: `cash.${key}` }),
+};
+
+/** De tekst van een zin, zoals hij op het scherm komt en wordt uitgesproken. */
+export const textOf = (tr: Tr, line: Line): string => tr(line.key, line.vars);
+
+/**
+ * Sleutel van het geluidsbestand bij een zin: een korte vingerafdruk van wie het zegt en wat er gezegd
+ * wordt. Het spel en het stemmenscript rekenen hem allebei zo uit.
+ */
+export function voiceId(who: string, text: string): string {
+  let h1 = 0x811c9dc5, h2 = 0x1b873593;
+  const s = `${who}|${text}`;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193);
+    h2 = Math.imul(h2 ^ c, 0x85ebca6b) ^ (h2 >>> 13);
+  }
+  return (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
+}
+
+/** Elke zin die in het spel kan klinken, één keer. */
+export function allLines(tr: Tr): { who: FigureId; text: string }[] {
+  const out = new Map<string, { who: FigureId; text: string }>();
+  const add = (line: Line): void => {
+    const text = textOf(tr, line);
+    out.set(voiceId(line.who, text), { who: line.who, text });
+  };
+  add(say.welcome());
+  add(say.free());
+  add(say.soon());
+  add(say.done());
+  LEVELS.forEach((level, i) => {
+    add(say.level(i + 1));
+    for (const g of level.goals) add(goalLine(tr, g));
+  });
+  for (const name of tr('names.pens').split(',')) {
+    add(say.pen(name));
+    add(say.reopen(name));
+  }
+  for (const name of [...tr('names.boys').split(','), ...tr('names.girls').split(',')]) {
+    add(say.born(name));
+    add(say.grown(name));
+  }
+  const wishes: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean'];
+  for (const sp of Object.keys(SPECIES) as SpeciesId[]) {
+    for (const wish of wishes) add(wishLine(tr, wish, sp, null, false));
+    const need = SPECIES[sp].need;
+    if (need) add(wishLine(tr, 'enclosure', sp, need, false));
+    add(say.wrongFood(tr, sp));
+    add(say.taken(tr, sp));
+    add(say.escaped(tr, sp));
+  }
+  add(say.healed());
+  add(say.caught());
+  add(say.hired());
+  for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter'] as const) add(say.host(key));
+  add(say.cash('short'));
+  add(say.cash('full'));
+  return [...out.values()];
+}

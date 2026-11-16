@@ -60,10 +60,14 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 
 #bottom { position: absolute; left: 0; right: 0; bottom: 14px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 #toolbar, .row { display: flex; gap: min(10px, 1vw); justify-content: center; flex-wrap: wrap; }
-#options { display: flex; flex-direction: column; gap: 8px; }
+#options { display: flex; flex-direction: column; gap: 8px; max-width: 100vw; }
+#options .row { flex-wrap: nowrap; overflow-x: auto; justify-content: safe center; padding: 6px 10px 8px; scrollbar-width: none; }
+#options .row::-webkit-scrollbar { display: none; }
+#options .row .tool { flex: none; }
 
 #home { position: absolute; top: 12px; right: 12px; }
-#wallet { position: absolute; top: 20px; right: 92px; display: flex; gap: 8px; }
+#sound { position: absolute; top: 12px; right: calc(22px + min(70px, 13vw)); }
+#wallet { position: absolute; top: 20px; right: calc(34px + 2 * min(70px, 13vw)); display: flex; gap: 8px; }
 @media (max-width: 900px) { #wallet { top: 92px; right: 12px; flex-direction: column; align-items: flex-end; } }
 .pill {
   display: flex; align-items: center; gap: 5px; background: rgba(255, 255, 255, 0.92); border-radius: 18px; padding: 5px 12px 5px 6px;
@@ -112,8 +116,9 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.12); will-change: transform; white-space: nowrap;
 }
 .penname b { font-size: 13px; font-weight: 800; }
-#ui:not([data-tool='hand']) .penname { pointer-events: none; }
+.penname { pointer-events: none; }
 .penname.closed { background: #e0584f; color: #fff; }
+.bubble.lacking, .bubble.lacking::after { background: #ffd08a; }
 
 .float { position: absolute; font-size: 36px; transform: translate(-50%, -50%); animation: rise 1.2s ease-out forwards; white-space: nowrap; pointer-events: none; }
 .float .ic.tiny { font-size: 22px; }
@@ -143,7 +148,7 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 
 /* ---------- praatvenster ---------- */
 /* Bovenin tussen de doelen en de huisknop; op een smal scherm even over de doelen heen. */
-#speechbar { position: absolute; top: 12px; left: 250px; right: 250px; display: flex; justify-content: center; z-index: 2; }
+#speechbar { position: absolute; top: 12px; left: 250px; right: 330px; display: flex; justify-content: center; z-index: 2; }
 @media (max-width: 900px) { #speechbar { left: 12px; right: 12px; } }
 #speech {
   display: flex; align-items: center; gap: 12px; text-align: left; border: 0; cursor: pointer; background: #fff;
@@ -199,11 +204,36 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
   position: absolute; right: -8px; top: -8px; width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer;
   background: #fff; box-shadow: 0 3px 0 var(--shade); font-size: 22px; display: flex; align-items: center; justify-content: center;
 }
-.slot-del.holding { animation: hold 1.2s linear forwards; }
+.slot-del.holding { animation: hold var(--hold, 1.2s) linear forwards; }
 @keyframes hold { to { background: #ff8a80; transform: scale(1.25); } }
 #loading { font-size: 90px; }
 #loading .ic { animation: bounce 0.8s ease-in-out infinite alternate; }
 @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-50px); } }
+
+/* ---------- voor ouders ---------- */
+#parents {
+  position: absolute; right: 14px; bottom: 14px; border: 0; cursor: pointer; background: rgba(255, 255, 255, 0.7); border-radius: 16px;
+  padding: 8px 12px; display: flex; align-items: center; gap: 6px; font-size: 22px; color: var(--ink); overflow: hidden;
+}
+#parents b { font-size: 12px; font-weight: 700; opacity: 0.75; }
+#parents.holding { animation: hold var(--hold, 3s) linear forwards; }
+.slot-del { --hold: 1.2s; }
+#parentpanel {
+  position: fixed; inset: 0; background: rgba(40, 70, 30, 0.45); display: flex; align-items: center; justify-content: center; z-index: 5;
+  user-select: text; -webkit-user-select: text;
+}
+.card.parents { align-items: stretch; gap: 10px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow: auto; padding: 20px 22px; }
+.prow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; text-align: left; }
+.prow > span { flex: 1; min-width: 130px; font-weight: 700; font-size: 15px; }
+.pbtn {
+  border: 0; cursor: pointer; background: #eef3e8; border-radius: 14px; padding: 8px 12px; display: flex; align-items: center; gap: 6px;
+  font-size: 20px; box-shadow: 0 3px 0 var(--shade);
+}
+.pbtn b { font-size: 13px; font-weight: 700; }
+.pbtn.on { background: var(--sun); box-shadow: 0 3px 0 var(--sun-shade); }
+.pbtn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--shade); }
+.card.parents > .pbtn { align-self: center; }
+.card.parents .sub { min-height: 1.2em; }
 
 /* ---------- overzicht van figuren en plaatjes (figuren.html) ---------- */
 .gallery { height: 100%; overflow: auto; padding: 20px; background: #f4f7ef; user-select: text; }

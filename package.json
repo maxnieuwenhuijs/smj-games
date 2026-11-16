@@ -10,5 +10,11 @@
     "build": "npm run build -w @smj/zoo",
     "test": "npm run test -w @smj/zoo",
     "typecheck": "npm run typecheck -w @smj/zoo"
+  },
+  "devDependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
+    "meshoptimizer": "^1.3.0"
   }
 }

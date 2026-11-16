@@ -152,6 +152,77 @@ const ICONS = {
   trash:
     `<path d="M12 14 H36 L33 42 H15Z" fill="${GREY}"/><rect x="9" y="9" width="30" height="5" rx="2" fill="#6c7078"/><rect x="19" y="5" width="10" height="5" rx="2" fill="#6c7078"/>` +
     '<path d="M20 20 V36 M28 20 V36" stroke="#fff" stroke-width="3" stroke-linecap="round"/>',
+  snow:
+    tile('#f4f8fc', '#e2ecf5') +
+    '<path d="M16 24 h8 M20 20 v8 M17 21 l6 6 M23 21 l-6 6 M29 29 h6 M32 26 v6" fill="none" stroke="#8fc3e8" stroke-width="2" stroke-linecap="round"/>',
+  forest:
+    tile('#4f9a4a', '#3f8a3f') +
+    '<path d="M14 27 q4 -8 8 0 q-4 3 -8 0Z M27 22 q4 -8 8 0 q-4 3 -8 0Z M24 33 q3 -6 6 0 q-3 2 -6 0Z" fill="#2f7036"/>',
+  net:
+    '<rect x="5" y="5" width="6" height="39" rx="2" fill="#3f7f6b"/><rect x="37" y="5" width="6" height="39" rx="2" fill="#3f7f6b"/>' +
+    '<path d="M11 9 H37 M11 19 H37 M11 29 H37 M11 39 H37 M18 7 V42 M24 7 V42 M30 7 V42" fill="none" stroke="#5aa58c" stroke-width="2.5"/>',
+  fish:
+    `<path d="M5 24 Q18 9 35 24 Q18 39 5 24Z" fill="#7fa7c9"/><path d="M32 24 L44 13 V35Z" fill="#5f8db3"/><circle cx="14" cy="21" r="2.6" fill="${INK}"/>` +
+    '<path d="M21 18 Q25 24 21 30" fill="none" stroke="#5f8db3" stroke-width="2.5" stroke-linecap="round"/>',
+  bamboo:
+    '<rect x="13" y="5" width="8" height="39" rx="3" fill="#9bd05a"/><rect x="27" y="9" width="8" height="35" rx="3" fill="#86bf48"/>' +
+    `<path d="M13 17 H21 M13 30 H21 M27 21 H35 M27 34 H35" stroke="${GRASS_D}" stroke-width="2.5"/><path d="M35 14 Q45 9 46 19 Q39 20 35 14Z" fill="${GRASS_D}"/><path d="M13 12 Q4 8 3 17 Q9 18 13 12Z" fill="${GRASS_D}"/>`,
+  nest:
+    '<ellipse cx="24" cy="31" rx="20" ry="11" fill="#b98a4a"/><ellipse cx="24" cy="28" rx="14" ry="6" fill="#7d582b"/>' +
+    '<ellipse cx="19" cy="25" rx="5" ry="6.5" fill="#fff"/><ellipse cx="29" cy="25" rx="5" ry="6.5" fill="#f1ece0"/>' +
+    '<path d="M6 32 l6 -3 M36 30 l6 3 M14 39 l5 -2 M29 38 l6 2" stroke="#e0b872" stroke-width="2" stroke-linecap="round"/>',
+  cave:
+    '<path d="M4 41 Q3 10 24 8 Q45 10 44 41Z" fill="#8f949c"/><path d="M9 24 Q14 14 24 13" fill="none" stroke="#b4b8bf" stroke-width="3" stroke-linecap="round"/>' +
+    `<path d="M14 41 Q13 22 24 22 Q35 22 34 41Z" fill="${INK}"/>`,
+  climb:
+    `<rect x="20" y="8" width="7" height="36" rx="2" fill="${WOOD_D}"/><rect x="5" y="21" width="23" height="5" rx="2" fill="${WOOD}"/><rect x="21" y="32" width="22" height="5" rx="2" fill="${WOOD}"/>` +
+    `<circle cx="23.5" cy="10" r="8.5" fill="${GRASS_D}"/><path d="M38 37 V44" stroke="${INK}" stroke-width="2"/><circle cx="38" cy="45" r="2" fill="${INK}"/>`,
+  toilet:
+    '<rect x="5" y="5" width="38" height="38" rx="9" fill="#4a90e2"/><rect x="14" y="11" width="8" height="15" rx="2" fill="#fff"/>' +
+    '<path d="M14 25 H36 Q36 35 27 35 H22 Q14 35 14 25Z" fill="#fff"/><rect x="21" y="34" width="9" height="5" rx="1" fill="#fff"/>',
+  icecream:
+    '<path d="M14 25 L24 46 L34 25Z" fill="#e3b778"/><path d="M18 30 L28 37 M22 26 L31 32" stroke="#c9975a" stroke-width="1.6"/>' +
+    '<circle cx="24" cy="17" r="12" fill="#ffc1d6"/><circle cx="19" cy="12" r="3.2" fill="#fff" opacity=".7"/>',
+  balloon:
+    `<ellipse cx="24" cy="18" rx="12" ry="14" fill="${RED}"/><path d="M24 32 l-3 4 h6Z" fill="#b8433b"/>` +
+    `<path d="M24 36 Q19 40 26 46" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/><ellipse cx="19" cy="12" rx="3" ry="4.5" fill="#fff" opacity=".55"/>`,
+  flowers:
+    `<rect x="8" y="31" width="32" height="12" rx="3" fill="${WOOD}"/><path d="M15 31 V21 M24 31 V17 M33 31 V21" stroke="${GRASS_D}" stroke-width="3"/>` +
+    `<circle cx="15" cy="18" r="5.5" fill="${RED}"/><circle cx="24" cy="12" r="6" fill="${SUN}"/><circle cx="33" cy="18" r="5.5" fill="#f06aa6"/>` +
+    '<circle cx="15" cy="18" r="2" fill="#fff"/><circle cx="24" cy="12" r="2.2" fill="#fff"/><circle cx="33" cy="18" r="2" fill="#fff"/>',
+  bin:
+    '<path d="M12 16 H36 L33 44 H15Z" fill="#3d8b5a"/><rect x="9" y="10" width="30" height="6" rx="2" fill="#2c6a43"/>' +
+    '<path d="M20 22 V38 M28 22 V38" stroke="#bfe6c9" stroke-width="3" stroke-linecap="round"/>',
+  litter:
+    `<path d="M6 35 L13 22 L24 26 L26 37 L15 42Z" fill="#fff" stroke="${GREY}" stroke-width="2" stroke-linejoin="round"/>` +
+    `<path d="M29 21 H41 L39 42 H31Z" fill="${RED}"/><rect x="27.5" y="17" width="15" height="5" rx="2" fill="#fff" stroke="${GREY}" stroke-width="1.2"/>`,
+  sick:
+    face('#bfd96e', 'M16 34 Q24 28 32 34') +
+    `<rect x="27" y="27" width="16" height="5" rx="2.5" fill="#fff" stroke="${INK}" stroke-width="1.5" transform="rotate(-28 27 29)"/><circle cx="41.5" cy="20" r="3.6" fill="${RED}"/>`,
+  vet:
+    `<rect x="6" y="14" width="36" height="28" rx="6" fill="#fff" stroke="${GREY}" stroke-width="2.5"/><path d="M18 14 V10 Q18 7 21 7 H27 Q30 7 30 10 V14" fill="none" stroke="${GREY}" stroke-width="3.5"/>` +
+    `<path d="M24 20 V36 M16 28 H32" stroke="${RED}" stroke-width="6.5" stroke-linecap="round"/>`,
+  keeper:
+    `<circle cx="24" cy="27" r="14" fill="${SKIN}"/><path d="M9 23 Q11 6 24 6 Q37 6 39 23Z" fill="#3c8747"/><rect x="5" y="20" width="28" height="6" rx="3" fill="#2f6e39"/>` +
+    `<circle cx="19" cy="30" r="2.2" fill="${INK}"/><circle cx="29" cy="30" r="2.2" fill="${INK}"/><path d="M18 35 Q24 40 30 35" fill="none" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>`,
+  catch:
+    `<path d="M7 43 L21 27" stroke="${WOOD_D}" stroke-width="5.5" stroke-linecap="round"/><circle cx="29" cy="18" r="13" fill="#fff" fill-opacity=".5" stroke="${INK}" stroke-width="3"/>` +
+    `<path d="M18 13 H40 M17 21 H41 M22 8 V28 M29 5 V31 M36 8 V28" stroke="${GREY}" stroke-width="1.6"/>`,
+  kinds:
+    `<circle cx="15" cy="17" r="10.5" fill="${PINK}"/><circle cx="33" cy="17" r="10.5" fill="${SUN}"/><circle cx="24" cy="33" r="10.5" fill="#b98a5a"/>` +
+    `<g fill="${INK}"><circle cx="12" cy="16" r="1.6"/><circle cx="18" cy="16" r="1.6"/><circle cx="30" cy="16" r="1.6"/><circle cx="36" cy="16" r="1.6"/><circle cx="21" cy="32" r="1.6"/><circle cx="27" cy="32" r="1.6"/></g>`,
+  sound_on:
+    `<path d="M5 19 H14 L25 9 V39 L14 29 H5Z" fill="${INK}"/><path d="M31 17 Q36 24 31 31 M36 11 Q45 24 36 37" fill="none" stroke="${INK}" stroke-width="3.5" stroke-linecap="round"/>`,
+  sound_off:
+    `<path d="M5 19 H14 L25 9 V39 L14 29 H5Z" fill="${GREY}"/><path d="M31 18 L43 30 M43 18 L31 30" fill="none" stroke="${RED}" stroke-width="4.5" stroke-linecap="round"/>`,
+  gear:
+    `<circle cx="24" cy="24" r="16" fill="none" stroke="${GREY}" stroke-width="8" stroke-dasharray="6.28 6.28"/><circle cx="24" cy="24" r="10" fill="none" stroke="${GREY}" stroke-width="8"/>`,
+  download:
+    `<path d="M24 6 V28 M24 28 l-9 -9 M24 28 l9 -9 M8 34 V41 H40 V34" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  upload:
+    `<path d="M24 30 V8 M24 8 l-9 9 M24 8 l9 9 M8 34 V41 H40 V34" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  globe:
+    `<circle cx="24" cy="24" r="18" fill="#6ec3e8" stroke="${INK}" stroke-width="2.5"/><path d="M6 24 H42 M24 6 Q11 24 24 42 M24 6 Q37 24 24 42" fill="none" stroke="${INK}" stroke-width="2.5"/>`,
 } satisfies Record<string, string>;
 
 export type IconId = keyof typeof ICONS;
