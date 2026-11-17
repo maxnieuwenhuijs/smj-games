@@ -223,6 +223,13 @@ const ICONS = {
     `<path d="M24 30 V8 M24 8 l-9 9 M24 8 l9 9 M8 34 V41 H40 V34" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`,
   globe:
     `<circle cx="24" cy="24" r="18" fill="#6ec3e8" stroke="${INK}" stroke-width="2.5"/><path d="M6 24 H42 M24 6 Q11 24 24 42 M24 6 Q37 24 24 42" fill="none" stroke="${INK}" stroke-width="2.5"/>`,
+  souvenir:
+    '<circle cx="14" cy="11" r="6" fill="#b07a4a"/><circle cx="34" cy="11" r="6" fill="#b07a4a"/><ellipse cx="24" cy="39" rx="11" ry="8" fill="#b07a4a"/>' +
+    '<circle cx="24" cy="20" r="13" fill="#b07a4a"/><ellipse cx="24" cy="25" rx="6.5" ry="5" fill="#e3bf94"/><ellipse cx="24" cy="40" rx="6" ry="4.5" fill="#e3bf94"/>' +
+    `<g fill="${INK}"><circle cx="19" cy="17" r="2"/><circle cx="29" cy="17" r="2"/><circle cx="24" cy="23" r="1.9"/></g>`,
+  playground:
+    `<path d="M9 44 V14 M21 44 V14 M9 24 H21 M9 34 H21" fill="none" stroke="${WOOD_D}" stroke-width="4" stroke-linecap="round"/>` +
+    `<path d="M21 16 Q35 18 44 41" fill="none" stroke="${SUN}" stroke-width="8" stroke-linecap="round"/><path d="M5 14 L15 4 L25 14Z" fill="${RED}"/>`,
 } satisfies Record<string, string>;
 
 export type IconId = keyof typeof ICONS;

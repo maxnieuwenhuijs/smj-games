@@ -2,7 +2,7 @@
 export type Terrain = 'grass' | 'mud' | 'sand' | 'water' | 'path' | 'snow' | 'forest';
 export type FoodId = 'veg' | 'hay' | 'fruit' | 'grain' | 'meat' | 'leaves' | 'fish' | 'bamboo';
 export type BedKind = 'straw' | 'shed' | 'rock' | 'shade' | 'nest' | 'cave' | 'climb';
-export type ShopKind = 'foodstall' | 'drinkstall' | 'bench' | 'toilet' | 'icecream' | 'balloon' | 'flowers' | 'bin';
+export type ShopKind = 'foodstall' | 'drinkstall' | 'bench' | 'toilet' | 'icecream' | 'balloon' | 'flowers' | 'bin' | 'souvenir' | 'playground';
 export type FenceOption = 'fence' | 'gate' | 'wall' | 'net';
 /** Wat voor hek een dier nodig heeft: sterke dieren een stenen muur, klimmers en vliegers een hoog net. */
 export type FenceNeed = 'wall' | 'net';
@@ -30,9 +30,9 @@ export const TERRAIN_INFO: Record<Terrain, { colors: [number, number] }> = {
 
 export const FOODS: FoodId[] = ['veg', 'hay', 'fruit', 'grain', 'meat', 'leaves', 'fish', 'bamboo'];
 export const BEDS: BedKind[] = ['straw', 'shed', 'rock', 'shade', 'nest', 'cave', 'climb'];
-export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'icecream', 'flowers', 'bin', 'balloon'];
+export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'playground', 'icecream', 'flowers', 'bin', 'balloon', 'souvenir'];
 /** Kramen waar een gast iets koopt voor één munt. */
-export const STALLS: ShopKind[] = ['foodstall', 'drinkstall', 'icecream', 'balloon'];
+export const STALLS: ShopKind[] = ['foodstall', 'drinkstall', 'icecream', 'balloon', 'souvenir'];
 export const WORLDS: WorldId[] = ['farm', 'savanna', 'jungle', 'ice', 'far'];
 
 // ------------------------------------------------------------ munten
@@ -42,7 +42,7 @@ export const START_COINS = 10;
 export const LEVEL_BONUS = 5;
 export const PRICE = { trough: 1, bed: 1, keeper: 5 };
 export const SHOP_PRICE: Record<ShopKind, number> = {
-  foodstall: 3, drinkstall: 3, bench: 1, toilet: 3, icecream: 4, balloon: 4, flowers: 1, bin: 1,
+  foodstall: 3, drinkstall: 3, bench: 1, toilet: 3, icecream: 4, balloon: 4, flowers: 1, bin: 1, souvenir: 4, playground: 3,
 };
 
 export interface SpeciesInfo {
@@ -214,7 +214,7 @@ export function unlockedSpecies(done: number): SpeciesId[] {
 
 /** Vanaf hoeveel gehaalde levels iets meedoet. */
 export const FEATURE = {
-  paths: 3, foodstall: 4, drinkstall: 5, toilet: 7, bench: 8, icecream: 11, flowers: 14, bin: 17,
+  paths: 3, foodstall: 4, drinkstall: 5, toilet: 7, bench: 8, playground: 9, icecream: 11, flowers: 14, bin: 17, souvenir: 25,
   /** Vanaf hier kunnen dieren ziek worden. */
   sick: 20,
   balloon: 21,

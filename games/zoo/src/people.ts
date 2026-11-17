@@ -17,7 +17,7 @@ export interface ShopSpot {
 }
 
 /** Wat een gast wil, voor het wolkje boven zijn hoofd. `lacking`: het is er niet in het park. */
-export type GuestWish = { kind: 'food' | 'drink' | 'toilet' | 'icecream' | 'balloon' | 'sit' | 'bored' | 'fav'; lacking: boolean };
+export type GuestWish = { kind: 'food' | 'drink' | 'toilet' | 'icecream' | 'balloon' | 'souvenir' | 'play' | 'sit' | 'bored' | 'fav'; lacking: boolean };
 
 export interface GuestWorld {
   grid: Grid;
@@ -103,7 +103,9 @@ function swing(limbs: THREE.Mesh[], amount: number): void {
 // ------------------------------------------------------------ gast
 type GuestState = 'idle' | 'walk' | 'watch' | 'buy' | 'sit';
 const MAX_PURCHASES = 3;
-const NEED_SHOP = { food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', sit: 'bench' } as const;
+const NEED_SHOP = {
+  food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', sit: 'bench', souvenir: 'souvenir', play: 'playground',
+} as const;
 
 export class Guest {
   readonly mesh: THREE.Group;
@@ -120,6 +122,10 @@ export class Guest {
   /** Zin in een ballon (vooral kinderen). */
   balloon = 0;
   tired = Math.random() * 0.2;
+  /** Zin in een knuffel uit de knuffelkraam. */
+  gift = Math.random() * 0.6;
+  /** Zin om te spelen in de speeltuin (alleen kinderen). */
+  playful = Math.random() * 0.4;
   /** Plezier van 0 tot 1. Een gast koopt alleen iets als hij het naar zijn zin heeft. */
   fun = 0.5;
   /** Het dier dat deze gast het liefst wil zien. */
@@ -214,8 +220,10 @@ export class Guest {
     if (this.thirst > 0.6) return 'drink';
     if (this.hunger > 0.6) return 'food';
     if (this.tired > 0.75) return 'sit';
+    if (this.child && this.playful > 0.7) return 'play';
     if (this.purchases < MAX_PURCHASES && this.treat > 0.7 && this.fun >= 0.5) return 'icecream';
     if (this.purchases < MAX_PURCHASES && this.balloon > 0.7 && this.fun >= 0.5) return 'balloon';
+    if (this.purchases < MAX_PURCHASES && this.gift > 0.7 && this.fun >= 0.5) return 'souvenir';
     return null;
   }
 
@@ -246,6 +254,8 @@ export class Guest {
       if (want === 'sit') this.tired = 0.5;
       if (want === 'icecream') this.treat = 0.3;
       if (want === 'balloon') this.balloon = 0.3;
+      if (want === 'souvenir') this.gift = 0.3;
+      if (want === 'play') this.playful = 0.4;
     }
     // naar een plek lopen waar iets te zien is; het lievelingsdier eerst
     let fallback: { tile: number; view: NonNullable<ReturnType<GuestWorld['viewScore']>> } | null = null;
@@ -282,8 +292,8 @@ export class Guest {
     } else if (this.shop) {
       this.face = [this.shop.x + 0.5, this.shop.y + 0.5];
       const kind = this.shop.kind;
-      this.state = kind === 'bench' ? 'sit' : 'buy';
-      this.timer = kind === 'bench' ? 4.5 : kind === 'toilet' ? 3 : 1.8;
+      this.state = kind === 'bench' || kind === 'playground' ? 'sit' : 'buy';
+      this.timer = kind === 'bench' ? 4.5 : kind === 'playground' ? 6 : kind === 'toilet' ? 3 : 1.8;
       if (!w.shops.includes(this.shop)) this.timer = 0.2; // de kraam is intussen weggehaald
     } else if (this.face) {
       this.state = 'watch';
@@ -302,6 +312,9 @@ export class Guest {
         this.fun = Math.min(1, this.fun + 0.25);
         w.cheer(this);
       }
+    } else if (this.state === 'sit' && this.shop?.kind === 'playground') {
+      this.playful = 0;
+      this.fun = Math.min(1, this.fun + 0.25);
     } else if (this.state === 'sit') {
       this.tired = 0;
       this.fun = Math.min(1, this.fun + 0.15);
@@ -322,9 +335,9 @@ export class Guest {
         else if (kind === 'balloon') {
           this.balloon = 0;
           this.addBalloon();
-        }
-        this.fun = Math.min(1, this.fun + (kind === 'icecream' || kind === 'balloon' ? 0.2 : 0.1));
-        if (kind !== 'balloon') {
+        } else if (kind === 'souvenir') this.gift = 0;
+        this.fun = Math.min(1, this.fun + (kind === 'foodstall' || kind === 'drinkstall' ? 0.1 : 0.2));
+        if (kind !== 'balloon' && kind !== 'souvenir') {
           this.trash = 10 + Math.random() * 10;
           this.sloppy = w.messy() && Math.random() < 0.45;
         }
@@ -351,6 +364,8 @@ export class Guest {
     if (w.sells('icecream') && !this.bought.icecream) this.treat = Math.min(1, this.treat + (dt / 190) * demand);
     if (w.sells('balloon') && this.wantsBalloon && !this.bought.balloon) this.balloon = Math.min(1, this.balloon + (dt / 110) * demand);
     if (w.sells('bench')) this.tired = Math.min(1, this.tired + dt / 180);
+    if (w.sells('souvenir') && !this.bought.souvenir) this.gift = Math.min(1, this.gift + (dt / 120) * demand);
+    if (w.sells('playground') && this.child) this.playful = Math.min(1, this.playful + dt / 90);
     this.fun = Math.max(0, this.fun - dt / 240);
     if (!reach.has(this.tile)) {
       this.gone = true; // het pad onder de gast is weggehaald

@@ -5,7 +5,7 @@ Bijgewerkt op 16 november 2026. Werknaam: Dierentuin. Spelen: https://maxnieuwen
 ## Wat vaststaat
 
 - **Doelgroep:** kinderen vanaf 4 jaar. Stem en plaatjes eerst, tekst hooguit een korte zin.
-- **Beeld:** isometrisch, echte 3D-modellen, tegels van 1 bij 1 in een park van 20 bij 20, hekken op de randen van tegels.
+- **Beeld:** isometrisch, echte 3D-modellen, tegels van 1 bij 1 in een park van 28 bij 28, hekken op de randen van tegels. Een ouder, kleiner park komt bij het laden midden tegen de voorkant te liggen, zodat het pad aan de ingang vast blijft zitten.
 - **Dieren:** vijftig soorten, eigen modellen uit code via Blender, stijl A (blokjes). Elk dier in vier varianten: man, vrouw, zoontje, dochtertje.
 - **Animaties:** twaalf per dier: staan, lopen, rennen, eten, zitten, liggen, slapen, poepen, plassen, spelen, blij, verdrietig. Viervoeters en tweevoeters (vogels, kangoeroe) hebben elk hun eigen bewegingen op hetzelfde skelet.
 - **Eigen plaatjes:** knoppen, wolkjes en cursors zijn eigen tekeningen, geen emoji. Overzicht: `figuren.html`.
@@ -120,7 +120,11 @@ Gasten komen binnen bij de ingang zodra daar een pad ligt. Hoe meer volwassen di
 | Moe | Bankje | plezier |
 | Zin in ijs | IJskraam | 1 munt |
 | Ballon (vooral kinderen) | Ballonnenkraam | 1 munt, en de gast loopt met een ballon |
+| Knuffel | Knuffelkraam (vanaf level 26) | 1 munt |
+| Spelen (alleen kinderen) | Speeltuin (vanaf level 10) | veel plezier |
 | Lievelingsdier zien | Een verblijf met dat dier aan het pad | veel plezier |
+
+Een gast koopt per bezoek hooguit drie dingen. Elke winkel heeft een eigen vorm, zodat je ze uit elkaar houdt: de eetkraam heeft een zak friet op het dak, de drinkkraam is een rond huisje met een beker, de ijskraam is een kar met een reuzenijsje, de knuffelkraam is een geel huisje met een beer erop en de speeltuin heeft een glijbaan.
 
 Wie iets gekocht heeft, loopt even met afval rond. Staat er een afvalbak in de buurt, dan gaat het daarin; anders valt het op het pad. Afval opruimen (erop tikken) levert 1 munt op. Bloembakken en schone verblijven met blije dieren maken gasten blijer; afval en poep maken ze minder blij. Gasten kopen alleen als ze het naar hun zin hebben.
 
@@ -128,7 +132,7 @@ Wie iets gekocht heeft, loopt even met afval rond. Staat er een afvalbak in de b
 
 - De kas gaat nooit hoger dan 30, zodat tellen makkelijk blijft. Je begint met 10.
 - Bijna alles levert 1 munt op: een poepje of afval opruimen, een jong dat geboren wordt, een gast die iets koopt. Een gehaald level geeft 5.
-- Een voerbak, slaapplek, bankje, bloembak of afvalbak kost 1. Een eetkraam, drinkkraam of wc kost 3, een ijs- of ballonnenkraam 4, een verzorger 5. Dieren kosten 1 tot 15. Hekken en ondergrond zijn gratis.
+- Een voerbak, slaapplek, bankje, bloembak of afvalbak kost 1. Een eetkraam, drinkkraam, wc of speeltuin kost 3, een ijs-, ballonnen- of knuffelkraam 4, een verzorger 5. Dieren kosten 1 tot 15. Hekken en ondergrond zijn gratis.
 - Een blij paar krijgt om de anderhalve minuut een jong. Zijn er al twee jongen, dan verhuist de oudste naar een andere dierentuin en krijg je 2 munten.
 - Terugverdienen: heeft het park net veel uitgegeven, dan krijgen gasten wat sneller trek. Zo is een aankoop binnen een paar minuten terugverdiend, zolang de gasten tevreden zijn.
 

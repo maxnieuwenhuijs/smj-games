@@ -149,12 +149,47 @@ const stall = (stripe: number, goods: number, extra: Part[] = []): Part[] => [
   [STALL_GEO, WOOD_MAT], [AWNING_A_GEO, std(stripe)], [AWNING_B_GEO, WHITE_MAT], [GOODS_GEO, std(goods, 0.8)], ...extra,
 ];
 const SHOP_PARTS: Record<ShopKind, Part[]> = {
-  foodstall: stall(0xe0584f, 0xf5a623),
-  drinkstall: stall(0x4a90e2, 0x9fd8f5),
-  icecream: stall(0xf48fb1, 0xfff0c9, [
-    [new THREE.ConeGeometry(0.13, 0.32, 8).rotateX(Math.PI).translate(0, 1.22, 0.05), std(0xe3b778)],
-    [ball(0.15, 0, 1.46, 0.05), std(0xffc1d6, 0.6)],
+  // eetkraam: houten kraam met een grote zak friet op het dak
+  foodstall: stall(0xe0584f, 0xf5a623, [
+    [boxAt(0.36, 0.26, 0.16, 0, 1.17, 0.05), std(0xd8362e)],
+    [mergeGeometries([boxAt(0.05, 0.3, 0.05, -0.12, 1.4, 0.05), boxAt(0.05, 0.36, 0.05, -0.04, 1.43, 0.05), boxAt(0.05, 0.32, 0.05, 0.04, 1.41, 0.05), boxAt(0.05, 0.28, 0.05, 0.12, 1.39, 0.05)])!, std(0xffd23f, 0.7)],
   ]),
+  // drinkkraam: rond huisje met een puntdak en een grote beker met rietje
+  drinkstall: [
+    [new THREE.CylinderGeometry(0.4, 0.4, 0.48, 8).translate(0, 0.24, 0), WHITE_MAT],
+    [new THREE.CylinderGeometry(0.43, 0.43, 0.1, 8).translate(0, 0.5, 0), std(0x4a90e2)],
+    [mergeGeometries([boxAt(0.05, 0.5, 0.05, -0.27, 0.78, -0.27), boxAt(0.05, 0.5, 0.05, 0.27, 0.78, -0.27), boxAt(0.05, 0.5, 0.05, -0.27, 0.78, 0.27), boxAt(0.05, 0.5, 0.05, 0.27, 0.78, 0.27)])!, WOOD_MAT],
+    [new THREE.ConeGeometry(0.62, 0.3, 8).translate(0, 1.17, 0), std(0x4a90e2)],
+    [new THREE.CylinderGeometry(0.12, 0.085, 0.26, 8).translate(0, 1.45, 0), std(0x9fd8f5, 0.5)],
+    [boxAt(0.035, 0.24, 0.035, 0.04, 1.66, 0), std(0xe0584f)],
+  ],
+  // ijskraam: witte kar op wielen met een reuzenijsje erop
+  icecream: [
+    [boxAt(0.72, 0.36, 0.44, 0, 0.32, 0), WHITE_MAT],
+    [boxAt(0.74, 0.09, 0.46, 0, 0.42, 0), std(0xf48fb1)],
+    [mergeGeometries([boxAt(0.08, 0.22, 0.22, -0.3, 0.11, 0.24), boxAt(0.08, 0.22, 0.22, 0.3, 0.11, 0.24), boxAt(0.08, 0.22, 0.22, -0.3, 0.11, -0.24), boxAt(0.08, 0.22, 0.22, 0.3, 0.11, -0.24)])!, DARK_MAT],
+    [new THREE.ConeGeometry(0.17, 0.4, 8).rotateX(Math.PI).translate(0, 0.7, 0), std(0xe3b778)],
+    [ball(0.19, 0, 0.98, 0), std(0xffc1d6, 0.6)],
+    [ball(0.14, 0, 1.2, 0), std(0xfff0c9, 0.6)],
+  ],
+  // knuffelkraam: geel huisje met een paars puntdak en een beer erop
+  souvenir: [
+    [boxAt(0.8, 0.56, 0.66, 0, 0.28, -0.04), std(0xffe08a)],
+    [boxAt(0.46, 0.26, 0.04, 0, 0.34, 0.3), DARK_MAT],
+    [new THREE.ConeGeometry(0.7, 0.36, 4).rotateY(Math.PI / 4).translate(0, 0.74, -0.04), std(0x7a5cc9)],
+    [ball(0.14, 0, 1.0, -0.04), std(0xb07a4a)],
+    [ball(0.11, 0, 1.2, -0.04), std(0xb07a4a)],
+    [ball(0.045, -0.09, 1.3, -0.04), std(0x8a5a33)],
+    [ball(0.045, 0.09, 1.3, -0.04), std(0x8a5a33)],
+  ],
+  // speeltuin: zandbak met een torentje, een laddertje en een gele glijbaan
+  playground: [
+    [boxAt(0.92, 0.05, 0.92, 0, 0.025, 0), std(0xecd591, 1), false],
+    [mergeGeometries([boxAt(0.06, 0.92, 0.06, -0.38, 0.46, -0.34), boxAt(0.06, 0.92, 0.06, -0.02, 0.46, -0.34), boxAt(0.06, 0.92, 0.06, -0.38, 0.46, 0.02), boxAt(0.06, 0.92, 0.06, -0.02, 0.46, 0.02), boxAt(0.3, 0.04, 0.04, -0.2, 0.2, -0.36), boxAt(0.3, 0.04, 0.04, -0.2, 0.4, -0.36)])!, WOOD_MAT],
+    [boxAt(0.42, 0.06, 0.42, -0.2, 0.58, -0.16), std(0x4a90e2)],
+    [new THREE.ConeGeometry(0.36, 0.24, 4).rotateY(Math.PI / 4).translate(-0.2, 1.04, -0.16), std(0xe0584f)],
+    [new THREE.BoxGeometry(0.24, 0.04, 0.78).rotateX(0.74).translate(-0.2, 0.31, 0.3), std(0xffd23f, 0.5)],
+  ],
   balloon: [
     [mergeGeometries([boxAt(0.5, 0.3, 0.36, 0, 0.22, 0), boxAt(0.05, 0.9, 0.05, 0, 0.8, 0), boxAt(0.12, 0.12, 0.42, -0.2, 0.06, 0), boxAt(0.12, 0.12, 0.42, 0.2, 0.06, 0)])!, std(0xb06ad9)],
     [ball(0.17, -0.17, 1.36, 0), std(0xe0584f, 0.4)],
@@ -264,7 +299,7 @@ export class View {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
   /** Het punt op de grond waar de camera naar kijkt. */
-  readonly target = new THREE.Vector3(0, 0, 0);
+  readonly target = new THREE.Vector3(0, 0, H / 2 - 9);
   /** Hoeveel tegels er verticaal in beeld passen. */
   zoom = 11;
 
@@ -312,7 +347,8 @@ export class View {
     sun.position.set(-8, 20, 11);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 60 });
+    const reach = W / 2 + 6;
+    Object.assign(sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 1, far: 70 });
     this.scene.add(sun);
 
     // omgeving rond het park
@@ -372,7 +408,7 @@ export class View {
     const leaves = this.leafMats;
     let seed = 7;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    for (let i = 0; i < 46; i++) {
+    for (let i = 0; i < 64; i++) {
       const side = i % 4;
       const along = rnd() * (W + 8) - (W + 8) / 2;
       const out = W / 2 + 1.2 + rnd() * 5;
@@ -427,7 +463,7 @@ export class View {
   }
 
   zoomBy(factor: number): void {
-    this.zoom = Math.max(5, Math.min(30, this.zoom * factor));
+    this.zoom = Math.max(5, Math.min(42, this.zoom * factor));
     this.resize();
   }
 
