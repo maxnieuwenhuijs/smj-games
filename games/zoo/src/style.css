@@ -65,6 +65,9 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 #options .row { flex-wrap: nowrap; overflow-x: auto; justify-content: safe center; padding: 6px 10px 8px; scrollbar-width: none; }
 #options .row::-webkit-scrollbar { display: none; }
 #options .row .tool { flex: none; }
+/* een lange rij (alle winkels): iets smallere knoppen, zodat alles op een tablet in beeld past */
+#options .row:has(.tool:nth-child(12)) .tool { width: min(64px, 7.2vw); }
+#options .row:has(.tool:nth-child(12)) .tool b { font-size: clamp(7px, 1.5vw, 11px); }
 
 #home { position: absolute; top: 12px; right: 12px; }
 #sound { position: absolute; top: 12px; right: calc(22px + min(70px, 13vw)); }

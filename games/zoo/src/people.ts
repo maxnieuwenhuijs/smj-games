@@ -18,10 +18,12 @@ export interface ShopSpot {
   size: number;
   /** Wat deze kraam verkoopt (zie PRODUCTS; knuffels heten 'plush_' + soort). */
   sells: string[];
+  /** De stand van de draaimolen, in radialen: wie erin zit, draait mee. */
+  spin?: number;
 }
 
 /** Waar een gast voor naar een winkel gaat. */
-export type Need = 'food' | 'drink' | 'toilet' | 'icecream' | 'balloon' | 'hat' | 'souvenir' | 'play' | 'sit';
+export type Need = 'food' | 'drink' | 'toilet' | 'icecream' | 'balloon' | 'hat' | 'souvenir' | 'play' | 'sit' | 'look' | 'ride';
 
 /** Wat een gast wil, voor het wolkje boven zijn hoofd. `lacking`: het is er niet in het park. `product`: het ding waar hij om vraagt. */
 export type GuestWish = { kind: Need | 'bored' | 'fav'; lacking: boolean; product?: string };
@@ -126,7 +128,7 @@ function swing(limbs: THREE.Mesh[], amount: number): void {
 type GuestState = 'idle' | 'walk' | 'watch' | 'buy' | 'sit' | 'accident';
 const MAX_PURCHASES = 4;
 const NEED_SHOP: Record<Need, ShopKind> = {
-  food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', hat: 'hats', souvenir: 'souvenir', play: 'playground', sit: 'bench',
+  food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', hat: 'hats', souvenir: 'souvenir', play: 'playground', sit: 'bench', look: 'fountain', ride: 'carousel',
 };
 const COLOR_OF = Object.fromEntries(PRODUCTS.filter(p => p.color !== undefined).map(p => [p.id, p.color as number]));
 const footprint = (shop: ShopSpot): number[] => {
@@ -158,6 +160,12 @@ export class Guest {
   gift = Math.random() * 0.6;
   /** Zin om te spelen in de speeltuin (alleen kinderen). */
   playful = Math.random() * 0.4;
+  /** Zin om bij de fontein te gaan kijken. */
+  curious = Math.random() * 0.5;
+  /** Zin in een rondje draaimolen (kinderen het meest). */
+  rideWish = Math.random() * 0.5;
+  /** Op welk paardje de gast zit. */
+  private seat = Math.floor(Math.random() * 4);
   /** Plezier van 0 tot 1. Een gast koopt alleen iets als hij het naar zijn zin heeft. */
   fun = 0.5;
   /** Het dier dat deze gast het liefst wil zien. */
@@ -230,6 +238,13 @@ export class Guest {
   }
 
   private place(): void {
+    // in de draaimolen zit de gast op een paardje en draait mee
+    if (this.state === 'sit' && this.shop?.kind === 'carousel') {
+      const a = (this.shop.spin ?? 0) + (this.seat * Math.PI) / 2;
+      this.mesh.position.set(toWorldX(this.shop.x + 1) + Math.sin(a) * 0.56, 0.3, toWorldZ(this.shop.y + 1) + Math.cos(a) * 0.56);
+      this.mesh.rotation.y = a + Math.PI / 2;
+      return;
+    }
     this.mesh.position.set(toWorldX(this.gx), this.state === 'accident' ? -0.07 : 0, toWorldZ(this.gy));
     this.mesh.rotation.y = this.heading;
   }
@@ -267,6 +282,8 @@ export class Guest {
     if (this.hunger > 0.6) return 'food';
     if (this.tired > 0.75) return 'sit';
     if (this.child && this.playful > 0.7) return 'play';
+    if (this.rideWish > 0.7) return 'ride';
+    if (this.curious > 0.7) return 'look';
     if (this.purchases >= MAX_PURCHASES || this.fun < 0.5) return null;
     // iets lekkers of leuks: waar de gast de meeste zin in heeft
     const treats: [Need, number][] = [['icecream', this.treat], ['balloon', this.balloon], ['hat', this.hat], ['souvenir', this.gift]];
@@ -282,6 +299,8 @@ export class Guest {
     if (want === 'hat') this.hat = 0.3;
     if (want === 'souvenir') this.gift = 0.3;
     if (want === 'play') this.playful = 0.4;
+    if (want === 'look') this.curious = 0.3;
+    if (want === 'ride') this.rideWish = 0.3;
   }
 
   private decide(w: GuestWorld, list: number[], reach: Set<number>): void {
@@ -324,7 +343,8 @@ export class Guest {
         this.settled.add(want);
         this.fun = Math.max(0, this.fun - 0.03);
       } else {
-        this.fun = Math.max(0, this.fun - (want === 'toilet' ? 0.07 : want === 'food' || want === 'drink' ? 0.05 : 0.02));
+        const miss = want === 'look' || want === 'ride' ? 0 : want === 'toilet' ? 0.07 : want === 'food' || want === 'drink' ? 0.05 : 0.02;
+        this.fun = Math.max(0, this.fun - miss);
         this.postpone(want);
       }
     }
@@ -363,8 +383,8 @@ export class Guest {
     } else if (this.shop) {
       this.face = [this.shop.x + this.shop.size / 2, this.shop.y + this.shop.size / 2];
       const kind = this.shop.kind;
-      this.state = kind === 'bench' || kind === 'playground' ? 'sit' : 'buy';
-      this.timer = kind === 'bench' ? 4.5 : kind === 'playground' ? 6 : kind === 'toilet' ? 3 : 1.8;
+      this.state = kind === 'bench' || kind === 'playground' || kind === 'fountain' || kind === 'carousel' ? 'sit' : 'buy';
+      this.timer = kind === 'bench' ? 4.5 : kind === 'playground' ? 6 : kind === 'carousel' ? 8 : kind === 'fountain' ? 4 : kind === 'toilet' ? 3 : 1.8;
       if (!w.shops.includes(this.shop)) this.timer = 0.2; // de kraam is intussen weggehaald
     } else if (this.face) {
       this.state = 'watch';
@@ -387,6 +407,13 @@ export class Guest {
       w.guestSound('guest.laugh');
       this.playful = 0;
       this.fun = Math.min(1, this.fun + 0.25);
+    } else if (this.state === 'sit' && this.shop?.kind === 'carousel') {
+      w.guestSound('guest.laugh');
+      this.rideWish = 0;
+      this.fun = Math.min(1, this.fun + 0.35);
+    } else if (this.state === 'sit' && this.shop?.kind === 'fountain') {
+      this.curious = 0;
+      this.fun = Math.min(1, this.fun + 0.2);
     } else if (this.state === 'sit') {
       this.tired = 0;
       this.fun = Math.min(1, this.fun + 0.15);
@@ -480,6 +507,8 @@ export class Guest {
     if (w.sells('bench')) this.tired = Math.min(1, this.tired + dt / 180);
     if (w.sells('souvenir') && !this.bought.souvenir) this.gift = Math.min(1, this.gift + (dt / 120) * demand);
     if (w.sells('playground') && this.child) this.playful = Math.min(1, this.playful + dt / 90);
+    if (w.sells('fountain')) this.curious = Math.min(1, this.curious + dt / 120);
+    if (w.sells('carousel')) this.rideWish = Math.min(1, this.rideWish + dt / (this.child ? 70 : 170));
     this.fun = Math.max(0, this.fun - dt / 240);
     if (!reach.has(this.tile)) {
       this.gone = true; // het pad onder de gast is weggehaald

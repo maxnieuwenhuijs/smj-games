@@ -256,7 +256,71 @@ const SHOP_PARTS: Record<ShopKind, Part[]> = {
     [boxAt(0.32, 0.42, 0.32, 0, 0.21, 0), std(0x3d8b5a)],
     [boxAt(0.38, 0.06, 0.38, 0, 0.45, 0), std(0x2c6a43)],
   ],
+  // de grote attracties staan verderop, bij hun bewegende delen
+  fountain: [],
+  carousel: [],
 };
+// De grote attracties. Wat stilstaat zit in SHOP_PARTS; wat beweegt staat hier los, zodat het kan draaien
+// (de draaimolen) of op en neer kan gaan (de waterstraal van de fontein). `y`: vanaf welke hoogte.
+const STONE = std(0xb9c2c9, 0.9);
+const WATER_MAT = std(0x6ec3e8, 0.25);
+const SPRAY_MAT = std(0xd6f1ff, 0.3);
+const GOLD_MAT = std(0xffd23f, 0.5);
+const around = <T>(n: number, r: number, make: (x: number, z: number, i: number) => T): T[] =>
+  Array.from({ length: n }, (_, i) => make(Math.sin((i / n) * Math.PI * 2) * r, Math.cos((i / n) * Math.PI * 2) * r, i));
+const horse = (x: number, z: number): THREE.BufferGeometry =>
+  mergeGeometries([
+    boxAt(0.3, 0.15, 0.13, 0, 0.47, 0), boxAt(0.1, 0.2, 0.11, 0.17, 0.6, 0), boxAt(0.14, 0.09, 0.1, 0.24, 0.66, 0),
+    boxAt(0.05, 0.2, 0.05, -0.1, 0.3, 0), boxAt(0.05, 0.2, 0.05, 0.1, 0.3, 0), boxAt(0.05, 0.16, 0.05, -0.17, 0.5, 0),
+  ])!.scale(1.3, 1.3, 1.3).rotateY(Math.atan2(-z, x) + Math.PI / 2).translate(x, -0.08, z);
+SHOP_PARTS.fountain = [
+  [boxAt(1.84, 0.05, 1.84, 0, 0.025, 0), std(0xd8c7ab, 1), false],
+  [tube(0.86, 0.9, 0.24, 0, 0.17, 0), STONE],
+  [tube(0.74, 0.74, 0.05, 0, 0.28, 0), WATER_MAT, false],
+  [tube(0.11, 0.15, 0.56, 0, 0.56, 0), STONE],
+  [tube(0.42, 0.16, 0.14, 0, 0.9, 0), STONE],
+  [tube(0.36, 0.36, 0.04, 0, 0.97, 0), WATER_MAT, false],
+  // vier straaltjes die van de bovenste schaal in het bassin vallen
+  [mergeGeometries(around(4, 0.4, (x, z) => boxAt(0.06, 0.62, 0.06, x, 0.62, z)))!, SPRAY_MAT, false],
+];
+SHOP_PARTS.carousel = [
+  [boxAt(1.84, 0.05, 1.84, 0, 0.025, 0), std(0xd8c7ab, 1), false],
+  [tube(0.9, 0.92, 0.12, 0, 0.11, 0), std(0xe0584f)],
+  [tube(0.09, 0.09, 1.9, 0, 1.1, 0), WHITE_MAT],
+];
+const SHOP_MOVING: Partial<Record<ShopKind, { y: number; parts: Part[] }>> = {
+  fountain: {
+    y: 0.97,
+    parts: [
+      [tube(0.05, 0.08, 0.6, 0, 0.3, 0), SPRAY_MAT, false],
+      [mergeGeometries([ball(0.07, 0, 0.64, 0), ball(0.05, 0.12, 0.5, 0.04), ball(0.05, -0.1, 0.46, -0.08), ball(0.04, 0.03, 0.42, 0.13)])!, SPRAY_MAT, false],
+    ],
+  },
+  carousel: {
+    y: 0,
+    parts: [
+      [tube(0.84, 0.84, 0.06, 0, 0.2, 0), GOLD_MAT],
+      [mergeGeometries(around(4, 0.56, (x, z) => tube(0.022, 0.022, 1.75, x, 1.08, z)))!, GOLD_MAT],
+      [tube(0.92, 0.92, 0.14, 0, 1.98, 0), WHITE_MAT],
+      [cone(0.95, 0.46, 0, 2.28, 0, 10), std(0xe0584f)],
+      [ball(0.1, 0, 2.55, 0), GOLD_MAT],
+      [mergeGeometries([horse(0, 0.56), horse(0, -0.56)])!, std(0xb07a4a)],
+      [mergeGeometries([horse(0.56, 0), horse(-0.56, 0)])!, WHITE_MAT],
+    ],
+  },
+};
+/** Een winkel met alles erop en eraan; het bewegende deel staat in `userData.moving`. */
+function buildShop(kind: ShopKind, mat?: THREE.Material): THREE.Group {
+  const group = build(SHOP_PARTS[kind], mat);
+  const extra = SHOP_MOVING[kind];
+  if (extra) {
+    const moving = build(extra.parts, mat);
+    moving.position.y = extra.y;
+    group.add(moving);
+    group.userData.moving = moving;
+  }
+  return group;
+}
 const LITTER_PARTS: Part[] = [
   [boxAt(0.13, 0.03, 0.1, 0.03, 0.02, 0), WHITE_MAT],
   [boxAt(0.07, 0.11, 0.07, -0.09, 0.055, 0.05), std(0xe0584f)],
@@ -358,7 +422,7 @@ export class View {
   private ghostWallMesh = new THREE.Mesh(WALL_GEO, this.ghostMat);
   private ghostNetMesh = new THREE.Mesh(NET_GEO, this.ghostMat);
   private ghostBeds = Object.fromEntries(BEDS.map(k => [k, build(BED_PARTS[k], this.ghostMat)])) as Record<BedKind, THREE.Group>;
-  private ghostShops = Object.fromEntries(SHOPS.map(k => [k, build(SHOP_PARTS[k], this.ghostMat)])) as Record<ShopKind, THREE.Group>;
+  private ghostShops = Object.fromEntries(SHOPS.map(k => [k, buildShop(k, this.ghostMat)])) as Record<ShopKind, THREE.Group>;
   private ghostTileMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.75, depthWrite: false });
   private ghostTileMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.94, 0.94).rotateX(-Math.PI / 2), this.ghostTileMat);
   private ghostRingMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.85, depthWrite: false });
@@ -614,7 +678,7 @@ export class View {
 
   /** Een winkel met zijn linkerbovenhoek op tegel (x, y); een gebouw beslaat 2 bij 2 tegels. */
   makeShop(x: number, y: number, kind: ShopKind): THREE.Group {
-    const group = build(SHOP_PARTS[kind]);
+    const group = buildShop(kind);
     group.position.set(toWorldX(x + SHOP_SIZE[kind] / 2), 0, toWorldZ(y + SHOP_SIZE[kind] / 2));
     this.scene.add(group);
     return group;

@@ -49,7 +49,7 @@ const WORLD_ICON: Record<WorldId, SpeciesId> = { farm: 'pig', savanna: 'zebra', 
 const between = ([lo, hi]: [number, number]): number => lo + Math.random() * (hi - lo);
 /** Bij welke winkel hoort een wens van een gast? */
 const NEED_KIND: Record<string, ShopKind> = {
-  food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', hat: 'hats', souvenir: 'souvenir', play: 'playground', sit: 'bench',
+  food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', hat: 'hats', souvenir: 'souvenir', play: 'playground', sit: 'bench', look: 'fountain', ride: 'carousel',
 };
 
 /** Elke handeling heeft een eigen cursor, zodat je ziet wat een tik gaat doen. */
@@ -1340,7 +1340,8 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       (guest.fav ? `<span class="wish ${guest.favSeen ? 'ok' : 'no'}">${speciesIcon(guest.fav)}${icon('heart', 'badge')}</span>` : '') +
       want(guest.hunger > 0.6, 'foodstall') + want(guest.thirst > 0.6, 'drinkstall') + want(guest.bladder > 0.6, 'toilet') +
       want(guest.treat > 0.7, 'icecream') + want(guest.balloon > 0.7, 'balloon') + want(guest.tired > 0.75, 'bench') +
-      want(guest.gift > 0.7, 'souvenir') + want(guest.playful > 0.7, 'playground') + want(guest.hat > 0.7, 'hats');
+      want(guest.gift > 0.7, 'souvenir') + want(guest.playful > 0.7, 'playground') + want(guest.hat > 0.7, 'hats') +
+      want(guest.curious > 0.7, 'fountain') + want(guest.rideWish > 0.7, 'carousel');
     this.hud.showMenu(s.x, s.y, t('guest.title'), [{ id: 'wave', icon: icon('hand'), label: t('guest.wave') }], () => {
       if (!guest.waved) guest.fun = Math.min(1, guest.fun + 0.1);
       guest.waved = true;
@@ -1838,7 +1839,16 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     for (const a of this.animals) a.update(dt, this);
     this.guests.update(dt);
     for (const pen of this.pens) pen.keeper?.update(dt, this, pen.region.id);
-    for (const shop of this.shops) shop.vendor?.update(dt);
+    for (const shop of this.shops) {
+      shop.vendor?.update(dt);
+      // de draaimolen draait, de waterstraal van de fontein gaat op en neer
+      const moving = shop.mesh.userData.moving as THREE.Object3D | undefined;
+      if (!moving) continue;
+      if (shop.kind === 'carousel') {
+        shop.spin = ((shop.spin ?? 0) + dt * 1.1) % (Math.PI * 2);
+        moving.rotation.y = shop.spin;
+      } else moving.scale.y = 1 + 0.25 * Math.sin(this.clock * 5 + shop.x);
+    }
     this.events(dt);
 
     for (const p of this.puddles) {

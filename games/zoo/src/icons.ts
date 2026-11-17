@@ -233,6 +233,14 @@ const ICONS = {
     '<circle cx="14" cy="11" r="6" fill="#b07a4a"/><circle cx="34" cy="11" r="6" fill="#b07a4a"/><ellipse cx="24" cy="39" rx="11" ry="8" fill="#b07a4a"/>' +
     '<circle cx="24" cy="20" r="13" fill="#b07a4a"/><ellipse cx="24" cy="25" rx="6.5" ry="5" fill="#e3bf94"/><ellipse cx="24" cy="40" rx="6" ry="4.5" fill="#e3bf94"/>' +
     `<g fill="${INK}"><circle cx="19" cy="17" r="2"/><circle cx="29" cy="17" r="2"/><circle cx="24" cy="23" r="1.9"/></g>`,
+  fountain:
+    '<ellipse cx="24" cy="38" rx="20" ry="7" fill="#b9c2c9"/><ellipse cx="24" cy="36.5" rx="16" ry="4.5" fill="#6ec3e8"/>' +
+    '<rect x="21" y="21" width="6" height="15" fill="#b9c2c9"/><ellipse cx="24" cy="22" rx="11" ry="4" fill="#b9c2c9"/><ellipse cx="24" cy="21" rx="8" ry="2.4" fill="#6ec3e8"/>' +
+    '<path d="M24 20 V6 M24 8 Q16 5 14 15 M24 8 Q32 5 34 15" fill="none" stroke="#6ec3e8" stroke-width="3.2" stroke-linecap="round"/>',
+  carousel:
+    '<path d="M3 19 L24 4 L45 19Z" fill="#e0584f"/><path d="M16 19 L24 4 L32 19Z" fill="#fff7e0"/><rect x="3" y="18" width="42" height="5" rx="2.5" fill="#ffd23f"/>' +
+    '<path d="M11 23 V40 M24 23 V40 M37 23 V40" stroke="#9aa0a6" stroke-width="2.5"/><rect x="4" y="40" width="40" height="5" rx="2.5" fill="#e0584f"/>' +
+    '<path d="M7 34 h8 v-6 l3 -2 v10 h-2 v4 h-2 v-4 h-3 v4 h-2 v-4 h-2z" fill="#b07a4a"/><path d="M28 32 h8 v-6 l3 -2 v10 h-2 v4 h-2 v-4 h-3 v4 h-2 v-4 h-2z" fill="#ffffff" stroke="#9aa0a6" stroke-width="1"/>',
   playground:
     `<path d="M9 44 V14 M21 44 V14 M9 24 H21 M9 34 H21" fill="none" stroke="${WOOD_D}" stroke-width="4" stroke-linecap="round"/>` +
     `<path d="M21 16 Q35 18 44 41" fill="none" stroke="${SUN}" stroke-width="8" stroke-linecap="round"/><path d="M5 14 L15 4 L25 14Z" fill="${RED}"/>`,

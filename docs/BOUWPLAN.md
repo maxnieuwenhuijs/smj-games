@@ -127,6 +127,8 @@ Gasten komen binnen bij de ingang zodra daar een pad ligt. Hoe meer volwassen di
 | Hoedje | Hoedjeskraam (vanaf level 23) | 1 munt, en de gast draagt het hoedje |
 | Knuffel | Knuffelkraam (vanaf level 27) | 1 munt |
 | Spelen (alleen kinderen) | Speeltuin (vanaf level 10) | veel plezier |
+| Naar de fontein kijken | Fontein (vanaf level 16) | plezier, kost de gast niets |
+| Een rondje draaimolen (kinderen het vaakst) | Draaimolen (vanaf level 26) | het meeste plezier, kost de gast niets |
 | Lievelingsdier zien | Een verblijf met dat dier aan het pad | veel plezier |
 
 Een gast koopt per bezoek hooguit vier dingen.
@@ -134,6 +136,15 @@ Een gast koopt per bezoek hooguit vier dingen.
 ### Winkels
 
 Winkels zijn gebouwen van 2 bij 2 tegels met een open voorkant; achter de toonbank staat een verkoper die zwaait als hij iets verkoopt. Bankje, bloembak en afvalbak zijn 1 tegel. Elke winkel heeft een eigen vorm: friet op het dak van de eetkraam, een beker op de drinkkraam, een reuzenijsje op de ijskraam, een tros ballonnen, een strohoed, een beer op de knuffelkraam. Het wc-gebouw heeft twee deuren en de speeltuin een glijbaan.
+
+### De grote attracties
+
+Twee dure dingen om voor te sparen. Ze leveren zelf geen munten op; gasten worden er blijer van, en blije gasten kopen meer.
+
+- **Fontein (30 munten, vanaf level 16):** een bassin met een waterstraal die op en neer gaat. Gasten komen ernaast staan kijken.
+- **Draaimolen (60 munten, vanaf level 26):** draait altijd. Gasten stappen op een paardje en draaien een rondje mee.
+
+Staat de attractie er nog niet, dan laten gasten in hun wolkje zien dat ze hem willen; ze worden er niet minder blij van. Level 16 en level 26 vragen erom, zodat je moet sparen.
 
 ### Wat een kraam verkoopt
 
@@ -158,7 +169,7 @@ Wie iets gekocht heeft, loopt even met afval rond. Staat er een afvalbak in de b
 
 - De kas gaat nooit hoger dan 99 (twee cijfers). Je begint met 10. Kun je iets niet betalen, dan is het prijskaartje grijs; een kind hoeft dus niet te rekenen.
 - Bijna alles levert 1 munt op: een poepje of afval opruimen, een jong dat geboren wordt, een gast die iets koopt. Een gehaald level geeft 5.
-- Een voerbak of slaapplek kost 1; een bankje, bloembak of afvalbak 2. Een eetkraam of drinkkraam kost 4, een wc 5, een speeltuin 6, een ijskraam 8, een ballonnenkraam 12, een hoedjeskraam 14, een knuffelkraam 16, een verzorger 10. Hekken en ondergrond zijn gratis.
+- Een voerbak of slaapplek kost 1; een bankje, bloembak of afvalbak 2. Een eetkraam of drinkkraam kost 4, een wc 5, een speeltuin 6, een ijskraam 8, een ballonnenkraam 12, een hoedjeskraam 14, een knuffelkraam 16, een verzorger 10, een fontein 30, een draaimolen 60. Hekken en ondergrond zijn gratis.
 - Dieren worden per wereld duurder, zodat je moet sparen: boerderij 2 tot 6, savanne 8 tot 28, jungle 14 tot 40, ijs en bergen 15 tot 45, verre landen 16 tot 50. Laat in het spel komen er tientallen munten per minuut binnen; voor twee dure dieren spaar je dan een minuut of twee.
 - Weghalen geeft de helft terug (naar beneden afgerond): een kraam met de gum, een dier dat je laat verhuizen. Een jong dat in het park geboren is, levert 1 munt op.
 - Een blij paar krijgt om de anderhalve minuut een jong. Zijn er al twee jongen, dan verhuist de oudste naar een andere dierentuin en krijg je 2 munten.
@@ -197,7 +208,7 @@ Elk level speelt een dier vrij en vraagt om twee blije dieren van de soort die j
 | 13 | 2 blije giraffen, 1 verzorger, 9 blije gasten | Leeuw |
 | 14 | 2 blije leeuwen, 4 soorten blij, 3 keer schepijs verkopen | Kameel |
 | 15 | 2 blije kamelen, 3 bloembakken, 10 blije gasten | Neushoorn |
-| 16 | 2 blije neushoorns, 2 jongen, 12 blije dieren | Nijlpaard |
+| 16 | 2 blije neushoorns, fontein, 12 blije dieren | Nijlpaard |
 | 17 | 2 blije nijlpaarden, 5 soorten blij, 3 pannenkoeken verkopen | Olifant |
 | 18 | 2 blije olifanten, 2 afvalbakken, 12 blije gasten | Struisvogel |
 | 19 | 2 blije struisvogels, 4 keer afval, 3 jongen | Cheeta |
@@ -207,7 +218,7 @@ Elk level speelt een dier vrij en vraagt om twee blije dieren van de soort die j
 | 23 | 2 blije papegaaien, 2 zieke dieren beter, hoedjeskraam | Tijger |
 | 24 | 2 blije tijgers, 3 verzorgers, 8 poepjes | Gorilla |
 | 25 | 2 blije gorilla's, 15 blije gasten, 4 hoedjes verkopen | Krokodil |
-| 26 | 2 blije krokodillen, 3 jongen, 6 keer afval | Panda |
+| 26 | 2 blije krokodillen, draaimolen, 6 keer afval | Panda |
 | 27 | 2 blije panda's, 16 blije dieren, knuffelkraam | Pauw |
 | 28 | 2 blije pauwen, 4 verzorgers, 2 zieke dieren beter | Toekan |
 | 29 | 2 blije toekans, 8 soorten blij, 4 knuffels verkopen | Luiaard |
@@ -298,7 +309,7 @@ De proefspeler bouwt zonder muis en zonder na te denken, dus de tijden zeggen ni
 | Als een trager kind: één handeling per 15 seconden, verder hetzelfde | Alle 50 levels gehaald, geen dier kwijt |
 | Als een kind dat alleen verzorgers aanneemt als een level erom vraagt | Goed tot en met level 24, daarna dieren kwijt en vast in level 26 |
 
-Op 17 november 2026 zijn de prijzen omhooggegaan (zie Munten). De proefspeler-als-kind (één handeling per 8 seconden, kas nooit bijgevuld) haalde daarna opnieuw alle 50 levels zonder een dier kwijt te raken. Tot en met level 19 houdt hij na een level 11 tot 40 munten over; daarna loopt de kas tijdens de meeste levels vol tot 99, omdat hij alleen koopt wat een level vraagt. Laat in het spel is geld dus nog steeds ruim.
+Op 17 november 2026 zijn de prijzen omhooggegaan (zie Munten). De proefspeler-als-kind (één handeling per 8 seconden, kas nooit bijgevuld) haalde daarna opnieuw alle 50 levels zonder een dier kwijt te raken. Tot en met level 19 houdt hij na een level 11 tot 40 munten over; daarna loopt de kas tijdens de meeste levels vol tot 99, omdat hij alleen koopt wat een level vraagt. Laat in het spel is geld dus nog steeds ruim. Daarna zijn de fontein en de draaimolen erbij gekomen; ook daarmee haalde hij alle 50 levels zonder een dier kwijt te raken (level 16 duurde door het sparen bijna twee keer zo lang).
 
 De eerste versie van het zorgtempo was te zwaar: daarmee raakte de proefspeler-als-kind vanaf level 14 honderden dieren kwijt. Daarom eten en poepen dieren nu minder vaak en zijn verzorgers al vanaf level 13 te huur.
 
