@@ -7,6 +7,7 @@ import en from './en.json';
 import { Game, slotKey, type SaveData } from './game';
 import { icon, type IconId } from './icons';
 import { hasSpecies, loadManifest, loadModel, loadSpecies, probeIcons } from './models';
+import { cleanName, elevenKey, loadName, setElevenKey } from './names';
 import nl from './nl.json';
 import './style.css';
 import { View } from './view';
@@ -70,7 +71,7 @@ async function showStart(): Promise<void> {
     b.className = 'slot';
     b.dataset.slot = String(i);
     b.innerHTML = `${icon(AVATARS[i - 1])}<b>${data ? `${icon('star', 'mini')} ${Math.min(levelOf(data), LEVELS.length - 1) + 1}` : t('slot.new')}</b>`;
-    b.addEventListener('click', () => void begin(i, data));
+    b.addEventListener('click', () => void (data ? begin(i, data, data.player ?? '') : askName().then(name => begin(i, undefined, name))));
     wrap.append(b);
     if (data) {
       // wissen kan alleen door de knop even vast te houden
@@ -123,6 +124,22 @@ async function showParents(): Promise<void> {
   for (let i = 1; i <= 3; i++) {
     const data = await saveGet<SaveData>(slotKey(i));
     const r = row(`${t('parents.slot', { n: i })}: ${data ? t('level', { n: Math.min(levelOf(data), LEVELS.length - 1) + 1 }) : t('parents.empty')}`);
+    if (data) {
+      // de naam van de speler op deze plek: aanpassen kan hier
+      const name = document.createElement('input');
+      name.className = 'nameinput small';
+      name.maxLength = 14;
+      name.placeholder = t('parents.name');
+      name.value = data.player ?? '';
+      name.addEventListener('change', () => {
+        data.player = cleanName(name.value) || undefined;
+        name.value = data.player ?? '';
+        void saveSet(slotKey(i), data).then(() => {
+          note.textContent = t('parents.done');
+        });
+      });
+      r.append(name);
+    }
     if (data)
       r.append(button('download', t('parents.export'), () => {
         const url = URL.createObjectURL(new Blob([JSON.stringify({ game: 'zoo', slot: i, data })], { type: 'application/json' }));
@@ -157,6 +174,23 @@ async function showParents(): Promise<void> {
     r.append(file, button('upload', t('parents.import'), () => file.click()));
   }
 
+  // eigen sleutel: daarmee kan het spel ook een naam inspreken die het nog niet kent
+  const keyRow = row(t('parents.key'));
+  const keyInput = document.createElement('input');
+  keyInput.className = 'nameinput small wide';
+  keyInput.type = 'password';
+  keyInput.autocomplete = 'off';
+  keyInput.value = elevenKey();
+  keyInput.addEventListener('change', () => {
+    setElevenKey(keyInput.value);
+    note.textContent = t('parents.done');
+  });
+  keyRow.append(keyInput);
+  const hint = document.createElement('div');
+  hint.className = 'sub hint';
+  hint.textContent = t('parents.key.hint');
+  card.append(hint);
+
   const langs = row(t('parents.language'));
   for (const code of Object.keys(LANGS) as Lang[]) {
     const b = button('globe', t(`lang.${code}`), () => {
@@ -178,7 +212,47 @@ async function showParents(): Promise<void> {
   panel.hidden = false;
 }
 
-async function begin(slot: number, data: SaveData | undefined): Promise<void> {
+/** Bij een nieuw spel: hoe heet je? Een ouder typt de naam; overslaan kan ook. */
+function askName(): Promise<string> {
+  return new Promise(resolve => {
+    const box = $('ask');
+    box.replaceChildren();
+    const card = document.createElement('div');
+    card.className = 'card ask';
+    const title = document.createElement('div');
+    title.className = 'big';
+    title.textContent = t('ask.name');
+    const input = document.createElement('input');
+    input.className = 'nameinput';
+    input.maxLength = 14;
+    input.autocomplete = 'off';
+    input.setAttribute('aria-label', t('ask.name'));
+    const done = (name: string): void => {
+      box.hidden = true;
+      resolve(cleanName(name));
+    };
+    const row = document.createElement('div');
+    row.className = 'prow';
+    const mk = (ic: IconId, label: string, click: () => void): HTMLButtonElement => {
+      const b = document.createElement('button');
+      b.className = 'pbtn';
+      b.innerHTML = `${icon(ic)}<b></b>`;
+      b.querySelector('b')!.textContent = label;
+      b.addEventListener('click', click);
+      return b;
+    };
+    row.append(mk('cross', t('ask.skip'), () => done('')), mk('check', t('ask.ok'), () => done(input.value)));
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') done(input.value);
+    });
+    card.append(title, input, row);
+    box.append(card);
+    box.hidden = false;
+    input.focus();
+  });
+}
+
+async function begin(slot: number, data: SaveData | undefined, player = ''): Promise<void> {
   $('start').hidden = true;
   $('loading').innerHTML = icon('paw');
   $('loading').hidden = false;
@@ -186,6 +260,9 @@ async function begin(slot: number, data: SaveData | undefined): Promise<void> {
   unlockAudio();
   try {
     await Promise.all([loadManifest(), loadAudio(lang)]);
+    await loadName(lang, player, () => {
+      $('loading').innerHTML = `${icon('paw')}<b class="wait">${t('ask.wait')}</b>`;
+    });
     await probeIcons(Object.keys(SPECIES));
     // alleen de soorten laden die al vrijgespeeld zijn of in het opgeslagen park staan
     const level = data ? levelOf(data) : 0;
@@ -199,7 +276,7 @@ async function begin(slot: number, data: SaveData | undefined): Promise<void> {
   $('ui').hidden = false;
 
   const view = new View($('app'));
-  const game = new Game(view, slot, data, () => location.reload());
+  const game = new Game(view, slot, data, () => location.reload(), player);
   resumeAmbience();
   const clock = new THREE.Clock();
   view.renderer.setAnimationLoop(() => {

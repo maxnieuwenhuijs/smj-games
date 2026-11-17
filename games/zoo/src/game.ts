@@ -3,7 +3,7 @@
 import type * as THREE from 'three';
 import { saveSet, t } from '@smj/shared';
 import { Animal, type AnimalWorld, type Trough } from './animal';
-import { ambience, animalSound, playVoice, sfx } from './audio';
+import { ambience, animalSound, hasVoice, layer, music, playVoice, sfx } from './audio';
 import {
   BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, PRICE, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
@@ -14,7 +14,7 @@ import { Grid, H, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Ed
 import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
 import { cursor, icon, type IconId } from './icons';
 import { emptyStats, goalProgress, levelDone, type Stats } from './levels';
-import { goalLine, say, textOf, voiceId, wishLine, type Line } from './lines';
+import { NAMED, PRAISE, goalLine, say, textOf, voiceId, wishLine, type Line } from './lines';
 import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStatic, speciesIcon } from './models';
 import { ENTRANCE, GuestManager, Keeper, Vendor, type Guest, type GuestWorld, type KeeperPoop, type KeeperTrough, type KeeperWorld, type ShopSpot } from './people';
 import { View, toWorldX, toWorldZ, type TroughMesh } from './view';
@@ -97,6 +97,8 @@ export interface SaveData {
   healed?: number;
   caught?: number;
   tidied?: number;
+  /** De naam van de speler, als die is ingevuld. */
+  player?: string;
   /** Afmetingen van het park toen dit is opgeslagen; oudere spellen waren 14 bij 14 of 20 bij 20. */
   gw?: number;
   gh?: number;
@@ -182,6 +184,8 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   private saveIn = 5;
   private zzzIn = 1.5;
   private chatterIn = 6;
+  private babbleIn = 8;
+  private calledAt = -999;
   private sickIn = between(SICK_FOR_GOAL);
   private escapeIn = between(ESCAPE_FOR_GOAL);
   private celebrating = false;
@@ -208,7 +212,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   private pinch: { dist: number; cx: number; cy: number } | null = null;
   private stroke = new Map<string, { lo: number; hi: number }>();
 
-  constructor(private view: View, private slot: number, data: SaveData | undefined, onHome: () => void) {
+  constructor(private view: View, private slot: number, data: SaveData | undefined, onHome: () => void, private player = data?.player ?? '') {
     const missing = LEVELS.findIndex(l => !hasSpecies(l.reward));
     this.maxLevel = missing < 0 ? LEVELS.length : missing;
     this.hud = new Hud({
@@ -230,6 +234,9 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       if (document.hidden) void this.save();
     });
     if (!data) this.lines.push(say.welcome());
+    // wie zijn naam heeft opgegeven, wordt bij het begin één keer begroet
+    const hello = this.named('name.hello');
+    if (hello) this.lines.push(hello);
     this.introduceLevel();
     (window as unknown as { __zoo: Game }).__zoo = this;
   }
@@ -299,6 +306,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   serialize(): SaveData {
     return {
       v: 3,
+      player: this.player || undefined,
       // wie al verder was dan de levels die er nu zijn, houdt dat level voor later
       level: this.level >= this.maxLevel ? Math.max(this.level, this.savedLevel) : this.level,
       fed: this.fed,
@@ -440,17 +448,18 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     }
     const cx = shop.x + shop.size / 2, cy = shop.y + shop.size / 2;
     if (product) this.floatAt(this.productIcon(product), cx - 0.4, cy, 1.5);
+    if (shop.kind === 'foodstall' || shop.kind === 'icecream') sfx('guest.yum', { volume: 0.4, every: 6 });
     this.earn(1, cx, cy);
     return true;
   }
 
   cheer(guest: Guest): void {
     this.floatAt(icon('heart'), guest.gx, guest.gy, guest.height + 0.2);
-    sfx('cheer', { volume: 0.5, every: 4 });
+    sfx('cheer', { volume: 0.4, every: 5 });
   }
 
-  guestSound(kind: 'flush'): void {
-    sfx(kind, { volume: 0.4, every: 5 });
+  guestSound(kind: 'flush' | 'guest.laugh'): void {
+    sfx(kind, { volume: 0.35, every: 5 });
   }
 
   messy(): boolean {
@@ -485,7 +494,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     const loose = this.poops.filter(p => !this.grid.enclosureAt(Math.floor(p.gx), Math.floor(p.gy))).length;
     if (mess === 'poop' && loose < 6) this.dropPoop(guest.gx, guest.gy);
     else this.dropPuddle(guest.gx, guest.gy);
-    sfx('nope', { every: 1 });
+    sfx('guest.uhoh', { volume: 0.8, every: 1 });
     this.floatAt(icon('smile_bad'), guest.gx, guest.gy, guest.height + 0.2);
     for (const q of this.guests.guests) if (q !== guest && Math.hypot(q.gx - guest.gx, q.gy - guest.gy) < 2.5) q.fun = Math.max(0, q.fun - 0.08);
     this.alert(say.host('accident'), 50);
@@ -649,6 +658,28 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   }
 
   // ------------------------------------------------------------ figuren
+  /** Een zin met de naam van de speler erin, als die naam is ingesproken. Anders null. */
+  private named(key: string): Line | null {
+    if (!this.player) return null;
+    const line = say.named(key, this.player);
+    return hasVoice(voiceId(line.who, textOf(t, line))) ? line : null;
+  }
+
+  /** Bij nood roept de verzorger de speler bij zijn naam, maar hooguit eens in de drie minuten. */
+  private callForHelp(key: string): void {
+    const line = this.named(key);
+    if (!line || this.clock - this.calledAt < 180) return;
+    this.calledAt = this.clock;
+    this.lines.unshift(line);
+  }
+
+  /** Een compliment bij een gehaald level: elke keer een ander figuur en een andere stijl, met de naam als die er is. */
+  private praise(): Line {
+    const personal = Object.keys(NAMED).filter(k => k.startsWith('name.done')).map(k => this.named(k)).filter((l): l is Line => !!l);
+    if (personal.length) return personal[this.level % personal.length];
+    return say.praise((this.level * 3 + 1) % PRAISE.length);
+  }
+
   private sayNow(line: Line): void {
     this.said.set(line.id ?? line.key, this.clock);
     this.quietUntil = this.clock + 9;
@@ -670,6 +701,8 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     this.lines.push(level ? say.level(this.level + 1) : this.maxLevel < LEVELS.length ? say.soon() : say.free());
     this.view.setWorld(this.world());
     ambience(`amb.${this.world()}`);
+    music(this.world());
+    layer('amb.wind', 0.6);
     // de knop voor het eerste doel staat alvast op de goede keuze
     const first = level?.goals[0];
     if (first?.type === 'path') this.option.terrain = 'path';
@@ -1161,7 +1194,10 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     sfx('alarm');
     animalSound(a.species, a.young);
     this.floatAt(icon('catch'), a.gx, a.gy, a.top + 0.25);
-    if (!this.celebrating) this.sayNow(say.escaped(t, a.species));
+    if (!this.celebrating) {
+      this.sayNow(say.escaped(t, a.species));
+      this.callForHelp('name.help.2');
+    }
   }
 
   private events(dt: number): void {
@@ -1185,6 +1221,15 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       this.chatterIn = 7 + Math.random() * 9;
       const a = this.animals[Math.floor(Math.random() * this.animals.length)];
       if (a && !a.sleeping) animalSound(a.species, a.young, 0.4);
+    }
+    // gasten: geroezemoes dat meegroeit met de drukte, en af en toe een lachje of een 'wauw'
+    const crowd = this.guests.guests.length;
+    layer('crowd.small', crowd ? Math.min(1, crowd / 8) * (crowd > 14 ? 0.5 : 1) : 0);
+    layer('crowd.big', crowd > 10 ? Math.min(1, (crowd - 10) / 14) : 0);
+    this.babbleIn -= dt;
+    if (this.babbleIn <= 0) {
+      this.babbleIn = 5 + Math.random() * 9;
+      if (crowd && Math.random() < Math.min(1, crowd / 10)) sfx('guest.chat', { volume: 0.45, every: 2 });
     }
   }
 
@@ -1646,6 +1691,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     if (worst && worst.age > 10) {
       const { a, wish } = worst;
       this.alert(a.escaped ? say.escaped(t, a.species) : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN));
+      if (a.neglect > NEGLECT_WARN * 1.5 && !this.hud.speaking) this.callForHelp('name.help.1');
     }
     // de gastvrouw let op de gasten
     const lack: Record<string, number> = {};
@@ -1673,7 +1719,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       this.celebrating = true;
       this.lines = [];
       const ready = loadSpecies(level.reward);
-      const done = say.done();
+      const done = this.praise();
       sfx('fanfare');
       this.hud.showLevelDone(this.level + 1, speciesIcon(level.reward), t(`species.${level.reward}`), textOf(t, done), () => {
         void ready.then(() => {
@@ -1699,7 +1745,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
           animalSound(level.reward, false);
           void this.save();
         });
-      });
+      }, done.who);
       playVoice(voiceId(done.who, textOf(t, done)));
       return;
     }

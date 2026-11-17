@@ -237,9 +237,30 @@ Elk level speelt een dier vrij en vraagt om twee blije dieren van de soort die j
 - Het mondje van een figuur beweegt mee met het geluid. Zonder geluid praat het op een klokje.
 - Beluisteren: `figuren.html`.
 
+## De naam van de speler
+
+Bij een nieuw spel vraagt het spel: hoe heet je? Een ouder typt de naam (overslaan kan). De figuren noemen die naam daarna alleen op bijzondere momenten: één begroeting bij het begin, een compliment bij elk gehaald level, en bij nood ("Help, Bram! Er is een dier ontsnapt."), hooguit eens in de drie minuten.
+
+De opname van de naam komt uit een van deze drie bronnen:
+
+1. De naam staat in het lijstje van ruim 140 veelvoorkomende namen die al zijn ingesproken (`tools/voice/names.json`). Een naam toevoegen: `node tools/voice/build.mjs names --add Sepp`, daarna committen.
+2. De naam is eerder op dit apparaat ingesproken en bewaard.
+3. In het oudermenu staat een eigen ElevenLabs-sleutel: dan spreekt het spel elke nieuwe naam ter plekke in en bewaart die op het apparaat. De sleutel blijft in de browser van dat apparaat en zit nooit in het spel of in de repo.
+
+Is er geen opname, dan staat de naam alleen in beeld en klinken de gewone complimenten.
+
+Complimenten bij een gehaald level wisselen: acht stuks, van vijf figuren, elk in een eigen stijl ("Hoppa! Weer een level gehaald.", "Kassa! Dat heb je knap gedaan.").
+
+## Geluid op de achtergrond
+
+- **Muziek:** vijf rustige nummers in dezelfde stijl (marimba, gitaar, klokkenspel), één per wereld, zacht onder alles door.
+- **Natuur:** per wereld een eigen achtergrond, met daaronder altijd een zacht briesje.
+- **Publiek:** geroezemoes dat meegroeit met het aantal gasten, en af en toe een lachje of een 'wauw' van een gast.
+- **Dieren en mensen:** elk dierengeluid heeft drie varianten en klinkt nooit twee keer hetzelfde achter elkaar; alles behalve de stemmen van de figuren staat zacht.
+
 ## Voor ouders
 
-Op het startscherm staat rechtsonder een knop die je drie tellen vasthoudt. Daarachter: een opslagplek bewaren in een bestand, terugzetten uit een bestand, en de taal (Nederlands of Engels).
+Op het startscherm staat rechtsonder een knop die je drie tellen vasthoudt. Daarachter: per opslagplek de naam van de speler, bewaren in een bestand en terugzetten uit een bestand; een eigen ElevenLabs-sleutel voor namen die het spel nog niet kent; en de taal (Nederlands of Engels).
 
 ## Fases
 

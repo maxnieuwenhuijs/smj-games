@@ -3,7 +3,10 @@
 //   node tools/voice/build.mjs plan            alleen tellen: hoeveel zinnen, tekens en geluiden ontbreken er
 //   node tools/voice/build.mjs voices [nl|en]  de ontbrekende ingesproken zinnen maken
 //   node tools/voice/build.mjs sfx             de ontbrekende effecten, dierengeluiden en achtergronden maken
-//   node tools/voice/build.mjs all             alles
+//   node tools/voice/build.mjs music           de ontbrekende achtergrondmuziek maken (een rustig nummer per wereld)
+//   node tools/voice/build.mjs names           de zinnen met een naam erin, voor elke naam in tools/voice/names.json
+//   node tools/voice/build.mjs names --add Sam een naam toevoegen aan dat lijstje en inspreken
+//   node tools/voice/build.mjs all             alles (zonder de namen)
 //   node tools/voice/build.mjs list            de stemmen in het account tonen
 //   extra: --limit 5 (hooguit zoveel nieuwe bestanden), --only keeper (alleen dit figuur of geluid dat zo begint)
 //
@@ -110,11 +113,12 @@ async function buildSfx(dry) {
   const jobs = [];
   for (const s of config.sounds) {
     const model = s.model ?? config.model;
-    const gen = short(JSON.stringify([s.prompt, s.seconds, s.influence ?? config.influence, !!s.loop, model, config.format]));
-    const files = Array.from({ length: s.variants ?? 1 }, (_, i) => `${s.id}-${i + 1}-${gen}.mp3`);
+    // een geluid heeft één omschrijving met een paar varianten, of een lijstje omschrijvingen (elk één variant)
+    const prompts = s.prompts ?? Array.from({ length: s.variants ?? 1 }, () => s.prompt);
+    const files = prompts.map((prompt, i) => `${s.id}-${i + 1}-${short(JSON.stringify([prompt, s.seconds, s.influence ?? config.influence, !!s.loop, model, config.format]))}.mp3`);
     wanted[s.id] = files;
     files.forEach((file, i) => {
-      if (!(manifest[s.id] ?? []).includes(file) || !existsSync(join(dir, file))) jobs.push({ ...s, model, file, index: i });
+      if (!(manifest[s.id] ?? []).includes(file) || !existsSync(join(dir, file))) jobs.push({ ...s, prompt: prompts[i], model, file, index: i });
     });
   }
   const picked = ONLY ? jobs.filter(j => j.id.startsWith(ONLY)) : jobs;
@@ -153,6 +157,111 @@ async function buildSfx(dry) {
   console.log(`[sfx] klaar: ${done} gemaakt, ${failed} mislukt`);
 }
 
+// ------------------------------------------------------------ namen
+/** Per naam een paar zinnen (begroeting, complimenten, hulp) waarin die naam wordt uitgesproken. */
+async function buildNames(config, dry) {
+  const file = join(HERE, 'names.json');
+  const lists = readJson(file, {});
+  const added = flag('add');
+  if (added) {
+    for (const lang of allLangs.length === Object.keys(config.languages).length ? ['nl'] : allLangs) {
+      lists[lang] ??= [];
+      if (!lists[lang].some(n => n.toLowerCase() === added.toLowerCase())) lists[lang].push(added);
+    }
+    writeJson(file, lists);
+  }
+  const { namedLines, voiceId, fill } = await gameLines();
+  for (const lang of Object.keys(lists)) {
+    const names = lists[lang] ?? [];
+    if (!names.length || !config.languages[lang]) continue;
+    const table = { ...readJson(join(SRC, 'nl.json')), ...readJson(join(SRC, `${lang}.json`)) };
+    const tr = (key, vars) => fill(table[key] ?? key, vars);
+    const dir = join(AUDIO, lang, 'names');
+    const listFile = join(AUDIO, lang, 'names.json');
+    const manifest = readJson(listFile, {});
+    const jobs = [];
+    const wanted = {};
+    for (const name of names) {
+      const key = name.toLowerCase();
+      wanted[key] = {};
+      for (const line of namedLines(tr, name)) {
+        const who = config.languages[lang][line.who];
+        const model = who.model ?? config.model;
+        const settings = { ...config.settings, ...who.settings };
+        const id = voiceId(line.who, line.text);
+        const out = `${id}-${short(JSON.stringify([who.voice, model, settings, config.format]))}.mp3`;
+        wanted[key][id] = out;
+        if (manifest[key]?.[id] !== out || !existsSync(join(dir, out))) jobs.push({ ...line, key, id, file: out, voice: who.voice, model, settings });
+      }
+    }
+    console.log(`[namen ${lang}] ${names.length} namen, ${jobs.length} zinnen te maken (${jobs.reduce((n, j) => n + j.text.length, 0)} tekens)`);
+    if (dry || !jobs.length) continue;
+    mkdirSync(dir, { recursive: true });
+    let done = 0, failed = 0;
+    await pool(jobs.slice(0, LIMIT), 4, async job => {
+      try {
+        const body = { text: job.text, model_id: job.model, voice_settings: job.settings };
+        if (job.model !== 'eleven_multilingual_v2') body.language_code = lang;
+        const audio = await eleven(`/v1/text-to-speech/${job.voice}`, { method: 'POST', query: { output_format: config.format }, body });
+        writeFileSync(join(dir, job.file), audio);
+        (manifest[job.key] ??= {})[job.id] = job.file;
+        if (++done % 40 === 0) writeJson(listFile, manifest);
+      } catch (err) {
+        failed++;
+        console.log(`[namen ${lang}] MISLUKT "${job.text}": ${err.message}`);
+        if (failed > 8) throw new Error('Te veel fouten achter elkaar; gestopt.');
+      }
+    });
+    if (LIMIT === Infinity) {
+      for (const key of Object.keys(manifest)) {
+        if (!wanted[key]) delete manifest[key];
+        else for (const id of Object.keys(manifest[key])) if (wanted[key][id] !== manifest[key][id]) delete manifest[key][id];
+      }
+      const keep = new Set(Object.values(manifest).flatMap(m => Object.values(m)));
+      for (const f of readdirSync(dir)) if (f.endsWith('.mp3') && !keep.has(f)) rmSync(join(dir, f));
+    }
+    writeJson(listFile, Object.fromEntries(Object.entries(manifest).sort()));
+    console.log(`[namen ${lang}] klaar: ${done} gemaakt, ${failed} mislukt`);
+  }
+}
+
+// ------------------------------------------------------------ muziek
+async function buildMusic(dry) {
+  const config = readJson(join(HERE, 'music.json'));
+  const dir = join(AUDIO, 'music');
+  const manifest = readJson(join(dir, 'music.json'), {});
+  const jobs = [];
+  const wanted = {};
+  for (const track of config.tracks) {
+    const prompt = `${config.style} ${track.prompt}`;
+    const file = `${track.id}-${short(JSON.stringify([prompt, track.seconds, config.model, config.format]))}.mp3`;
+    wanted[track.id] = file;
+    if (manifest[track.id] !== file || !existsSync(join(dir, file))) jobs.push({ ...track, prompt, file });
+  }
+  console.log(`[muziek] ${config.tracks.length} nummers, ${jobs.length} te maken (${jobs.reduce((n, j) => n + j.seconds, 0)} seconden)`);
+  if (dry || !jobs.length) return;
+  mkdirSync(dir, { recursive: true });
+  for (const job of jobs.slice(0, LIMIT)) {
+    try {
+      const audio = await eleven('/v1/music', {
+        method: 'POST',
+        query: { output_format: config.format },
+        body: { prompt: job.prompt, music_length_ms: job.seconds * 1000, model_id: config.model, force_instrumental: true },
+      });
+      writeFileSync(join(dir, job.file), audio);
+      manifest[job.id] = job.file;
+      writeJson(join(dir, 'music.json'), manifest);
+      console.log(`[muziek] ${job.id} klaar (${Math.round(audio.length / 1024)} kB)`);
+    } catch (err) {
+      console.log(`[muziek] MISLUKT ${job.id}: ${err.message}`);
+    }
+  }
+  if (LIMIT === Infinity) {
+    const keep = new Set(Object.values(wanted));
+    for (const f of readdirSync(dir)) if (f.endsWith('.mp3') && !keep.has(f)) rmSync(join(dir, f));
+  }
+}
+
 // ------------------------------------------------------------ uitvoeren
 async function credits() {
   try {
@@ -173,10 +282,14 @@ if (mode === 'list') {
 } else if (mode === 'plan') {
   for (const lang of allLangs) await buildVoices(lang, config, true);
   await buildSfx(true);
+  await buildMusic(true);
+  await buildNames(config, true);
   await credits();
 } else {
   await credits();
   if (mode === 'voices' || mode === 'all') for (const lang of allLangs) await buildVoices(lang, config, false);
   if (mode === 'sfx' || mode === 'all') await buildSfx(false);
+  if (mode === 'music' || mode === 'all') await buildMusic(false);
+  if (mode === 'names') await buildNames(config, false);
   await credits();
 }

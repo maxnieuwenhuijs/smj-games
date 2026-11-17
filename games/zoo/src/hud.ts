@@ -270,13 +270,13 @@ export class Hud {
   }
 
   // ------------------------------------------------------------ level gehaald
-  showLevelDone(levelNumber: number, rewardIcon: string, rewardName: string, text: string, next: () => void): void {
+  showLevelDone(levelNumber: number, rewardIcon: string, rewardName: string, text: string, next: () => void, who: FigureId = 'director'): void {
     this.hush();
     this.overlay.replaceChildren();
     const card = el('div', 'card');
     card.append(
       el('div', 'stars', icon('star')),
-      el('div', 'boss', `<div class="portrait">${portrait('director', 'happy', 1)}</div><div class="big"></div>`),
+      el('div', 'boss', `<div class="portrait">${portrait(who, 'happy', 1)}</div><div class="big"></div>`),
       el('div', 'sub', t('level', { n: levelNumber })),
       el('div', 'reward', `${rewardIcon}<span>${t('level.new')}</span><b>${rewardName}</b>`),
     );

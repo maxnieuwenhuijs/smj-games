@@ -52,7 +52,7 @@ export interface GuestWorld {
   /** Ligt er afval op deze tegel? */
   litterOn(tile: number): boolean;
   /** Geluidje bij iets wat een gast doet. */
-  guestSound(kind: 'flush'): void;
+  guestSound(kind: 'flush' | 'guest.laugh'): void;
   /** Vraagt het level om afval op te ruimen? Dan laten gasten ook naast een afvalbak weleens iets vallen. */
   messy(): boolean;
 }
@@ -384,6 +384,7 @@ export class Guest {
         w.cheer(this);
       }
     } else if (this.state === 'sit' && this.shop?.kind === 'playground') {
+      w.guestSound('guest.laugh');
       this.playful = 0;
       this.fun = Math.min(1, this.fun + 0.25);
     } else if (this.state === 'sit') {

@@ -52,6 +52,8 @@ node tools/voice/build.mjs plan
 node tools/voice/build.mjs all
 ```
 
+Er zijn ook `node tools/voice/build.mjs music` (de achtergrondmuziek) en `node tools/voice/build.mjs names` (de zinnen met een naam erin; `--add Sepp` voegt een naam toe).
+
 `plan` telt alleen wat er ontbreekt. `all` maakt de ontbrekende zinnen (Nederlands en Engels) en geluiden; wat er al is, wordt overgeslagen. De zinnen komen uit het spel zelf (`games/zoo/src/lines.ts`), de stemmen staan in `tools/voice/voices.json` en de geluiden in `tools/voice/sounds.json`.
 
 ## Proefspelen

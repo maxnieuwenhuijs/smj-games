@@ -17,167 +17,278 @@
  "amb.savanna": [
   "amb.savanna-1-44ede3.mp3"
  ],
+ "amb.wind": [
+  "amb.wind-1-8bcd61.mp3"
+ ],
  "animal.alpaca": [
-  "animal.alpaca-1-6dac47.mp3"
+  "animal.alpaca-1-6dac47.mp3",
+  "animal.alpaca-2-6dac47.mp3",
+  "animal.alpaca-3-6dac47.mp3"
  ],
  "animal.arcticfox": [
-  "animal.arcticfox-1-ac7d62.mp3"
+  "animal.arcticfox-1-ac7d62.mp3",
+  "animal.arcticfox-2-ac7d62.mp3",
+  "animal.arcticfox-3-ac7d62.mp3"
  ],
  "animal.bear": [
-  "animal.bear-1-1a47fd.mp3"
+  "animal.bear-1-1a47fd.mp3",
+  "animal.bear-2-1a47fd.mp3",
+  "animal.bear-3-1a47fd.mp3"
  ],
  "animal.beaver": [
-  "animal.beaver-1-0c1dae.mp3"
+  "animal.beaver-1-0c1dae.mp3",
+  "animal.beaver-2-0c1dae.mp3",
+  "animal.beaver-3-0c1dae.mp3"
  ],
  "animal.bison": [
-  "animal.bison-1-37582b.mp3"
+  "animal.bison-1-37582b.mp3",
+  "animal.bison-2-37582b.mp3",
+  "animal.bison-3-37582b.mp3"
  ],
  "animal.camel": [
-  "animal.camel-1-bd8d03.mp3"
+  "animal.camel-1-bd8d03.mp3",
+  "animal.camel-2-bd8d03.mp3",
+  "animal.camel-3-bd8d03.mp3"
  ],
  "animal.cheetah": [
-  "animal.cheetah-1-811177.mp3"
+  "animal.cheetah-1-811177.mp3",
+  "animal.cheetah-2-811177.mp3",
+  "animal.cheetah-3-811177.mp3"
  ],
  "animal.chicken": [
-  "animal.chicken-1-262539.mp3"
+  "animal.chicken-1-262539.mp3",
+  "animal.chicken-2-262539.mp3",
+  "animal.chicken-3-262539.mp3"
  ],
  "animal.cow": [
-  "animal.cow-1-d1a31b.mp3"
+  "animal.cow-1-d1a31b.mp3",
+  "animal.cow-2-d1a31b.mp3",
+  "animal.cow-3-d1a31b.mp3"
  ],
  "animal.crocodile": [
-  "animal.crocodile-1-5097c7.mp3"
+  "animal.crocodile-1-5097c7.mp3",
+  "animal.crocodile-2-5097c7.mp3",
+  "animal.crocodile-3-5097c7.mp3"
  ],
  "animal.donkey": [
-  "animal.donkey-1-13e9d0.mp3"
+  "animal.donkey-1-13e9d0.mp3",
+  "animal.donkey-2-13e9d0.mp3",
+  "animal.donkey-3-13e9d0.mp3"
  ],
  "animal.duck": [
-  "animal.duck-1-da811b.mp3"
+  "animal.duck-1-da811b.mp3",
+  "animal.duck-2-da811b.mp3",
+  "animal.duck-3-da811b.mp3"
  ],
  "animal.elephant": [
-  "animal.elephant-1-3be60a.mp3"
+  "animal.elephant-1-3be60a.mp3",
+  "animal.elephant-2-3be60a.mp3",
+  "animal.elephant-3-3be60a.mp3"
  ],
  "animal.flamingo": [
-  "animal.flamingo-1-b5cd9d.mp3"
+  "animal.flamingo-1-b5cd9d.mp3",
+  "animal.flamingo-2-b5cd9d.mp3",
+  "animal.flamingo-3-b5cd9d.mp3"
  ],
  "animal.gazelle": [
-  "animal.gazelle-1-2f86ab.mp3"
+  "animal.gazelle-1-2f86ab.mp3",
+  "animal.gazelle-2-2f86ab.mp3",
+  "animal.gazelle-3-2f86ab.mp3"
  ],
  "animal.giraffe": [
-  "animal.giraffe-1-fe4c5c.mp3"
+  "animal.giraffe-1-fe4c5c.mp3",
+  "animal.giraffe-2-fe4c5c.mp3",
+  "animal.giraffe-3-fe4c5c.mp3"
  ],
  "animal.goat": [
-  "animal.goat-1-3263ba.mp3"
+  "animal.goat-1-3263ba.mp3",
+  "animal.goat-2-3263ba.mp3",
+  "animal.goat-3-3263ba.mp3"
  ],
  "animal.gorilla": [
-  "animal.gorilla-1-a91c49.mp3"
+  "animal.gorilla-1-a91c49.mp3",
+  "animal.gorilla-2-a91c49.mp3",
+  "animal.gorilla-3-a91c49.mp3"
  ],
  "animal.hippo": [
-  "animal.hippo-1-78eeec.mp3"
+  "animal.hippo-1-78eeec.mp3",
+  "animal.hippo-2-78eeec.mp3",
+  "animal.hippo-3-78eeec.mp3"
  ],
  "animal.horse": [
-  "animal.horse-1-c21ad2.mp3"
+  "animal.horse-1-c21ad2.mp3",
+  "animal.horse-2-c21ad2.mp3",
+  "animal.horse-3-c21ad2.mp3"
  ],
  "animal.kangaroo": [
-  "animal.kangaroo-1-2f9869.mp3"
+  "animal.kangaroo-1-2f9869.mp3",
+  "animal.kangaroo-2-2f9869.mp3",
+  "animal.kangaroo-3-2f9869.mp3"
  ],
  "animal.koala": [
-  "animal.koala-1-3b9c3d.mp3"
+  "animal.koala-1-3b9c3d.mp3",
+  "animal.koala-2-3b9c3d.mp3",
+  "animal.koala-3-3b9c3d.mp3"
  ],
  "animal.lemur": [
-  "animal.lemur-1-54baa5.mp3"
+  "animal.lemur-1-54baa5.mp3",
+  "animal.lemur-2-54baa5.mp3",
+  "animal.lemur-3-54baa5.mp3"
  ],
  "animal.lion": [
-  "animal.lion-1-b0a90c.mp3"
+  "animal.lion-1-b0a90c.mp3",
+  "animal.lion-2-b0a90c.mp3",
+  "animal.lion-3-b0a90c.mp3"
  ],
  "animal.monkey": [
-  "animal.monkey-1-ac175d.mp3"
+  "animal.monkey-1-ac175d.mp3",
+  "animal.monkey-2-ac175d.mp3",
+  "animal.monkey-3-ac175d.mp3"
  ],
  "animal.ostrich": [
-  "animal.ostrich-1-4c4407.mp3"
+  "animal.ostrich-1-4c4407.mp3",
+  "animal.ostrich-2-4c4407.mp3",
+  "animal.ostrich-3-4c4407.mp3"
  ],
  "animal.otter": [
-  "animal.otter-1-8a738b.mp3"
+  "animal.otter-1-8a738b.mp3",
+  "animal.otter-2-8a738b.mp3",
+  "animal.otter-3-8a738b.mp3"
  ],
  "animal.owl": [
-  "animal.owl-1-e0a4b0.mp3"
+  "animal.owl-1-e0a4b0.mp3",
+  "animal.owl-2-e0a4b0.mp3",
+  "animal.owl-3-e0a4b0.mp3"
  ],
  "animal.panda": [
-  "animal.panda-1-753cc7.mp3"
+  "animal.panda-1-753cc7.mp3",
+  "animal.panda-2-753cc7.mp3",
+  "animal.panda-3-753cc7.mp3"
  ],
  "animal.panther": [
-  "animal.panther-1-fa1486.mp3"
+  "animal.panther-1-fa1486.mp3",
+  "animal.panther-2-fa1486.mp3",
+  "animal.panther-3-fa1486.mp3"
  ],
  "animal.parrot": [
-  "animal.parrot-1-c906ea.mp3"
+  "animal.parrot-1-c906ea.mp3",
+  "animal.parrot-2-c906ea.mp3",
+  "animal.parrot-3-c906ea.mp3"
  ],
  "animal.peacock": [
-  "animal.peacock-1-0977f0.mp3"
+  "animal.peacock-1-0977f0.mp3",
+  "animal.peacock-2-0977f0.mp3",
+  "animal.peacock-3-0977f0.mp3"
  ],
  "animal.pelican": [
-  "animal.pelican-1-7227e6.mp3"
+  "animal.pelican-1-7227e6.mp3",
+  "animal.pelican-2-7227e6.mp3",
+  "animal.pelican-3-7227e6.mp3"
  ],
  "animal.penguin": [
-  "animal.penguin-1-c11557.mp3"
+  "animal.penguin-1-c11557.mp3",
+  "animal.penguin-2-c11557.mp3",
+  "animal.penguin-3-c11557.mp3"
  ],
  "animal.pig": [
-  "animal.pig-1-2a9765.mp3"
+  "animal.pig-1-2a9765.mp3",
+  "animal.pig-2-2a9765.mp3",
+  "animal.pig-3-2a9765.mp3"
  ],
  "animal.polarbear": [
-  "animal.polarbear-1-39237a.mp3"
+  "animal.polarbear-1-39237a.mp3",
+  "animal.polarbear-2-39237a.mp3",
+  "animal.polarbear-3-39237a.mp3"
  ],
  "animal.rabbit": [
-  "animal.rabbit-1-511d6a.mp3"
+  "animal.rabbit-1-511d6a.mp3",
+  "animal.rabbit-2-511d6a.mp3",
+  "animal.rabbit-3-511d6a.mp3"
  ],
  "animal.redpanda": [
-  "animal.redpanda-1-0fefae.mp3"
+  "animal.redpanda-1-0fefae.mp3",
+  "animal.redpanda-2-0fefae.mp3",
+  "animal.redpanda-3-0fefae.mp3"
  ],
  "animal.reindeer": [
-  "animal.reindeer-1-805068.mp3"
+  "animal.reindeer-1-805068.mp3",
+  "animal.reindeer-2-805068.mp3",
+  "animal.reindeer-3-805068.mp3"
  ],
  "animal.rhino": [
-  "animal.rhino-1-48117c.mp3"
+  "animal.rhino-1-48117c.mp3",
+  "animal.rhino-2-48117c.mp3",
+  "animal.rhino-3-48117c.mp3"
  ],
  "animal.seal": [
-  "animal.seal-1-01eda9.mp3"
+  "animal.seal-1-01eda9.mp3",
+  "animal.seal-2-01eda9.mp3",
+  "animal.seal-3-01eda9.mp3"
  ],
  "animal.sheep": [
-  "animal.sheep-1-52d43d.mp3"
+  "animal.sheep-1-52d43d.mp3",
+  "animal.sheep-2-52d43d.mp3",
+  "animal.sheep-3-52d43d.mp3"
  ],
  "animal.sloth": [
-  "animal.sloth-1-36c62e.mp3"
+  "animal.sloth-1-36c62e.mp3",
+  "animal.sloth-2-36c62e.mp3",
+  "animal.sloth-3-36c62e.mp3"
  ],
  "animal.tiger": [
-  "animal.tiger-1-6d6ecc.mp3"
+  "animal.tiger-1-6d6ecc.mp3",
+  "animal.tiger-2-6d6ecc.mp3",
+  "animal.tiger-3-6d6ecc.mp3"
  ],
  "animal.toucan": [
-  "animal.toucan-1-b26a8d.mp3"
+  "animal.toucan-1-b26a8d.mp3",
+  "animal.toucan-2-b26a8d.mp3",
+  "animal.toucan-3-b26a8d.mp3"
  ],
  "animal.turtle": [
-  "animal.turtle-1-04b08f.mp3"
+  "animal.turtle-1-04b08f.mp3",
+  "animal.turtle-2-04b08f.mp3",
+  "animal.turtle-3-04b08f.mp3"
  ],
  "animal.walrus": [
-  "animal.walrus-1-47aec8.mp3"
+  "animal.walrus-1-47aec8.mp3",
+  "animal.walrus-2-47aec8.mp3",
+  "animal.walrus-3-47aec8.mp3"
  ],
  "animal.wolf": [
-  "animal.wolf-1-8ea7c3.mp3"
+  "animal.wolf-1-8ea7c3.mp3",
+  "animal.wolf-2-8ea7c3.mp3",
+  "animal.wolf-3-8ea7c3.mp3"
  ],
  "animal.yak": [
-  "animal.yak-1-afe801.mp3"
+  "animal.yak-1-afe801.mp3",
+  "animal.yak-2-afe801.mp3",
+  "animal.yak-3-afe801.mp3"
  ],
  "animal.zebra": [
-  "animal.zebra-1-c447fc.mp3"
+  "animal.zebra-1-c447fc.mp3",
+  "animal.zebra-2-c447fc.mp3",
+  "animal.zebra-3-c447fc.mp3"
  ],
  "born": [
   "born-1-9d7146.mp3"
  ],
  "cheer": [
-  "cheer-1-ccb9b4.mp3"
+  "cheer-1-ccb9b4.mp3",
+  "cheer-2-ccb9b4.mp3",
+  "cheer-3-ccb9b4.mp3"
  ],
  "chime": [
   "chime-1-638856.mp3"
  ],
  "coin": [
   "coin-1-3a7e62.mp3"
+ ],
+ "crowd.big": [
+  "crowd.big-1-51767c.mp3"
+ ],
+ "crowd.small": [
+  "crowd.small-1-f66591.mp3"
  ],
  "erase": [
   "erase-1-4ec770.mp3"
@@ -190,6 +301,27 @@
  ],
  "flush": [
   "flush-1-5c0550.mp3"
+ ],
+ "guest.chat": [
+  "guest.chat-1-3ffe56.mp3",
+  "guest.chat-2-4782c0.mp3",
+  "guest.chat-3-4a3a30.mp3",
+  "guest.chat-4-4c782e.mp3",
+  "guest.chat-5-6d2a38.mp3",
+  "guest.chat-6-2e41d7.mp3"
+ ],
+ "guest.laugh": [
+  "guest.laugh-1-ac9ce2.mp3",
+  "guest.laugh-2-ac9ce2.mp3",
+  "guest.laugh-3-ac9ce2.mp3"
+ ],
+ "guest.uhoh": [
+  "guest.uhoh-1-2654bb.mp3",
+  "guest.uhoh-2-2654bb.mp3"
+ ],
+ "guest.yum": [
+  "guest.yum-1-425313.mp3",
+  "guest.yum-2-425313.mp3"
  ],
  "heal": [
   "heal-1-5a4c40.mp3"

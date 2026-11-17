@@ -2,7 +2,7 @@
 import { setStrings, t } from '@smj/shared';
 import { FIGURES, MOODS, portrait, type FigureId, type Mouth } from './figures';
 import { ICON_IDS, icon } from './icons';
-import { voiceId } from './lines';
+import { PRAISE, voiceId } from './lines';
 import strings from './nl.json';
 import './style.css';
 
@@ -30,6 +30,7 @@ async function json<T>(url: string, fallback: T): Promise<T> {
 
 const voices = await json<Record<string, string>>('./audio/nl/voice.json', {});
 const sounds = await json<Record<string, string[]>>('./audio/sfx/sfx.json', {});
+const tunes = await json<Record<string, string>>('./audio/music/music.json', {});
 const play = (url: string, label: string): string => `<button class="pbtn" data-play="${url}">${icon('sound_on')}<b>${label}</b></button>`;
 
 let html = '';
@@ -45,7 +46,15 @@ for (const id of FIGURES) {
   }
   html += '</div>';
 }
-html += '<h2>Geluiden</h2><div class="grid">';
+html += '<h2>Muziek</h2><div class="grid">';
+for (const [world, file] of Object.entries(tunes)) html += play(`./audio/music/${file}`, t(`world.${world}`));
+html += '</div><h2>Complimenten</h2><div class="grid">';
+PRAISE.forEach((who, i) => {
+  const text = t(`praise.${i + 1}`);
+  const file = voices[voiceId(who, text)];
+  if (file) html += play(`./audio/nl/${file}`, `${t(`figure.${who}`)}: ${text}`);
+});
+html += '</div><h2>Geluiden</h2><div class="grid">';
 for (const [id, files] of Object.entries(sounds)) files.forEach((file, i) => (html += play(`./audio/sfx/${file}`, files.length > 1 ? `${id} ${i + 1}` : id)));
 html += '</div><h2>Plaatjes</h2><div class="grid">';
 for (const id of ICON_IDS) html += `<div class="cell">${icon(id)}${id}</div>`;

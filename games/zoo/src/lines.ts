@@ -65,7 +65,23 @@ export function wishLine(tr: Tr, wish: WishId, sp: SpeciesId, need: FenceNeed | 
   };
 }
 
+/** Complimenten bij een gehaald level, elk van een ander figuur en in een andere stijl: praise.1, praise.2, ... */
+export const PRAISE: FigureId[] = ['director', 'director', 'keeper', 'builder', 'host', 'cashier', 'director', 'keeper'];
+/** Zinnen waarin de naam van de speler voorkomt. Die klinken alleen bij leuke dingen (level gehaald) en bij nood. */
+export const NAMED: Record<string, FigureId> = {
+  'name.hello': 'director',
+  'name.done.1': 'director',
+  'name.done.2': 'director',
+  'name.done.3': 'keeper',
+  'name.done.4': 'builder',
+  'name.done.5': 'host',
+  'name.help.1': 'keeper',
+  'name.help.2': 'keeper',
+};
+
 export const say = {
+  praise: (i: number): Line => ({ who: PRAISE[i % PRAISE.length], mood: 'happy', key: `praise.${(i % PRAISE.length) + 1}` }),
+  named: (key: string, name: string): Line => ({ who: NAMED[key], mood: key.includes('help') ? 'urgent' : 'happy', key, vars: { name } }),
   welcome: (): Line => ({ who: 'director', mood: 'happy', key: 'say.welcome' }),
   level: (n: number): Line => ({ who: 'director', mood: 'happy', key: `say.level.${n}` }),
   free: (): Line => ({ who: 'director', mood: 'happy', key: 'say.free' }),
@@ -105,6 +121,14 @@ export function voiceId(who: string, text: string): string {
   return (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
 }
 
+/** De zinnen met de naam van één speler erin. */
+export function namedLines(tr: Tr, name: string): { who: FigureId; text: string }[] {
+  return Object.keys(NAMED).map(key => {
+    const line = say.named(key, name);
+    return { who: line.who, text: textOf(tr, line) };
+  });
+}
+
 /** Elke zin die in het spel kan klinken, één keer. */
 export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   const out = new Map<string, { who: FigureId; text: string }>();
@@ -113,6 +137,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
     out.set(voiceId(line.who, text), { who: line.who, text });
   };
   add(say.welcome());
+  PRAISE.forEach((_, i) => add(say.praise(i)));
   add(say.free());
   add(say.soon());
   add(say.done());

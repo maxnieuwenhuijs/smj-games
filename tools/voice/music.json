@@ -1,0 +1,32 @@
+{
+  "model": "music_v1",
+  "format": "mp3_44100_96",
+  "style": "Calm, gentle background music for a young children's zoo game. Soft marimba, fingerpicked acoustic guitar and light glockenspiel. Slow and warm, around 80 bpm, happy but relaxed, quiet dynamics throughout, no drums, no vocals, no sudden changes. It should loop pleasantly.",
+  "tracks": [
+    {
+      "id": "farm",
+      "seconds": 75,
+      "prompt": "A sunny morning on a farm: add a soft ukulele."
+    },
+    {
+      "id": "savanna",
+      "seconds": 75,
+      "prompt": "A warm afternoon on the savanna: add a gentle kalimba."
+    },
+    {
+      "id": "jungle",
+      "seconds": 75,
+      "prompt": "A quiet walk through the jungle: add a soft pan flute."
+    },
+    {
+      "id": "ice",
+      "seconds": 75,
+      "prompt": "A calm snowy day: add a celesta and a music box."
+    },
+    {
+      "id": "far",
+      "seconds": 75,
+      "prompt": "A peaceful lakeside in a faraway land: add a soft harp."
+    }
+  ]
+}
