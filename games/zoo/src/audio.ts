@@ -102,12 +102,15 @@ export function setPersonalVoices(map: Record<string, string>): void {
 
 export const hasVoice = (id: string): boolean => id in personal || id in voices;
 
-/** Speelt de ingesproken zin met deze vingerafdruk. Geeft null als die er niet is of het geluid uit staat. */
-export function playVoice(id: string): Voice | null {
+/**
+ * Speelt de ingesproken zin met deze vingerafdruk; met een lijstje spelen de opnames achter elkaar
+ * (eerst de naam van de speler, dan de zin). Geeft null als er een ontbreekt of het geluid uit staat.
+ */
+export function playVoice(ids: string | string[]): Voice | null {
   current?.stop();
   current = null;
-  const url = personal[id] ?? (voices[id] ? voiceDir + voices[id] : '');
-  if (!url || !ctx || !master || muted) return null;
+  const urls = (Array.isArray(ids) ? ids : [ids]).map(id => personal[id] ?? (voices[id] ? voiceDir + voices[id] : ''));
+  if (urls.some(u => !u) || !ctx || !master || muted) return null;
   const audio = ctx;
   const analyser = audio.createAnalyser();
   analyser.fftSize = 512;
@@ -135,19 +138,24 @@ export function playVoice(id: string): Voice | null {
       }
     },
   };
-  void load(url).then(buffer => {
+  void Promise.all(urls.map(load)).then(buffers => {
     if (voice.done) return;
-    if (!buffer) {
+    if (buffers.some(b => !b)) {
       voice.done = true;
       return;
     }
-    source = audio.createBufferSource();
-    source.buffer = buffer;
-    source.connect(analyser);
-    source.onended = () => {
-      voice.done = true;
+    const playAt = (n: number): void => {
+      source = audio.createBufferSource();
+      source.buffer = buffers[n];
+      source.connect(analyser);
+      source.onended = () => {
+        if (voice.done) return;
+        if (n + 1 < buffers.length) playAt(n + 1);
+        else voice.done = true;
+      };
+      source.start();
     };
-    source.start();
+    playAt(0);
     voice.started = true;
   });
   current = voice;
@@ -188,7 +196,9 @@ export function sfx(id: string, { volume = 1, rate = 1, every = 0.06 }: SfxOptio
 
 /** Het geluid van een dier; jonge dieren klinken hoger. */
 export function animalSound(species: string, young: boolean, volume = 1): void {
-  sfx(`animal.${species}`, { volume: volume * 0.7, rate: young ? 1.4 : 1, every: 0.4 });
+  // jonge dieren hebben hun eigen geluid; is dat er niet, dan het geluid van de ouders, maar hoger
+  if (young && effects[`young.${species}`]?.length) sfx(`young.${species}`, { volume: volume * 0.7, every: 0.4 });
+  else sfx(`animal.${species}`, { volume: volume * 0.7, rate: young ? 1.4 : 1, every: 0.4 });
 }
 
 // ------------------------------------------------------------ achtergrond
@@ -242,7 +252,7 @@ export function layer(id: string, volume: number): void {
   const files = effects[id];
   if (have || volume <= 0 || !files?.length) return;
   layers.set(id, 'loading');
-  void load(`./audio/sfx/${files[0]}`).then(buffer => {
+  void load(`./audio/sfx/${files[Math.floor(Math.random() * files.length)]}`).then(buffer => {
     if (!buffer) {
       layers.delete(id);
       return;
@@ -257,6 +267,16 @@ export function layer(id: string, volume: number): void {
     source.start();
     layers.set(id, { source, gain });
   });
+}
+
+/** Wisselt een doorlopend geluid af met een andere opname, zodat het niet steeds hetzelfde riedeltje is. */
+export function reshuffle(id: string): void {
+  const have = layers.get(id);
+  if (!ctx || !have || have === 'loading' || (effects[id]?.length ?? 0) < 2) return;
+  have.gain.gain.setTargetAtTime(0, ctx.currentTime, 1.5);
+  setTimeout(() => have.source.stop(), 6000);
+  layers.delete(id);
+  layer(id, layerVolume.get(id) ?? 0);
 }
 
 // ------------------------------------------------------------ muziek

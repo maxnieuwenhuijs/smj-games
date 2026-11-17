@@ -52,6 +52,7 @@ button { font: inherit; color: inherit; }
   background: #ffd23f; border: 2px solid #e5b520; color: #5a4200; font: 800 13px/20px system-ui, sans-serif; text-align: center;
 }
 .tool .price.cant { background: #e7e3da; border-color: #c9c4b8; color: #8a857a; }
+.tool .price.gain { background: #c5ecae; border-color: #7fc25c; color: #245a12; }
 img.ic { object-fit: contain; -webkit-user-drag: none; }
 
 /* ---------- spelbeeld ---------- */

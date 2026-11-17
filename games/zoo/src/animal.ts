@@ -38,6 +38,8 @@ type State = 'idle' | 'walk' | 'eat' | 'poop' | 'pee' | 'rest' | 'emote';
 // poepen niet. Zo wordt het zorgen niet zwaarder als er jongen bij komen.
 const HUNGER_PER_SEC = 1 / 400;
 const NEED_KIND: Record<FenceNeed, number> = { wall: 3, net: 4 };
+/** Zo hoog ligt een dier dat op zijn slaapplek slaapt: boven op de rots of het stro, niet erin. */
+const BED_LIFT: Record<string, number> = { straw: 0.1, shed: 0.1, rock: 0.22, nest: 0.07, cave: 0.03 };
 const SEEK_FOOD = 0.4;
 const HUNGRY = 0.6;
 
@@ -72,6 +74,11 @@ export class Animal {
   private dropped = false;
   /** Zoveel seconden slapen zodra het dier op zijn slaapplek aankomt. */
   private napFor = 0;
+  /** De slaapplek waar het dier naartoe loopt. */
+  private napBed: Bed | null = null;
+  /** Hoe hoog het dier nu ligt en moet liggen (boven op een slaapplek). */
+  private lift = 0;
+  private y = 0;
   /** Vaste kleine afwijking, zodat dieren niet precies op elkaar staan. */
   private ox = (Math.random() - 0.5) * 0.36;
   private oy = (Math.random() - 0.5) * 0.36;
@@ -97,7 +104,8 @@ export class Animal {
   }
 
   private place(): void {
-    this.model.root.position.set(toWorldX(this.gx), 0, toWorldZ(this.gy));
+    this.y += (this.lift - this.y) * 0.18;
+    this.model.root.position.set(toWorldX(this.gx), this.y, toWorldZ(this.gy));
     this.model.root.rotation.y = this.heading;
   }
 
@@ -131,6 +139,8 @@ export class Animal {
   }
 
   private stop(): void {
+    this.lift = 0;
+    this.napBed = null;
     this.route = [];
     this.eatAt = null;
     this.napFor = 0;
@@ -209,6 +219,8 @@ export class Animal {
   }
 
   private choose(w: AnimalWorld): void {
+    // het dier blijft boven op zijn slaapplek staan tot het wegloopt
+    this.napBed = null;
     const [x, y] = tileXY(this.tile);
     const region = w.grid.enclosureAt(x, y);
     this.eatAt = null;
@@ -271,6 +283,7 @@ export class Animal {
       const route = bed ? w.grid.path(this.tile, tileIndex(bed.x, bed.y), isTrough) : null;
       if (route) {
         this.napFor = 10 + Math.random() * 6;
+        this.napBed = bed;
         return this.startWalk(route);
       }
       if (r < 0.82 && this.happy) return this.rest('Sleep', 8 + Math.random() * 4);
@@ -296,6 +309,7 @@ export class Animal {
 
   private startWalk(route: number[]): void {
     this.route = route.slice(1);
+    this.lift = 0;
     this.state = 'walk';
     this.play('Walk', this.young ? 2.2 : 1.35);
   }
@@ -321,6 +335,12 @@ export class Animal {
         if (this.napFor) {
           const seconds = this.napFor;
           this.napFor = 0;
+          if (this.napBed) {
+            // midden op de slaapplek gaan liggen, en erbovenop
+            this.gx = this.napBed.x + 0.5;
+            this.gy = this.napBed.y + 0.5;
+            this.lift = BED_LIFT[this.napBed.kind] ?? 0;
+          }
           this.rest('Sleep', seconds);
         } else if (this.eatAt && this.eatAt.amount > 0) {
           this.state = 'eat';

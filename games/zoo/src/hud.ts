@@ -14,6 +14,8 @@ export interface ToolOption {
   /** Prijs in munten, en of je die nu kunt betalen. */
   price?: number;
   cant?: boolean;
+  /** Munten die je ervoor terugkrijgt. */
+  gain?: number;
   /** In een menu: deze keuze staat aan. */
   on?: boolean;
 }
@@ -38,9 +40,10 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = '
 }
 
 function button(opt: ToolOption, cls: string): HTMLButtonElement {
-  const price = opt.price ? `<i class="price${opt.cant ? ' cant' : ''}">${opt.price}</i>` : '';
+  const price = opt.gain ? `<i class="price gain">+${opt.gain}</i>` : opt.price ? `<i class="price${opt.cant ? ' cant' : ''}">${opt.price}</i>` : '';
   const b = el('button', `tool ${cls} ${opt.tone ?? ''}`, `${opt.icon}<b>${opt.label}</b>${price}`);
   b.dataset.id = opt.id;
+  if (opt.price) b.dataset.price = String(opt.price);
   return b;
 }
 
@@ -107,6 +110,12 @@ export class Hud {
         this.options.append(line);
       }
     }
+  }
+
+  /** Kleurt de prijskaartjes: grijs als er niet genoeg munten zijn. De knoppen zelf blijven staan. */
+  setAfford(coins: number): void {
+    for (const b of document.querySelectorAll<HTMLElement>('#bottom [data-price]'))
+      b.querySelector('.price')?.classList.toggle('cant', Number(b.dataset.price) > coins);
   }
 
   setCursor(css: string): void {

@@ -118,6 +118,6 @@ export function probeIcons(species: string[]): Promise<unknown> {
 }
 
 export function speciesIcon(species: string, cls = ''): string {
-  if (pngIcons.has(species)) return `<img class="ic ${cls}" src="${iconUrl(species)}" alt="" draggable="false">`;
+  if (pngIcons.has(species)) return `<img class="ic ${cls}" src="${iconUrl(species)}" alt="" draggable="false" decoding="sync">`;
   return icon((ICON_IDS as string[]).includes(species) ? (species as IconId) : 'paw', cls);
 }

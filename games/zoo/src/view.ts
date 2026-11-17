@@ -87,7 +87,8 @@ const std = (color: number, roughness = 0.9): THREE.MeshStandardMaterial => new 
 type Part = [THREE.BufferGeometry, THREE.Material, boolean?];
 
 // Slaapplekken. Wanden staan alleen aan de achterkant, zodat je het slapende dier blijft zien.
-const ROCK_GEO = mergeGeometries([boxAt(0.84, 0.16, 0.74, 0, 0.08, 0), boxAt(0.5, 0.13, 0.46, -0.1, 0.22, 0.06)])!;
+// een platte rots in twee lagen: de bovenkant is vlak, zodat een dier erop kan liggen
+const ROCK_GEO = mergeGeometries([boxAt(0.96, 0.12, 0.88, 0, 0.06, 0), boxAt(0.82, 0.1, 0.74, 0, 0.17, 0)])!;
 const TRUNK_GEO = boxAt(0.13, 1.05, 0.13, -0.36, 0.525, -0.36);
 const CANOPY_GEO = mergeGeometries([boxAt(0.95, 0.2, 0.95, -0.18, 1.14, -0.18), boxAt(0.6, 0.16, 0.6, -0.2, 1.32, -0.2)])!;
 const NEST_GEO = mergeGeometries([

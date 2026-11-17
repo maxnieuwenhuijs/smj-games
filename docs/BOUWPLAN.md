@@ -38,56 +38,60 @@ Elke wereld heeft tien levels en tien dieren. De lucht, het land en de bomen ron
 
 | Dier | Ondergrond | Voer | Slaapplek | Prijs | Hek |
 |---|---|---|---|---|---|
-| Varken | modder | groente | stro | 1 | |
-| Koe | gras | hooi | stal | 2 | |
-| Schaap | gras | hooi | stro | 2 | |
-| Paard | gras | fruit | stal | 3 | |
-| Ezel | gras | groente | stro | 3 | |
-| Geit | gras | graan | rots | 3 | |
-| Alpaca | gras | graan | stro | 4 | |
-| Kip | gras | graan | nest | 2 | |
-| Eend | water | graan | nest | 2 | |
-| Konijn | gras | groente | hol | 2 | |
-| Zebra | zand | hooi | boom | 5 | |
-| Giraf | zand | bladeren | boom | 7 | |
-| Leeuw | zand | vlees | rots | 10 | muur |
-| Kameel | zand | hooi | rots | 6 | |
-| Neushoorn | modder | hooi | rots | 10 | muur |
-| Nijlpaard | water | groente | boom | 12 | muur |
-| Olifant | zand | fruit | boom | 15 | muur |
-| Struisvogel | zand | graan | nest | 6 | |
-| Cheeta | zand | vlees | boom | 9 | muur |
-| Gazelle | zand | bladeren | boom | 6 | |
-| Aap | bos | fruit | klimboom | 6 | net |
-| Papegaai | bos | fruit | nest | 6 | net |
-| Tijger | bos | vlees | hol | 12 | muur |
-| Gorilla | bos | bladeren | klimboom | 14 | muur |
-| Krokodil | water | vlees | rots | 10 | muur |
-| Panda | bos | bamboe | hol | 12 | |
-| Pauw | gras | graan | nest | 7 | |
-| Toekan | bos | fruit | nest | 8 | net |
-| Luiaard | bos | bladeren | klimboom | 9 | net |
-| Panter | bos | vlees | hol | 13 | muur |
-| Pinguïn | sneeuw | vis | nest | 6 | |
-| Zeehond | water | vis | rots | 8 | |
-| IJsbeer | sneeuw | vis | hol | 14 | muur |
-| Rendier | sneeuw | hooi | stal | 7 | |
-| Wolf | sneeuw | vlees | hol | 10 | muur |
-| Poolvos | sneeuw | vlees | hol | 7 | |
-| Beer | bos | vis | hol | 13 | muur |
-| Jak | sneeuw | hooi | stal | 8 | |
-| Sneeuwuil | sneeuw | vlees | nest | 8 | net |
-| Walrus | sneeuw | vis | rots | 12 | muur |
-| Flamingo | water | vis | nest | 7 | |
-| Schildpad | zand | groente | boom | 6 | |
-| Otter | water | vis | hol | 8 | |
-| Bever | water | bladeren | hol | 8 | |
-| Pelikaan | water | vis | nest | 9 | |
-| Koala | bos | bladeren | klimboom | 10 | net |
-| Rode panda | bos | bamboe | klimboom | 11 | net |
-| Maki | bos | fruit | klimboom | 10 | net |
-| Bizon | gras | hooi | stal | 13 | muur |
-| Kangoeroe | zand | hooi | boom | 15 | net |
+| Varken | modder | groente | stro | 2 | |
+| Koe | gras | hooi | stal | 3 | |
+| Schaap | gras | hooi | stro | 3 | |
+| Paard | gras | fruit | stal | 5 | |
+| Ezel | gras | groente | stro | 5 | |
+| Geit | gras | graan | rots | 5 | |
+| Alpaca | gras | graan | stro | 6 | |
+| Kip | gras | graan | nest | 3 | |
+| Eend | water | graan | nest | 3 | |
+| Konijn | gras | groente | hol | 3 | |
+| Zebra | zand | hooi | boom | 8 | |
+| Giraf | zand | bladeren | boom | 14 | |
+| Leeuw | zand | vlees | rots | 20 | muur |
+| Kameel | zand | hooi | rots | 10 | |
+| Neushoorn | modder | hooi | rots | 20 | muur |
+| Nijlpaard | water | groente | boom | 22 | muur |
+| Olifant | zand | fruit | boom | 28 | muur |
+| Struisvogel | zand | graan | nest | 9 | |
+| Cheeta | zand | vlees | boom | 16 | muur |
+| Gazelle | zand | bladeren | boom | 9 | |
+| Aap | bos | fruit | klimboom | 14 | net |
+| Papegaai | bos | fruit | nest | 14 | net |
+| Tijger | bos | vlees | hol | 34 | muur |
+| Gorilla | bos | bladeren | klimboom | 40 | muur |
+| Krokodil | water | vlees | rots | 26 | muur |
+| Panda | bos | bamboe | hol | 30 | |
+| Pauw | gras | graan | nest | 15 | |
+| Toekan | bos | fruit | nest | 16 | net |
+| Luiaard | bos | bladeren | klimboom | 18 | net |
+| Panter | bos | vlees | hol | 36 | muur |
+| Pinguïn | sneeuw | vis | nest | 15 | |
+| Zeehond | water | vis | rots | 20 | |
+| IJsbeer | sneeuw | vis | hol | 45 | muur |
+| Rendier | sneeuw | hooi | stal | 18 | |
+| Wolf | sneeuw | vlees | hol | 30 | muur |
+| Poolvos | sneeuw | vlees | hol | 18 | |
+| Beer | bos | vis | hol | 40 | muur |
+| Jak | sneeuw | hooi | stal | 20 | |
+| Sneeuwuil | sneeuw | vlees | nest | 20 | net |
+| Walrus | sneeuw | vis | rots | 36 | muur |
+| Flamingo | water | vis | nest | 18 | |
+| Schildpad | zand | groente | boom | 16 | |
+| Otter | water | vis | hol | 20 | |
+| Bever | water | bladeren | hol | 20 | |
+| Pelikaan | water | vis | nest | 22 | |
+| Koala | bos | bladeren | klimboom | 30 | net |
+| Rode panda | bos | bamboe | klimboom | 36 | net |
+| Maki | bos | fruit | klimboom | 30 | net |
+| Bizon | gras | hooi | stal | 42 | muur |
+| Kangoeroe | zand | hooi | boom | 50 | net |
+
+### Slapen
+
+Een dier dat gaat slapen, loopt naar zijn slaapplek en gaat er midden bovenop liggen: op de rots, op het stro, in het nest. Het blijft erbovenop staan tot het wegloopt.
 
 ## Zorgen heeft gevolgen
 
@@ -102,7 +106,7 @@ Hoe vaak je moet zorgen: een volle voerbak houdt twee volwassen dieren ruim vijf
 
 ## Gebeurtenissen
 
-- **Verzorger (vanaf level 13):** tik op een verblijf en neem voor 5 munten een verzorger aan. Die vult de voerbakken en ruimt de poep op in dat verblijf.
+- **Verzorger (vanaf level 13):** tik op een verblijf en neem voor 10 munten een verzorger aan. Die vult de voerbakken en ruimt de poep op in dat verblijf.
 - **Ziek (vanaf level 21):** af en toe wordt een dier ziek en gaat liggen. Tik erop en kies de dokter.
 - **Ontsnapt (vanaf level 31):** af en toe springt een dier uit zijn verblijf en loopt buiten rond. Tik erop om het op te pakken en tik dan in een verblijf om het terug te zetten.
 
@@ -152,9 +156,11 @@ Wie iets gekocht heeft, loopt even met afval rond. Staat er een afvalbak in de b
 
 ## Munten
 
-- De kas gaat nooit hoger dan 30, zodat tellen makkelijk blijft. Je begint met 10.
+- De kas gaat nooit hoger dan 99 (twee cijfers). Je begint met 10. Kun je iets niet betalen, dan is het prijskaartje grijs; een kind hoeft dus niet te rekenen.
 - Bijna alles levert 1 munt op: een poepje of afval opruimen, een jong dat geboren wordt, een gast die iets koopt. Een gehaald level geeft 5.
-- Een voerbak, slaapplek, bankje, bloembak of afvalbak kost 1. Een eetkraam, drinkkraam, wc of speeltuin kost 3, een ijs-, ballonnen-, hoedjes- of knuffelkraam 4, een verzorger 5. Dieren kosten 1 tot 15. Hekken en ondergrond zijn gratis.
+- Een voerbak of slaapplek kost 1; een bankje, bloembak of afvalbak 2. Een eetkraam of drinkkraam kost 4, een wc 5, een speeltuin 6, een ijskraam 8, een ballonnenkraam 12, een hoedjeskraam 14, een knuffelkraam 16, een verzorger 10. Hekken en ondergrond zijn gratis.
+- Dieren worden per wereld duurder, zodat je moet sparen: boerderij 2 tot 6, savanne 8 tot 28, jungle 14 tot 40, ijs en bergen 15 tot 45, verre landen 16 tot 50. Laat in het spel komen er tientallen munten per minuut binnen; voor twee dure dieren spaar je dan een minuut of twee.
+- Weghalen geeft de helft terug (naar beneden afgerond): een kraam met de gum, een dier dat je laat verhuizen. Een jong dat in het park geboren is, levert 1 munt op.
 - Een blij paar krijgt om de anderhalve minuut een jong. Zijn er al twee jongen, dan verhuist de oudste naar een andere dierentuin en krijg je 2 munten.
 - Terugverdienen: heeft het park net veel uitgegeven, dan krijgen gasten wat sneller trek. Zo is een aankoop binnen een paar minuten terugverdiend, zolang de gasten tevreden zijn.
 
@@ -162,7 +168,8 @@ Wie iets gekocht heeft, loopt even met afval rond. Staat er een afvalbak in de b
 
 | Onderdeel | Zit erin |
 |---|---|
-| Dier | Aaien (je hoort het dier), uit de hand voeren, andere naam, laten slapen, verzetten, dokter (als het ziek is); je ziet welke wensen vervuld zijn |
+| Dier | Aaien (je hoort het dier), uit de hand voeren, andere naam, laten slapen, verzetten, weg (het dier verhuist naar een andere dierentuin, na een ja of nee), dokter (als het ziek is); je ziet welke wensen vervuld zijn |
+| Gum op een dier | Dezelfde vraag: mag dit dier verhuizen? |
 | Ontsnapt dier | Eén tik pakt het op, een tweede tik zet het in een verblijf |
 | Verblijf | Je ziet de naam. Schoonmaken, andere naam, verzorger aannemen, leegmaken (met bevestiging) |
 | Voerbak | Vullen met een voersoort; het voer dat de dieren daar lusten staat vooraan; je ziet hoeveel erin zit |
@@ -239,7 +246,7 @@ Elk level speelt een dier vrij en vraagt om twee blije dieren van de soort die j
 
 ## De naam van de speler
 
-Bij een nieuw spel vraagt het spel: hoe heet je? Een ouder typt de naam (overslaan kan). De figuren noemen die naam daarna alleen op bijzondere momenten: één begroeting bij het begin, een compliment bij elk gehaald level, en bij nood ("Help, Bram! Er is een dier ontsnapt."), hooguit eens in de drie minuten.
+Bij een nieuw spel vraagt het spel: hoe heet je? Een ouder typt de naam (overslaan kan). De figuren noemen die naam daarna alleen op bijzondere momenten: één begroeting bij het begin, een compliment bij elk gehaald level, en bij nood ("Help, Bram! Er is een dier ontsnapt."), hooguit eens in de drie minuten. Daarnaast begint een gewone melding af en toe met de naam ("Senna, de gasten hebben honger."): ongeveer één op de drie keer en hooguit eens per veertig seconden. Daarvoor is van elk figuur een losse opname van de naam gemaakt, die vóór de zin wordt afgespeeld.
 
 De opname van de naam komt uit een van deze drie bronnen:
 
@@ -255,8 +262,8 @@ Complimenten bij een gehaald level wisselen: acht stuks, van vijf figuren, elk i
 
 - **Muziek:** vijf rustige nummers in dezelfde stijl (marimba, gitaar, klokkenspel), één per wereld, zacht onder alles door.
 - **Natuur:** per wereld een eigen achtergrond, met daaronder altijd een zacht briesje.
-- **Publiek:** geroezemoes dat meegroeit met het aantal gasten, en af en toe een lachje of een 'wauw' van een gast.
-- **Dieren en mensen:** elk dierengeluid heeft drie varianten en klinkt nooit twee keer hetzelfde achter elkaar; alles behalve de stemmen van de figuren staat zacht.
+- **Publiek:** zacht geroezemoes dat meegroeit met het aantal gasten. Er zijn van elk drie opnames, die om de één à anderhalve minuut wisselen. Daaroverheen af en toe een los geluidje: 24 soorten kinderstemmetjes (giechelen, 'wauw', neuriën) en 8 van volwassenen; kinderen hoor je het vaakst.
+- **Dieren en mensen:** elk dierengeluid heeft drie varianten en klinkt nooit twee keer hetzelfde achter elkaar; alles behalve de stemmen van de figuren staat zacht. Jonge dieren hebben een eigen geluid (twee opnames per soort: een big, een kuiken, een welp).
 
 ## Voor ouders
 
@@ -290,6 +297,8 @@ De proefspeler bouwt zonder muis en zonder na te denken, dus de tijden zeggen ni
 | Als een kind: één handeling per 8 seconden, kas nooit bijgevuld, neemt verzorgers aan zodra het kan | Alle 50 levels gehaald, geen dier kwijt |
 | Als een trager kind: één handeling per 15 seconden, verder hetzelfde | Alle 50 levels gehaald, geen dier kwijt |
 | Als een kind dat alleen verzorgers aanneemt als een level erom vraagt | Goed tot en met level 24, daarna dieren kwijt en vast in level 26 |
+
+Op 17 november 2026 zijn de prijzen omhooggegaan (zie Munten). De proefspeler-als-kind (één handeling per 8 seconden, kas nooit bijgevuld) haalde daarna opnieuw alle 50 levels zonder een dier kwijt te raken. Tot en met level 19 houdt hij na een level 11 tot 40 munten over; daarna loopt de kas tijdens de meeste levels vol tot 99, omdat hij alleen koopt wat een level vraagt. Laat in het spel is geld dus nog steeds ruim.
 
 De eerste versie van het zorgtempo was te zwaar: daarmee raakte de proefspeler-als-kind vanaf level 14 honderden dieren kwijt. Daarom eten en poepen dieren nu minder vaak en zijn verzorgers al vanaf level 13 te huur.
 

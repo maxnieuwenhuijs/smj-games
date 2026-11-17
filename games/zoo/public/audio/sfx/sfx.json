@@ -285,10 +285,14 @@
   "coin-1-3a7e62.mp3"
  ],
  "crowd.big": [
-  "crowd.big-1-51767c.mp3"
+  "crowd.big-1-51767c.mp3",
+  "crowd.big-2-51767c.mp3",
+  "crowd.big-3-51767c.mp3"
  ],
  "crowd.small": [
-  "crowd.small-1-f66591.mp3"
+  "crowd.small-1-f66591.mp3",
+  "crowd.small-2-f66591.mp3",
+  "crowd.small-3-f66591.mp3"
  ],
  "erase": [
   "erase-1-4ec770.mp3"
@@ -303,17 +307,48 @@
   "flush-1-5c0550.mp3"
  ],
  "guest.chat": [
-  "guest.chat-1-3ffe56.mp3",
-  "guest.chat-2-4782c0.mp3",
-  "guest.chat-3-4a3a30.mp3",
-  "guest.chat-4-4c782e.mp3",
-  "guest.chat-5-6d2a38.mp3",
-  "guest.chat-6-2e41d7.mp3"
+  "guest.chat-1-6d2a38.mp3",
+  "guest.chat-2-29605e.mp3",
+  "guest.chat-3-4a4d48.mp3",
+  "guest.chat-4-292f1a.mp3",
+  "guest.chat-5-497060.mp3",
+  "guest.chat-6-e6c9ed.mp3",
+  "guest.chat-7-75c49a.mp3",
+  "guest.chat-8-e22c3a.mp3"
+ ],
+ "guest.kid": [
+  "guest.kid-1-3ffe56.mp3",
+  "guest.kid-10-131411.mp3",
+  "guest.kid-11-cc0467.mp3",
+  "guest.kid-12-781404.mp3",
+  "guest.kid-13-802f90.mp3",
+  "guest.kid-14-236e1c.mp3",
+  "guest.kid-15-2f094f.mp3",
+  "guest.kid-16-bcc33f.mp3",
+  "guest.kid-17-6c5e68.mp3",
+  "guest.kid-18-2a4897.mp3",
+  "guest.kid-19-81790b.mp3",
+  "guest.kid-2-4782c0.mp3",
+  "guest.kid-20-7d4502.mp3",
+  "guest.kid-21-b7d302.mp3",
+  "guest.kid-22-9c4189.mp3",
+  "guest.kid-23-17fc16.mp3",
+  "guest.kid-24-8dc4b2.mp3",
+  "guest.kid-3-940d47.mp3",
+  "guest.kid-4-4c782e.mp3",
+  "guest.kid-5-2e41d7.mp3",
+  "guest.kid-6-a0ce8a.mp3",
+  "guest.kid-7-74f584.mp3",
+  "guest.kid-8-8f3d9a.mp3",
+  "guest.kid-9-e26d41.mp3"
  ],
  "guest.laugh": [
   "guest.laugh-1-ac9ce2.mp3",
   "guest.laugh-2-ac9ce2.mp3",
-  "guest.laugh-3-ac9ce2.mp3"
+  "guest.laugh-3-ac9ce2.mp3",
+  "guest.laugh-4-ac9ce2.mp3",
+  "guest.laugh-5-ac9ce2.mp3",
+  "guest.laugh-6-ac9ce2.mp3"
  ],
  "guest.uhoh": [
   "guest.uhoh-1-2654bb.mp3",
@@ -321,7 +356,9 @@
  ],
  "guest.yum": [
   "guest.yum-1-425313.mp3",
-  "guest.yum-2-425313.mp3"
+  "guest.yum-2-425313.mp3",
+  "guest.yum-3-425313.mp3",
+  "guest.yum-4-425313.mp3"
  ],
  "heal": [
   "heal-1-5a4c40.mp3"
@@ -355,5 +392,205 @@
  ],
  "tap": [
   "tap-1-c1f3ab.mp3"
+ ],
+ "young.alpaca": [
+  "young.alpaca-1-8b4cdc.mp3",
+  "young.alpaca-2-8b4cdc.mp3"
+ ],
+ "young.arcticfox": [
+  "young.arcticfox-1-2c988d.mp3",
+  "young.arcticfox-2-2c988d.mp3"
+ ],
+ "young.bear": [
+  "young.bear-1-553bd1.mp3",
+  "young.bear-2-553bd1.mp3"
+ ],
+ "young.beaver": [
+  "young.beaver-1-650467.mp3",
+  "young.beaver-2-650467.mp3"
+ ],
+ "young.bison": [
+  "young.bison-1-c9db58.mp3",
+  "young.bison-2-c9db58.mp3"
+ ],
+ "young.camel": [
+  "young.camel-1-598718.mp3",
+  "young.camel-2-598718.mp3"
+ ],
+ "young.cheetah": [
+  "young.cheetah-1-7cba00.mp3",
+  "young.cheetah-2-7cba00.mp3"
+ ],
+ "young.chicken": [
+  "young.chicken-1-605f30.mp3",
+  "young.chicken-2-605f30.mp3"
+ ],
+ "young.cow": [
+  "young.cow-1-8e8c81.mp3",
+  "young.cow-2-8e8c81.mp3"
+ ],
+ "young.crocodile": [
+  "young.crocodile-1-0a323f.mp3",
+  "young.crocodile-2-0a323f.mp3"
+ ],
+ "young.donkey": [
+  "young.donkey-1-c5ecd2.mp3",
+  "young.donkey-2-c5ecd2.mp3"
+ ],
+ "young.duck": [
+  "young.duck-1-38bd4b.mp3",
+  "young.duck-2-38bd4b.mp3"
+ ],
+ "young.elephant": [
+  "young.elephant-1-085d51.mp3",
+  "young.elephant-2-085d51.mp3"
+ ],
+ "young.flamingo": [
+  "young.flamingo-1-472ed4.mp3",
+  "young.flamingo-2-472ed4.mp3"
+ ],
+ "young.gazelle": [
+  "young.gazelle-1-a32cab.mp3",
+  "young.gazelle-2-a32cab.mp3"
+ ],
+ "young.giraffe": [
+  "young.giraffe-1-25e194.mp3",
+  "young.giraffe-2-25e194.mp3"
+ ],
+ "young.goat": [
+  "young.goat-1-b3c56f.mp3",
+  "young.goat-2-b3c56f.mp3"
+ ],
+ "young.gorilla": [
+  "young.gorilla-1-70b2b8.mp3",
+  "young.gorilla-2-70b2b8.mp3"
+ ],
+ "young.hippo": [
+  "young.hippo-1-e80138.mp3",
+  "young.hippo-2-e80138.mp3"
+ ],
+ "young.horse": [
+  "young.horse-1-8b7eb3.mp3",
+  "young.horse-2-8b7eb3.mp3"
+ ],
+ "young.kangaroo": [
+  "young.kangaroo-1-282fde.mp3",
+  "young.kangaroo-2-282fde.mp3"
+ ],
+ "young.koala": [
+  "young.koala-1-b7030b.mp3",
+  "young.koala-2-b7030b.mp3"
+ ],
+ "young.lemur": [
+  "young.lemur-1-81b8f9.mp3",
+  "young.lemur-2-81b8f9.mp3"
+ ],
+ "young.lion": [
+  "young.lion-1-8749f3.mp3",
+  "young.lion-2-8749f3.mp3"
+ ],
+ "young.monkey": [
+  "young.monkey-1-6a21a0.mp3",
+  "young.monkey-2-6a21a0.mp3"
+ ],
+ "young.ostrich": [
+  "young.ostrich-1-a1a60e.mp3",
+  "young.ostrich-2-a1a60e.mp3"
+ ],
+ "young.otter": [
+  "young.otter-1-7b4ede.mp3",
+  "young.otter-2-7b4ede.mp3"
+ ],
+ "young.owl": [
+  "young.owl-1-edb200.mp3",
+  "young.owl-2-edb200.mp3"
+ ],
+ "young.panda": [
+  "young.panda-1-65dec7.mp3",
+  "young.panda-2-65dec7.mp3"
+ ],
+ "young.panther": [
+  "young.panther-1-55e610.mp3",
+  "young.panther-2-55e610.mp3"
+ ],
+ "young.parrot": [
+  "young.parrot-1-4974dc.mp3",
+  "young.parrot-2-4974dc.mp3"
+ ],
+ "young.peacock": [
+  "young.peacock-1-1e2c46.mp3",
+  "young.peacock-2-1e2c46.mp3"
+ ],
+ "young.pelican": [
+  "young.pelican-1-f6e559.mp3",
+  "young.pelican-2-f6e559.mp3"
+ ],
+ "young.penguin": [
+  "young.penguin-1-9bc60d.mp3",
+  "young.penguin-2-9bc60d.mp3"
+ ],
+ "young.pig": [
+  "young.pig-1-ee3598.mp3",
+  "young.pig-2-ee3598.mp3"
+ ],
+ "young.polarbear": [
+  "young.polarbear-1-4ab99e.mp3",
+  "young.polarbear-2-4ab99e.mp3"
+ ],
+ "young.rabbit": [
+  "young.rabbit-1-906853.mp3",
+  "young.rabbit-2-906853.mp3"
+ ],
+ "young.redpanda": [
+  "young.redpanda-1-48789c.mp3",
+  "young.redpanda-2-48789c.mp3"
+ ],
+ "young.reindeer": [
+  "young.reindeer-1-0552f7.mp3",
+  "young.reindeer-2-0552f7.mp3"
+ ],
+ "young.rhino": [
+  "young.rhino-1-f62d7c.mp3",
+  "young.rhino-2-f62d7c.mp3"
+ ],
+ "young.seal": [
+  "young.seal-1-e61e08.mp3",
+  "young.seal-2-e61e08.mp3"
+ ],
+ "young.sheep": [
+  "young.sheep-1-b6224f.mp3",
+  "young.sheep-2-b6224f.mp3"
+ ],
+ "young.sloth": [
+  "young.sloth-1-dfecf2.mp3",
+  "young.sloth-2-dfecf2.mp3"
+ ],
+ "young.tiger": [
+  "young.tiger-1-5d7fa3.mp3",
+  "young.tiger-2-5d7fa3.mp3"
+ ],
+ "young.toucan": [
+  "young.toucan-1-6ed3fe.mp3",
+  "young.toucan-2-6ed3fe.mp3"
+ ],
+ "young.turtle": [
+  "young.turtle-1-2c877e.mp3",
+  "young.turtle-2-2c877e.mp3"
+ ],
+ "young.walrus": [
+  "young.walrus-1-32f15f.mp3",
+  "young.walrus-2-32f15f.mp3"
+ ],
+ "young.wolf": [
+  "young.wolf-1-d8deaa.mp3",
+  "young.wolf-2-d8deaa.mp3"
+ ],
+ "young.yak": [
+  "young.yak-1-984642.mp3",
+  "young.yak-2-984642.mp3"
+ ],
+ "young.zebra": [
+  "young.zebra-1-200474.mp3",
+  "young.zebra-2-200474.mp3"
  ]
 }

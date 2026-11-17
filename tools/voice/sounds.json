@@ -490,30 +490,17 @@
       "variants": 3
     },
     {
-      "id": "guest.chat",
-      "seconds": 1.0,
-      "influence": 0.5,
-      "prompts": [
-        "A small child giggling happily. Short, soft, clean recording with no background noise.",
-        "A child gasping 'wow' in amazement. Short, soft, clean recording with no background noise.",
-        "A happy toddler laughing briefly. Soft, clean recording with no background noise.",
-        "A child saying 'ooh' excitedly. Short, soft, clean recording with no background noise.",
-        "A mother chuckling warmly. Short, soft, clean recording with no background noise.",
-        "A child saying 'look!' with delight. Short, soft, clean recording with no background noise."
-      ]
-    },
-    {
       "id": "guest.laugh",
       "seconds": 1.5,
       "influence": 0.5,
-      "variants": 3,
+      "variants": 6,
       "prompt": "A young child laughing with joy while playing on a slide. Short, clean recording with no background noise."
     },
     {
       "id": "guest.yum",
       "seconds": 1.0,
       "influence": 0.5,
-      "variants": 2,
+      "variants": 4,
       "prompt": "A child saying 'mmm' happily while eating something tasty. Short, soft, clean recording with no background noise."
     },
     {
@@ -528,14 +515,16 @@
       "seconds": 22,
       "loop": true,
       "influence": 0.3,
-      "prompt": "Soft distant ambience of a few families talking and children playing in a park. Cheerful, gentle, no music, no loud voices."
+      "prompt": "Soft distant ambience of a few families talking and children playing in a park. Cheerful, gentle, no music, no loud voices.",
+      "variants": 3
     },
     {
       "id": "crowd.big",
       "seconds": 22,
       "loop": true,
       "influence": 0.3,
-      "prompt": "Gentle crowd ambience of many happy children and families at a zoo: soft chatter and distant laughter. No music, no shouting."
+      "prompt": "Gentle crowd ambience of many happy children and families at a zoo: soft chatter and distant laughter. No music, no shouting.",
+      "variants": 3
     },
     {
       "id": "amb.wind",
@@ -543,6 +532,402 @@
       "loop": true,
       "influence": 0.3,
       "prompt": "A gentle breeze through trees, soft rustling leaves. Calm nature ambience, no birds, no music."
+    },
+    {
+      "id": "guest.kid",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "prompts": [
+        "A small child giggling happily. Short, soft, clean recording with no background noise.",
+        "A child gasping 'wow' in amazement. Short, soft, clean recording with no background noise.",
+        "A happy toddler laughing briefly. Short, soft, clean recording with no background noise.",
+        "A child saying 'ooh' excitedly. Short, soft, clean recording with no background noise.",
+        "A child saying 'look!' with delight. Short, soft, clean recording with no background noise.",
+        "A little girl laughing brightly. Short, soft, clean recording with no background noise.",
+        "A little boy chuckling. Short, soft, clean recording with no background noise.",
+        "A toddler squealing with joy. Short, soft, clean recording with no background noise.",
+        "A child saying 'yay!' happily. Short, soft, clean recording with no background noise.",
+        "A child humming a little tune. Short, soft, clean recording with no background noise.",
+        "Two small children giggling together. Short, soft, clean recording with no background noise.",
+        "A child saying 'whee!' while sliding. Short, soft, clean recording with no background noise.",
+        "A child saying 'hello!' in a friendly voice. Short, soft, clean recording with no background noise.",
+        "A child gasping in surprise, then laughing. Short, soft, clean recording with no background noise.",
+        "A small child saying 'aww' at something cute. Short, soft, clean recording with no background noise.",
+        "A child clapping and cheering briefly. Short, soft, clean recording with no background noise.",
+        "A toddler babbling happily. Short, soft, clean recording with no background noise.",
+        "A child saying 'again, again!' excitedly. Short, soft, clean recording with no background noise.",
+        "A little girl saying 'so cute!' softly. Short, soft, clean recording with no background noise.",
+        "A little boy saying 'cool!' in awe. Short, soft, clean recording with no background noise.",
+        "A child imitating an animal sound and laughing. Short, soft, clean recording with no background noise.",
+        "A shy child's soft giggle. Short, soft, clean recording with no background noise.",
+        "A child whispering excitedly. Short, soft, clean recording with no background noise.",
+        "A child singing 'la la la' quietly. Short, soft, clean recording with no background noise."
+      ]
+    },
+    {
+      "id": "guest.chat",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "prompts": [
+        "A mother chuckling warmly. Short, soft, clean recording with no background noise.",
+        "A father laughing softly. Short, soft, clean recording with no background noise.",
+        "A woman saying 'oh, lovely' quietly. Short, soft, clean recording with no background noise.",
+        "A man saying 'look at that' softly. Short, soft, clean recording with no background noise.",
+        "A grandmother's gentle laugh. Short, soft, clean recording with no background noise.",
+        "A woman saying 'aww' softly. Short, soft, clean recording with no background noise.",
+        "A man humming in approval, 'mm-hm'. Short, soft, clean recording with no background noise.",
+        "A couple laughing quietly together. Short, soft, clean recording with no background noise."
+      ]
+    },
+    {
+      "id": "young.pig",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A piglet making a cute, high-pitched squeals and tiny oinks. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.cow",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A calf making a cute, high-pitched moo. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.sheep",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A lamb making a cute, high-pitched bleat. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.horse",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A foal making a cute, high-pitched whinny. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.donkey",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A donkey foal making a cute, high-pitched little bray. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.goat",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A baby goat making a cute, high-pitched bleat. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.alpaca",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A baby alpaca making a cute, high-pitched soft hum. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.chicken",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A chick making a cute, high-pitched peeping. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.duck",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A duckling making a cute, high-pitched peeping. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.rabbit",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A baby rabbit making a cute, high-pitched tiny squeak. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.zebra",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A zebra foal making a cute, high-pitched yip. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.giraffe",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A giraffe calf making a cute, high-pitched soft bleat. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.lion",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A lion cub making a cute, high-pitched mewing growl. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.camel",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A camel calf making a cute, high-pitched bleating groan. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.rhino",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A rhino calf making a cute, high-pitched squeak. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.hippo",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A hippo calf making a cute, high-pitched little grunt. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.elephant",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A baby elephant making a cute, high-pitched small trumpet. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.ostrich",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A ostrich chick making a cute, high-pitched chirps. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.cheetah",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A cheetah cub making a cute, high-pitched chirp. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.gazelle",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A gazelle fawn making a cute, high-pitched bleat. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.monkey",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A baby monkey making a cute, high-pitched squeaks. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.parrot",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A parrot chick making a cute, high-pitched small squawk. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.tiger",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A tiger cub making a cute, high-pitched mewing growl. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.gorilla",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A baby gorilla making a cute, high-pitched soft hoots. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.crocodile",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A baby crocodile making a cute, high-pitched chirping grunt. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.panda",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A panda cub making a cute, high-pitched squeak. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.peacock",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A peacock chick making a cute, high-pitched peeping. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.toucan",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A toucan chick making a cute, high-pitched rattling chirp. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.sloth",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A baby sloth making a cute, high-pitched squeak. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.panther",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A panther cub making a cute, high-pitched mew. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.penguin",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A penguin chick making a cute, high-pitched peeping. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.seal",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A seal pup making a cute, high-pitched cry. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.polarbear",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A polar bear cub making a cute, high-pitched whimpering growl. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.reindeer",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A reindeer calf making a cute, high-pitched little grunt. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.wolf",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A wolf pup making a cute, high-pitched yips and a tiny howl. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.arcticfox",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A fox kit making a cute, high-pitched yip. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.bear",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A bear cub making a cute, high-pitched whimpering growl. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.yak",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A yak calf making a cute, high-pitched little grunt. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.owl",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A owlet making a cute, high-pitched screechy chirp. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.walrus",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A walrus calf making a cute, high-pitched bark. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.flamingo",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A flamingo chick making a cute, high-pitched peeping. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.turtle",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A baby tortoise making a cute, high-pitched tiny squeak. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.otter",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A otter pup making a cute, high-pitched squeaks. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.beaver",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A beaver kit making a cute, high-pitched whine. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.pelican",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A pelican chick making a cute, high-pitched squawk. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.koala",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A koala joey making a cute, high-pitched squeak. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.redpanda",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A red panda cub making a cute, high-pitched twitter. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.lemur",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A baby lemur making a cute, high-pitched mewing call. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.bison",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A bison calf making a cute, high-pitched little bellow. Short, clean recording with no background noise."
+    },
+    {
+      "id": "young.kangaroo",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A kangaroo joey making a cute, high-pitched soft clicking. Short, clean recording with no background noise."
     }
   ]
 }

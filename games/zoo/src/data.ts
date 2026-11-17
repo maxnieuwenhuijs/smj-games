@@ -78,13 +78,15 @@ export function productsFor(kind: ShopKind, done: number): string[] {
 export const WORLDS: WorldId[] = ['farm', 'savanna', 'jungle', 'ice', 'far'];
 
 // ------------------------------------------------------------ munten
-/** Er passen nooit meer munten in de kas dan dit; zo blijft tellen makkelijk. */
-export const COIN_CAP = 30;
+/** Er passen nooit meer munten in de kas dan dit: twee cijfers, net genoeg voor twee van de duurste dieren. */
+export const COIN_CAP = 99;
 export const START_COINS = 10;
 export const LEVEL_BONUS = 5;
-export const PRICE = { trough: 1, bed: 1, keeper: 5 };
+export const PRICE = { trough: 1, bed: 1, keeper: 10 };
+/** Wat je terugkrijgt als je iets weghaalt of een dier laat verhuizen: de helft, naar beneden afgerond. */
+export const refund = (price: number): number => Math.floor(price / 2);
 export const SHOP_PRICE: Record<ShopKind, number> = {
-  foodstall: 3, drinkstall: 3, bench: 1, toilet: 3, icecream: 4, balloon: 4, flowers: 1, bin: 1, souvenir: 4, playground: 3, hats: 4,
+  foodstall: 4, drinkstall: 4, bench: 2, toilet: 5, icecream: 8, balloon: 12, flowers: 2, bin: 2, souvenir: 16, playground: 6, hats: 14,
 };
 
 export interface SpeciesInfo {
@@ -102,60 +104,60 @@ const sp = (terrain: Terrain, food: FoodId, bed: BedKind, cost: number, need?: F
 
 export const SPECIES: Record<SpeciesId, SpeciesInfo> = {
   // boerderij
-  pig: sp('mud', 'veg', 'straw', 1),
-  cow: sp('grass', 'hay', 'shed', 2),
-  sheep: sp('grass', 'hay', 'straw', 2),
-  horse: sp('grass', 'fruit', 'shed', 3),
-  donkey: sp('grass', 'veg', 'straw', 3),
-  goat: sp('grass', 'grain', 'rock', 3),
-  alpaca: sp('grass', 'grain', 'straw', 4),
-  chicken: sp('grass', 'grain', 'nest', 2),
-  duck: sp('water', 'grain', 'nest', 2),
-  rabbit: sp('grass', 'veg', 'cave', 2),
+  pig: sp('mud', 'veg', 'straw', 2),
+  cow: sp('grass', 'hay', 'shed', 3),
+  sheep: sp('grass', 'hay', 'straw', 3),
+  horse: sp('grass', 'fruit', 'shed', 5),
+  donkey: sp('grass', 'veg', 'straw', 5),
+  goat: sp('grass', 'grain', 'rock', 5),
+  alpaca: sp('grass', 'grain', 'straw', 6),
+  chicken: sp('grass', 'grain', 'nest', 3),
+  duck: sp('water', 'grain', 'nest', 3),
+  rabbit: sp('grass', 'veg', 'cave', 3),
   // savanne
-  zebra: sp('sand', 'hay', 'shade', 5),
-  giraffe: sp('sand', 'leaves', 'shade', 7),
-  lion: sp('sand', 'meat', 'rock', 10, 'wall'),
-  camel: sp('sand', 'hay', 'rock', 6),
-  rhino: sp('mud', 'hay', 'rock', 10, 'wall'),
-  hippo: sp('water', 'veg', 'shade', 12, 'wall'),
-  elephant: sp('sand', 'fruit', 'shade', 15, 'wall'),
-  ostrich: sp('sand', 'grain', 'nest', 6),
-  cheetah: sp('sand', 'meat', 'shade', 9, 'wall'),
-  gazelle: sp('sand', 'leaves', 'shade', 6),
+  zebra: sp('sand', 'hay', 'shade', 8),
+  giraffe: sp('sand', 'leaves', 'shade', 14),
+  lion: sp('sand', 'meat', 'rock', 20, 'wall'),
+  camel: sp('sand', 'hay', 'rock', 10),
+  rhino: sp('mud', 'hay', 'rock', 20, 'wall'),
+  hippo: sp('water', 'veg', 'shade', 22, 'wall'),
+  elephant: sp('sand', 'fruit', 'shade', 28, 'wall'),
+  ostrich: sp('sand', 'grain', 'nest', 9),
+  cheetah: sp('sand', 'meat', 'shade', 16, 'wall'),
+  gazelle: sp('sand', 'leaves', 'shade', 9),
   // jungle
-  monkey: sp('forest', 'fruit', 'climb', 6, 'net'),
-  parrot: sp('forest', 'fruit', 'nest', 6, 'net'),
-  tiger: sp('forest', 'meat', 'cave', 12, 'wall'),
-  gorilla: sp('forest', 'leaves', 'climb', 14, 'wall'),
-  crocodile: sp('water', 'meat', 'rock', 10, 'wall'),
-  panda: sp('forest', 'bamboo', 'cave', 12),
-  peacock: sp('grass', 'grain', 'nest', 7),
-  toucan: sp('forest', 'fruit', 'nest', 8, 'net'),
-  sloth: sp('forest', 'leaves', 'climb', 9, 'net'),
-  panther: sp('forest', 'meat', 'cave', 13, 'wall'),
+  monkey: sp('forest', 'fruit', 'climb', 14, 'net'),
+  parrot: sp('forest', 'fruit', 'nest', 14, 'net'),
+  tiger: sp('forest', 'meat', 'cave', 34, 'wall'),
+  gorilla: sp('forest', 'leaves', 'climb', 40, 'wall'),
+  crocodile: sp('water', 'meat', 'rock', 26, 'wall'),
+  panda: sp('forest', 'bamboo', 'cave', 30),
+  peacock: sp('grass', 'grain', 'nest', 15),
+  toucan: sp('forest', 'fruit', 'nest', 16, 'net'),
+  sloth: sp('forest', 'leaves', 'climb', 18, 'net'),
+  panther: sp('forest', 'meat', 'cave', 36, 'wall'),
   // ijs en bergen
-  penguin: sp('snow', 'fish', 'nest', 6),
-  seal: sp('water', 'fish', 'rock', 8),
-  polarbear: sp('snow', 'fish', 'cave', 14, 'wall'),
-  reindeer: sp('snow', 'hay', 'shed', 7),
-  wolf: sp('snow', 'meat', 'cave', 10, 'wall'),
-  arcticfox: sp('snow', 'meat', 'cave', 7),
-  bear: sp('forest', 'fish', 'cave', 13, 'wall'),
-  yak: sp('snow', 'hay', 'shed', 8),
-  owl: sp('snow', 'meat', 'nest', 8, 'net'),
-  walrus: sp('snow', 'fish', 'rock', 12, 'wall'),
+  penguin: sp('snow', 'fish', 'nest', 15),
+  seal: sp('water', 'fish', 'rock', 20),
+  polarbear: sp('snow', 'fish', 'cave', 45, 'wall'),
+  reindeer: sp('snow', 'hay', 'shed', 18),
+  wolf: sp('snow', 'meat', 'cave', 30, 'wall'),
+  arcticfox: sp('snow', 'meat', 'cave', 18),
+  bear: sp('forest', 'fish', 'cave', 40, 'wall'),
+  yak: sp('snow', 'hay', 'shed', 20),
+  owl: sp('snow', 'meat', 'nest', 20, 'net'),
+  walrus: sp('snow', 'fish', 'rock', 36, 'wall'),
   // water en verre landen
-  flamingo: sp('water', 'fish', 'nest', 7),
-  turtle: sp('sand', 'veg', 'shade', 6),
-  otter: sp('water', 'fish', 'cave', 8),
-  beaver: sp('water', 'leaves', 'cave', 8),
-  pelican: sp('water', 'fish', 'nest', 9),
-  koala: sp('forest', 'leaves', 'climb', 10, 'net'),
-  redpanda: sp('forest', 'bamboo', 'climb', 11, 'net'),
-  lemur: sp('forest', 'fruit', 'climb', 10, 'net'),
-  bison: sp('grass', 'hay', 'shed', 13, 'wall'),
-  kangaroo: sp('sand', 'hay', 'shade', 15, 'net'),
+  flamingo: sp('water', 'fish', 'nest', 18),
+  turtle: sp('sand', 'veg', 'shade', 16),
+  otter: sp('water', 'fish', 'cave', 20),
+  beaver: sp('water', 'leaves', 'cave', 20),
+  pelican: sp('water', 'fish', 'nest', 22),
+  koala: sp('forest', 'leaves', 'climb', 30, 'net'),
+  redpanda: sp('forest', 'bamboo', 'climb', 36, 'net'),
+  lemur: sp('forest', 'fruit', 'climb', 30, 'net'),
+  bison: sp('grass', 'hay', 'shed', 42, 'wall'),
+  kangaroo: sp('sand', 'hay', 'shade', 50, 'net'),
 };
 
 // ------------------------------------------------------------ levels

@@ -51,7 +51,7 @@ export const T = {
     if (game.coins < cost) {
       if (this.honest) return false;
       this.topups++;
-      game.coins = 30;
+      game.coins = Math.max(30, cost);
     }
     game.coins -= cost;
     game.debt += cost;

@@ -2,7 +2,7 @@
 // (tools/voice) vraagt hier de volledige lijst op, zodat elke zin ook ingesproken kan worden.
 // Geen DOM en geen Three.js in dit bestand: het draait ook buiten de browser.
 import { GOAL_OWNER, LEVELS, SPECIES, type FenceNeed, type Goal, type SpeciesId, type WishId } from './data';
-import type { FigureId, Mood } from './figures';
+import { FIGURES, type FigureId, type Mood } from './figures';
 
 export type Vars = Record<string, string | number>;
 export type Tr = (key: string, vars?: Vars) => string;
@@ -93,6 +93,7 @@ export const say = {
   taken: (tr: Tr, sp: SpeciesId): Line => ({ who: 'keeper', mood: 'urgent', key: 'say.taken', vars: speciesVars(tr, sp) }),
   born: (name: string): Line => ({ who: 'keeper', mood: 'happy', key: 'say.born', vars: { name } }),
   grown: (name: string): Line => ({ who: 'keeper', mood: 'happy', key: 'say.grown', vars: { name } }),
+  moved: (name: string): Line => ({ who: 'keeper', mood: 'happy', key: 'say.moved', vars: { name } }),
   sick: (tr: Tr, sp: SpeciesId): Line => wishLine(tr, 'health', sp, null, false),
   healed: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.healed' }),
   escaped: (tr: Tr, sp: SpeciesId): Line => ({ who: 'keeper', mood: 'urgent', key: 'say.escaped', vars: speciesVars(tr, sp), id: `say.escaped.${sp}` }),
@@ -123,11 +124,16 @@ export function voiceId(who: string, text: string): string {
 
 /** De zinnen met de naam van één speler erin. */
 export function namedLines(tr: Tr, name: string): { who: FigureId; text: string }[] {
-  return Object.keys(NAMED).map(key => {
+  const lines = Object.keys(NAMED).map(key => {
     const line = say.named(key, name);
     return { who: line.who, text: textOf(tr, line) };
   });
+  // elk figuur kan de speler ook alleen bij zijn naam roepen, vlak voor een gewone melding: "Senna, ..."
+  return [...lines, ...FIGURES.map(who => ({ who, text: callText(tr, name) }))];
 }
+
+/** De aanroep vóór een melding: alleen de naam. */
+export const callText = (tr: Tr, name: string): string => tr('name.call', { name });
 
 /** Elke zin die in het spel kan klinken, één keer. */
 export function allLines(tr: Tr): { who: FigureId; text: string }[] {
@@ -152,6 +158,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   for (const name of [...tr('names.boys').split(','), ...tr('names.girls').split(',')]) {
     add(say.born(name));
     add(say.grown(name));
+    add(say.moved(name));
   }
   const wishes: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean'];
   for (const sp of Object.keys(SPECIES) as SpeciesId[]) {

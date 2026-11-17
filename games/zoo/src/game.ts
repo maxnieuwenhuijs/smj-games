@@ -3,9 +3,9 @@
 import type * as THREE from 'three';
 import { saveSet, t } from '@smj/shared';
 import { Animal, type AnimalWorld, type Trough } from './animal';
-import { ambience, animalSound, hasVoice, layer, music, playVoice, sfx } from './audio';
+import { ambience, animalSound, hasVoice, layer, music, playVoice, reshuffle, sfx } from './audio';
 import {
-  BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, PRICE, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
+  BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
   type WishId, type WorldId,
@@ -14,7 +14,7 @@ import { Grid, H, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Ed
 import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
 import { cursor, icon, type IconId } from './icons';
 import { emptyStats, goalProgress, levelDone, type Stats } from './levels';
-import { NAMED, PRAISE, goalLine, say, textOf, voiceId, wishLine, type Line } from './lines';
+import { NAMED, PRAISE, callText, goalLine, say, textOf, voiceId, wishLine, type Line } from './lines';
 import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStatic, speciesIcon } from './models';
 import { ENTRANCE, GuestManager, Keeper, Vendor, type Guest, type GuestWorld, type KeeperPoop, type KeeperTrough, type KeeperWorld, type ShopSpot } from './people';
 import { View, toWorldX, toWorldZ, type TroughMesh } from './view';
@@ -186,6 +186,9 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   private chatterIn = 6;
   private babbleIn = 8;
   private calledAt = -999;
+  /** Wanneer de speler voor het laatst bij zijn naam is genoemd vóór een melding. */
+  private namedAt = 0;
+  private shuffleIn = 70;
   private sickIn = between(SICK_FOR_GOAL);
   private escapeIn = between(ESCAPE_FOR_GOAL);
   private celebrating = false;
@@ -455,11 +458,11 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
 
   cheer(guest: Guest): void {
     this.floatAt(icon('heart'), guest.gx, guest.gy, guest.height + 0.2);
-    sfx('cheer', { volume: 0.4, every: 5 });
+    sfx('cheer', { volume: 0.3, every: 5 });
   }
 
   guestSound(kind: 'flush' | 'guest.laugh'): void {
-    sfx(kind, { volume: 0.35, every: 5 });
+    sfx(kind, { volume: 0.25, every: 5 });
   }
 
   messy(): boolean {
@@ -547,7 +550,10 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     if ((this.tool === 'animal' && !species.length) || (this.tool === 'shop' && !this.shopOptions().length)) this.tool = 'hand';
 
     const hint = this.hintTool();
-    const key = [this.tool, hint, this.level, this.coins, ...Object.values(this.option)].join('|');
+    // de balk wordt alleen opnieuw opgebouwd als er echt iets anders in komt; bij een munt meer of minder
+    // verandert alleen het prijskaartje, anders flikkeren de plaatjes van de dieren
+    this.hud.setAfford(this.coins);
+    const key = [this.tool, hint, this.level, ...Object.values(this.option)].join('|');
     if (!force && key === this.toolsKey) return;
     this.toolsKey = key;
 
@@ -684,7 +690,13 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     this.said.set(line.id ?? line.key, this.clock);
     this.quietUntil = this.clock + 9;
     const text = textOf(t, line);
-    this.hud.say(line.who, line.mood, text, playVoice(voiceId(line.who, text)));
+    const id = voiceId(line.who, text);
+    // af en toe noemt het figuur de speler eerst bij zijn naam: "Senna, de gasten hebben honger."
+    const call = this.player && !line.key.startsWith('name.') && !line.vars?.name ? voiceId(line.who, callText(t, this.player)) : '';
+    if (call && this.clock - this.namedAt > 40 && Math.random() < 0.35 && hasVoice(call) && hasVoice(id)) {
+      this.namedAt = this.clock;
+      this.hud.say(line.who, line.mood, `${this.player}, ${text.charAt(0).toLowerCase()}${text.slice(1)}`, playVoice([call, id]));
+    } else this.hud.say(line.who, line.mood, text, playVoice(id));
   }
 
   /** Een melding die mag wachten: alleen als het stil is en hij niet net al gezegd is. */
@@ -1224,12 +1236,18 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     }
     // gasten: geroezemoes dat meegroeit met de drukte, en af en toe een lachje of een 'wauw'
     const crowd = this.guests.guests.length;
-    layer('crowd.small', crowd ? Math.min(1, crowd / 8) * (crowd > 14 ? 0.5 : 1) : 0);
-    layer('crowd.big', crowd > 10 ? Math.min(1, (crowd - 10) / 14) : 0);
+    layer('crowd.small', crowd ? Math.min(1, crowd / 8) * (crowd > 14 ? 0.3 : 0.55) : 0);
+    layer('crowd.big', crowd > 10 ? Math.min(1, (crowd - 10) / 14) * 0.55 : 0);
+    this.shuffleIn -= dt;
+    if (this.shuffleIn <= 0) {
+      this.shuffleIn = 60 + Math.random() * 40;
+      reshuffle(Math.random() < 0.5 ? 'crowd.small' : 'crowd.big');
+    }
     this.babbleIn -= dt;
     if (this.babbleIn <= 0) {
       this.babbleIn = 5 + Math.random() * 9;
-      if (crowd && Math.random() < Math.min(1, crowd / 10)) sfx('guest.chat', { volume: 0.45, every: 2 });
+      // kinderen hoor je het vaakst
+      if (crowd && Math.random() < Math.min(1, crowd / 10)) sfx(Math.random() < 0.7 ? 'guest.kid' : 'guest.chat', { volume: 0.3, every: 2 });
     }
   }
 
@@ -1267,7 +1285,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       icon(sexOf(a) === 'male' ? 'boy' : 'girl') +
       WISH_ORDER.filter(k => k !== 'health' || a.sick).map(k => `<span class="wish ${wishes[k] ? 'ok' : 'no'}">${this.wishIcon(a, k)}</span>`).join('');
     const opt = (id: string, ic: IconId, key: string): ToolOption => ({ id, icon: icon(ic), label: t(key) });
-    const items = [opt('pet', 'pet', 'animal.pet'), opt('feed', 'feed', 'animal.feed'), opt('rename', 'dice', 'animal.rename'), opt('sedate', 'sleep', 'animal.sedate'), opt('move', 'move', 'animal.move')];
+    const items = [opt('pet', 'pet', 'animal.pet'), opt('feed', 'feed', 'animal.feed'), opt('rename', 'dice', 'animal.rename'), opt('sedate', 'sleep', 'animal.sedate'), opt('move', 'move', 'animal.move'), opt('away', 'empty', 'animal.away')];
     if (a.sick) items.unshift(opt('vet', 'vet', 'animal.vet'));
     animalSound(a.species, a.young, 0.8);
     this.hud.showMenu(s.x, s.y, a.name, items, id => {
@@ -1285,10 +1303,32 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       } else if (id === 'sedate') {
         a.sedate(20);
         this.floatAt(icon('sleep'), a.gx, a.gy, a.top + 0.2);
+      } else if (id === 'away') {
+        this.askAway(a);
       } else {
         this.moving = a;
       }
     }, header);
+  }
+
+  /**
+   * Een dier laten verhuizen naar een andere dierentuin. Dat kun je niet terugdraaien, dus eerst even
+   * vragen. Je krijgt de helft van de prijs terug; voor een jong dat hier geboren is, één munt.
+   */
+  private askAway(a: Animal): void {
+    const s = this.view.toScreen(a.gx, a.gy, a.top);
+    const back = a.young ? 1 : refund(SPECIES[a.species].cost);
+    const yes: ToolOption = { id: 'yes', icon: icon('check'), label: t('yes'), gain: back || undefined };
+    this.hud.showMenu(s.x, s.y, t('animal.away.sure', { name: a.name }), [yes, { id: 'no', icon: icon('cross'), label: t('no') }], answer => {
+      if (answer !== 'yes' || !this.animals.includes(a)) return;
+      animalSound(a.species, a.young);
+      sfx('erase');
+      this.floatAt(icon('empty'), a.gx, a.gy, a.top + 0.2);
+      if (back) this.earn(back, a.gx, a.gy);
+      const name = a.name;
+      this.removeAnimal(a);
+      this.sayNow(say.moved(name));
+    });
   }
 
   /** Bij een gast zie je hoe het gaat, wat zijn lievelingsdier is en wat hij nu wil. */
@@ -1449,6 +1489,10 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
         sfx('erase', { every: 0.08 });
         return this.gridChanged();
       }
+      if (first) {
+        const animal = this.pickAnimal(cx, cy, 0.45);
+        if (animal) return this.askAway(animal);
+      }
       if (!first || !this.grid.inBounds(x, y)) return;
       const tr = this.troughAt(x, y), bed = this.bedAt(x, y), shop = this.shopAt(x, y);
       if (tr || bed || shop) sfx('erase');
@@ -1463,6 +1507,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       } else if (shop) {
         this.view.scene.remove(shop.mesh);
         this.shops = this.shops.filter(k => k !== shop);
+        this.earn(refund(SHOP_PRICE[shop.kind]), shop.x + shop.size / 2, shop.y + shop.size / 2);
       }
     }
   }
