@@ -14,6 +14,8 @@ export interface ToolOption {
   /** Prijs in munten, en of je die nu kunt betalen. */
   price?: number;
   cant?: boolean;
+  /** In een menu: deze keuze staat aan. */
+  on?: boolean;
 }
 export interface ToolDef extends ToolOption {
   /** Rijen met keuzes die boven de knop verschijnen als hij aan staat. */
@@ -195,6 +197,7 @@ export class Hud {
     for (const item of items) {
       const b = button(item, 'small');
       b.dataset.item = item.id;
+      b.classList.toggle('on', !!item.on);
       b.addEventListener('click', () => {
         this.hideMenu();
         choose(item.id);

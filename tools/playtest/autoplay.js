@@ -12,7 +12,7 @@
 const data = await import('/src/data.ts');
 const { goalProgress } = await import('/src/levels.ts');
 const models = await import('/src/models.ts');
-const { SPECIES, LEVELS, TERRAINS, FEATURE, SHOP_PRICE, PRICE } = data;
+const { SPECIES, LEVELS, TERRAINS, FEATURE, SHOP_PRICE, SHOP_SIZE, PRODUCTS, PRICE } = data;
 
 const { W, H } = await import('/src/grid.ts');
 // De indeling is getekend op 20 bij 20 en ligt midden tegen de voorkant van het park, bij de ingang.
@@ -24,9 +24,9 @@ const KIND = { wall: 3, net: 4 };
 // Plekken voor verblijven: vier rijen van vijf, langs twee dwarspaden (y = 4 en y = 12).
 const SLOTS = [];
 for (const y0 of [1, 5, 9, 13]) for (const [x0, x1] of [[0, 2], [4, 6], [8, 9], [11, 13], [15, 17]]) SLOTS.push({ x0: x0 + OX, y0: y0 + OY, x1: x1 + OX, y1: y0 + 2 + OY });
-// Plekken voor kramen: boven en onder een zijpad bij de ingang (y = 17).
-const SHOP_SPOTS = [];
-for (const y of [18, 16]) for (const x of [9, 11, 8, 12, 7, 13, 6, 14, 5, 15]) SHOP_SPOTS.push([x + OX, y + OY]);
+// Plekken voor winkels langs een zijpad bij de ingang (y = 17): gebouwen van 2 bij 2 eronder, losse dingen erboven.
+const BIG_SPOTS = [7, 11, 5, 13, 3, 15, 1, 17].map(x => [x + OX, 18 + OY]);
+const SMALL_SPOTS = [9, 11, 8, 12, 7, 13, 6, 14, 5, 15].map(x => [x + OX, 16 + OY]);
 
 export const T = {
   log: [],
@@ -134,13 +134,13 @@ export const T = {
     this.terrain(10 + OX, 4 + OY, 10 + OX, 19 + OY, 'path');
     this.terrain(OX, 4 + OY, 19 + OX, 4 + OY, 'path');
     this.terrain(OX, 12 + OY, 19 + OX, 12 + OY, 'path');
-    this.terrain(5 + OX, 17 + OY, 15 + OX, 17 + OY, 'path');
+    this.terrain(1 + OX, 17 + OY, 19 + OX, 17 + OY, 'path');
   },
 
   shop(kind, n = 1) {
     const game = z();
     while (game.shops.filter(s => s.kind === kind).length < n) {
-      const spot = SHOP_SPOTS.find(([x, y]) => !game.shops.some(s => s.x === x && s.y === y));
+      const spot = (SHOP_SIZE[kind] > 1 ? BIG_SPOTS : SMALL_SPOTS).find(([x, y]) => !game.shops.some(s => s.x === x && s.y === y));
       if (!spot || !this.pay(SHOP_PRICE[kind])) return;
       game.addShop(spot[0], spot[1], kind);
     }
@@ -231,9 +231,17 @@ export const T = {
     }
     for (const g of level.goals) if (g.species) await this.stock(g.species, Math.max(2, g.type === 'animals' ? g.n : 2));
     if (done >= FEATURE.paths) this.paths();
-    for (const kind of ['foodstall', 'drinkstall', 'toilet', 'bench', 'playground', 'icecream', 'balloon', 'bin', 'souvenir']) if (done >= FEATURE[kind]) this.shop(kind, 1);
+    for (const kind of ['foodstall', 'drinkstall', 'toilet', 'bench', 'playground', 'icecream', 'balloon', 'bin', 'hats', 'souvenir']) if (done >= FEATURE[kind]) this.shop(kind, 1);
     for (const g of level.goals) {
       if (g.type === 'shop') this.shop(g.shop, g.n);
+      if (g.type === 'sold' && g.shop) this.shop(g.shop, 1);
+      if (g.type === 'sold' && g.product) {
+        // de kraam zo instellen dat hij verkoopt waar het level om vraagt
+        const kind = PRODUCTS.find(p => p.id === g.product).shop;
+        this.shop(kind, 1);
+        const stall = game.shops.find(sh => sh.kind === kind);
+        if (stall && !stall.sells.includes(g.product)) stall.sells = [g.product, ...stall.sells].slice(0, 2);
+      }
       if (g.type === 'kinds') for (const sp of have.slice(-Math.min(have.length, g.n + 1))) await this.stock(sp, 2);
       if (g.type === 'happyany') {
         for (const sp of have.slice(-SLOTS.length)) await this.stock(sp, 2);

@@ -40,6 +40,7 @@ export function speciesVars(tr: Tr, sp: SpeciesId): Vars {
 }
 
 export function goalKey(g: Goal): string {
+  if (g.type === 'sold') return g.product ? `goal.sold.${g.product}` : g.shop ? `goal.sold.shop.${g.shop}` : 'goal.sold';
   if (g.type === 'shop') return `goal.shop.${g.shop}${g.n > 1 ? '.n' : ''}`;
   return g.n === 1 && (g.type === 'born' || g.type === 'healed' || g.type === 'caught' || g.type === 'keeper') ? `goal.${g.type}.1` : `goal.${g.type}`;
 }
@@ -82,7 +83,7 @@ export const say = {
   caught: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.caught' }),
   hired: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.hired' }),
   tipKeeper: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.tip.keeper' }),
-  host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
+  host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
   cash: (key: 'short' | 'full'): Line => ({ who: 'cashier', mood: key === 'full' ? 'happy' : 'worried', key: `cash.${key}` }),
 };
 
@@ -140,7 +141,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.caught());
   add(say.hired());
   add(say.tipKeeper());
-  for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter'] as const) add(say.host(key));
+  for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter', 'product', 'new', 'accident'] as const) add(say.host(key));
   add(say.cash('short'));
   add(say.cash('full'));
   return [...out.values()];

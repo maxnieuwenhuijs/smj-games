@@ -142,6 +142,7 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 }
 #menu .title { font-weight: 800; font-size: 17px; }
 #menu .header { display: flex; align-items: center; gap: 6px; font-size: 24px; }
+#menu .header .ask { font-size: 13px; font-weight: 700; opacity: 0.7; }
 #menu .row { flex-wrap: wrap; }
 .wish { position: relative; display: flex; padding: 3px; border-radius: 10px; background: #e2f4d8; }
 .wish.no { background: #fbdcd9; }

@@ -1,7 +1,7 @@
 // Het beeld: isometrische camera, tegels, hekken, voerbakken en het voorbeeld van wat je gaat plaatsen.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { BEDS, SHOPS, TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind, type WorldId } from './data';
+import { BEDS, SHOPS, SHOP_SIZE, TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind, type WorldId } from './data';
 import { Grid, H, W, edgeKey, tileXY, type Edge } from './grid';
 
 const SQRT2 = Math.SQRT2;
@@ -125,17 +125,7 @@ const BED_PARTS: Record<BedKind, Part[]> = {
   climb: [[CLIMB_GEO, WOOD_MAT], [CLIMB_LEAF_GEO, LEAF_MAT]],
 };
 
-// Winkels: kramen met een gestreept afdak, en losse dingen als een bankje, een wc en een afvalbak.
-const STALL_GEO = mergeGeometries([
-  boxAt(0.86, 0.42, 0.46, 0, 0.21, 0.14),
-  boxAt(0.07, 0.98, 0.07, -0.4, 0.49, -0.3),
-  boxAt(0.07, 0.98, 0.07, 0.4, 0.49, -0.3),
-  boxAt(0.07, 0.98, 0.07, -0.4, 0.49, 0.4),
-  boxAt(0.07, 0.98, 0.07, 0.4, 0.49, 0.4),
-])!;
-const AWNING_A_GEO = mergeGeometries([boxAt(0.2, 0.07, 0.96, -0.4, 1.0, 0.05), boxAt(0.2, 0.07, 0.96, 0, 1.0, 0.05), boxAt(0.2, 0.07, 0.96, 0.4, 1.0, 0.05)])!;
-const AWNING_B_GEO = mergeGeometries([boxAt(0.2, 0.07, 0.96, -0.2, 1.0, 0.05), boxAt(0.2, 0.07, 0.96, 0.2, 1.0, 0.05)])!;
-const GOODS_GEO = mergeGeometries([boxAt(0.14, 0.14, 0.14, -0.22, 0.49, 0.2), boxAt(0.14, 0.2, 0.14, 0, 0.52, 0.2), boxAt(0.14, 0.14, 0.14, 0.22, 0.49, 0.2)])!;
+// Winkels: gebouwen van 2 bij 2 tegels, en losse dingen als een bankje, bloemen en een afvalbak.
 const BENCH_GEO = mergeGeometries([
   boxAt(0.8, 0.06, 0.28, 0, 0.24, 0.02),
   boxAt(0.8, 0.26, 0.05, 0, 0.42, -0.12),
@@ -145,64 +135,114 @@ const BENCH_GEO = mergeGeometries([
   boxAt(0.07, 0.24, 0.07, 0.33, 0.12, 0.12),
 ])!;
 const ball = (r: number, x: number, y: number, z: number): THREE.BufferGeometry => new THREE.IcosahedronGeometry(r, 1).translate(x, y, z);
-const stall = (stripe: number, goods: number, extra: Part[] = []): Part[] => [
-  [STALL_GEO, WOOD_MAT], [AWNING_A_GEO, std(stripe)], [AWNING_B_GEO, WHITE_MAT], [GOODS_GEO, std(goods, 0.8)], ...extra,
-];
+const tube = (rTop: number, rBottom: number, h: number, x: number, y: number, z: number): THREE.BufferGeometry =>
+  new THREE.CylinderGeometry(rTop, rBottom, h, 10).translate(x, y, z);
+const cone = (r: number, h: number, x: number, y: number, z: number, sides = 8, down = false): THREE.BufferGeometry => {
+  const g = new THREE.ConeGeometry(r, h, sides);
+  if (down) g.rotateX(Math.PI);
+  if (sides === 4) g.rotateY(Math.PI / 4);
+  return g.translate(x, y, z);
+};
+
+/**
+ * Een winkelgebouw van 2 bij 2 tegels. De camera kijkt van rechtsvoor: daarom staan de wanden links en
+ * achter, de toonbank rechts en voor, en ligt het dak alleen boven de achterste helft. Zo zie je de
+ * verkoper achter de toonbank staan. Het midden van het gebouw is (0, 0).
+ */
+function booth(wall: number, roofA: number, roofB: number, counter: number, floor = 0xd8c7ab): Part[] {
+  const stripes = (from: number): THREE.BufferGeometry =>
+    mergeGeometries([0, 1, 2].map(i => boxAt(0.33, 0.09, 1.25, -0.82 + (from + i * 2) * 0.33, 1.34, -0.36)))!;
+  return [
+    [boxAt(1.84, 0.05, 1.84, 0, 0.025, 0), std(floor, 1), false],
+    [mergeGeometries([boxAt(1.84, 1.3, 0.1, 0, 0.65, -0.87), boxAt(0.1, 1.3, 1.74, -0.87, 0.65, 0.05)])!, std(wall)],
+    [mergeGeometries([boxAt(1.5, 0.36, 0.26, 0.12, 0.18, 0.74), boxAt(0.26, 0.36, 1.36, 0.74, 0.18, -0.07)])!, std(counter)],
+    [mergeGeometries([boxAt(1.56, 0.05, 0.32, 0.12, 0.385, 0.74), boxAt(0.32, 0.05, 1.42, 0.74, 0.385, -0.07)])!, WHITE_MAT],
+    [mergeGeometries([boxAt(0.09, 1.3, 0.09, 0.84, 0.65, -0.87), boxAt(0.09, 1.3, 0.09, -0.87, 0.65, 0.84)])!, std(wall)],
+    [stripes(0), std(roofA)],
+    [mergeGeometries([0, 1, 2].map(i => boxAt(0.33, 0.09, 1.25, -0.82 + (1 + i * 2) * 0.33, 1.34, -0.36)))!, std(roofB)],
+  ];
+}
+/** Spulletjes op de toonbank aan de voorkant. */
+const wares = (color: number, h = 0.16): Part =>
+  [mergeGeometries([boxAt(0.18, h, 0.16, -0.3, 0.41 + h / 2, 0.74), boxAt(0.18, h * 1.3, 0.16, 0.0, 0.41 + h * 0.65, 0.74), boxAt(0.18, h, 0.16, 0.3, 0.41 + h / 2, 0.74)])!, std(color, 0.7)];
+/** Een bestaand bouwsel groter maken (de speeltuin). */
+const scaled = (parts: Part[], k: number): Part[] => parts.map(([g, m, shadow]) => [g.clone().scale(k, k, k), m, shadow] as Part);
+
 const SHOP_PARTS: Record<ShopKind, Part[]> = {
-  // eetkraam: houten kraam met een grote zak friet op het dak
-  foodstall: stall(0xe0584f, 0xf5a623, [
-    [boxAt(0.36, 0.26, 0.16, 0, 1.17, 0.05), std(0xd8362e)],
-    [mergeGeometries([boxAt(0.05, 0.3, 0.05, -0.12, 1.4, 0.05), boxAt(0.05, 0.36, 0.05, -0.04, 1.43, 0.05), boxAt(0.05, 0.32, 0.05, 0.04, 1.41, 0.05), boxAt(0.05, 0.28, 0.05, 0.12, 1.39, 0.05)])!, std(0xffd23f, 0.7)],
-  ]),
-  // drinkkraam: rond huisje met een puntdak en een grote beker met rietje
+  // eetkraam: houten kraam met rood-wit dak en een grote zak friet erop
+  foodstall: [
+    ...booth(0xc58a4b, 0xe0584f, 0xf7f4ec, 0xa8743f),
+    wares(0xf5a623),
+    [boxAt(0.56, 0.42, 0.24, 0, 1.6, -0.4), std(0xd8362e)],
+    [mergeGeometries([boxAt(0.08, 0.5, 0.08, -0.19, 1.98, -0.4), boxAt(0.08, 0.6, 0.08, -0.065, 2.03, -0.4), boxAt(0.08, 0.54, 0.08, 0.065, 2.0, -0.4), boxAt(0.08, 0.46, 0.08, 0.19, 1.96, -0.4)])!, std(0xffd23f, 0.7)],
+  ],
+  // drinkkraam: wit met blauw dak en een grote beker met rietje erop
   drinkstall: [
-    [new THREE.CylinderGeometry(0.4, 0.4, 0.48, 8).translate(0, 0.24, 0), WHITE_MAT],
-    [new THREE.CylinderGeometry(0.43, 0.43, 0.1, 8).translate(0, 0.5, 0), std(0x4a90e2)],
-    [mergeGeometries([boxAt(0.05, 0.5, 0.05, -0.27, 0.78, -0.27), boxAt(0.05, 0.5, 0.05, 0.27, 0.78, -0.27), boxAt(0.05, 0.5, 0.05, -0.27, 0.78, 0.27), boxAt(0.05, 0.5, 0.05, 0.27, 0.78, 0.27)])!, WOOD_MAT],
-    [new THREE.ConeGeometry(0.62, 0.3, 8).translate(0, 1.17, 0), std(0x4a90e2)],
-    [new THREE.CylinderGeometry(0.12, 0.085, 0.26, 8).translate(0, 1.45, 0), std(0x9fd8f5, 0.5)],
-    [boxAt(0.035, 0.24, 0.035, 0.04, 1.66, 0), std(0xe0584f)],
+    ...booth(0xf4f1e8, 0x4a90e2, 0x9fd8f5, 0x4a90e2),
+    wares(0x9fd8f5, 0.2),
+    [tube(0.24, 0.17, 0.5, 0, 1.64, -0.4), std(0xfff7e0, 0.5)],
+    [tube(0.26, 0.26, 0.05, 0, 1.91, -0.4), std(0x4a90e2)],
+    [boxAt(0.06, 0.46, 0.06, 0.07, 2.13, -0.4), std(0xe0584f)],
   ],
-  // ijskraam: witte kar op wielen met een reuzenijsje erop
+  // ijskraam: roze met een reuzenijsje op het dak
   icecream: [
-    [boxAt(0.72, 0.36, 0.44, 0, 0.32, 0), WHITE_MAT],
-    [boxAt(0.74, 0.09, 0.46, 0, 0.42, 0), std(0xf48fb1)],
-    [mergeGeometries([boxAt(0.08, 0.22, 0.22, -0.3, 0.11, 0.24), boxAt(0.08, 0.22, 0.22, 0.3, 0.11, 0.24), boxAt(0.08, 0.22, 0.22, -0.3, 0.11, -0.24), boxAt(0.08, 0.22, 0.22, 0.3, 0.11, -0.24)])!, DARK_MAT],
-    [new THREE.ConeGeometry(0.17, 0.4, 8).rotateX(Math.PI).translate(0, 0.7, 0), std(0xe3b778)],
-    [ball(0.19, 0, 0.98, 0), std(0xffc1d6, 0.6)],
-    [ball(0.14, 0, 1.2, 0), std(0xfff0c9, 0.6)],
+    ...booth(0xffd9e6, 0xf48fb1, 0xf7f4ec, 0xf48fb1),
+    wares(0xfff0c9, 0.14),
+    [cone(0.26, 0.6, 0, 1.68, -0.4, 8, true), std(0xe3b778)],
+    [ball(0.3, 0, 2.1, -0.4), std(0xffc1d6, 0.6)],
+    [ball(0.22, 0, 2.45, -0.4), std(0xfff0c9, 0.6)],
   ],
-  // knuffelkraam: geel huisje met een paars puntdak en een beer erop
+  // ballonnenkraam: paars met een tros ballonnen aan de hoek
+  balloon: [
+    ...booth(0xc9a3e8, 0xb06ad9, 0xffd23f, 0xb06ad9),
+    [boxAt(0.05, 1.5, 0.05, 0.84, 1.55, 0.84), WHITE_MAT],
+    [ball(0.27, 0.6, 2.25, 0.84), std(0xe0584f, 0.4)],
+    [ball(0.27, 1.02, 2.3, 0.72), std(0x4a90e2, 0.4)],
+    [ball(0.27, 0.84, 2.62, 0.9), std(0xffd23f, 0.4)],
+    [ball(0.22, 0.8, 2.1, 1.05), std(0x6cc04a, 0.4)],
+  ],
+  // hoedjeskraam: groen met een grote strohoed op het dak en hoedjes op de toonbank
+  hats: [
+    ...booth(0xbfe3a8, 0x6cc04a, 0xf7f4ec, 0x5fa544),
+    [tube(0.5, 0.5, 0.06, 0, 1.44, -0.4), std(0xe9d05a, 1)],
+    [tube(0.25, 0.28, 0.3, 0, 1.62, -0.4), std(0xe9d05a, 1)],
+    [tube(0.285, 0.285, 0.08, 0, 1.52, -0.4), std(0xe0584f)],
+    [mergeGeometries([boxAt(0.2, 0.1, 0.2, -0.3, 0.46, 0.74), boxAt(0.2, 0.1, 0.2, 0.3, 0.46, 0.74)])!, std(0xe0584f)],
+    [boxAt(0.2, 0.1, 0.2, 0.0, 0.46, 0.74), std(0x4a90e2)],
+    [cone(0.09, 0.22, 0.74, 0.52, -0.3), std(0xf06aa6)],
+  ],
+  // knuffelkraam: geel met paars dak en een grote beer erop
   souvenir: [
-    [boxAt(0.8, 0.56, 0.66, 0, 0.28, -0.04), std(0xffe08a)],
-    [boxAt(0.46, 0.26, 0.04, 0, 0.34, 0.3), DARK_MAT],
-    [new THREE.ConeGeometry(0.7, 0.36, 4).rotateY(Math.PI / 4).translate(0, 0.74, -0.04), std(0x7a5cc9)],
-    [ball(0.14, 0, 1.0, -0.04), std(0xb07a4a)],
-    [ball(0.11, 0, 1.2, -0.04), std(0xb07a4a)],
-    [ball(0.045, -0.09, 1.3, -0.04), std(0x8a5a33)],
-    [ball(0.045, 0.09, 1.3, -0.04), std(0x8a5a33)],
+    ...booth(0xffe08a, 0x7a5cc9, 0xb99be8, 0x7a5cc9),
+    [ball(0.3, 0, 1.66, -0.4), std(0xb07a4a)],
+    [ball(0.23, 0, 2.08, -0.4), std(0xb07a4a)],
+    [ball(0.09, -0.2, 2.28, -0.4), std(0x8a5a33)],
+    [ball(0.09, 0.2, 2.28, -0.4), std(0x8a5a33)],
+    [ball(0.1, 0, 2.03, -0.2), std(0xe3bf94)],
+    [ball(0.1, -0.3, 0.5, 0.74), std(0xf3a6b8)],
+    [ball(0.1, 0.3, 0.5, 0.74), std(0x9aa0a6)],
+  ],
+  // wc-gebouw met twee deuren
+  toilet: [
+    [boxAt(1.84, 0.05, 1.84, 0, 0.025, 0), std(0xd8c7ab, 1), false],
+    [boxAt(1.7, 1.2, 1.4, 0, 0.6, -0.15), WHITE_MAT],
+    [boxAt(1.86, 0.12, 1.6, 0, 1.26, -0.12), std(0x4a90e2)],
+    [mergeGeometries([boxAt(0.5, 0.86, 0.05, -0.42, 0.45, 0.57), boxAt(0.5, 0.86, 0.05, 0.42, 0.45, 0.57)])!, std(0x4a90e2)],
+    [mergeGeometries([boxAt(0.07, 0.07, 0.05, -0.26, 0.45, 0.61), boxAt(0.07, 0.07, 0.05, 0.58, 0.45, 0.61)])!, std(0xffd23f)],
+    [mergeGeometries([boxAt(0.2, 0.2, 0.04, -0.42, 1.04, 0.57), boxAt(0.2, 0.2, 0.04, 0.42, 1.04, 0.57)])!, std(0x9fd8f5, 0.4)],
+    [boxAt(0.04, 0.5, 0.5, 0.86, 0.75, -0.2), std(0x9fd8f5, 0.4)],
   ],
   // speeltuin: zandbak met een torentje, een laddertje en een gele glijbaan
-  playground: [
-    [boxAt(0.92, 0.05, 0.92, 0, 0.025, 0), std(0xecd591, 1), false],
+  playground: scaled([
+    [boxAt(0.94, 0.03, 0.94, 0, 0.015, 0), std(0xecd591, 1), false],
     [mergeGeometries([boxAt(0.06, 0.92, 0.06, -0.38, 0.46, -0.34), boxAt(0.06, 0.92, 0.06, -0.02, 0.46, -0.34), boxAt(0.06, 0.92, 0.06, -0.38, 0.46, 0.02), boxAt(0.06, 0.92, 0.06, -0.02, 0.46, 0.02), boxAt(0.3, 0.04, 0.04, -0.2, 0.2, -0.36), boxAt(0.3, 0.04, 0.04, -0.2, 0.4, -0.36)])!, WOOD_MAT],
     [boxAt(0.42, 0.06, 0.42, -0.2, 0.58, -0.16), std(0x4a90e2)],
-    [new THREE.ConeGeometry(0.36, 0.24, 4).rotateY(Math.PI / 4).translate(-0.2, 1.04, -0.16), std(0xe0584f)],
+    [cone(0.36, 0.24, -0.2, 1.04, -0.16, 4), std(0xe0584f)],
     [new THREE.BoxGeometry(0.24, 0.04, 0.78).rotateX(0.74).translate(-0.2, 0.31, 0.3), std(0xffd23f, 0.5)],
-  ],
-  balloon: [
-    [mergeGeometries([boxAt(0.5, 0.3, 0.36, 0, 0.22, 0), boxAt(0.05, 0.9, 0.05, 0, 0.8, 0), boxAt(0.12, 0.12, 0.42, -0.2, 0.06, 0), boxAt(0.12, 0.12, 0.42, 0.2, 0.06, 0)])!, std(0xb06ad9)],
-    [ball(0.17, -0.17, 1.36, 0), std(0xe0584f, 0.4)],
-    [ball(0.17, 0.17, 1.42, 0.05), std(0x4a90e2, 0.4)],
-    [ball(0.17, 0, 1.64, -0.04), std(0xffd23f, 0.4)],
-  ],
+    [mergeGeometries([boxAt(0.05, 0.4, 0.05, 0.3, 0.2, -0.3), boxAt(0.05, 0.4, 0.05, 0.3, 0.2, 0.1), boxAt(0.05, 0.05, 0.45, 0.3, 0.41, -0.1)])!, std(0xe0584f)],
+    [boxAt(0.16, 0.03, 0.1, 0.3, 0.16, -0.1), std(0x4a90e2)],
+  ], 1.95),
   bench: [[BENCH_GEO, FENCE_MAT]],
-  toilet: [
-    [boxAt(0.7, 0.9, 0.66, 0, 0.45, -0.02), WHITE_MAT],
-    [boxAt(0.82, 0.09, 0.8, 0, 0.94, 0), std(0x4a90e2)],
-    [boxAt(0.3, 0.62, 0.04, 0, 0.33, 0.32), std(0x4a90e2)],
-    [boxAt(0.05, 0.05, 0.05, 0.09, 0.34, 0.35), std(0xffd23f)],
-  ],
   flowers: [
     [boxAt(0.74, 0.2, 0.36, 0, 0.1, 0), WOOD_MAT],
     [boxAt(0.66, 0.04, 0.28, 0, 0.21, 0), DARK_MAT, false],
@@ -571,15 +611,19 @@ export class View {
     this.at(this.ghostBeds[kind], x, y).visible = true;
   }
 
+  /** Een winkel met zijn linkerbovenhoek op tegel (x, y); een gebouw beslaat 2 bij 2 tegels. */
   makeShop(x: number, y: number, kind: ShopKind): THREE.Group {
-    const group = this.at(build(SHOP_PARTS[kind]), x, y);
+    const group = build(SHOP_PARTS[kind]);
+    group.position.set(toWorldX(x + SHOP_SIZE[kind] / 2), 0, toWorldZ(y + SHOP_SIZE[kind] / 2));
     this.scene.add(group);
     return group;
   }
 
   ghostShop(x: number, y: number, kind: ShopKind, ok: boolean): void {
     this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
-    this.at(this.ghostShops[kind], x, y).visible = true;
+    const ghost = this.ghostShops[kind];
+    ghost.position.set(toWorldX(x + SHOP_SIZE[kind] / 2), 0, toWorldZ(y + SHOP_SIZE[kind] / 2));
+    ghost.visible = true;
   }
 
   /** Afval dat een gast op het pad heeft laten vallen. */

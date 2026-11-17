@@ -1,7 +1,7 @@
 // Gasten en verzorgers. Gasten komen binnen bij de ingang, lopen over de paden, kijken bij de dieren,
 // kopen iets als ze het naar hun zin hebben en laten met een wolkje zien wat ze willen.
 import * as THREE from 'three';
-import { STALLS, TERRAINS, type FoodId, type ShopKind } from './data';
+import { PLUSH, PRODUCTS, STALLS, TERRAINS, type FoodId, type ShopKind } from './data';
 import { Grid, H, W, tileIndex, tileXY } from './grid';
 import { toWorldX, toWorldZ } from './view';
 
@@ -11,21 +11,32 @@ const PATH = TERRAINS.indexOf('path');
 export const ENTRANCE = tileIndex(Math.floor(W / 2), H - 1);
 
 export interface ShopSpot {
+  /** De linkerbovenhoek; een gebouw beslaat `size` bij `size` tegels. */
   x: number;
   y: number;
   kind: ShopKind;
+  size: number;
+  /** Wat deze kraam verkoopt (zie PRODUCTS; knuffels heten 'plush_' + soort). */
+  sells: string[];
 }
 
-/** Wat een gast wil, voor het wolkje boven zijn hoofd. `lacking`: het is er niet in het park. */
-export type GuestWish = { kind: 'food' | 'drink' | 'toilet' | 'icecream' | 'balloon' | 'souvenir' | 'play' | 'sit' | 'bored' | 'fav'; lacking: boolean };
+/** Waar een gast voor naar een winkel gaat. */
+export type Need = 'food' | 'drink' | 'toilet' | 'icecream' | 'balloon' | 'hat' | 'souvenir' | 'play' | 'sit';
+
+/** Wat een gast wil, voor het wolkje boven zijn hoofd. `lacking`: het is er niet in het park. `product`: het ding waar hij om vraagt. */
+export type GuestWish = { kind: Need | 'bored' | 'fav'; lacking: boolean; product?: string };
 
 export interface GuestWorld {
   grid: Grid;
   shops: ShopSpot[];
   /** Is er vanaf deze padtegel iets te zien? Zo ja: hoe leuk, waar kijk je naar en welke soorten staan er. */
   viewScore(tile: number): { score: number; x: number; y: number; species: string[] } | null;
-  /** Een gast staat bij de kraam. Geeft terug of hij iets koopt. */
-  buy(shop: ShopSpot, guest: Guest): boolean;
+  /** Een gast staat bij de kraam. Geeft terug of hij iets koopt. `exact`: het is precies waar hij om vroeg. */
+  buy(shop: ShopSpot, guest: Guest, product: string | undefined, exact: boolean): boolean;
+  /** Waar gasten bij dit soort kraam nu om kunnen vragen. Leeg: er valt niets te kiezen. */
+  products(kind: ShopKind): string[];
+  /** Een gast kon het niet meer ophouden en deed het op het pad. */
+  accident(guest: Guest, mess: 'poop' | 'pee'): void;
   /** Hoe snel gasten trek krijgen; hoger als het park net veel heeft uitgegeven. */
   demand(): number;
   /** Hoeveel gasten het park nu trekt. */
@@ -55,7 +66,13 @@ const BODY_GEO = new THREE.BoxGeometry(0.2, 0.22, 0.13);
 const HEAD_GEO = new THREE.BoxGeometry(0.17, 0.17, 0.17);
 const HAIR_GEO = new THREE.BoxGeometry(0.185, 0.07, 0.185);
 const CAP_GEO = new THREE.BoxGeometry(0.2, 0.06, 0.26).translate(0, 0, 0.035);
+const APRON_GEO = new THREE.BoxGeometry(0.16, 0.17, 0.02);
 const BALLOON_GEO = new THREE.IcosahedronGeometry(0.11, 1);
+const BRIM_GEO = new THREE.CylinderGeometry(0.17, 0.17, 0.02, 10);
+const CROWN_GEO = new THREE.CylinderGeometry(0.095, 0.1, 0.08, 10);
+const PARTY_GEO = new THREE.ConeGeometry(0.075, 0.2, 8);
+const POM_GEO = new THREE.IcosahedronGeometry(0.03, 0);
+const SPIKE_GEO = new THREE.BoxGeometry(0.035, 0.05, 0.035);
 const STRING_GEO = new THREE.BoxGeometry(0.012, 0.34, 0.012);
 const LEG_GEO = new THREE.BoxGeometry(0.075, 0.2, 0.08).translate(0, -0.1, 0);
 const ARM_GEO = new THREE.BoxGeometry(0.055, 0.18, 0.07).translate(0, -0.09, 0);
@@ -74,9 +91,9 @@ interface Person {
   child: boolean;
 }
 
-/** Een poppetje van blokjes. Een verzorger draagt groen met een pet. */
-function makePerson(keeper = false): Person {
-  const skin = mat(pick(SKIN)), shirt = mat(keeper ? 0x4fa35a : pick(SHIRT)), pants = mat(keeper ? 0x5a4636 : pick(PANTS));
+/** Een poppetje van blokjes. Een verzorger draagt groen met een pet; een verkoper de kleur van zijn kraam, een pet en een wit schort. */
+function makePerson(keeper = false, outfit?: { shirt: number; hat: number }): Person {
+  const skin = mat(pick(SKIN)), shirt = mat(outfit ? outfit.shirt : keeper ? 0x4fa35a : pick(SHIRT)), pants = mat(keeper ? 0x5a4636 : pick(PANTS));
   const part = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number): THREE.Mesh => {
     const mesh = new THREE.Mesh(geo, m);
     mesh.position.set(x, y, 0);
@@ -86,9 +103,14 @@ function makePerson(keeper = false): Person {
   const limbs = [part(LEG_GEO, pants, 0.052, 0.2), part(LEG_GEO, pants, -0.052, 0.2), part(ARM_GEO, shirt, 0.13, 0.41), part(ARM_GEO, shirt, -0.13, 0.41)];
   const group = new THREE.Group();
   group.add(...limbs, part(BODY_GEO, shirt, 0, 0.31), part(HEAD_GEO, skin, 0, 0.505));
-  group.add(keeper ? part(CAP_GEO, mat(0x2f6e39), 0, 0.615) : part(HAIR_GEO, mat(pick(HAIR)), 0, 0.6));
-  const child = !keeper && Math.random() < 0.35;
-  const scale = child ? 0.72 : 1 + Math.random() * 0.12;
+  group.add(keeper || outfit ? part(CAP_GEO, mat(outfit ? outfit.hat : 0x2f6e39), 0, 0.615) : part(HAIR_GEO, mat(pick(HAIR)), 0, 0.6));
+  if (outfit) {
+    const apron = part(APRON_GEO, mat(0xf7f4ec), 0, 0.29);
+    apron.position.z = 0.07;
+    group.add(apron);
+  }
+  const child = !keeper && !outfit && Math.random() < 0.35;
+  const scale = child ? 0.72 : outfit ? 1 : 1 + Math.random() * 0.12;
   group.scale.setScalar(scale);
   return { group, limbs, height: 0.66 * scale, child };
 }
@@ -101,11 +123,17 @@ function swing(limbs: THREE.Mesh[], amount: number): void {
 }
 
 // ------------------------------------------------------------ gast
-type GuestState = 'idle' | 'walk' | 'watch' | 'buy' | 'sit';
-const MAX_PURCHASES = 3;
-const NEED_SHOP = {
-  food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', sit: 'bench', souvenir: 'souvenir', play: 'playground',
-} as const;
+type GuestState = 'idle' | 'walk' | 'watch' | 'buy' | 'sit' | 'accident';
+const MAX_PURCHASES = 4;
+const NEED_SHOP: Record<Need, ShopKind> = {
+  food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', hat: 'hats', souvenir: 'souvenir', play: 'playground', sit: 'bench',
+};
+const COLOR_OF = Object.fromEntries(PRODUCTS.filter(p => p.color !== undefined).map(p => [p.id, p.color as number]));
+const footprint = (shop: ShopSpot): number[] => {
+  const tiles: number[] = [];
+  for (let y = shop.y; y < shop.y + shop.size; y++) for (let x = shop.x; x < shop.x + shop.size; x++) tiles.push(tileIndex(x, y));
+  return tiles;
+};
 
 export class Guest {
   readonly mesh: THREE.Group;
@@ -115,12 +143,16 @@ export class Guest {
   gy: number;
   hunger = Math.random() * 0.3;
   thirst = Math.random() * 0.3;
-  /** Moet de gast naar de wc? */
+  /** Moet de gast naar de wc? Bij 1 is de nood hoog; duurt dat te lang, dan doet hij het op het pad. */
   bladder = Math.random() * 0.3;
+  /** Zoveel seconden is de nood al hoog. */
+  private urgent = 0;
   /** Zin in een ijsje. */
   treat = Math.random() * 0.4;
   /** Zin in een ballon (vooral kinderen). */
   balloon = 0;
+  /** Zin in een hoedje. */
+  hat = Math.random() * 0.4;
   tired = Math.random() * 0.2;
   /** Zin in een knuffel uit de knuffelkraam. */
   gift = Math.random() * 0.6;
@@ -137,6 +169,12 @@ export class Guest {
   /** Heeft de speler al naar deze gast gezwaaid? */
   waved = false;
   private bought: Partial<Record<ShopKind, number>> = {};
+  /** Waar de gast precies om vraagt, per behoefte: 'lolly', 'cap_red', 'plush_pig', ... */
+  private wanted: Partial<Record<Need, string>> = {};
+  /** Behoeftes waarvoor de gast al tevergeefs heeft gezocht: dan neemt hij ook iets anders. */
+  private settled = new Set<Need>();
+  /** De boodschap waarvoor de gast nu onderweg is. */
+  private errand: Need | null = null;
 
   private limbs: THREE.Mesh[];
   private state: GuestState = 'idle';
@@ -159,6 +197,9 @@ export class Guest {
   /** Een gast koopt per bezoek hooguit zoveel dingen; zo stroomt de kas niet over. */
   private purchases = 0;
   private wantsBalloon: boolean;
+  private wantsHat: boolean;
+  private headwear: THREE.Object3D | null = null;
+  private mess: 'poop' | 'pee' = 'pee';
   private ox = (Math.random() - 0.5) * 0.4;
   private oy = (Math.random() - 0.5) * 0.4;
 
@@ -169,6 +210,10 @@ export class Guest {
     this.height = person.height;
     this.child = person.child;
     this.wantsBalloon = person.child || Math.random() < 0.2;
+    this.wantsHat = Math.random() < 0.65;
+    // wie een hoedje of ballon wil, heeft daar meteen al zin in: dan loopt hij er het hele bezoek mee rond
+    if (this.wantsBalloon) this.balloon = 0.3 + Math.random() * 0.5;
+    this.hat = this.wantsHat ? 0.4 + Math.random() * 0.5 : 0;
     this.fav = species.length ? pick(species) : null;
     const [x, y] = tileXY(tile);
     this.gx = x + 0.5;
@@ -185,7 +230,7 @@ export class Guest {
   }
 
   private place(): void {
-    this.mesh.position.set(toWorldX(this.gx), 0, toWorldZ(this.gy));
+    this.mesh.position.set(toWorldX(this.gx), this.state === 'accident' ? -0.07 : 0, toWorldZ(this.gy));
     this.mesh.rotation.y = this.heading;
   }
 
@@ -203,33 +248,46 @@ export class Guest {
     return true;
   }
 
-  /** De padtegel naast een kraam of bankje waar een gast kan staan. */
-  private spotBeside(w: GuestWorld, reach: Set<number>, kind: ShopKind): { shop: ShopSpot; tile: number } | null {
+  /** Een padtegel naast een winkel van dit soort waar een gast kan staan. Met `product`: alleen winkels die dat verkopen. */
+  private spotBeside(w: GuestWorld, reach: Set<number>, kind: ShopKind, product?: string): { shop: ShopSpot; tile: number } | null {
     const options: { shop: ShopSpot; tile: number }[] = [];
     for (const shop of w.shops) {
-      if (shop.kind !== kind) continue;
-      for (const n of w.grid.neighbors(tileIndex(shop.x, shop.y))) if (reach.has(n)) options.push({ shop, tile: n });
+      if (shop.kind !== kind || (product && !shop.sells.includes(product))) continue;
+      const own = footprint(shop);
+      for (const t of own) for (const n of w.grid.neighbors(t)) if (reach.has(n) && !own.includes(n)) options.push({ shop, tile: n });
     }
     return options.length ? pick(options) : null;
   }
 
   /** Wat wil de gast nu het liefst? Het dringendste eerst. */
-  private want(): keyof typeof NEED_SHOP | null {
-    if (this.bladder > 0.7) return 'toilet';
+  private want(): Need | null {
+    if (this.bladder > 0.6) return 'toilet';
     if (this.hunger > 0.6 && this.hunger >= this.thirst) return 'food';
     if (this.thirst > 0.6) return 'drink';
     if (this.hunger > 0.6) return 'food';
     if (this.tired > 0.75) return 'sit';
     if (this.child && this.playful > 0.7) return 'play';
-    if (this.purchases < MAX_PURCHASES && this.treat > 0.7 && this.fun >= 0.5) return 'icecream';
-    if (this.purchases < MAX_PURCHASES && this.balloon > 0.7 && this.fun >= 0.5) return 'balloon';
-    if (this.purchases < MAX_PURCHASES && this.gift > 0.7 && this.fun >= 0.5) return 'souvenir';
-    return null;
+    if (this.purchases >= MAX_PURCHASES || this.fun < 0.5) return null;
+    // iets lekkers of leuks: waar de gast de meeste zin in heeft
+    const treats: [Need, number][] = [['icecream', this.treat], ['balloon', this.balloon], ['hat', this.hat], ['souvenir', this.gift]];
+    const [need, zin] = treats.sort((a, b) => b[1] - a[1])[0];
+    return zin > 0.7 ? need : null;
+  }
+
+  /** De gast heeft niet gevonden wat hij zocht: de zin zakt wat, zodat hij het later nog eens probeert. */
+  private postpone(want: Need): void {
+    if (want === 'sit') this.tired = 0.5;
+    if (want === 'icecream') this.treat = 0.3;
+    if (want === 'balloon') this.balloon = 0.3;
+    if (want === 'hat') this.hat = 0.3;
+    if (want === 'souvenir') this.gift = 0.3;
+    if (want === 'play') this.playful = 0.4;
   }
 
   private decide(w: GuestWorld, list: number[], reach: Set<number>): void {
     this.shop = null;
     this.face = null;
+    this.errand = null;
     this.sees = [];
     if (this.age > this.stay || this.fun < 0.08) this.leaving = true;
     if (this.leaving) {
@@ -241,21 +299,34 @@ export class Guest {
     this.wish = this.fun < 0.2 ? { kind: 'bored', lacking: true } : null;
     const want = this.want();
     if (want) {
-      const spot = this.spotBeside(w, reach, NEED_SHOP[want]);
+      const kind = NEED_SHOP[want];
+      // waar vraagt de gast precies om? Bij de knuffelkraam het liefst zijn lievelingsdier.
+      const options = w.products(kind);
+      let product = this.wanted[want];
+      if (options.length && (!product || !options.includes(product))) {
+        product = want === 'souvenir' && this.fav && options.includes(PLUSH + this.fav) ? PLUSH + this.fav : pick(options);
+        this.wanted[want] = product;
+      }
+      if (!options.length) product = undefined;
+      let spot = this.spotBeside(w, reach, kind, product);
+      // nergens te koop: de tweede keer neemt de gast ook iets anders van dezelfde kraam
+      if (!spot && product && this.settled.has(want)) spot = this.spotBeside(w, reach, kind);
       if (spot && (spot.tile === this.tile || this.go(w, reach, spot.tile))) {
         this.shop = spot.shop;
-        this.wish = { kind: want, lacking: false };
+        this.errand = want;
+        this.wish = { kind: want, lacking: false, product };
         if (spot.tile === this.tile) this.arrive(w);
         return;
       }
       // het is er niet: de gast laat zien wat hij mist en heeft het wat minder naar zijn zin
-      this.wish = { kind: want, lacking: true };
-      this.fun = Math.max(0, this.fun - (want === 'toilet' ? 0.07 : want === 'food' || want === 'drink' ? 0.05 : 0.02));
-      if (want === 'sit') this.tired = 0.5;
-      if (want === 'icecream') this.treat = 0.3;
-      if (want === 'balloon') this.balloon = 0.3;
-      if (want === 'souvenir') this.gift = 0.3;
-      if (want === 'play') this.playful = 0.4;
+      this.wish = { kind: want, lacking: true, product };
+      if (product && w.shops.some(sh => sh.kind === kind)) {
+        this.settled.add(want);
+        this.fun = Math.max(0, this.fun - 0.03);
+      } else {
+        this.fun = Math.max(0, this.fun - (want === 'toilet' ? 0.07 : want === 'food' || want === 'drink' ? 0.05 : 0.02));
+        this.postpone(want);
+      }
     }
     // naar een plek lopen waar iets te zien is; het lievelingsdier eerst
     let fallback: { tile: number; view: NonNullable<ReturnType<GuestWorld['viewScore']>> } | null = null;
@@ -290,7 +361,7 @@ export class Guest {
     if (this.leaving && this.tile === ENTRANCE) {
       this.gone = true;
     } else if (this.shop) {
-      this.face = [this.shop.x + 0.5, this.shop.y + 0.5];
+      this.face = [this.shop.x + this.shop.size / 2, this.shop.y + this.shop.size / 2];
       const kind = this.shop.kind;
       this.state = kind === 'bench' || kind === 'playground' ? 'sit' : 'buy';
       this.timer = kind === 'bench' ? 4.5 : kind === 'playground' ? 6 : kind === 'toilet' ? 3 : 1.8;
@@ -320,39 +391,80 @@ export class Guest {
       this.fun = Math.min(1, this.fun + 0.15);
     } else if (this.state === 'buy' && this.shop && w.shops.includes(this.shop)) {
       const kind = this.shop.kind;
+      const asked = this.errand ? this.wanted[this.errand] : undefined;
+      const exact = !asked || this.shop.sells.includes(asked);
+      const got = exact ? asked : this.shop.sells.length ? pick(this.shop.sells) : undefined;
       if (kind === 'toilet') {
         this.bladder = 0;
         this.fun = Math.min(1, this.fun + 0.08);
         w.guestSound('flush');
-      } else if (w.buy(this.shop, this)) {
+      } else if ((exact || got) && w.buy(this.shop, this, got, exact)) {
         this.bought[kind] = (this.bought[kind] ?? 0) + 1;
         this.purchases++;
         if (kind === 'foodstall') this.hunger = 0;
         else if (kind === 'drinkstall') {
           this.thirst = 0;
-          this.bladder = Math.min(1, this.bladder + 0.3);
+          this.bladder = Math.min(0.85, this.bladder + 0.15);
         } else if (kind === 'icecream') this.treat = 0;
         else if (kind === 'balloon') {
           this.balloon = 0;
-          this.addBalloon();
+          this.addBalloon(got);
+        } else if (kind === 'hats') {
+          this.hat = 0;
+          this.addHat(got);
         } else if (kind === 'souvenir') this.gift = 0;
-        this.fun = Math.min(1, this.fun + (kind === 'foodstall' || kind === 'drinkstall' ? 0.1 : 0.2));
-        if (kind !== 'balloon' && kind !== 'souvenir') {
+        // precies wat de gast vroeg maakt hem blijer dan iets anders
+        const joy = kind === 'foodstall' || kind === 'drinkstall' ? 0.1 : 0.2;
+        this.fun = Math.min(1, this.fun + (exact ? joy : joy * 0.3));
+        if (this.errand) {
+          delete this.wanted[this.errand];
+          this.settled.delete(this.errand);
+        }
+        if (kind === 'foodstall' || kind === 'drinkstall' || kind === 'icecream') {
           this.trash = 10 + Math.random() * 10;
           this.sloppy = w.messy() && Math.random() < 0.45;
         }
       } else this.fun = Math.max(0, this.fun - 0.1);
     }
     this.wish = null;
+    this.errand = null;
   }
 
-  private addBalloon(): void {
+  /** De gast loopt verder met de ballon die hij kocht. */
+  private addBalloon(product?: string): void {
     const colors = [0xe0584f, 0x4a90e2, 0xffd23f, 0x6cc04a, 0xf06aa6];
-    const balloon = new THREE.Mesh(BALLOON_GEO, new THREE.MeshStandardMaterial({ color: pick(colors), roughness: 0.4 }));
+    const color = (product && COLOR_OF[product]) || pick(colors);
+    const balloon = new THREE.Mesh(BALLOON_GEO, new THREE.MeshStandardMaterial({ color, roughness: 0.4 }));
     balloon.position.set(0.17, 0.95, 0);
+    if (product === 'balloon_heart') balloon.scale.set(1.5, 1.25, 0.8);
     const string = new THREE.Mesh(STRING_GEO, mat(0xf4f1e8));
     string.position.set(0.17, 0.68, 0);
     this.mesh.add(balloon, string);
+  }
+
+  /** De gast zet het hoedje op dat hij kocht: een petje, een strohoed, een feestmuts of een kroon. */
+  private addHat(product = 'cap_red'): void {
+    if (this.headwear) this.mesh.remove(this.headwear);
+    const color = mat(COLOR_OF[product] ?? 0xe0584f);
+    const hat = new THREE.Group();
+    const add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z = 0): void => {
+      const mesh = new THREE.Mesh(geo, m);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = true;
+      hat.add(mesh);
+    };
+    if (product === 'hat_straw') {
+      add(BRIM_GEO, color, 0, 0.65);
+      add(CROWN_GEO, color, 0, 0.7);
+    } else if (product === 'hat_party') {
+      add(PARTY_GEO, color, 0, 0.74);
+      add(POM_GEO, mat(0xffd23f), 0, 0.85);
+    } else if (product === 'hat_crown') {
+      add(CROWN_GEO, color, 0, 0.68);
+      for (const [x, z] of [[0.07, 0], [-0.07, 0], [0, 0.07], [0, -0.07]]) add(SPIKE_GEO, color, x, 0.74, z);
+    } else add(CAP_GEO, color, 0, 0.65);
+    this.headwear = hat;
+    this.mesh.add(hat);
   }
 
   update(dt: number, w: GuestWorld, list: number[], reach: Set<number>): void {
@@ -362,7 +474,8 @@ export class Guest {
     if (w.sells('drinkstall') && !this.bought.drinkstall) this.thirst = Math.min(1, this.thirst + (dt / 130) * demand);
     if (w.sells('toilet')) this.bladder = Math.min(1, this.bladder + dt / 170);
     if (w.sells('icecream') && !this.bought.icecream) this.treat = Math.min(1, this.treat + (dt / 190) * demand);
-    if (w.sells('balloon') && this.wantsBalloon && !this.bought.balloon) this.balloon = Math.min(1, this.balloon + (dt / 110) * demand);
+    if (w.sells('balloon') && this.wantsBalloon && !this.bought.balloon) this.balloon = Math.min(1, this.balloon + (dt / 85) * demand);
+    if (w.sells('hats') && this.wantsHat && !this.bought.hats) this.hat = Math.min(1, this.hat + (dt / 75) * demand);
     if (w.sells('bench')) this.tired = Math.min(1, this.tired + dt / 180);
     if (w.sells('souvenir') && !this.bought.souvenir) this.gift = Math.min(1, this.gift + (dt / 120) * demand);
     if (w.sells('playground') && this.child) this.playful = Math.min(1, this.playful + dt / 90);
@@ -371,9 +484,38 @@ export class Guest {
       this.gone = true; // het pad onder de gast is weggehaald
       return;
     }
+    // hoge nood: de gast houdt het niet meer en doet het ter plekke op het pad
+    if (this.state === 'accident') {
+      this.timer -= dt;
+      this.limbs[0].rotation.x = this.limbs[1].rotation.x = -1.2;
+      this.limbs[2].rotation.x = this.limbs[3].rotation.x = -0.5;
+      if (this.timer <= 0) {
+        w.accident(this, this.mess);
+        this.bladder = 0;
+        this.fun = Math.max(0, this.fun - 0.25);
+        this.state = 'idle';
+        this.decide(w, list, reach);
+      }
+      this.place();
+      return;
+    }
+    // hoge nood: de gast heeft nog een halve minuut om een wc te halen
+    this.urgent = this.bladder >= 1 ? this.urgent + dt : 0;
+    if (this.urgent > 30 && !(this.state === 'buy' && this.shop?.kind === 'toilet')) {
+      this.urgent = 0;
+      this.state = 'accident';
+      this.timer = 2.4;
+      this.route = [];
+      this.shop = null;
+      this.errand = null;
+      this.mess = Math.random() < 0.35 ? 'poop' : 'pee';
+      this.wish = { kind: 'toilet', lacking: true };
+      this.place();
+      return;
+    }
     // afval: in de bak als er een vlakbij staat, anders valt het na een poosje op het pad
     if (this.trash > 0) {
-      const near = w.shops.some(s => s.kind === 'bin' && Math.abs(s.x + 0.5 - this.gx) < 1.6 && Math.abs(s.y + 0.5 - this.gy) < 1.6);
+      const near = w.shops.some(sh => sh.kind === 'bin' && Math.abs(sh.x + 0.5 - this.gx) < 1.6 && Math.abs(sh.y + 0.5 - this.gy) < 1.6);
       if (near && !this.sloppy) this.trash = 0;
       else {
         this.trash -= dt;
@@ -605,5 +747,52 @@ export class Keeper {
     this.phase += dt * 11;
     swing(this.limbs, this.route.length ? Math.sin(this.phase) * 0.7 : this.job ? Math.sin(this.phase) * 0.25 : 0);
     this.place();
+  }
+}
+
+// ------------------------------------------------------------ verkoper
+/** Wat de verkoper draagt. Hij staat in het gebouw achter de toonbank, schuin naar voren gekeerd. */
+const VENDORS: Partial<Record<ShopKind, { shirt: number; hat: number }>> = {
+  foodstall: { shirt: 0xe0584f, hat: 0xffffff },
+  drinkstall: { shirt: 0x4a90e2, hat: 0xffffff },
+  icecream: { shirt: 0xf48fb1, hat: 0xffffff },
+  balloon: { shirt: 0xb06ad9, hat: 0xffd23f },
+  hats: { shirt: 0x6cc04a, hat: 0xe0584f },
+  souvenir: { shirt: 0x7a5cc9, hat: 0xffe08a },
+};
+
+/** Het poppetje dat in een kraam werkt. Het wiegt een beetje en zwaait als het iets verkoopt. */
+export class Vendor {
+  readonly mesh: THREE.Group;
+  private limbs: THREE.Mesh[];
+  private phase = Math.random() * 6;
+  private wave = 0;
+
+  private constructor(outfit: { shirt: number; hat: number }) {
+    const person = makePerson(false, outfit);
+    this.mesh = person.group;
+    this.limbs = person.limbs;
+    this.mesh.position.set(0.18, 0.05, 0.2);
+    this.mesh.rotation.y = Math.PI / 4;
+    this.mesh.scale.setScalar(1.15);
+  }
+
+  /** De verkoper voor dit soort winkel, of null als er niemand werkt (bankje, wc, bloemen, ...). */
+  static of(kind: ShopKind): Vendor | null {
+    const spot = VENDORS[kind];
+    return spot ? new Vendor(spot) : null;
+  }
+
+  sold(): void {
+    this.wave = 1.3;
+  }
+
+  update(dt: number): void {
+    this.phase += dt * 2;
+    this.wave = Math.max(0, this.wave - dt);
+    const sway = Math.sin(this.phase) * 0.14;
+    // bij een verkoop gaat één arm omhoog en zwaait
+    this.limbs[2].rotation.x = this.wave > 0 ? -2.5 + Math.sin(this.phase * 7) * 0.35 : sway;
+    this.limbs[3].rotation.x = -sway;
   }
 }

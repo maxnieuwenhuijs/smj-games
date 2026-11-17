@@ -23,12 +23,17 @@ export interface Stats {
   caught: number;
   keepers: number;
   tidied: number;
+  /** Verkocht in dit level: per ding (alleen als de gast er precies om vroeg) en per soort kraam (alles). */
+  sold: Record<string, number>;
+  soldAt: Record<string, number>;
+  /** Alles wat verkocht is aan een gast die er precies om vroeg. */
+  soldAll: number;
 }
 
 export function emptyStats(): Stats {
   return {
     enclosures: 0, troughs: 0, beds: 0, paths: 0, guests: 0, coins: 0, shops: {}, animals: {}, happy: {},
-    happyAll: 0, kinds: 0, fed: 0, cleaned: 0, born: 0, healed: 0, caught: 0, keepers: 0, tidied: 0,
+    happyAll: 0, kinds: 0, fed: 0, cleaned: 0, born: 0, healed: 0, caught: 0, keepers: 0, tidied: 0, sold: {}, soldAt: {}, soldAll: 0,
   };
 }
 
@@ -53,6 +58,7 @@ export function goalProgress(goal: Goal, s: Stats): number {
     case 'caught': value = s.caught; break;
     case 'keeper': value = s.keepers; break;
     case 'tidy': value = s.tidied; break;
+    case 'sold': value = goal.product ? s.sold[goal.product] ?? 0 : goal.shop ? s.soldAt[goal.shop] ?? 0 : s.soldAll; break;
   }
   return Math.max(0, Math.min(goal.n, value));
 }

@@ -22,6 +22,12 @@ const CARROT =
 const TROUGH =
   `<path d="M5 22 H43 L39 38 Q38 41 35 41 H13 Q10 41 9 38Z" fill="${WOOD_D}"/><rect x="3" y="18" width="42" height="7" rx="3" fill="${WOOD}"/>`;
 
+const capIcon = (c: string, d: string): string =>
+  `<path d="M8 30 Q8 10 24 10 Q40 10 40 30Z" fill="${c}"/><path d="M6 30 H46 Q46 38 34 37 L8 34Z" fill="${d}"/><circle cx="24" cy="10" r="3" fill="${d}"/>`;
+const balloonIcon = (c: string, d: string): string =>
+  `<ellipse cx="24" cy="18" rx="12" ry="14" fill="${c}"/><path d="M24 32 l-3 4 h6Z" fill="${d}"/>` +
+  `<path d="M24 36 Q19 40 26 46" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/><ellipse cx="19" cy="12" rx="3" ry="4.5" fill="#fff" opacity=".55"/>`;
+
 const ICONS = {
   hand: HAND,
   terrain:
@@ -230,6 +236,45 @@ const ICONS = {
   playground:
     `<path d="M9 44 V14 M21 44 V14 M9 24 H21 M9 34 H21" fill="none" stroke="${WOOD_D}" stroke-width="4" stroke-linecap="round"/>` +
     `<path d="M21 16 Q35 18 44 41" fill="none" stroke="${SUN}" stroke-width="8" stroke-linecap="round"/><path d="M5 14 L15 4 L25 14Z" fill="${RED}"/>`,
+  fries:
+    `<path d="M13 22 H35 L32 44 H16Z" fill="${RED}"/><g fill="${SUN}" stroke="${SUN_D}" stroke-width="1"><rect x="14" y="8" width="4.5" height="18" rx="1.5"/><rect x="19.5" y="4" width="4.5" height="22" rx="1.5"/><rect x="25" y="6" width="4.5" height="20" rx="1.5"/><rect x="30.5" y="10" width="4.5" height="16" rx="1.5"/></g>` +
+    `<path d="M13 22 H35 L34.3 27 H13.7Z" fill="#b8433b"/>`,
+  pancake:
+    '<ellipse cx="24" cy="36" rx="19" ry="6" fill="#c98d4a"/><ellipse cx="24" cy="30" rx="18" ry="6" fill="#dba25c"/><ellipse cx="24" cy="24" rx="17" ry="6" fill="#e8b873"/>' +
+    `<rect x="19" y="17" width="10" height="7" rx="2" fill="${SUN}"/><path d="M12 25 Q10 31 13 33" fill="none" stroke="#a8622a" stroke-width="3" stroke-linecap="round"/>`,
+  hotdog:
+    '<rect x="5" y="20" width="38" height="16" rx="8" fill="#e3b778"/><rect x="3" y="17" width="42" height="10" rx="5" fill="#c9553f"/>' +
+    `<path d="M9 22 q3 -4 6 0 t6 0 t6 0 t6 0 t6 0" fill="none" stroke="${SUN}" stroke-width="2.5" stroke-linecap="round"/>`,
+  lemonade:
+    '<path d="M13 12 H35 L32 44 H16Z" fill="#fff" stroke="#9fb8c9" stroke-width="2"/><path d="M14.5 22 H33.5 L32 42 H16Z" fill="#ffe066"/>' +
+    `<path d="M26 14 L33 3" stroke="${RED}" stroke-width="3" stroke-linecap="round"/><circle cx="21" cy="30" r="2" fill="#fff" opacity=".7"/><circle cx="27" cy="36" r="1.6" fill="#fff" opacity=".7"/>`,
+  milk:
+    '<path d="M14 16 L18 6 H30 L34 16 V43 H14Z" fill="#fff" stroke="#9fb8c9" stroke-width="2"/><path d="M14 16 H34" stroke="#9fb8c9" stroke-width="2"/>' +
+    '<rect x="14" y="24" width="20" height="10" fill="#4a90e2"/><circle cx="24" cy="29" r="3" fill="#fff"/>',
+  juice:
+    '<path d="M13 12 H35 L32 44 H16Z" fill="#fff" stroke="#9fb8c9" stroke-width="2"/><path d="M14.5 20 H33.5 L32 42 H16Z" fill="#f5a623"/>' +
+    `<circle cx="35" cy="12" r="8" fill="#f08a2c" stroke="#fff" stroke-width="2"/><path d="M35 5 V19 M28 12 H42" stroke="#fff" stroke-width="1.5"/><path d="M22 14 L17 3" stroke="${GRASS_D}" stroke-width="3" stroke-linecap="round"/>`,
+  scoop:
+    '<path d="M14 25 L24 46 L34 25Z" fill="#e3b778"/><path d="M18 30 L28 37 M22 26 L31 32" stroke="#c9975a" stroke-width="1.6"/>' +
+    '<circle cx="24" cy="17" r="12" fill="#ffc1d6"/><circle cx="19" cy="12" r="3.2" fill="#fff" opacity=".7"/>',
+  lolly:
+    `<rect x="21.5" y="30" width="5" height="15" rx="2" fill="#e3b778"/><path d="M13 16 Q13 4 24 4 Q35 4 35 16 V34 H13Z" fill="${RED}"/>` +
+    `<path d="M13 14 H35 V22 H13Z" fill="${SUN}"/><rect x="17" y="9" width="3.5" height="20" rx="1.7" fill="#fff" opacity=".5"/>`,
+  hats:
+    `<ellipse cx="24" cy="34" rx="21" ry="7" fill="${SUN_D}"/><path d="M11 33 Q11 12 24 12 Q37 12 37 33Z" fill="${SUN}"/><path d="M11 30 Q24 36 37 30 V33 Q24 39 11 33Z" fill="${RED}"/>`,
+  hat_straw:
+    `<ellipse cx="24" cy="34" rx="21" ry="7" fill="${SUN_D}"/><path d="M11 33 Q11 12 24 12 Q37 12 37 33Z" fill="${SUN}"/><path d="M11 30 Q24 36 37 30 V33 Q24 39 11 33Z" fill="${RED}"/>`,
+  hat_party:
+    `<path d="M24 5 L39 42 H9Z" fill="#f06aa6"/><path d="M17 22 L31 22 M13 32 L35 32" stroke="#fff" stroke-width="3"/><circle cx="24" cy="6" r="5" fill="${SUN}"/><path d="M9 42 H39" stroke="${SUN}" stroke-width="5" stroke-linecap="round"/>`,
+  hat_crown:
+    `<path d="M6 38 L8 14 L17 25 L24 9 L31 25 L40 14 L42 38Z" fill="${SUN}" stroke="${SUN_D}" stroke-width="2" stroke-linejoin="round"/><circle cx="24" cy="30" r="3.5" fill="${RED}"/><circle cx="13" cy="31" r="2.5" fill="#4a90e2"/><circle cx="35" cy="31" r="2.5" fill="#4a90e2"/>`,
+  cap_red: capIcon('#e0584f', '#b8433b'),
+  cap_blue: capIcon('#4a90e2', '#3572b8'),
+  balloon_red: balloonIcon('#e0584f', '#b8433b'),
+  balloon_blue: balloonIcon('#4a90e2', '#3572b8'),
+  balloon_yellow: balloonIcon('#ffd23f', '#e5b520'),
+  balloon_heart:
+    `<path d="M24 34 C6 22 8 7 17 6 C21 6 24 9 24 12 C24 9 27 6 31 6 C40 7 42 22 24 34Z" fill="#f06aa6"/><path d="M24 34 Q19 39 26 46" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/><ellipse cx="16" cy="13" rx="3" ry="4" fill="#fff" opacity=".55"/>`,
 } satisfies Record<string, string>;
 
 export type IconId = keyof typeof ICONS;

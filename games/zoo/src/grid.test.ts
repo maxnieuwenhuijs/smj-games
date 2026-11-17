@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FEATURE, LEVELS, SHOPS, SPECIES, migrateLevel, unlockedSpecies, worldOf, type SpeciesId } from './data';
+import { FEATURE, LEVELS, PRODUCTS, SHOPS, SHOP_SIZE, SPECIES, migrateLevel, productsFor, unlockedSpecies, worldOf, type SpeciesId } from './data';
 import en from './en.json';
 import { Grid, H, W, edgeAlong, nearestEdge, tileIndex, type Edge } from './grid';
 import { emptyStats, goalProgress, levelDone } from './levels';
@@ -164,11 +164,18 @@ describe('vijftig levels', () => {
         if (g.type === 'caught') expect(FEATURE.escape).toBeLessThanOrEqual(i);
         if (g.type === 'keeper') expect(FEATURE.keeper).toBeLessThanOrEqual(i);
         if (g.type === 'tidy') expect(FEATURE.bin).toBeLessThanOrEqual(i);
+        if (g.type === 'sold' && g.product) expect(productsFor(PRODUCTS.find(p => p.id === g.product)!.shop, i), `level ${i + 1} ${g.product}`).toContain(g.product);
+        if (g.type === 'sold' && g.shop) expect(FEATURE[g.shop], `level ${i + 1} ${g.shop}`).toBeLessThanOrEqual(i);
         if (g.type === 'kinds') expect(g.n).toBeLessThanOrEqual(i);
         if (g.species) expect(unlockedSpecies(i)).toContain(g.species);
       }
     });
-    for (const kind of SHOPS) expect(FEATURE[kind]).toBeGreaterThan(0);
+    for (const kind of SHOPS) {
+      expect(FEATURE[kind]).toBeGreaterThan(0);
+      expect(SHOP_SIZE[kind]).toBeGreaterThan(0);
+    }
+    // gasten vragen pas om iets als de kraam waar het te koop is er ook is
+    for (const p of PRODUCTS) expect(p.from, p.id).toBeGreaterThanOrEqual(FEATURE[p.shop]);
   });
 
   it('de doelen worden per wereld zwaarder', () => {
@@ -219,6 +226,7 @@ describe('teksten en stemmen', () => {
         expect(table[`bed.${info.bed}.a`]).toBeTruthy();
       }
       for (const kind of SHOPS) expect(table[`shop.${kind}`]).toBeTruthy();
+      for (const p of PRODUCTS) expect(table[`product.${p.id}`], p.id).toBeTruthy();
       LEVELS.forEach((level, i) => {
         expect(table[`say.level.${i + 1}`]).toBeTruthy();
         for (const g of level.goals) expect(textOf(tr, goalLine(tr, g))).not.toContain('?');

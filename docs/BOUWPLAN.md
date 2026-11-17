@@ -120,11 +120,33 @@ Gasten komen binnen bij de ingang zodra daar een pad ligt. Hoe meer volwassen di
 | Moe | Bankje | plezier |
 | Zin in ijs | IJskraam | 1 munt |
 | Ballon (vooral kinderen) | Ballonnenkraam | 1 munt, en de gast loopt met een ballon |
-| Knuffel | Knuffelkraam (vanaf level 26) | 1 munt |
+| Hoedje | Hoedjeskraam (vanaf level 23) | 1 munt, en de gast draagt het hoedje |
+| Knuffel | Knuffelkraam (vanaf level 27) | 1 munt |
 | Spelen (alleen kinderen) | Speeltuin (vanaf level 10) | veel plezier |
 | Lievelingsdier zien | Een verblijf met dat dier aan het pad | veel plezier |
 
-Een gast koopt per bezoek hooguit drie dingen. Elke winkel heeft een eigen vorm, zodat je ze uit elkaar houdt: de eetkraam heeft een zak friet op het dak, de drinkkraam is een rond huisje met een beker, de ijskraam is een kar met een reuzenijsje, de knuffelkraam is een geel huisje met een beer erop en de speeltuin heeft een glijbaan.
+Een gast koopt per bezoek hooguit vier dingen.
+
+### Winkels
+
+Winkels zijn gebouwen van 2 bij 2 tegels met een open voorkant; achter de toonbank staat een verkoper die zwaait als hij iets verkoopt. Bankje, bloembak en afvalbak zijn 1 tegel. Elke winkel heeft een eigen vorm: friet op het dak van de eetkraam, een beker op de drinkkraam, een reuzenijsje op de ijskraam, een tros ballonnen, een strohoed, een beer op de knuffelkraam. Het wc-gebouw heeft twee deuren en de speeltuin een glijbaan.
+
+### Wat een kraam verkoopt
+
+Gasten vragen steeds vaker om iets bepaalds; hun wolkje laat zien wat. Tik op een kraam en kies wat hij verkoopt. Er passen maar een paar dingen tegelijk in (twee; drie bij ballonnen en hoedjes, vier bij knuffels), dus voor meer keus zet je er een kraam bij. Verkoopt geen enkele kraam wat de gast vraagt, dan is zijn wolkje oranje en neemt hij de tweede keer iets anders; daar wordt hij minder blij van.
+
+| Kraam | Te koop (en vanaf welk level gasten erom vragen) |
+|---|---|
+| Eetkraam | Friet (5), pannenkoek (17), hotdog (29) |
+| Drinkkraam | Limonade (6), melk (19), sap (33) |
+| IJskraam | Schepijs (12), waterijs (20) |
+| Ballonnen | Rood en blauw (22), geel (25), hartjesballon (35). De gast loopt daarna met die ballon rond. |
+| Hoedjes | Rood en blauw petje (23), strohoed (27), feestmuts (32), kroon (41). De gast draagt het hoedje daarna. |
+| Knuffels | Een knuffel van elke diersoort die in je park woont. Gasten vragen het liefst om hun lievelingsdier. |
+
+### Hoge nood
+
+Moet een gast naar de wc en is er geen wc te bereiken, dan houdt hij het nog een halve minuut vol. Daarna hurkt hij en doet het op het pad: een plas droogt vanzelf op, poep blijft liggen tot je erop tikt. Gasten in de buurt vinden dat niet leuk en de gastvrouw vraagt om meer wc's. Met genoeg wc's gebeurt het niet.
 
 Wie iets gekocht heeft, loopt even met afval rond. Staat er een afvalbak in de buurt, dan gaat het daarin; anders valt het op het pad. Afval opruimen (erop tikken) levert 1 munt op. Bloembakken en schone verblijven met blije dieren maken gasten blijer; afval en poep maken ze minder blij. Gasten kopen alleen als ze het naar hun zin hebben.
 
@@ -132,7 +154,7 @@ Wie iets gekocht heeft, loopt even met afval rond. Staat er een afvalbak in de b
 
 - De kas gaat nooit hoger dan 30, zodat tellen makkelijk blijft. Je begint met 10.
 - Bijna alles levert 1 munt op: een poepje of afval opruimen, een jong dat geboren wordt, een gast die iets koopt. Een gehaald level geeft 5.
-- Een voerbak, slaapplek, bankje, bloembak of afvalbak kost 1. Een eetkraam, drinkkraam, wc of speeltuin kost 3, een ijs-, ballonnen- of knuffelkraam 4, een verzorger 5. Dieren kosten 1 tot 15. Hekken en ondergrond zijn gratis.
+- Een voerbak, slaapplek, bankje, bloembak of afvalbak kost 1. Een eetkraam, drinkkraam, wc of speeltuin kost 3, een ijs-, ballonnen-, hoedjes- of knuffelkraam 4, een verzorger 5. Dieren kosten 1 tot 15. Hekken en ondergrond zijn gratis.
 - Een blij paar krijgt om de anderhalve minuut een jong. Zijn er al twee jongen, dan verhuist de oudste naar een andere dierentuin en krijg je 2 munten.
 - Terugverdienen: heeft het park net veel uitgegeven, dan krijgen gasten wat sneller trek. Zo is een aankoop binnen een paar minuten terugverdiend, zolang de gasten tevreden zijn.
 
@@ -162,26 +184,26 @@ Elk level speelt een dier vrij en vraagt om twee blije dieren van de soort die j
 | 7 | 2 blije geiten, 1 jong, 12 munten | Alpaca |
 | 8 | Wc, 2 blije alpaca's, 6 blije gasten | Kip |
 | 9 | 2 blije kippen, 2 bankjes, 5 poepjes | Eend |
-| 10 | 2 blije eenden, 3 soorten blij, 15 munten | Konijn |
+| 10 | 2 blije eenden, 3 soorten blij, speeltuin | Konijn |
 | 11 | 2 blije konijnen, 2 jongen, 8 blije gasten | Zebra |
 | 12 | 2 blije zebra's, ijskraam, 18 munten | Giraf |
 | 13 | 2 blije giraffen, 1 verzorger, 9 blije gasten | Leeuw |
-| 14 | 2 blije leeuwen, 4 soorten blij, 20 munten | Kameel |
+| 14 | 2 blije leeuwen, 4 soorten blij, 3 keer schepijs verkopen | Kameel |
 | 15 | 2 blije kamelen, 3 bloembakken, 10 blije gasten | Neushoorn |
 | 16 | 2 blije neushoorns, 2 jongen, 12 blije dieren | Nijlpaard |
-| 17 | 2 blije nijlpaarden, 5 soorten blij, 22 munten | Olifant |
+| 17 | 2 blije nijlpaarden, 5 soorten blij, 3 pannenkoeken verkopen | Olifant |
 | 18 | 2 blije olifanten, 2 afvalbakken, 12 blije gasten | Struisvogel |
 | 19 | 2 blije struisvogels, 4 keer afval, 3 jongen | Cheeta |
-| 20 | 2 blije cheeta's, 6 soorten blij, 13 blije gasten, 25 munten | Gazelle |
+| 20 | 2 blije cheeta's, 6 soorten blij, 13 blije gasten, 4 keer waterijs verkopen | Gazelle |
 | 21 | 2 blije gazellen, 1 ziek dier beter, 14 blije dieren | Aap |
 | 22 | 2 blije apen, ballonnenkraam, 14 blije gasten | Papegaai |
-| 23 | 2 blije papegaaien, 2 zieke dieren beter, 26 munten | Tijger |
+| 23 | 2 blije papegaaien, 2 zieke dieren beter, hoedjeskraam | Tijger |
 | 24 | 2 blije tijgers, 3 verzorgers, 8 poepjes | Gorilla |
-| 25 | 2 blije gorilla's, 7 soorten blij, 15 blije gasten | Krokodil |
+| 25 | 2 blije gorilla's, 15 blije gasten, 4 hoedjes verkopen | Krokodil |
 | 26 | 2 blije krokodillen, 3 jongen, 6 keer afval | Panda |
-| 27 | 2 blije panda's, 16 blije dieren, 28 munten | Pauw |
+| 27 | 2 blije panda's, 16 blije dieren, knuffelkraam | Pauw |
 | 28 | 2 blije pauwen, 4 verzorgers, 2 zieke dieren beter | Toekan |
-| 29 | 2 blije toekans, 8 soorten blij, 16 blije gasten | Luiaard |
+| 29 | 2 blije toekans, 8 soorten blij, 4 knuffels verkopen | Luiaard |
 | 30 | 2 blije luiaards, 4 jongen, 18 blije dieren, 30 munten | Panter |
 | 31 | 2 blije panters, 1 dier gevangen, 16 blije gasten | Pinguïn |
 | 32 | 2 blije pinguïns, 2 zieke dieren beter, 18 blije dieren | Zeehond |
@@ -190,16 +212,16 @@ Elk level speelt een dier vrij en vraagt om twee blije dieren van de soort die j
 | 35 | 2 blije rendieren, 4 jongen, 8 keer afval | Wolf |
 | 36 | 2 blije wolven, 6 verzorgers, 20 blije dieren | Poolvos |
 | 37 | 2 blije poolvossen, 3 zieke dieren beter, 2 dieren gevangen, 18 blije gasten | Beer |
-| 38 | 2 blije beren, 10 soorten blij, 30 munten | Jak |
+| 38 | 2 blije beren, 10 soorten blij, 5 bekers melk verkopen | Jak |
 | 39 | 2 blije jakken, 5 jongen, 22 blije dieren | Sneeuwuil |
 | 40 | 2 blije sneeuwuilen, 20 blije gasten, 3 zieke dieren beter, 10 poepjes | Walrus |
 | 41 | 2 blije walrussen, 10 soorten blij, 20 blije gasten | Flamingo |
 | 42 | 2 blije flamingo's, 5 jongen, 3 dieren gevangen | Schildpad |
-| 43 | 2 blije schildpadden, 24 blije dieren, 30 munten | Otter |
+| 43 | 2 blije schildpadden, 24 blije dieren, 10 keer precies verkopen wat een gast vraagt | Otter |
 | 44 | 2 blije otters, 8 verzorgers, 4 zieke dieren beter | Bever |
 | 45 | 2 blije bevers, 11 soorten blij, 21 blije gasten | Pelikaan |
 | 46 | 2 blije pelikanen, 6 jongen, 10 keer afval | Koala |
-| 47 | 2 blije koala's, 26 blije dieren, 3 dieren gevangen, 30 munten | Rode panda |
+| 47 | 2 blije koala's, 26 blije dieren, 3 dieren gevangen, 15 keer precies verkopen wat een gast vraagt | Rode panda |
 | 48 | 2 blije rode panda's, 12 soorten blij, 22 blije gasten | Maki |
 | 49 | 2 blije maki's, 5 zieke dieren beter, 6 jongen, 28 blije dieren | Bizon |
 | 50 | 2 blije bizons, 12 soorten blij, 22 blije gasten, 30 blije dieren, 30 munten | Kangoeroe |
