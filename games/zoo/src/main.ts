@@ -71,6 +71,13 @@ async function showStart(): Promise<void> {
     b.className = 'slot';
     b.dataset.slot = String(i);
     b.innerHTML = `${icon(AVATARS[i - 1])}<b>${data ? `${icon('star', 'mini')} ${Math.min(levelOf(data), LEVELS.length - 1) + 1}` : t('slot.new')}</b>`;
+    // de naam van de speler staat onder het plaatje, zodat je meteen ziet welk spel van wie is
+    if (data?.player) {
+      const who = document.createElement('i');
+      who.className = 'who';
+      who.textContent = data.player;
+      b.querySelector('b')?.before(who);
+    }
     b.addEventListener('click', () => void (data ? begin(i, data, data.player ?? '') : askName().then(name => begin(i, undefined, name))));
     wrap.append(b);
     if (data) {

@@ -441,6 +441,9 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
   gap: 8px; font-size: min(96px, 16vw);
 }
 .slot b { font-size: clamp(16px, 3.4vw, 22px); font-weight: 800; }
+/* de naam van de speler, onder het plaatje; met een naam erbij is het plaatje iets kleiner */
+.slot .who { font-style: normal; font-weight: 800; font-size: clamp(14px, 3vw, 19px); color: #5a4636; max-width: 88%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.1; }
+.slot:has(.who) { gap: 4px; font-size: min(84px, 14vw); }
 .slot:active { transform: translateY(5px); box-shadow: 0 3px 0 var(--shade); }
 .slot-del {
   position: absolute; right: -8px; top: -8px; width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer;
