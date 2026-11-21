@@ -169,6 +169,14 @@ export const WORLDS: WorldId[] = ['farm', 'savanna', 'jungle', 'ice', 'far'];
 // ------------------------------------------------------------ munten
 /** Er passen nooit meer munten in de kas dan dit: twee cijfers, net genoeg voor twee van de duurste dieren. */
 export const COIN_CAP = 99;
+/** Dag en nacht (vanaf FEATURE.night): zo lang duren ze, in tellen. De schemering duurt DUSK_SECONDS. */
+export const DAY_SECONDS = 240;
+export const NIGHT_SECONDS = 100;
+export const DUSK_SECONDS = 12;
+/** Hoe ver het licht reikt, in tegels: een lantaarn, een kampvuur, een winkel of speeltoestel, en de ingang. */
+export const LIGHT = { lantern: 3.5, campfire: 3, shop: 2.4, entrance: 4.5 };
+/** In het donker ziet een gast bijna niets: zoveel van het plezier blijft er over. */
+export const DARK_FUN = 0.25;
 /** Een strook grond erbij (links, rechts of achter) is duur: daar spaar je lang voor. */
 export const LAND_PRICE = 75;
 export const START_COINS = 10;
@@ -395,6 +403,8 @@ export const FEATURE = {
   wear: 7,
   /** Vanaf hier willen dieren iets leuks in hun verblijf: speelgoed of een plant. */
   fun: 9,
+  /** Vanaf hier wordt het ook nacht: dan zie je alleen iets waar licht is, dus zet je lantaarns neer. */
+  night: 14,
   /** Vanaf hier kunnen dieren ziek worden. */
   sick: 20,
   balloon: 21,

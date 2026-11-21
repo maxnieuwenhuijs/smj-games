@@ -8,7 +8,7 @@ import {
   BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
-  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, LAND_PRICE, SPACE, guestsAt, SERVES, } from './data';
+  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, LIGHT, SPACE, guestsAt, SERVES, } from './data';
 import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region, type Side } from './grid';
 import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
 import { cursor, icon, type IconId } from './icons';
@@ -1556,6 +1556,69 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return this.has('fun');
   }
 
+  // ------------------------------------------------------------ dag en nacht
+  /** Hoe donker het is: 0 overdag, 1 in de nacht, met een schemering ertussen. Voor FEATURE.night is het altijd dag. */
+  private night = 0;
+  private wasNight = false;
+  private nightTold = false;
+  private lightList: { gx: number; gy: number; r: number }[] = [];
+
+  private darkness(): number {
+    if (!this.has('night')) return 0;
+    const cycle = DAY_SECONDS + NIGHT_SECONDS, phase = this.clock % cycle;
+    if (phase < DAY_SECONDS - DUSK_SECONDS) return 0;
+    if (phase < DAY_SECONDS) return (phase - (DAY_SECONDS - DUSK_SECONDS)) / DUSK_SECONDS;
+    return phase < cycle - DUSK_SECONDS ? 1 : (cycle - phase) / DUSK_SECONDS;
+  }
+
+  /** Het uur op de klok: de dag loopt van 7 tot 21 uur, de nacht van 21 tot 7. */
+  private hourOfDay(): number {
+    const phase = this.clock % (DAY_SECONDS + NIGHT_SECONDS);
+    return phase < DAY_SECONDS ? 7 + Math.floor((phase / DAY_SECONDS) * 14) : (21 + Math.floor(((phase - DAY_SECONDS) / NIGHT_SECONDS) * 10)) % 24;
+  }
+
+  /** Alles wat licht geeft: lantaarns, kampvuren, winkels en speeltoestellen, en de ingang. */
+  private lights(): { gx: number; gy: number; r: number }[] {
+    const [ex, ey] = tileXY(ENTRANCE);
+    const list = [{ gx: ex + 0.5, gy: ey + 0.5, r: LIGHT.entrance }];
+    for (const d of this.decors) if (d.kind === 'lantern' || d.kind === 'campfire') list.push({ gx: d.x + 0.5, gy: d.y + 0.5, r: LIGHT[d.kind] });
+    for (const s of this.shops) if (!s.edge) list.push({ gx: s.x + s.size / 2, gy: s.y + s.size / 2, r: LIGHT.shop });
+    return list;
+  }
+
+  isNight(): boolean {
+    return this.night > 0.6;
+  }
+
+  dark(tile: number): boolean {
+    if (!this.isNight()) return false;
+    const [x, y] = tileXY(tile);
+    return !this.lightList.some(l => Math.hypot(l.gx - x - 0.5, l.gy - y - 0.5) <= l.r);
+  }
+
+  /** Elk beeldje: de schemering, het geluid van de nacht en het donkere vlak met gaten bij elk licht. */
+  private updateNight(): void {
+    const night = this.darkness();
+    if (night !== this.night) {
+      this.night = night;
+      this.view.setNight(night);
+    }
+    this.lightList = night > 0 ? this.lights() : [];
+    if (night > 0.6 && !this.wasNight) {
+      this.wasNight = true;
+      ambience('amb.night');
+      // de eerste nacht legt de directeur uit wat je moet doen
+      if (!this.nightTold) {
+        this.nightTold = true;
+        this.lines.push(say.night());
+      }
+    } else if (night < 0.4 && this.wasNight) {
+      this.wasNight = false;
+      ambience(`amb.${this.world()}`);
+    }
+    this.view.drawNight(night, this.lightList);
+  }
+
   private addBed(x: number, y: number, kind: BedKind): BedObj {
     const bed: BedObj = { x, y, kind, mesh: this.view.makeBed(x, y, kind) };
     this.beds.push(bed);
@@ -2774,7 +2837,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       for (const a of this.animalsIn(region)) a.neglect = Math.min(a.neglect, NEGLECT_WARN);
     }
     this.checkBirths();
-    this.hud.setWallet(this.coins, COIN_CAP, this.has('paths') ? crowd.total : null, this.has('keeper') ? 8 + (this.hour % 12) : null);
+    this.hud.setWallet(this.coins, COIN_CAP, this.has('paths') ? crowd.total : null, this.has('night') ? this.hourOfDay() : this.has('keeper') ? 8 + (this.hour % 12) : null, this.has('night') ? (this.night > 0.5 ? 'moon' : 'sun') : null);
 
     // een dier wacht al een poos op iets: de verzorger of de bouwer zegt wat er aan de hand is
     const light = worst && (worst.wish === 'bed' || worst.wish === 'terrain' || worst.wish === 'friend' || worst.wish === 'fun' || worst.wish === 'space' || (worst.wish === 'enclosure' && !!worst.a.needsFence));
@@ -2805,7 +2868,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // het is ergens te druk: de gastvrouw zegt waar er een bij moet
       const need = Object.keys(full).sort((p, q) => full[q] - full[p])[0];
       this.alert(say.busy(NEED_KIND[need]), 240);
-    } else if (this.shops.some(sh => sh.off)) this.alert(say.host('nopath'), 300);
+    } else if (this.isNight() && this.guests.guests.filter(q => q.wish?.kind === 'dark').length >= 2) this.alert(say.host('dark'), 240);
+    else if (this.shops.some(sh => sh.off)) this.alert(say.host('nopath'), 300);
     else if (picky) this.alert(say.host('product'), 300);
     else if (this.litter.length >= 6) this.alert(say.host('litter'), 240);
     else if (crowd.total >= 3 && crowd.happy * 3 < crowd.total) this.alert(say.host('sad'), 300);
@@ -2899,6 +2963,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         bubble.dataset.wish = key;
         bubble.innerHTML =
           g.wish.kind === 'fav' && g.fav ? speciesIcon(g.fav) + icon('heart', 'badge')
+          : g.wish.kind === 'dark' ? icon('lantern')
           : g.wish.product ? this.productIcon(g.wish.product)
           : icon(NEED_KIND[g.wish.kind] ?? 'smile_bad');
       }
@@ -2912,6 +2977,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   update(dt: number): void {
     this.clock += dt;
     this.view.update(dt);
+    this.updateNight();
     // wat er oplicht: met de veger alle poepjes en afval, anders alleen wat onder de muis ligt; en het dier in nood
     const spots: { gx: number; gy: number; r?: number; hot?: boolean }[] = [];
     const hot = this.hoverPoop && (this.poops.includes(this.hoverPoop) || this.litter.includes(this.hoverPoop)) ? this.hoverPoop : null;

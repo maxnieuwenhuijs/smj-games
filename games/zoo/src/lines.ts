@@ -95,6 +95,7 @@ export const say = {
   pen: (name: string): Line => ({ who: 'builder', mood: 'happy', key: 'say.pen', vars: { name } }),
   penColor: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.pen.color' }),
   bigger: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.bigger' }),
+  night: (): Line => ({ who: 'director', mood: 'happy', key: 'say.night' }),
   reopen: (name: string): Line => ({ who: 'builder', mood: 'happy', key: 'say.reopen', vars: { name } }),
   wrongFood: (tr: Tr, sp: SpeciesId): Line => ({ who: 'keeper', mood: 'worried', key: 'alert.wrongfood', vars: speciesVars(tr, sp) }),
   taken: (tr: Tr, sp: SpeciesId): Line => ({ who: 'keeper', mood: 'urgent', key: 'say.taken', vars: speciesVars(tr, sp) }),
@@ -113,7 +114,7 @@ export const say = {
   staffHow: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.staff.how' }),
   broken: (): Line => ({ who: 'builder', mood: 'worried', key: 'alert.broken' }),
   funNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.fun.new' }),
-  host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident' | 'nopath', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
+  host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident' | 'nopath' | 'dark', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
   busy: (kind: string): Line => ({ who: 'host', mood: 'worried', key: `host.busy.${kind}` }),
   cash: (key: 'short' | 'full' | 'wage'): Line => ({ who: 'cashier', mood: key === 'full' ? 'happy' : 'worried', key: `cash.${key}` }),
   hiredAs: (role: 'feed' | 'clean' | 'fix'): Line => ({ who: 'keeper', mood: 'happy', key: `say.hired.${role}` }),
@@ -215,7 +216,8 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.decorNew());
   CHEERS.forEach((_, i) => add(say.cheer(i)));
   add(say.tipKeeper());
-  for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter', 'product', 'new', 'accident', 'nopath'] as const) add(say.host(key));
+  for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter', 'product', 'new', 'accident', 'nopath', 'dark'] as const) add(say.host(key));
+  add(say.night());
   for (const kind of Object.keys(SERVES)) add(say.busy(kind));
   add(say.cash('short'));
   add(say.cash('full'));

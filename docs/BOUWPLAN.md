@@ -343,6 +343,18 @@ Vanaf level 8 slijt een houten hek (stenen muren en netten niet). Ongeveer eens 
 
 Kies bij de actieknop de hamer; een tik op het hek timmert het in elke fase weer vast. Bij een kapot hek voelen de dieren in dat verblijf zich niet veilig: ze zijn niet blij, het wolkje toont een hamertje en de bouwer zegt dat je het moet maken. Ze worden er niet voor opgehaald.
 
+## Dag en nacht
+
+Vanaf level 15 wordt het ook nacht. Een dag duurt vier minuten, een nacht ruim anderhalve minuut, met twaalf tellen schemering ertussen. Elke keer dat je het spel opent, begint het overdag. Rechtsboven staat een zon of een maan met het uur (de dag loopt van 7 tot 21 uur).
+
+- **Donker:** 's nachts ligt er een donkerblauw waas over het park. Alleen bij licht zie je alles goed: rond een lantaarn (3,5 tegel), een kampvuur (3), elke winkel en elk speeltoestel (2,4) en de ingang (4,5). De lantaarns branden dan fel.
+- **Gasten:** staat een gast in het donker naar dieren te kijken, dan heeft hij er maar een kwart van het plezier van en ziet hij zijn lievelingsdier niet. Boven zijn hoofd staat een oranje wolkje met een lantaarn. Zijn er meer gasten in het donker, dan zegt de gastvrouw: "Het is te donker! Zet er lantaarns bij."
+- **Dieren:** de meeste dieren gaan liggen slapen; wie honger heeft, eet eerst.
+- **Uitleg:** de eerste nacht zegt de directeur: "Het wordt donker! Zet lantaarns in je park, dan kunnen de gasten de dieren blijven zien." De lantaarn (5 munten, bij Park onder Sier) komt in hetzelfde level vrij.
+- **Geluid:** 's nachts hoor je krekels en af en toe een uil.
+
+De getallen staan in `games/zoo/src/data.ts` (`DAY_SECONDS`, `NIGHT_SECONDS`, `LIGHT`, `DARK_FUN`). Het donker is een vlak dat over het beeld wordt getekend met een zacht gat bij elk licht; dat kost weinig rekenkracht.
+
 ## Het park uitbreiden
 
 Het park begint als een veld van 28 bij 28 tegels. Links, rechts en achter ligt een strook van 8 tegels breed die te koop is: je ziet er een licht vlak over de grond, een bordje met een vlag en een kaartje met de prijs. Een strook kost 75 munten (de kas gaat tot 99, dus daar spaar je echt voor). Tik op de strook of op het kaartje en kies Kopen; heb je te weinig, dan is de prijs grijs.

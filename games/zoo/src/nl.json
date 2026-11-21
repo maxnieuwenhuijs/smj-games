@@ -537,6 +537,8 @@
   "host.sad": "De gasten vervelen zich. Laat ze blije dieren zien!",
   "host.litter": "Er ligt afval op het pad. Pak de prikker en gooi het in een afvalbak!",
   "host.nopath": "Daar kunnen de gasten niet bij. Leg er een pad naartoe!",
+  "host.dark": "Het is te donker! De gasten zien de dieren niet. Zet er lantaarns bij.",
+  "say.night": "Het wordt donker! Zet lantaarns in je park, dan kunnen de gasten de dieren blijven zien.",
   "host.busy.foodstall": "Het is te druk bij de eetkraam. Zet er nog een eetkraam bij!",
   "host.busy.drinkstall": "Het is te druk bij de drinkkraam. Zet er nog een bij!",
   "host.busy.toilet": "Er staat een rij voor de wc. Zet er nog een wc bij!",

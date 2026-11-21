@@ -217,14 +217,15 @@ export class Hud {
   }
 
   /** De kas (munten) en het aantal gasten in het park. */
-  setWallet(coins: number, cap: number, guests: number | null, hour: number | null = null): void {
-    const key = `${coins}/${guests}/${hour}`;
+  /** `sky`: zon of maan naast het uur (vanaf het level waarin het ook nacht wordt); anders een klokje. */
+  setWallet(coins: number, cap: number, guests: number | null, hour: number | null = null, sky: 'sun' | 'moon' | null = null): void {
+    const key = `${coins}/${guests}/${hour}/${sky}`;
     if (key === this.walletKey) return;
     this.walletKey = key;
     this.wallet.innerHTML =
       `<span class="pill${coins >= cap ? ' full' : ''}" title="${t('wallet.coins')}">${icon('coin')}<b>${coins}</b></span>` +
       (guests === null ? '' : `<span class="pill" title="${t('wallet.guests')}">${icon('guest')}<b>${guests}</b></span>`) +
-      (hour === null ? '' : `<span class="pill" title="${t('wallet.hour')}">${icon('clock')}<b>${hour}</b></span>`);
+      (hour === null ? '' : `<span class="pill" title="${t('wallet.hour')}">${icon(sky ?? 'clock')}<b>${hour}</b></span>`);
   }
 
   // ------------------------------------------------------------ doelen

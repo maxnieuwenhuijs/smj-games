@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { PLUSH, PRODUCTS, STALLS, TERRAINS, type FoodId, type ShopKind } from './data';
 import { Grid, H, W, tileIndex, tileXY } from './grid';
-import { PLAY } from './data';
+import { DARK_FUN, PLAY } from './data';
 import { toWorldX, toWorldZ } from './view';
 
 const PATH = TERRAINS.indexOf('path');
@@ -82,7 +82,7 @@ export interface GuestSave {
 }
 
 /** `busy`: het is er wel, maar te druk: er zijn te weinig van voor zoveel gasten. */
-export type GuestWish = { kind: Need | 'bored' | 'fav'; lacking: boolean; product?: string; busy?: boolean };
+export type GuestWish = { kind: Need | 'bored' | 'fav' | 'dark'; lacking: boolean; product?: string; busy?: boolean };
 
 export interface GuestWorld {
   grid: Grid;
@@ -117,6 +117,8 @@ export interface GuestWorld {
   busy(kind: ShopKind): number;
   /** Hoeveel blijer een gast op deze tegel wordt van versieringen in de buurt. */
   charm(tile: number): number;
+  /** Is het hier nacht en staat er geen licht in de buurt? Dan ziet een gast bijna niets. */
+  dark(tile: number): boolean;
   /** Hoeveel sneller gasten zin krijgen in iets van dit soort kraam: meer als een level erom vraagt. */
   craving(kind: ShopKind): number;
 }
@@ -640,6 +642,8 @@ export class Guest {
     } else if (this.face) {
       this.state = 'watch';
       this.timer = 4 + Math.random() * 3;
+      // te donker om iets te zien: het wolkje vraagt om een lantaarn
+      if (w.dark(this.tile)) this.wish = { kind: 'dark', lacking: true };
       // bij het kijken doet de gast iets: zwaaien, wijzen, een foto maken of klappen
       const p = Math.random();
       this.act = p < 0.28 ? 'wave' : p < 0.48 ? 'point' : p < 0.68 ? 'photo' : p < 0.8 ? 'clap' : null;
@@ -679,8 +683,10 @@ export class Guest {
 
   private finish(w: GuestWorld): void {
     if (this.state === 'watch') {
-      this.fun = Math.min(1, this.fun + this.gain);
-      if (this.fav && !this.favSeen && this.sees.includes(this.fav)) {
+      // in het donker valt er weinig te zien
+      const dark = w.dark(this.tile);
+      this.fun = Math.min(1, this.fun + this.gain * (dark ? DARK_FUN : 1));
+      if (!dark && this.fav && !this.favSeen && this.sees.includes(this.fav)) {
         this.favSeen = true;
         this.fun = Math.min(1, this.fun + 0.25);
         w.cheer(this);

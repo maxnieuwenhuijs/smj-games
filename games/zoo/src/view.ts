@@ -415,6 +415,8 @@ SHOP_PARTS.trampoline = [
   [tube(0.8, 0.8, 0.07, 0, 0.36, 0), P_BLUE],
   [tube(0.64, 0.64, 0.02, 0, 0.4, 0), std(0x3d4f5a, 0.8), false],
 ];
+/** Het licht van een lantaarn: overdag een zacht geel, 's nachts fel. */
+const LAMP_MAT = new THREE.MeshStandardMaterial({ color: 0xfff1a8, emissive: 0xffd23f, emissiveIntensity: 0.6, roughness: 0.4 });
 const FLAME_MAT = new THREE.MeshStandardMaterial({ color: 0xf08a24, emissive: 0xf06a10, emissiveIntensity: 0.9, roughness: 0.6 });
 const FLAME2_MAT = new THREE.MeshStandardMaterial({ color: 0xffd23f, emissive: 0xffc21f, emissiveIntensity: 0.9, roughness: 0.6 });
 // Versieringen: één tegel groot, het midden is (0, 0).
@@ -491,7 +493,7 @@ const DECOR_PARTS: Record<DecorKind, Part[]> = {
   ],
   lantern: [
     [mergeGeometries([tube(0.035, 0.05, 1.05, 0, 0.525, 0), tube(0.1, 0.12, 0.06, 0, 0.03, 0)])!, std(0x3d4f5a, 0.7)],
-    [boxAt(0.17, 0.2, 0.17, 0, 1.15, 0), new THREE.MeshStandardMaterial({ color: 0xfff1a8, emissive: 0xffd23f, emissiveIntensity: 0.6, roughness: 0.4 })],
+    [boxAt(0.17, 0.2, 0.17, 0, 1.15, 0), LAMP_MAT],
     [cone(0.16, 0.12, 0, 1.31, 0, 4), std(0x3d4f5a, 0.7)],
   ],
   flag: [
@@ -661,6 +663,7 @@ function build(parts: Part[], mat?: THREE.Material): THREE.Group {
   return group;
 }
 
+const NIGHT_SKY = new THREE.Color(0x16224a);
 /** De omgeving kleurt mee met de wereld waarin je speelt. */
 const WORLD_LOOK: Record<WorldId, { sky: number; ground: number; leaves: [number, number, number] }> = {
   farm: { sky: 0xbfe6ff, ground: 0x6fb44c, leaves: [0x4f9e45, 0x5bab4c, 0x468f3e] },
@@ -774,6 +777,10 @@ export class View {
   private quality = 2;
   private slowFor = 0;
   private outerMat = new THREE.MeshStandardMaterial({ color: 0x6fb44c, roughness: 1 });
+  private hemi = new THREE.HemisphereLight(0xffffff, 0x9ad07a, 1.6);
+  private nightCanvas = document.createElement('canvas');
+  private skyDay = new THREE.Color(0xbfe6ff);
+  private dark = 0;
   /** De bomen rond het park: één vorm per onderdeel, voor alle bomen samen. */
   private treeSpots: { gx: number; gy: number; s: number; rot: number }[] = [];
   private treeParts: THREE.InstancedMesh[] = [];
@@ -789,7 +796,11 @@ export class View {
     parent.prepend(this.renderer.domElement);
     this.scene.background = new THREE.Color(0xbfe6ff);
 
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x9ad07a, 1.6));
+    this.scene.add(this.hemi);
+    // de nacht: een donker vlak over het beeld, met gaten waar licht is
+    this.nightCanvas.id = 'night';
+    this.nightCanvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none';
+    this.renderer.domElement.after(this.nightCanvas);
     const sun = this.sun;
     sun.position.set(-8, 20, 11);
     sun.castShadow = true;
@@ -948,9 +959,69 @@ export class View {
   /** Lucht, grasland en bomen rond het park passen bij de wereld. */
   setWorld(world: WorldId): void {
     const look = WORLD_LOOK[world];
-    (this.scene.background as THREE.Color).setHex(look.sky);
+    this.skyDay.setHex(look.sky);
+    this.setNight(this.dark);
     this.outerMat.color.setHex(look.ground);
     this.leafMats.forEach((m, i) => m.color.setHex(look.leaves[i]));
+  }
+
+  /** Hoe donker het is (0 = dag, 1 = nacht): de zon dimt, de lucht wordt donkerblauw en de lantaarns gaan fel aan. */
+  setNight(dark: number): void {
+    this.dark = dark;
+    this.sun.intensity = 2.2 * (1 - 0.6 * dark);
+    this.hemi.intensity = 1.6 * (1 - 0.4 * dark);
+    (this.scene.background as THREE.Color).copy(this.skyDay).lerp(NIGHT_SKY, dark);
+    LAMP_MAT.emissiveIntensity = 0.6 + 1.8 * dark;
+  }
+
+  /**
+   * Tekent de nacht: een donkerblauw vlak over het hele beeld, met een zacht rond gat bij elk licht (een
+   * lantaarn, een kampvuur, een winkel, de ingang). Zo zie je alleen goed wat verlicht is.
+   */
+  drawNight(dark: number, lights: { gx: number; gy: number; r: number }[]): void {
+    const c = this.nightCanvas;
+    if (dark <= 0.01) {
+      if (c.style.display !== 'none') c.style.display = 'none';
+      return;
+    }
+    if (c.style.display === 'none') c.style.display = 'block';
+    // op halve grootte: scheelt werk en het licht mag zacht zijn
+    const k = 0.5, w = Math.ceil(innerWidth * k), h = Math.ceil(innerHeight * k);
+    if (c.width !== w || c.height !== h) {
+      c.width = w;
+      c.height = h;
+    }
+    const ctx = c.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'copy';
+    ctx.fillStyle = `rgba(10, 16, 48, ${0.78 * dark})`;
+    ctx.fillRect(0, 0, w, h);
+    const perTile = (innerHeight / this.zoom) * k;
+    const spots = lights
+      .map(l => ({ s: this.toScreen(l.gx, l.gy, 0.3), r: l.r * perTile * 1.25 }))
+      .filter(p => p.s.x > -p.r / k && p.s.x < innerWidth + p.r / k && p.s.y > -p.r / k && p.s.y < innerHeight + p.r / k);
+    // een cirkel op de grond is op het scherm een platte ovaal
+    for (const pass of ['destination-out', 'source-over'] as const) {
+      ctx.globalCompositeOperation = pass;
+      for (const { s, r } of spots) {
+        ctx.setTransform(1, 0, 0, 0.62, s.x * k, s.y * k);
+        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+        if (pass === 'destination-out') {
+          g.addColorStop(0, 'rgba(0,0,0,1)');
+          g.addColorStop(0.55, 'rgba(0,0,0,0.9)');
+          g.addColorStop(1, 'rgba(0,0,0,0)');
+        } else {
+          // een warme gloed in het licht
+          g.addColorStop(0, `rgba(255, 196, 96, ${0.16 * dark})`);
+          g.addColorStop(0.9, 'rgba(255, 196, 96, 0)');
+        }
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   }
 
   resize(): void {

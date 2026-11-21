@@ -294,6 +294,11 @@ const ICONS = {
     `<path d="M24 44 q-6 -3 0 -6 q6 -3 0 -6 q-6 -3 0 -5" fill="none" stroke="#8a857a" stroke-width="3" stroke-linecap="round"/><ellipse cx="22" cy="20" rx="14" ry="8" fill="${RED}"/><circle cx="37" cy="13" r="7" fill="${RED}"/><path d="M43 13 l5 2 l-5 2Z" fill="${SUN}"/><circle cx="38.5" cy="11.5" r="1.5" fill="#fff"/><path d="M8 18 l-5 -6 l8 2Z" fill="${SUN}"/><path d="M26 10 v-6" stroke="#3d4f5a" stroke-width="3" stroke-linecap="round"/><rect x="18" y="42" width="12" height="4" rx="2" fill="#3d4f5a"/>`,
   trampoline:
     `<ellipse cx="24" cy="30" rx="21" ry="9" fill="#4a90e2"/><ellipse cx="24" cy="29" rx="16" ry="6" fill="#3d4f5a"/><path d="M8 34 V44 M40 34 V44 M24 39 V46" stroke="#8a857a" stroke-width="3.5" stroke-linecap="round"/><circle cx="24" cy="10" r="5" fill="${SUN}"/><path d="M17 19 q7 -4 14 0" fill="none" stroke="${SUN}" stroke-width="3" stroke-linecap="round"/>`,
+  // dag en nacht
+  sun:
+    `<g stroke="${SUN_D}" stroke-width="3.5" stroke-linecap="round"><path d="M24 4 v6 M24 38 v6 M4 24 h6 M38 24 h6 M10 10 l4 4 M34 34 l4 4 M38 10 l-4 4 M10 38 l4 -4"/></g><circle cx="24" cy="24" r="10" fill="${SUN}" stroke="${INK}" stroke-width="2.5"/>`,
+  moon:
+    `<path d="M30 6 A18 18 0 1 0 42 30 A14 14 0 0 1 30 6Z" fill="#ffe9a8" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><circle cx="12" cy="12" r="1.8" fill="#fff"/><circle cx="40" cy="14" r="1.4" fill="#fff"/>`,
   // een stuk grond erbij kopen: een tegel gras met een vlag
   land: tile(GRASS) + `<path d="M24 27 V7" stroke="${WOOD_D}" stroke-width="3.5" stroke-linecap="round"/><path d="M24 7 H39 L35 12.5 L39 18 H24Z" fill="${RED}"/>`,
   // meer grond: rots, ijs, moeras, bloemenwei en droog gras

@@ -31,6 +31,8 @@ export interface AnimalWorld {
   toys: Toy[];
   /** Willen dieren al iets leuks in hun verblijf (vanaf level 10)? */
   wantsFun(): boolean;
+  /** Is het nacht? Dan slapen de meeste dieren. */
+  isNight(): boolean;
   /** Een dier speelt zoveel seconden met dit ding: het ding beweegt mee. */
   playWith(toy: Toy, seconds: number): void;
   animals: Animal[];
@@ -359,6 +361,8 @@ export class Animal {
     this.eatAt = null;
     this.napFor = 0;
     if (this.sick) return this.rest(Math.random() < 0.5 ? 'Lie' : 'Sad', 4);
+    // 's nachts liggen de meeste dieren te slapen (wie honger heeft, gaat eerst eten)
+    if (w.isNight() && this.hunger < HUNGRY && Math.random() < 0.65) return this.rest('Lie', 5 + Math.random() * 4);
     if (!region) {
       if (this.escaped) {
         // buiten rondlopen: een paar stappen naar een willekeurige kant

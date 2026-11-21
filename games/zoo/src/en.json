@@ -537,6 +537,8 @@
   "host.sad": "The guests are bored. Show them happy animals!",
   "host.litter": "There is litter on the path. Grab the picker and put it in a bin!",
   "host.nopath": "The guests cannot get there. Lay a path to it!",
+  "host.dark": "It is too dark! The guests cannot see the animals. Add some lanterns.",
+  "say.night": "It is getting dark! Put lanterns in your park, so the guests can still see the animals.",
   "host.busy.foodstall": "The food stall is too busy. Add another food stall!",
   "host.busy.drinkstall": "The drink stall is too busy. Add another one!",
   "host.busy.toilet": "There is a queue for the toilet. Add another toilet!",

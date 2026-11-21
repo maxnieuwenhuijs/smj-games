@@ -528,6 +528,13 @@
       "variants": 3
     },
     {
+      "id": "amb.night",
+      "seconds": 22,
+      "loop": true,
+      "influence": 0.3,
+      "prompt": "Calm night ambience: crickets chirping, a soft breeze, an owl hooting far away now and then. Peaceful, no music."
+    },
+    {
       "id": "amb.wind",
       "seconds": 22,
       "loop": true,
