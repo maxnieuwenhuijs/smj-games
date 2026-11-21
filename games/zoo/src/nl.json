@@ -528,6 +528,9 @@
   "cash.full": "De kas is vol!",
 
   "pen.rename": "Naam",
+  "pen.color": "Kleur",
+  "pen.color.pick": "Kies een kleur",
+  "say.pen.color": "Tik op het hok en kies een kleur voor het hek!",
   "pen.empty": "Leeg",
   "pen.empty.sure": "Alle dieren weg?",
   "pen.closed": "dicht",

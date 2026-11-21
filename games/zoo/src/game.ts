@@ -8,7 +8,7 @@ import {
   BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
-  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, SPACE, guestsAt, SERVES, } from './data';
+  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, FENCE_COLORS, SPACE, guestsAt, SERVES, } from './data';
 import { Grid, H, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region } from './grid';
 import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
 import { cursor, icon, type IconId } from './icons';
@@ -114,7 +114,7 @@ export interface SaveData {
   animals: { species: SpeciesId; variant: Variant; gx: number; gy: number; hunger: number; name?: string; sick?: boolean; escaped?: boolean }[];
   poops: { gx: number; gy: number }[];
   /** `keeper`, `feeder` en `cleaner` komen uit oudere spellen, toen een werker bij één verblijf hoorde. */
-  pens?: { tile: number; name: string; keeper?: boolean; feeder?: boolean; cleaner?: boolean }[];
+  pens?: { tile: number; name: string; color?: number; keeper?: boolean; feeder?: boolean; cleaner?: boolean }[];
   /** Het personeel dat door het park loopt. */
   staff?: { role: WorkerRole; gx: number; gy: number }[];
   beds?: { x: number; y: number; kind: BedKind }[];
@@ -184,6 +184,8 @@ interface PoopObj {
 /** Een verblijf met een naam. De naam zie je als je op het verblijf tikt. */
 interface Pen {
   name: string;
+  /** De kleur van het hek: een plek in FENCE_COLORS (0 = de gewone kleur). */
+  color: number;
   region: Region;
   cx: number;
   cy: number;
@@ -271,7 +273,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Alle dieren in nood; `needy` is daarvan één per diersoort (wat je links in beeld ziet). */
   private needyAll: Animal[] = [];
   private marked: { a: Animal; until: number } | null = null;
-  private savedPens: { tile: number; name: string }[] = [];
+  private savedPens: { tile: number; name: string; color?: number }[] = [];
   /** Het personeel, en de klussen die al iemand doet. */
   workers: Worker[] = [];
   private claimed = new Set<object>();
@@ -324,8 +326,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (data && this.has('fun') && !this.toys.length) this.lines.push(say.funNew());
     this.startPath();
     this.view.paintTerrain(this.grid);
-    this.syncWear();
     this.syncPens(false);
+    this.syncWear();
     this.refreshGoals();
     this.refreshTools();
     this.attachInput(this.view.renderer.domElement);
@@ -367,7 +369,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.soldAll = d.soldAll ?? 0;
     this.coins = d.coins ?? START_COINS;
     this.debt = d.debt ?? 0;
-    this.savedPens = (d.pens ?? []).map(p => ({ name: p.name, tile: tileIndex((p.tile % ow) + ox, Math.floor(p.tile / ow) + oy) }));
+    this.savedPens = (d.pens ?? []).map(p => ({ name: p.name, color: p.color, tile: tileIndex((p.tile % ow) + ox, Math.floor(p.tile / ow) + oy) }));
     for (const tr of d.troughs) this.addTrough(tr.x + ox, tr.y + oy, tr.food, tr.amount);
     for (const b of d.beds ?? []) this.addBed(b.x + ox, b.y + oy, b.kind);
     for (const b of d.toys ?? []) this.addToy(b.x + ox, b.y + oy, b.kind);
@@ -449,7 +451,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       litter: this.litter.map(({ gx, gy }) => ({ gx, gy })),
       guests: this.guests.snapshot(),
       wear: Object.fromEntries(this.wear),
-      pens: this.pens.map(p => ({ tile: p.region.tiles[0], name: p.name })),
+      pens: this.pens.map(p => ({ tile: p.region.tiles[0], name: p.name, color: p.color || undefined })),
       staff: this.workers.map(w => ({ role: w.role, gx: w.gx, gy: w.gy })),
       beds: this.beds.map(({ x, y, kind }) => ({ x, y, kind })),
       toys: this.toys.map(({ x, y, kind }) => ({ x, y, kind })),
@@ -1111,8 +1113,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       else {
         const saved = this.savedPens.find(s => tiles.has(s.tile));
         const name = saved?.name ?? this.pickName('names.pens', [...old, ...next].map(p => p.name));
-        pen = { name, region, cx: 0, cy: 0, ax: 0, ay: 0, sign: this.hud.makeSign(t('pen.closed')), closedUntil: 0, love: {} };
-        if (announce) this.celebratePen(pen);
+        pen = { name, color: saved?.color ?? 0, region, cx: 0, cy: 0, ax: 0, ay: 0, sign: this.hud.makeSign(t('pen.closed')), closedUntil: 0, love: {} };
+        if (announce) this.celebratePen(pen, !old.length && !next.length && this.level === 0);
       }
       pen.region = region;
       pen.cx = region.tiles.reduce((s, i) => s + tileXY(i)[0] + 0.5, 0) / region.tiles.length;
@@ -1130,7 +1132,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   /** Een hek is een verblijf geworden: witte gloed, sterretjes en de bouwer noemt de naam. */
-  private celebratePen(pen: Pen): void {
+  private celebratePen(pen: Pen, first = false): void {
     this.view.flash(pen.region.tiles);
     sfx('chime');
     const tiles = pen.region.tiles;
@@ -1139,6 +1141,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       setTimeout(() => this.floatAt(icon('sparkle'), x + 0.2 + Math.random() * 0.6, y + 0.2 + Math.random() * 0.6, 0.3), k * 110);
     }
     this.sayNow(say.pen(pen.name));
+    // bij het allereerste verblijf leert de bouwer je dat je het hek een kleur kunt geven
+    if (first) this.lines.push(say.penColor());
   }
 
   private penAt(x: number, y: number): Pen | undefined {
@@ -1147,15 +1151,18 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   private gridChanged(): void {
-    this.syncWear();
     this.syncPens(true);
+    this.syncWear();
   }
 
   /** Tekent de hekken opnieuw met hun slijtage en houdt bij welke verblijven een kapot hek hebben. */
   private syncWear(): void {
     const wood = new Set(this.grid.edges().filter(x => x.kind === 1).map(x => edgeKey(x.e)));
     for (const key of [...this.wear.keys()]) if (!wood.has(key)) this.wear.delete(key);
-    this.view.syncFences(this.grid, this.wear);
+    // elk verblijf kleurt zijn eigen hek; een hek tussen twee verblijven krijgt de kleur van het laatste
+    const tints = new Map<string, number>();
+    for (const pen of this.pens) if (pen.color) for (const e of this.grid.borderEdges(pen.region)) tints.set(edgeKey(e), pen.color);
+    this.view.syncFences(this.grid, this.wear, tints);
     this.broken = new Set(this.grid.enclosures().filter(r => this.grid.borderEdges(r).some(e => this.wear.get(edgeKey(e)) === 3)).map(r => r.id));
   }
 
@@ -1248,11 +1255,22 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private penMenu(pen: Pen): void {
     const s = this.view.toScreen(pen.cx, pen.cy, 0.5);
     const opt = (id: string, ic: IconId, key: string, price = 0): ToolOption => ({ id, icon: icon(ic), label: t(key), price: price || undefined, cant: price > this.coins });
-    const items = [opt('rename', 'dice', 'pen.rename')];
+    const items = [opt('color', 'paint', 'pen.color'), opt('rename', 'dice', 'pen.rename')];
     items.push(opt('empty', 'empty', 'pen.empty'));
     const header = '';
     this.hud.showMenu(s.x, s.y, pen.name, items, id => {
-      if (id === 'rename') {
+      if (id === 'color') {
+        // tien kleuren die bij dit soort hek horen: hout, steen of net
+        const colors = FENCE_COLORS[this.grid.penKind(pen.region) as 1 | 3 | 4];
+        const swatches: ToolOption[] = colors.map((c, i) => ({ id: String(i), icon: `<span class="swatch" style="background:#${c.toString(16).padStart(6, '0')}"></span>`, label: '', on: i === pen.color }));
+        this.hud.showMenu(s.x, s.y, t('pen.color.pick'), swatches, pick => {
+          pen.color = Number(pick);
+          this.syncWear();
+          sfx('paint');
+          this.view.flash(pen.region.tiles);
+          void this.save();
+        });
+      } else if (id === 'rename') {
         pen.name = this.pickName('names.pens', this.pens.map(p => p.name));
         this.floatAt(pen.name, pen.cx, pen.cy, 0.6, 'word');
       } else if (this.animalsIn(pen.region.id).length) {

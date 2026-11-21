@@ -343,6 +343,12 @@ Vanaf level 8 slijt een houten hek (stenen muren en netten niet). Ongeveer eens 
 
 Kies bij de actieknop de hamer; een tik op het hek timmert het in elke fase weer vast. Bij een kapot hek voelen de dieren in dat verblijf zich niet veilig: ze zijn niet blij, het wolkje toont een hamertje en de bouwer zegt dat je het moet maken. Ze worden er niet voor opgehaald.
 
+## Hekken in een kleur
+
+Tik met het handje op een verblijf en kies Kleur (de kwast): je krijgt tien kleuren die bij dat soort hek horen. Hout: gewoon, wit, rood, blauw, groen, geel, roze, paars, oranje en donkerbruin. Steen: grijs, zand, baksteen, wit, donkergrijs, mosgroen, blauwgrijs, roze, geel en bruin. Net: groen, zwart, wit, blauw, rood, geel, oranje, paars, roze en zilver. Het hele hek van dat verblijf krijgt de kleur, ook de poort; een hek tussen twee verblijven krijgt de kleur van het laatste. De kleur wordt bewaard met het spel. Versleten hout blijft zichtbaar donkerder.
+
+Bij het allereerste verblijf zegt de bouwer het erbij: "Tik op het hok en kies een kleur voor het hek!" De kleuren staan in `games/zoo/src/data.ts` (`FENCE_COLORS`).
+
 ## Hekken slepen
 
 Een hek teken je door te slepen. De eerste beweging (een derde tegel) bepaalt de richting; daarna blijft het hek op die ene lijn van het raster, ook als de vinger zwabbert. Pas als je driekwart tegel opzij gaat, maakt het hek op het dichtstbijzijnde kruispunt een hoek en loopt het haaks verder. Zo teken je een heel verblijf in één beweging. Een heel kort veegje telt als een tik op die rand. De getallen staan bovenaan `games/zoo/src/game.ts` (`AXIS_AFTER`, `TURN_AFTER`, `EDGE_REACH`).
@@ -354,7 +360,7 @@ Een hek teken je door te slepen. De eerste beweging (een derde tegel) bepaalt de
 | Dier | Aaien (je hoort het dier), uit de hand voeren, andere naam, laten slapen, verzetten, weg (het dier verhuist naar een andere dierentuin, na een ja of nee), dokter (als het ziek is); je ziet welke wensen vervuld zijn |
 | Gum op een dier | Dezelfde vraag: mag dit dier verhuizen? |
 | Ontsnapt dier | Eén tik pakt het op, een tweede tik zet het in een verblijf |
-| Verblijf | Je ziet de naam. Andere naam, voerder en schoonmaker aannemen of naar huis sturen, leegmaken (met bevestiging) |
+| Verblijf | Je ziet de naam. Kleur van het hek, andere naam, voerder en schoonmaker aannemen of naar huis sturen, leegmaken (met bevestiging) |
 | Voerbak | Vullen met een voersoort; het voer staat altijd in dezelfde volgorde en wat de dieren daar lusten is geel; je ziet hoeveel erin zit |
 | Gast | Zien hoe het gaat, wat zijn lievelingsdier is en wat hij nu wil; zwaaien |
 | Poep, afval en versleten hekken | Alleen met de actieknop (veger, prikker, hamer); een tik met iets anders kiest het goede gereedschap en wijst de knop aan |

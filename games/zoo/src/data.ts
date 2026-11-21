@@ -106,6 +106,16 @@ export const SERVES: Partial<Record<ShopKind, number>> = { foodstall: 10, drinks
 export const MAX_GUESTS = 60;
 export const guestsAt = (level: number, quality = 2): number => Math.min([30, 45, MAX_GUESTS][quality] ?? MAX_GUESTS, 14 + level);
 
+/**
+ * Tien kleuren per soort hek (1 = hout, 3 = steen, 4 = net). De eerste is de gewone kleur. Je kiest de kleur
+ * door op een verblijf te tikken.
+ */
+export const FENCE_COLORS: Record<1 | 3 | 4, number[]> = {
+  1: [0xc58a4b, 0xf3ead6, 0xe0584f, 0x4a90e2, 0x6cc04a, 0xffd23f, 0xf48fb1, 0xa06ad9, 0xf08a24, 0x6b4a2a],
+  3: [0xa9adb3, 0xe8dcc0, 0xc9553f, 0xf7f4ec, 0x5a6470, 0x8fae7a, 0x8fb4d9, 0xe6a9b8, 0xe5c66a, 0x8a6a4a],
+  4: [0x3f7f6b, 0x2b2f36, 0xf3f3f3, 0x4a90e2, 0xe0584f, 0xffd23f, 0xf08a24, 0xa06ad9, 0xf48fb1, 0xb9c2c9],
+};
+
 /** Hoeveel tegels breed en diep een winkel is: gebouwen 2 bij 2, losse dingen 1 bij 1. */
 export const SHOP_SIZE: Record<ShopKind, number> = {
   foodstall: 2, drinkstall: 2, toilet: 2, playground: 2, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2, icecream: 2, balloon: 2, hats: 2, souvenir: 2, bench: 1, flowers: 1, bin: 1, fountain: 2, carousel: 2,

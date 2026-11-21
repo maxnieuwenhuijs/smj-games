@@ -90,6 +90,7 @@ export const say = {
   soon: (): Line => ({ who: 'director', mood: 'happy', key: 'say.soon' }),
   done: (): Line => ({ who: 'director', mood: 'happy', key: 'say.done' }),
   pen: (name: string): Line => ({ who: 'builder', mood: 'happy', key: 'say.pen', vars: { name } }),
+  penColor: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.pen.color' }),
   reopen: (name: string): Line => ({ who: 'builder', mood: 'happy', key: 'say.reopen', vars: { name } }),
   wrongFood: (tr: Tr, sp: SpeciesId): Line => ({ who: 'keeper', mood: 'worried', key: 'alert.wrongfood', vars: speciesVars(tr, sp) }),
   taken: (tr: Tr, sp: SpeciesId): Line => ({ who: 'keeper', mood: 'urgent', key: 'say.taken', vars: speciesVars(tr, sp) }),
@@ -176,6 +177,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
     add(say.level(i + 1));
     for (const g of level.goals) add(goalLine(tr, g));
   });
+  add(say.penColor());
   for (const name of tr('names.pens').split(',')) {
     add(say.pen(name));
     add(say.reopen(name));

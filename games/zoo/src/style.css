@@ -49,6 +49,10 @@ button { font: inherit; color: inherit; }
 .tool b { font-size: clamp(7px, 1.9vw, 13px); font-weight: 700; line-height: 1.1; }
 .tool.small { width: min(70px, 13vw); height: min(70px, 13vw); border-radius: 18px; }
 .tool.small .ic { font-size: min(34px, 6.4vw); }
+/* een kleur kiezen: een rond vlakje verf */
+.tool .swatch { width: 62%; height: 62%; border-radius: 50%; box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.18); }
+.tool.small:has(.swatch) { width: min(54px, 11vw); height: min(54px, 11vw); }
+#menu .row:has(.swatch) { max-width: min(330px, 92vw); }
 /* net vrijgespeeld: een sterretje linksboven */
 .tool .new { position: absolute; left: -7px; top: -9px; animation: needy 1.4s ease-in-out infinite; pointer-events: none; }
 .tool .new .ic { font-size: 24px; width: 24px; height: 24px; }

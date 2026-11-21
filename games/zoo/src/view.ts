@@ -1,7 +1,7 @@
 // Het beeld: isometrische camera, tegels, hekken, voerbakken en het voorbeeld van wat je gaat plaatsen.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { BEDS, SHOPS, SHOP_SIZE, TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind } from './data';
+import { FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind } from './data';
 import { Grid, H, W, edgeKey, tileXY, type Edge } from './grid';
 
 const SQRT2 = Math.SQRT2;
@@ -978,23 +978,37 @@ export class View {
     return kinds.includes(3) ? 3 : kinds.includes(4) ? 4 : 1;
   }
 
-  /** `wear`: per rand hoe versleten het houten hek is (1, 2 of 3). */
-  syncFences(grid: Grid, wear?: Map<string, number>): void {
-    const wanted = new Map<string, { e: Edge; kind: number; style: number; worn: number }>();
+  /** Een hek in een eigen kleur; versleten hout wordt per fase donkerder. */
+  private tintMats = new Map<string, THREE.Material>();
+  private tintMat(style: number, tint: number, worn: number): THREE.Material {
+    const key = `${style}:${tint}:${worn}`;
+    let mat = this.tintMats.get(key);
+    if (!mat) {
+      const color = new THREE.Color(FENCE_COLORS[style as 1 | 3 | 4][tint]).multiplyScalar([1, 0.86, 0.7, 0.54][worn]);
+      mat = new THREE.MeshStandardMaterial({ color, roughness: style === 4 ? 0.7 : 0.95 });
+      this.tintMats.set(key, mat);
+    }
+    return mat;
+  }
+
+  /** `wear`: per rand hoe versleten het houten hek is (1, 2 of 3). `tints`: per rand de gekozen kleur (zie FENCE_COLORS). */
+  syncFences(grid: Grid, wear?: Map<string, number>, tints?: Map<string, number>): void {
+    const wanted = new Map<string, { e: Edge; kind: number; style: number; worn: number; tint: number }>();
     for (const item of grid.edges()) {
       const style = item.kind === 2 ? this.gateStyle(grid, item.e) : item.kind;
       const worn = item.kind === 1 ? wear?.get(edgeKey(item.e)) ?? 0 : 0;
-      wanted.set(`${edgeKey(item.e)}:${item.kind}:${style}:${worn}`, { ...item, style, worn });
+      const tint = tints?.get(edgeKey(item.e)) ?? 0;
+      wanted.set(`${edgeKey(item.e)}:${item.kind}:${style}:${worn}:${tint}`, { ...item, style, worn, tint });
     }
     for (const [key, mesh] of this.fences)
       if (!wanted.has(key)) {
         this.scene.remove(mesh);
         this.fences.delete(key);
       }
-    for (const [key, { e, kind, style, worn }] of wanted) {
+    for (const [key, { e, kind, style, worn, tint }] of wanted) {
       if (this.fences.has(key)) continue;
       const geo = kind === 4 ? NET_GEO : kind === 3 ? WALL_GEO : kind === 2 ? GATE_GEO : WORN_GEOS[worn];
-      const mesh = new THREE.Mesh(geo, style === 3 ? STONE_MAT : style === 4 ? NET_MAT : WORN_MATS[worn]);
+      const mesh = new THREE.Mesh(geo, tint ? this.tintMat(style, tint, worn) : style === 3 ? STONE_MAT : style === 4 ? NET_MAT : WORN_MATS[worn]);
       this.placeEdge(mesh, e);
       mesh.castShadow = true;
       this.scene.add(mesh);

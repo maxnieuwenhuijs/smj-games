@@ -528,6 +528,9 @@
   "cash.full": "The till is full!",
 
   "pen.rename": "Name",
+  "pen.color": "Colour",
+  "pen.color.pick": "Pick a colour",
+  "say.pen.color": "Tap the pen and pick a colour for the fence!",
   "pen.empty": "Empty",
   "pen.empty.sure": "All animals away?",
   "pen.closed": "closed",

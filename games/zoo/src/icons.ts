@@ -294,6 +294,9 @@ const ICONS = {
     `<path d="M24 44 q-6 -3 0 -6 q6 -3 0 -6 q-6 -3 0 -5" fill="none" stroke="#8a857a" stroke-width="3" stroke-linecap="round"/><ellipse cx="22" cy="20" rx="14" ry="8" fill="${RED}"/><circle cx="37" cy="13" r="7" fill="${RED}"/><path d="M43 13 l5 2 l-5 2Z" fill="${SUN}"/><circle cx="38.5" cy="11.5" r="1.5" fill="#fff"/><path d="M8 18 l-5 -6 l8 2Z" fill="${SUN}"/><path d="M26 10 v-6" stroke="#3d4f5a" stroke-width="3" stroke-linecap="round"/><rect x="18" y="42" width="12" height="4" rx="2" fill="#3d4f5a"/>`,
   trampoline:
     `<ellipse cx="24" cy="30" rx="21" ry="9" fill="#4a90e2"/><ellipse cx="24" cy="29" rx="16" ry="6" fill="#3d4f5a"/><path d="M8 34 V44 M40 34 V44 M24 39 V46" stroke="#8a857a" stroke-width="3.5" stroke-linecap="round"/><circle cx="24" cy="10" r="5" fill="${SUN}"/><path d="M17 19 q7 -4 14 0" fill="none" stroke="${SUN}" stroke-width="3" stroke-linecap="round"/>`,
+  // een kwast met verf: de kleur van het hek kiezen
+  paint:
+    `<path d="M41 5 L26 20" stroke="${WOOD_D}" stroke-width="5" stroke-linecap="round"/><path d="M27 16 L32 21 L22 33 Q15 40 6 42 Q9 34 15 27Z" fill="${RED}"/><path d="M25 18 L30 23" stroke="#8a857a" stroke-width="3"/><circle cx="37" cy="35" r="5" fill="#4a90e2"/><circle cx="27" cy="42" r="4" fill="${SUN}"/>`,
   // de actieknop: veger, hamer en prikker naast elkaar
   action:
     `<path d="M13 4 L10 25" stroke="${WOOD_D}" stroke-width="3.5" stroke-linecap="round"/><path d="M3 26 H17 L19 41 H1Z" fill="${SUN}"/><path d="M6 31 V40 M10 31 V40 M14 31 V40" stroke="${SUN_D}" stroke-width="1.5"/><path d="M3 26 H17" stroke="${RED}" stroke-width="4" stroke-linecap="round"/>` +
