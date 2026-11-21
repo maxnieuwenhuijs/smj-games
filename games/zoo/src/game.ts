@@ -18,11 +18,13 @@ import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStat
 import { ENTRANCE, GuestManager, Vendor, Worker, edgePose, edgeSides, shopCenter, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type ShopSpot, type WorkerRole, type WorkerWorld } from './people';
 import { View, toWorldX, toWorldZ, type TroughMesh } from './view';
 
-export type ToolId = 'hand' | 'broom' | 'terrain' | 'fence' | 'trough' | 'bed' | 'toy' | 'shop' | 'decor' | 'animal' | 'staff' | 'erase';
+/** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken. */
+export type ActionId = 'broom' | 'hammer' | 'picker';
+export type ToolId = 'hand' | 'action' | 'terrain' | 'fence' | 'trough' | 'bed' | 'toy' | 'shop' | 'decor' | 'animal' | 'staff' | 'erase';
 type Verdict = 'good' | 'ok' | 'bad';
 type Sex = 'male' | 'female';
 
-const PAINT_TOOLS = new Set<ToolId>(['terrain', 'fence', 'erase', 'broom']);
+const PAINT_TOOLS = new Set<ToolId>(['terrain', 'fence', 'erase', 'action']);
 /** Hek slepen (in tegels): na zoveel beweging ligt de richting vast, zoveel opzij is een hoek, en zo ver moet je een rand op zijn. */
 const AXIS_AFTER = 0.3;
 const TURN_AFTER = 0.75;
@@ -82,6 +84,7 @@ const CUR: Record<string, string> = {
   move: cursor('move'),
   catch: cursor('catch', 20, 12),
   hammer: cursor('hammer', 8, 26),
+  picker: cursor('picker', 5, 30),
   staff: cursor('keeper'),
 };
 for (const id of [...TERRAINS, ...BEDS, ...SHOPS, ...TOYS, ...DECORS]) CUR[id] = cursor(id);
@@ -213,7 +216,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   stats: Stats = emptyStats();
   tool: ToolId = 'hand';
 
-  private option = { terrain: 'mud', fence: 'fence', bed: 'straw', toy: 'ball', staff: 'feed', decor: 'tree', decorGroup: 'green', shop: 'foodstall', animal: '', sex: 'male', world: 'farm' };
+  private option = { action: 'broom', terrain: 'mud', fence: 'fence', bed: 'straw', toy: 'ball', staff: 'feed', decor: 'tree', decorGroup: 'green', shop: 'foodstall', animal: '', sex: 'male', world: 'farm' };
   private puddles: { mesh: THREE.Mesh; life: number }[] = [];
   private bubbles = new Map<Animal, HTMLElement>();
   private guestBubbles = new Map<Guest, HTMLElement>();
@@ -243,10 +246,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private toolsKey = '';
   /** Tot dit moment knippert de veger, omdat er net op een poepje is getikt. */
   private nudge = 0;
+  private fullAt = 0;
   /** De knop waarvan de keuzerij nog open staat nadat er iets is neergezet (het handje is dan aan). */
   private linger: ToolId | null = null;
   /** Het poepje of afval onder de muis of vinger: dat licht op. */
   private hoverPoop: PoopObj | null = null;
+  private hoverWorn: Edge | null = null;
   /** Dieren die hulp nodig hebben, de dringendste eerst; en het dier waar de knop je net heen bracht. */
   private needy: Animal[] = [];
   /** Alle dieren in nood; `needy` is daarvan één per diersoort (wat je links in beeld ziet). */
@@ -698,6 +703,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (!list.includes(this.option[key] as T)) this.option[key] = list[list.length - 1] ?? '';
     };
     pickFrom('world', this.worldOptions());
+    if (!this.actionOptions().includes(this.option.action as ActionId)) this.option.action = 'broom';
     // alle dieren staan achter elkaar in één rij, per wereld met een kopje ervoor
     const shown = species;
     pickFrom('animal', shown);
@@ -708,7 +714,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     pickFrom('fence', this.fenceOptions());
     if ((this.tool === 'animal' && !species.length) || (this.tool === 'shop' && !this.shopOptions().length)) this.tool = 'hand';
 
-    const hint = this.clock < this.nudge && this.tool !== 'broom' ? 'broom' : this.hintTool();
+    const hint = this.clock < this.nudge && this.tool !== 'action' ? 'action' : this.hintTool();
     // de balk wordt alleen opnieuw opgebouwd als er echt iets anders in komt; bij een munt meer of minder
     // verandert alleen het prijskaartje, anders flikkeren de plaatjes van de dieren
     this.hud.setAfford(this.coins);
@@ -719,10 +725,17 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const opt = (id: string, ic: IconId, label: string, price = 0, tone?: ToolOption['tone']): ToolOption => ({
       id, icon: icon(ic), label, tone, price: price || undefined, cant: price > this.coins,
     });
+    const acts = this.actionOptions();
     const defs: ToolDef[] = [
       opt('hand', 'hand', t('tool.hand')),
-      // de veger komt erbij zodra er dieren zijn die kunnen poepen
-      ...(this.level >= 1 ? [opt('broom', 'broom', t('tool.broom'))] : []),
+      // de actieknop komt erbij zodra er dieren zijn die kunnen poepen. Eerst is het alleen de veger; komen er
+      // afval en versleten hekken bij, dan kies je in de rij erboven: veger, hamer of prikker
+      ...(this.level >= 1
+        ? [{
+            ...opt('action', this.option.action as IconId, acts.length > 1 ? t('tool.action') : t('action.broom')),
+            rows: acts.length > 1 ? [{ key: 'action', active: this.option.action, options: acts.map(k => opt(k, k, t(`action.${k}`))) }] : [],
+          }]
+        : []),
       {
         ...opt('terrain', 'terrain', t('tool.terrain')),
         rows: [{ key: 'terrain', active: this.option.terrain, options: this.terrainOptions().map(k => opt(k, k, t(`terrain.${k}`))) }],
@@ -780,6 +793,34 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.hud.setTools(defs, this.tool, hint, this.linger);
   }
 
+  /** Wat er onder de actieknop zit: de veger altijd, de prikker zodra er afval komt, de hamer zodra hekken slijten. */
+  private actionOptions(): ActionId[] {
+    return ['broom', ...(this.has('wear') ? (['hammer'] as const) : []), ...(this.has('bin') ? (['picker'] as const) : [])];
+  }
+
+  /** Een tik met het verkeerde gereedschap: het goede wordt alvast gekozen en de actieknop licht op. */
+  private pointTo(act: ActionId, gx: number, gy: number): void {
+    if (!this.actionOptions().includes(act)) return;
+    this.option.action = act;
+    this.floatAt(icon(act), gx, gy, 0.5);
+    if (this.tool !== 'action') this.nudge = this.clock + 5;
+    this.refreshTools(true);
+  }
+
+  /** Het versleten hek vlak bij dit punt, als dat er is. */
+  private wornAt(gx: number, gy: number): Edge | null {
+    const e = nearestEdge(gx, gy, 0.3);
+    return e && this.wear.has(edgeKey(e)) ? e : null;
+  }
+
+  /** Ligt hier iets waar het gekozen gereedschap van de actieknop iets mee kan? Anders sleep je het veld. */
+  private actionTarget(cx: number, cy: number): boolean {
+    if (this.option.action === 'broom') return !!this.pickPoop(cx, cy);
+    if (this.option.action === 'picker') return !!this.pickLitter(cx, cy);
+    const g = this.view.groundPoint(cx, cy);
+    return !!g && !!this.wornAt(g.gx, g.gy);
+  }
+
   private firstOpenGoal(): number {
     const level = this.levelDef();
     return level ? level.goals.findIndex(g => goalProgress(g, this.stats) < g.n) : -1;
@@ -800,7 +841,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       case 'shop': return 'shop';
       case 'animals': return 'animal';
       case 'cleaned':
-      case 'tidy': return 'broom';
+      case 'tidy': return 'action';
       case 'fed':
       case 'healed':
       case 'caught':
@@ -1113,7 +1154,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.syncWear();
   }
 
-  /** Een tik met het handje timmert een versleten hek weer vast. */
+  /** Een tik met de hamer timmert een versleten hek weer vast. */
   private repair(e: Edge): void {
     this.wear.delete(edgeKey(e));
     this.syncWear();
@@ -1123,9 +1164,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.floatAt(icon('sparkle'), x, y, 0.3);
   }
 
-  /** Afval oprapen: het gaat mee in je handen tot je op een afvalbak tikt. */
+  /** Afval prikken: het gaat mee tot je op een afvalbak tikt. */
   private pickUp(p: PoopObj): void {
     if (this.carry >= MAX_CARRY) {
+      // bij slepen over meer afval niet steeds opnieuw melden
+      if (this.clock < this.fullAt) return;
+      this.fullAt = this.clock + 1.5;
       this.floatAt(icon('bin'), p.gx, p.gy, 0.5);
       this.floatAt(t('carry.full'), p.gx, p.gy, 0.9, 'word');
       return;
@@ -2052,6 +2096,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.view.hideGhost();
     if (this.staffGhost) this.staffGhost.worker.mesh.visible = false;
     this.hoverPoop = null;
+    this.hoverWorn = null;
     const g = this.view.groundPoint(cx, cy);
     if (!g) return;
     const x = Math.floor(g.gx), y = Math.floor(g.gy);
@@ -2140,13 +2185,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         else if (inside && this.shopAt(x, y)) this.view.ghostShop(this.shopAt(x, y)!.x, this.shopAt(x, y)!.y, this.shopAt(x, y)!.kind, false, undefined, this.shopAt(x, y)!.rot ?? 0);
         return this.hud.setCursor(CUR.erase);
       }
-      case 'broom':
-        this.hoverPoop = this.pickPoop(cx, cy) ?? null;
-        return this.hud.setCursor(CUR.broom);
+      case 'action':
+        this.hoverPoop = (this.option.action === 'broom' ? this.pickPoop(cx, cy) : this.option.action === 'picker' ? this.pickLitter(cx, cy) : null) ?? null;
+        this.hoverWorn = this.option.action === 'hammer' ? this.wornAt(g.gx, g.gy) : null;
+        return this.hud.setCursor(CUR[this.option.action]);
       default:
         if (dragging) return this.hud.setCursor(CUR.grabbing);
         if (this.pickLoose(cx, cy)) return this.hud.setCursor(CUR.catch);
-        if (this.wear.has(edgeKey(nearestEdge(g.gx, g.gy, 0.3) ?? { o: 'h', x: -1, y: -1 }))) return this.hud.setCursor(CUR.hammer);
         if (this.pickAnimal(cx, cy)) return this.hud.setCursor(CUR.pet);
         if (this.pick(this.guests.guests, cx, cy, q => q.height * 0.6, 0.4)) return this.hud.setCursor(CUR.menu);
         if (inside && (this.troughAt(x, y) || this.shopAt(x, y))) return this.hud.setCursor(inside && this.troughAt(x, y) ? CUR.feed : CUR.menu);
@@ -2161,10 +2206,19 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!g) return;
     const first = !along;
     const x = Math.floor(g.gx), y = Math.floor(g.gy);
-    if (this.tool === 'broom') {
-      // vegen: alles waar je overheen gaat is weg
-      const poop = this.pickPoop(cx, cy);
-      if (poop) this.cleanPoop(poop);
+    if (this.tool === 'action') {
+      if (this.option.action === 'broom') {
+        // vegen: alles waar je overheen gaat is weg
+        const poop = this.pickPoop(cx, cy);
+        if (poop) this.cleanPoop(poop);
+      } else if (this.option.action === 'picker') {
+        // prikken: het afval gaat mee tot je op een afvalbak tikt
+        const litter = this.pickLitter(cx, cy);
+        if (litter) this.pickUp(litter);
+      } else {
+        const worn = this.wornAt(g.gx, g.gy);
+        if (worn) this.repair(worn);
+      }
       return;
     }
     if (this.tool === 'terrain') {
@@ -2341,24 +2395,28 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       animalSound(loose.species, loose.young);
       return this.floatAt(icon('catch'), loose.gx, loose.gy, loose.top + 0.2);
     }
-    // opruimen kan alleen met de veger: een tik met een andere knop wijst die aan
-    // afval raap je op met het handje; daarna tik je op een afvalbak
-    const litter = this.tool === 'hand' ? this.pickLitter(cx, cy) : undefined;
-    if (litter && !this.pickAnimal(cx, cy, 0.35)) return this.pickUp(litter);
+    // vegen, afval prikken en hekken timmeren kan alleen met de actieknop. Een tik met iets anders (of met het
+    // verkeerde gereedschap) kiest alvast het goede en wijst de knop aan
+    const litter = this.pickLitter(cx, cy);
     const mess = this.pickPoop(cx, cy);
-    if (this.tool === 'broom') return;
-    if (mess && !this.pickAnimal(cx, cy, 0.35)) {
-      this.floatAt(icon('broom'), mess.gx, mess.gy, 0.5);
-      this.nudge = this.clock + 5;
-      return this.refreshTools(true);
+    const worn = g ? this.wornAt(g.gx, g.gy) : null;
+    const item = g ? this.shops.find(sh => sh.edge && Math.hypot(edgePose(sh)[0] - g.gx, edgePose(sh)[1] - g.gy) < 0.38) : undefined;
+    if (this.tool === 'action') {
+      // wat je geprikt hebt gaat met een tik in de afvalbak
+      if (item?.kind === 'bin' && this.carry) return this.dump(item);
+      if (mess) this.pointTo('broom', mess.gx, mess.gy);
+      else if (litter) this.pointTo('picker', litter.gx, litter.gy);
+      else if (worn && g) this.pointTo('hammer', g.gx, g.gy);
+      return;
+    }
+    if (!this.pickAnimal(cx, cy, 0.35)) {
+      if (litter && this.tool === 'hand') return this.pointTo('picker', litter.gx, litter.gy);
+      if (mess) return this.pointTo('broom', mess.gx, mess.gy);
     }
     if (this.tool === 'hand' && g) {
       // een tik op een bankje, bloembak of afvalbak draait het om (ook als er iemand op zit)
-      const item = this.shops.find(sh => sh.edge && Math.hypot(edgePose(sh)[0] - g.gx, edgePose(sh)[1] - g.gy) < 0.38);
       if (item && !this.pickAnimal(cx, cy, 0.3)) return item.kind === 'bin' && this.carry ? this.dump(item) : this.turnItem(item);
-      // een versleten hek timmer je met een tik weer vast
-      const worn = nearestEdge(g.gx, g.gy, 0.3);
-      if (worn && this.wear.has(edgeKey(worn))) return this.repair(worn);
+      if (worn) return this.pointTo('hammer', g.gx, g.gy);
     }
     if (this.tool === 'hand') {
       const animal = this.pickAnimal(cx, cy);
@@ -2410,8 +2468,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       }
       if (this.pointers.size > 2 || this.celebrating) return;
       const pan = e.button !== 0;
-      // met de veger sleep je het veld net als met het handje; alleen als je op een poepje begint, veeg je
-      const sweeping = this.tool !== 'broom' || !!(this.pickPoop(e.clientX, e.clientY) ?? this.pickLitter(e.clientX, e.clientY));
+      // met de actieknop sleep je het veld net als met het handje; alleen als je op een poepje, afval of een
+      // versleten hek begint (wat bij het gekozen gereedschap hoort), ga je aan het werk
+      const sweeping = this.tool !== 'action' || this.actionTarget(e.clientX, e.clientY);
       const paint = !pan && !this.moving && PAINT_TOOLS.has(this.tool) && sweeping;
       this.drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false, pan, paint };
       this.stroke.clear();
@@ -2700,8 +2759,19 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     // wat er oplicht: met de veger alle poepjes en afval, anders alleen wat onder de muis ligt; en het dier in nood
     const spots: { gx: number; gy: number; r?: number; hot?: boolean }[] = [];
     const hot = this.hoverPoop && (this.poops.includes(this.hoverPoop) || this.litter.includes(this.hoverPoop)) ? this.hoverPoop : null;
-    if (this.tool === 'broom') for (const p of this.poops) spots.push({ gx: p.gx, gy: p.gy, hot: p === hot, r: p === hot ? 1.5 : 1 });
-    else if (hot) spots.push({ gx: hot.gx, gy: hot.gy, hot: true, r: 1.4 });
+    if (this.tool === 'action' && this.option.action === 'hammer') {
+      // de hamer: alle versleten hekken lichten op
+      const at = this.hoverWorn ? edgeKey(this.hoverWorn) : '';
+      for (const e of this.grid.edges()) {
+        const key = edgeKey(e.e);
+        if (this.wear.has(key)) spots.push({ gx: e.e.x + (e.e.o === 'h' ? 0.5 : 0), gy: e.e.y + (e.e.o === 'h' ? 0 : 0.5), hot: key === at, r: key === at ? 1.8 : 1.3 });
+      }
+    } else if (this.tool === 'action') {
+      // de veger: alle poepjes; de prikker: al het afval, en de afvalbakken zodra je iets bij je hebt
+      for (const p of this.option.action === 'broom' ? this.poops : this.litter) spots.push({ gx: p.gx, gy: p.gy, hot: p === hot, r: p === hot ? 1.5 : 1 });
+      if (this.option.action === 'picker' && this.carry)
+        for (const bin of this.shops) if (bin.kind === 'bin') spots.push({ gx: edgePose(bin)[0], gy: edgePose(bin)[1], hot: true, r: 1.6 });
+    } else if (hot) spots.push({ gx: hot.gx, gy: hot.gy, hot: true, r: 1.4 });
     if (this.marked && (this.clock > this.marked.until || !this.animals.includes(this.marked.a))) this.marked = null;
     if (this.marked) spots.push({ gx: this.marked.a.gx, gy: this.marked.a.gy, hot: true, r: 2.6 });
     this.view.showMarks(spots, this.clock * 5);

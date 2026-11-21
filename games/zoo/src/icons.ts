@@ -254,6 +254,10 @@ const ICONS = {
     '<path d="M24 31 Q23 22 27 14" fill="none" stroke="#8a5a2c" stroke-width="3.5" stroke-linecap="round"/><path d="M27 14 Q18 8 13 15 M27 14 Q36 8 41 16 M27 14 Q24 6 30 4" fill="none" stroke="#5bab4c" stroke-width="4" stroke-linecap="round"/>',
   turn:
     `<path d="M38 24 A14 14 0 1 1 30 11" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><path d="M28 3 L40 10 L29 18Z" fill="${INK}"/>`,
+  // de prikker: een stok met een punt, met een propje papier eraan geprikt
+  picker:
+    `<path d="M9 27 L24 29 L23 42 L10 40Z" fill="#fff" stroke="${GREY}" stroke-width="2" stroke-linejoin="round"/><path d="M15 37 L8 45" stroke="#8a857a" stroke-width="3" stroke-linecap="round"/>` +
+    `<path d="M41 5 L15 37" stroke="${WOOD_D}" stroke-width="5" stroke-linecap="round"/><path d="M41 5 L35 12.4" stroke="${RED}" stroke-width="7" stroke-linecap="round"/>`,
   hammer:
     `<path d="M12 40 L28 20" stroke="${WOOD_D}" stroke-width="6" stroke-linecap="round"/><path d="M20 12 L34 6 L42 16 L36 22 L30 16 L24 22Z" fill="#8a857a" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`,
   // het hok is te klein: een klein verblijf met een dier dat er bijna niet in past, en groene pijlen naar de grootte die het moet worden

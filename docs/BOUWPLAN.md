@@ -268,9 +268,17 @@ Als vuistregel heb je per 10 gasten een eetkraam en een drinkkraam nodig, per 8 
 
 Na het neerzetten van een voerbak, slaapplek, winkel of dier staat het handje weer aan. Zo koopt een volgende tik niet per ongeluk nog iets. De rij met dieren, winkels of slaapplekken blijft wel open staan, met de laatste keuze omlijnd: een tik op een dier in die rij zet de knop weer aan, een tik op het handje sluit de rij. Hek, ondergrond (ook pad) en de gum blijven aan staan: daar veeg je mee. Lukt het neerzetten niet (verkeerde plek, te weinig munten), dan blijft de knop aan.
 
-## De veger
+## De actieknop: veger, hamer en prikker
 
-Poep ruim je alleen op met de knop Veger (vanaf level 2); afval raap je op (zie hieronder). Tik je er met een andere knop op, dan gebeurt er niets, behalve dat er een bezempje boven verschijnt en de veger een paar tellen knippert. Met de veger sleep je het veld net als met het handje; begin je op een poepje, dan veeg je. Met de veger aan krijgen alle poepjes en al het afval een gele ring, zodat je ze goed ziet, en veeg je alles weg waar je overheen sleept. Wat onder de muis ligt, krijgt een grotere oranje ring. Vraagt een level om opruimen, dan knippert de veger als tip.
+Naast het handje staat de actieknop. In level 2 tot en met 5 is dat alleen de veger. Zodra er afval komt (level 6) en hekken gaan slijten (level 8), heet de knop Actie en kies je in de rij erboven uit drie dingen:
+
+| Keuze | Wat je ermee doet |
+|---|---|
+| Veger | Poep wegvegen. Alle poepjes krijgen een gele ring; je veegt alles weg waar je overheen sleept. |
+| Hamer | Een versleten hek vasttimmeren. Alle versleten hekken krijgen een ring. |
+| Prikker | Afval prikken. Al het afval krijgt een ring; heb je iets bij je, dan lichten de afvalbakken op. Een tik op een afvalbak gooit het weg. |
+
+Op de knop zelf staat het plaatje van wat je gekozen hebt. Vegen, timmeren en prikken kan alleen hiermee. Tik je met het handje (of met het verkeerde gereedschap) op poep, afval of een versleten hek, dan gebeurt er niets, behalve dat het goede plaatje erboven verschijnt, dat gereedschap alvast gekozen wordt en de actieknop een paar tellen knippert. Met de actieknop aan sleep je het veld net als met het handje; begin je op iets waar je gereedschap bij hoort, dan ga je aan het werk. Wat onder de muis ligt, krijgt een grotere oranje ring. Vraagt een level om opruimen, dan knippert de knop als tip.
 
 Een poepje valt nooit onder een slaapplek of voerbak: het komt op de vrije tegel ernaast terecht. Zet je een slaapplek of voerbak op een tegel waar al poep ligt, dan schuift die ernaast.
 
@@ -286,9 +294,9 @@ Vanaf level 6 is er de knop Mooi: versieringen op een vrije tegel buiten de verb
 
 Gasten die binnen twee tegels van een versiering lopen, worden er een beetje blijer van (tot drie versieringen tellen mee). Weghalen met de gum geeft de helft terug.
 
-## Afval oprapen
+## Afval prikken
 
-Vanaf level 6, zodra er een eetkraam is, laten gasten afval vallen als er geen afvalbak binnen anderhalve tegel staat (hooguit acht stuks tegelijk in het park). Afvalbakken zijn er daarom ook al vanaf level 6. Het afval is er in vier soorten, groot en kleurig genoeg om op te vallen: een beker met rietje, een frietzak, een bananenschil en een blikje. Tik er met het handje op om het op te rapen: je hebt het dan in je handen (links in beeld zie je hoeveel, hooguit vijf). Tik daarna op een afvalbak om het weg te gooien; dat levert een munt per stuk op en telt voor de opdrachten. Een schoonmaker raapt het ook op.
+Vanaf level 6, zodra er een eetkraam is, laten gasten afval vallen als er geen afvalbak binnen anderhalve tegel staat (hooguit acht stuks tegelijk in het park). Afvalbakken zijn er daarom ook al vanaf level 6. Het afval is er in vier soorten, groot en kleurig genoeg om op te vallen: een beker met rietje, een frietzak, een bananenschil en een blikje. Kies bij de actieknop de prikker en tik erop (of sleep eroverheen) om het op te prikken: je hebt het dan bij je (links in beeld zie je hoeveel, hooguit vijf). Tik daarna op een afvalbak om het weg te gooien; dat levert een munt per stuk op en telt voor de opdrachten. Een schoonmaker raapt het ook op.
 
 ## Dier in nood
 
@@ -306,7 +314,7 @@ Vanaf level 8 slijt een houten hek (stenen muren en netten niet). Ongeveer eens 
 2. De plank hangt aan één kant los; nog donkerder.
 3. Het hek ligt half plat en is bijna zwartbruin: het is kapot.
 
-Een tik met het handje timmert het in elke fase weer vast (de cursor wordt een hamertje). Bij een kapot hek voelen de dieren in dat verblijf zich niet veilig: ze zijn niet blij, het wolkje toont een hamertje en de bouwer zegt dat je het moet maken. Ze worden er niet voor opgehaald.
+Kies bij de actieknop de hamer; een tik op het hek timmert het in elke fase weer vast. Bij een kapot hek voelen de dieren in dat verblijf zich niet veilig: ze zijn niet blij, het wolkje toont een hamertje en de bouwer zegt dat je het moet maken. Ze worden er niet voor opgehaald.
 
 ## Hekken slepen
 
@@ -322,7 +330,7 @@ Een hek teken je door te slepen. De eerste beweging (een derde tegel) bepaalt de
 | Verblijf | Je ziet de naam. Andere naam, voerder en schoonmaker aannemen of naar huis sturen, leegmaken (met bevestiging) |
 | Voerbak | Vullen met een voersoort; het voer staat altijd in dezelfde volgorde en wat de dieren daar lusten is geel; je ziet hoeveel erin zit |
 | Gast | Zien hoe het gaat, wat zijn lievelingsdier is en wat hij nu wil; zwaaien |
-| Poep en afval | Alleen met de veger; een tik met een andere knop wijst de veger aan |
+| Poep, afval en versleten hekken | Alleen met de actieknop (veger, prikker, hamer); een tik met iets anders kiest het goede gereedschap en wijst de knop aan |
 
 ## Levels
 
