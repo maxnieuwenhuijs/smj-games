@@ -100,6 +100,26 @@ Vanaf level 10 willen de meeste dieren iets leuks in hun verblijf, en elk dier h
 - **Ruimte:** grote dieren willen een groot verblijf. Minstens 9 tegels: olifant, giraf, neushoorn, nijlpaard, ijsbeer, bizon, walrus. Minstens 8: leeuw, tijger, beer, gorilla, kameel, panter, cheeta, wolf, kangoeroe. Minstens 6: paard, koe, zebra, ezel, rendier, jak, krokodil, zeehond, panda, struisvogel. De rest past overal. Is het te klein, dan zegt de bouwer dat het verblijf groter moet; het dier wordt er niet voor opgehaald.
 - **Groepen:** groepsdieren willen met meer bij elkaar zijn (jongen tellen mee). Vijf: kip, pinguïn, flamingo. Vier: eend, konijn, gazelle, aap, maki. Drie: schaap, geit, alpaca, zebra, struisvogel, papegaai, toekan, rendier, wolf, otter, pelikaan, bizon. Alle andere dieren zijn tevreden met z'n tweeën. In het wolkje staat hoeveel er nog bij moeten (+3).
 
+### Kunstjes en gebaren
+
+Elk dier heeft twaalf animaties uit het model. Daar bovenop beweegt het spel het hele dier, zodat er veel meer te zien is. Een blij dier doet ongeveer een op de vier keer iets extra's:
+
+| Kunstje | Wat je ziet |
+|---|---|
+| Springen | Op en neer, met indrukken en uitrekken |
+| Rondje draaien | Om zijn eigen as |
+| Rollen | Op de grond heen en weer rollen |
+| Kwispelen | Snel heen en weer draaien |
+| Uitrekken | Lang en plat worden |
+| Rennen | Een sprintje naar de andere kant van het verblijf (de ren-animatie) |
+| Kroelen | Naar een vriendje lopen, neus aan neus, met een hartje; een jong loopt naar zijn moeder |
+| Gast begroeten | Naar een gast bij het hek draaien en opspringen |
+| Droogschudden | Na het zwemmen schudt het zich uit, met spatters |
+| Ademen | In de slaap gaat het lijf zachtjes op en neer |
+| Dansen | Alle dieren dansen als je een level haalt |
+
+Gasten doen ook meer. Bij een verblijf zwaaien ze, wijzen ze, maken ze een foto (handen voor het gezicht) of klappen ze. Wie iets lekkers kocht, heeft het in zijn hand en neemt nog een paar happen of slokken. Bij de toonbank steken ze hun hand uit. Wie zijn lievelingsdier ziet, juicht met de armen omhoog en springt; bij een gehaald level juichen alle gasten. Een blij kind huppelt en een moe gastje loopt voorovergebogen. Een werker die even niets te doen heeft, veegt zijn voorhoofd af.
+
 ### Zwemmen
 
 Op een watertegel zakt een dier voor een derde weg en dobbert het; als het door het water loopt, spatten er druppels op.

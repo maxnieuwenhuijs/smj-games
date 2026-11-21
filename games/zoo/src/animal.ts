@@ -41,6 +41,10 @@ export interface AnimalWorld {
   messSound(kind: 'poop' | 'pee'): void;
   /** Hoeveel sneller dieren honger krijgen: meer als een level om voeren vraagt. */
   hungerRate(): number;
+  /** De gast die het dichtst bij staat te kijken (binnen een paar tegels), of null. */
+  guestNear(gx: number, gy: number): [number, number] | null;
+  /** Een hartje boven deze plek. */
+  heart(gx: number, gy: number, height: number): void;
   /** Een dier beweegt door het water: een paar spatters op deze plek. */
   splash(gx: number, gy: number): void;
   ate(trough: Trough): void;
@@ -60,6 +64,7 @@ const NEED_KIND: Record<FenceNeed, number> = { wall: 3, net: 4 };
 /** Zo hoog ligt een dier dat op zijn slaapplek slaapt: boven op de rots of het stro, niet erin. */
 const BED_LIFT: Record<string, number> = { straw: 0.1, shed: 0.1, rock: 0.22, nest: 0.07, cave: 0.03 };
 const WATER_TILE = TERRAINS.indexOf('water');
+type Trick = 'hop' | 'spin' | 'roll' | 'shake' | 'wiggle' | 'stretch' | 'nuzzle' | 'greet' | 'dance';
 const SEEK_FOOD = 0.4;
 const HUNGRY = 0.6;
 
@@ -129,6 +134,18 @@ export class Animal {
     return this.info.height * MODEL_SCALE + 0.25;
   }
 
+  /**
+   * Een kunstje boven op de gewone animatie: het hele dier springt, draait, rolt, schudt of rekt zich uit.
+   * Zo heeft elk dier veel meer bewegingen dan de twaalf uit het model.
+   */
+  private trick: { kind: Trick; t: number } | null = null;
+  /** Het dier rent (in plaats van loopt) naar zijn doel. */
+  private fast = false;
+  /** Net uit het water: aan land schudt het zich droog. */
+  private wet = false;
+  /** Het vriendje waar het dier naartoe loopt om te kroelen. */
+  private pal: Animal | null = null;
+
   /** Hoe diep het dier in het water ligt, en de tel voor het dobberen. */
   private sink = 0;
   private bob = Math.random() * 6;
@@ -137,8 +154,35 @@ export class Animal {
     // in het water zakt het dier een stuk weg en dobbert het: zo zwemt het
     this.y += (this.lift - this.sink - this.y) * 0.18;
     const wave = this.sink ? Math.sin(this.bob * 3) * 0.02 : 0;
-    this.model.root.position.set(toWorldX(this.gx), this.y + wave, toWorldZ(this.gy));
-    this.model.root.rotation.y = this.heading;
+    let y = this.y + wave, yaw = this.heading, roll = 0, sx = 1, sy = 1, sz = 1;
+    const k = this.trick;
+    if (k) {
+      const u = k.t, tall = this.info.height * MODEL_SCALE;
+      if (k.kind === 'hop' || k.kind === 'greet' || k.kind === 'dance') {
+        // springen, met een beetje indrukken en uitrekken
+        const h = Math.abs(Math.sin(u * (k.kind === 'greet' ? 7 : 6)));
+        y += h * tall * (k.kind === 'greet' ? 0.3 : 0.5);
+        sy = 1 + (h - 0.5) * 0.16;
+        sx = sz = 1 - (h - 0.5) * 0.08;
+        if (k.kind === 'dance') yaw += Math.sin(u * 5) * 0.6;
+        if (k.kind === 'greet') yaw += Math.sin(u * 12) * 0.12;
+      } else if (k.kind === 'spin') yaw += u * 7.5;
+      else if (k.kind === 'roll') roll = Math.sin(u * 2.4) * 1.25;
+      else if (k.kind === 'shake') roll = Math.sin(u * 40) * 0.16;
+      else if (k.kind === 'wiggle') yaw += Math.sin(u * 15) * 0.24;
+      else if (k.kind === 'stretch') {
+        const s = Math.sin(Math.min(1, u / 2.2) * Math.PI);
+        sz = 1 + s * 0.18;
+        sy = 1 - s * 0.1;
+      } else if (k.kind === 'nuzzle') {
+        roll = Math.sin(u * 6) * 0.1;
+        y += Math.abs(Math.sin(u * 6)) * tall * 0.06;
+      }
+    } else if (this.anim === 'Sleep') sy = 1 + Math.sin(this.bob * 1.7) * 0.035; // ademen in de slaap
+    const root = this.model.root;
+    root.position.set(toWorldX(this.gx), y, toWorldZ(this.gy));
+    root.rotation.set(0, yaw, roll);
+    root.scale.set(MODEL_SCALE * sx, MODEL_SCALE * sy, MODEL_SCALE * sz);
   }
 
   private play(name: string, timeScale = 1): void {
@@ -153,8 +197,25 @@ export class Animal {
     this.anim = name;
   }
 
+  /** Een kunstje doen: de animatie uit het model met een beweging van het hele dier eroverheen. */
+  private doTrick(kind: Trick, seconds: number, clip: string): void {
+    this.state = 'emote';
+    this.timeLeft = seconds;
+    this.route = [];
+    this.eatAt = null;
+    this.play(clip);
+    this.trick = { kind, t: 0 };
+  }
+
+  /** Feest: het dier danst (als een level gehaald is). */
+  cheer(): void {
+    if (this.sick || this.escaped || this.anim === 'Sleep') return;
+    this.doTrick('dance', 2.4 + Math.random(), 'Happy');
+  }
+
   /** Kort gebaar, bijvoorbeeld blij na het voeren. */
   emote(name: 'Happy' | 'Sad' | 'Play', seconds: number): void {
+    this.trick = null;
     this.state = 'emote';
     this.timeLeft = seconds;
     this.route = [];
@@ -171,6 +232,9 @@ export class Animal {
   }
 
   private stop(): void {
+    this.trick = null;
+    this.fast = false;
+    this.pal = null;
     this.lift = 0;
     this.napBed = null;
     this.playAt = null;
@@ -269,6 +333,9 @@ export class Animal {
   }
 
   private choose(w: AnimalWorld): void {
+    this.trick = null;
+    this.fast = false;
+    this.pal = null;
     // het dier blijft boven op zijn slaapplek staan tot het wegloopt
     this.napBed = null;
     const [x, y] = tileXY(this.tile);
@@ -332,6 +399,42 @@ export class Animal {
         return this.startPlay(w);
       }
     }
+    // een blij dier doet af en toe iets geks: springen, rondjes draaien, rollen, rennen, kroelen, een gast begroeten
+    if (this.happy && Math.random() < 0.24) {
+      const guest = w.guestNear(this.gx, this.gy);
+      if (guest && Math.random() < 0.4) {
+        this.heading = Math.atan2(guest[0] - this.gx, guest[1] - this.gy);
+        return this.doTrick('greet', 1.6, 'Happy');
+      }
+      const p = Math.random();
+      if (p < 0.18) return this.doTrick('hop', 1.6, 'Happy');
+      if (p < 0.3) return this.doTrick('spin', 1.1, 'Play');
+      if (p < 0.44) return this.doTrick('roll', 2.6, 'Lie');
+      if (p < 0.54) return this.doTrick('wiggle', 1.4, 'Idle');
+      if (p < 0.64) return this.doTrick('stretch', 2.2, 'Idle');
+      if (p < 0.82) {
+        // rennen: een sprintje naar de andere kant van het verblijf
+        const far = region.tiles.filter(i => !isTrough(i) && Math.hypot(tileXY(i)[0] + 0.5 - this.gx, tileXY(i)[1] + 0.5 - this.gy) > 1.6);
+        const goal = far[Math.floor(Math.random() * far.length)];
+        const route = goal === undefined ? null : w.grid.path(this.tile, goal, isTrough);
+        if (route && route.length > 1) {
+          this.startWalk(route);
+          this.fast = true;
+          return this.play('Run', this.young ? 2 : 1.5);
+        }
+      } else {
+        // kroelen: naar een vriendje of naar mama lopen
+        const pals = w.animals.filter(a => a !== this && a.species === this.species && w.grid.regionOf[a.tile] === region.id && !a.sick);
+        const pal = (this.young && pals.find(a => a.variant === 'female')) || pals[Math.floor(Math.random() * pals.length)];
+        const spots = pal ? [pal.tile, ...w.grid.neighbors(pal.tile)].filter(i => !isTrough(i)) : [];
+        const spot = spots[Math.floor(Math.random() * spots.length)];
+        const route = spot === undefined ? null : w.grid.path(this.tile, spot, isTrough);
+        if (pal && route) {
+          this.pal = pal;
+          if (route.length > 1) return this.startWalk(route);
+        }
+      }
+    }
     const r = Math.random();
     if (r < 0.55) {
       const free = region.tiles.filter(i => !isTrough(i));
@@ -392,8 +495,10 @@ export class Animal {
   update(dt: number, w: AnimalWorld): void {
     this.model.mixer.update(dt);
     this.bob += dt;
+    if (this.trick) this.trick.t += dt;
     const swims = w.grid.terrain[this.tile] === WATER_TILE && !this.lift;
     this.sink = swims ? this.top * 0.34 : 0;
+    if (swims) this.wet = true;
     // wie door het water loopt, spat af en toe
     if (swims && this.state === 'walk' && Math.random() < dt * 2.2) w.splash(this.gx, this.gy);
     this.hunger = Math.min(1, this.hunger + dt * HUNGER_PER_SEC * w.hungerRate() * (this.young ? 0.5 : 1));
@@ -402,7 +507,20 @@ export class Animal {
     if (this.state === 'walk') {
       const next = this.route[0];
       if (next === undefined) {
-        if (this.playAt) {
+        this.fast = false;
+        if (this.wet && !swims) {
+          // net uit het water: even droogschudden
+          this.wet = false;
+          w.splash(this.gx, this.gy);
+          this.doTrick('shake', 0.9, 'Idle');
+        } else if (this.pal) {
+          // bij het vriendje: neus aan neus, met een hartje
+          const pal = this.pal;
+          this.pal = null;
+          if (Math.hypot(pal.gx - this.gx, pal.gy - this.gy) > 0.1) this.heading = Math.atan2(pal.gx - this.gx, pal.gy - this.gy);
+          w.heart((this.gx + pal.gx) / 2, (this.gy + pal.gy) / 2, this.top);
+          this.doTrick('nuzzle', 1.8, 'Happy');
+        } else if (this.playAt) {
           this.startPlay(w);
         } else if (this.napFor) {
           const seconds = this.napFor;
@@ -428,7 +546,7 @@ export class Animal {
         const dx = tx + 0.5 + this.ox - this.gx;
         const dy = ty + 0.5 + this.oy - this.gy;
         const dist = Math.hypot(dx, dy);
-        const step = (this.young ? 0.72 : 0.92) * MODEL_SCALE * dt;
+        const step = (this.young ? 0.72 : 0.92) * MODEL_SCALE * dt * (this.fast ? 2.3 : 1);
         if (dist <= step) {
           this.gx += dx;
           this.gy += dy;

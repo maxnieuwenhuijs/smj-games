@@ -567,6 +567,22 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.view.splash(gx, gy);
   }
 
+  guestNear(gx: number, gy: number): [number, number] | null {
+    let best: [number, number] | null = null, bestD = 2.6;
+    for (const q of this.guests.guests) {
+      const d = Math.hypot(q.gx - gx, q.gy - gy);
+      if (d < bestD) {
+        bestD = d;
+        best = [q.gx, q.gy];
+      }
+    }
+    return best;
+  }
+
+  heart(gx: number, gy: number, height: number): void {
+    this.floatAt(icon('heart'), gx, gy, height);
+  }
+
   messSound(kind: 'poop' | 'pee'): void {
     // af en toe, niet elke keer: dieren plassen vaak
     if (kind === 'poop' ? Math.random() < 0.5 : Math.random() < 0.25) sfx(kind === 'poop' ? 'poop.plop' : 'pee.trickle', { volume: 0.3, every: kind === 'poop' ? 8 : 15 });
@@ -2522,6 +2538,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (levelDone(level, stats)) {
       this.celebrating = true;
       this.lines = [];
+      // feest: de dieren dansen en de gasten juichen
+      for (const a of this.animals) a.cheer();
+      this.guests.cheer();
       const ready = loadSpecies(level.reward);
       const done = this.praise();
       sfx('fanfare');

@@ -181,6 +181,7 @@ const NEED_SHOP: Record<Need, ShopKind> = {
   food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', hat: 'hats', souvenir: 'souvenir', play: 'playground', sit: 'bench', look: 'fountain', ride: 'carousel',
 };
 const COLOR_OF = Object.fromEntries(PRODUCTS.filter(p => p.color !== undefined).map(p => [p.id, p.color as number]));
+const SNACK_GEO = new THREE.BoxGeometry(0.06, 0.08, 0.06).translate(0, -0.2, 0.04);
 const footprint = (shop: ShopSpot): number[] => {
   const tiles: number[] = [];
   for (let y = shop.y; y < shop.y + shop.size; y++) for (let x = shop.x; x < shop.x + shop.size; x++) tiles.push(tileIndex(x, y));
@@ -257,6 +258,15 @@ export class Guest {
   private wantsBalloon: boolean;
   private wantsHat: boolean;
   private headwear: THREE.Object3D | null = null;
+  /** Wat de gast doet terwijl hij kijkt: zwaaien, wijzen, een foto maken, klappen. */
+  private act: 'wave' | 'point' | 'photo' | 'clap' | null = null;
+  private actT = 0;
+  /** Zoveel tellen eet of drinkt de gast nog van wat hij net kocht; het zit in zijn hand. */
+  private eating = 0;
+  private snack: THREE.Mesh | null = null;
+  /** Zoveel tellen springt de gast nog van blijdschap. */
+  joy = 0;
+  private hop = 0;
   /** Wat de gast draagt, om te kunnen bewaren. */
   private wornHat: string | null = null;
   private wornBalloon: string | null = null;
@@ -360,8 +370,10 @@ export class Guest {
       this.limbs[0].rotation.x = this.limbs[1].rotation.x = -1.1;
       return;
     }
-    this.mesh.position.set(toWorldX(this.gx), this.state === 'accident' ? -0.07 : 0, toWorldZ(this.gy));
+    this.mesh.position.set(toWorldX(this.gx), (this.state === 'accident' ? -0.07 : 0) + this.hop, toWorldZ(this.gy));
     this.mesh.rotation.y = this.heading;
+    // een moe gastje loopt een beetje voorovergebogen
+    this.mesh.rotation.x = this.tired > 0.7 && this.state === 'walk' ? 0.12 : 0;
   }
 
   private turnTo(dx: number, dy: number, dt: number): void {
@@ -515,6 +527,10 @@ export class Guest {
     } else if (this.face) {
       this.state = 'watch';
       this.timer = 4 + Math.random() * 3;
+      // bij het kijken doet de gast iets: zwaaien, wijzen, een foto maken of klappen
+      const p = Math.random();
+      this.act = p < 0.28 ? 'wave' : p < 0.48 ? 'point' : p < 0.68 ? 'photo' : p < 0.8 ? 'clap' : null;
+      this.actT = 0;
     } else {
       this.state = 'idle';
       this.timer = 0.6 + Math.random();
@@ -528,6 +544,7 @@ export class Guest {
         this.favSeen = true;
         this.fun = Math.min(1, this.fun + 0.25);
         w.cheer(this);
+        this.joy = 1.6;
       }
     } else if (this.state === 'sit' && this.shop?.kind === 'playground') {
       w.guestSound('guest.laugh');
@@ -555,6 +572,13 @@ export class Guest {
       } else if ((exact || got) && w.buy(this.shop, this, got, exact)) {
         this.bought[kind] = (this.bought[kind] ?? 0) + 1;
         this.purchases++;
+        // wat lekkers gaat mee in de hand: de gast eet of drinkt er nog even van
+        if (kind === 'foodstall' || kind === 'drinkstall' || kind === 'icecream') {
+          if (this.snack) this.limbs[3].remove(this.snack);
+          this.snack = new THREE.Mesh(SNACK_GEO, mat(kind === 'foodstall' ? 0xffd23f : kind === 'drinkstall' ? 0x9fd8f5 : 0xffc1d6));
+          this.limbs[3].add(this.snack);
+          this.eating = 7;
+        }
         if (kind === 'foodstall') this.hunger = 0;
         else if (kind === 'drinkstall') {
           this.thirst = 0;
@@ -709,7 +733,45 @@ export class Guest {
     // benen en armen zwaaien tijdens het lopen
     this.phase += dt * 11;
     swing(this.limbs, this.state === 'walk' ? Math.sin(this.phase) * 0.7 : 0);
+    this.gesture(dt);
     this.place();
+  }
+
+  /** Wat de armen doen boven op het lopen of staan: zwaaien, wijzen, een foto maken, klappen, eten, juichen. */
+  private gesture(dt: number): void {
+    const right = this.limbs[2], left = this.limbs[3];
+    right.rotation.z = left.rotation.z = 0;
+    this.hop = 0;
+    if (this.state === 'watch' && this.act) {
+      this.actT += dt;
+      if (this.act === 'wave') {
+        right.rotation.x = -2.7;
+        right.rotation.z = Math.sin(this.actT * 9) * 0.45;
+      } else if (this.act === 'point') right.rotation.x = -1.45 + Math.sin(this.actT * 3) * 0.06;
+      else if (this.act === 'photo') right.rotation.x = left.rotation.x = -1.95;
+      else {
+        const clap = Math.abs(Math.sin(this.actT * 10)) * 0.5;
+        right.rotation.x = left.rotation.x = -1.25;
+        right.rotation.z = -clap;
+        left.rotation.z = clap;
+      }
+    }
+    if (this.state === 'buy') right.rotation.x = -1.3; // de hand uitsteken naar de toonbank
+    if (this.eating > 0) {
+      // een hap of een slok: de hand gaat naar de mond en weer terug
+      this.eating -= dt;
+      left.rotation.x = -1.75 + Math.sin(this.phase * 0.45) * 0.5;
+      if (this.eating <= 0 && this.snack) {
+        left.remove(this.snack);
+        this.snack = null;
+      }
+    }
+    if (this.joy > 0) {
+      // juichen: armen omhoog en springen
+      this.joy -= dt;
+      right.rotation.x = left.rotation.x = -2.9;
+      this.hop = Math.abs(Math.sin(this.joy * 9)) * 0.13;
+    } else if (this.child && this.state === 'walk' && this.fun > 0.6) this.hop = Math.abs(Math.sin(this.phase * 0.5)) * 0.05; // een blij kind huppelt
   }
 }
 
@@ -781,6 +843,11 @@ export class GuestManager {
       if (g.gone) this.scene.remove(g.mesh);
     }
     if (this.guests.some(g => g.gone)) this.guests = this.guests.filter(g => !g.gone);
+  }
+
+  /** Feest: alle gasten juichen even (als een level gehaald is). */
+  cheer(): void {
+    for (const g of this.guests) g.joy = 1.4 + Math.random() * 1.2;
   }
 
   stats(): { total: number; happy: number; lacking: Record<string, number> } {
@@ -982,6 +1049,7 @@ export class Worker {
       return this.place();
     }
     swing(this.limbs, 0);
+    if (!this.job && this.timer > 1.4 && this.timer < 2.4) this.limbs[3].rotation.x = -2.5 + Math.sin(this.phase * 0.6) * 0.15;
     if (this.job) {
       // aangekomen: naar het werk kijken en beginnen
       const [ax, ay] = this.job.trough ? [this.job.trough.x + 0.5, this.job.trough.y + 0.5] : [this.job.mess!.gx, this.job.mess!.gy];
