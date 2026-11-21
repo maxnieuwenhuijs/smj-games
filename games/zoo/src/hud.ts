@@ -73,6 +73,10 @@ export class Hud {
   private need = el('div', '');
   private carry = el('div', 'pill');
   private needKey = '';
+  /** Het handje dat wijst waar je kunt tikken. */
+  private hand = el('div', '', `<i class="ring"></i><span class="arm">${icon('hand')}</span>`);
+  /** Wat er gebeurt als je naast de kaart tikt (alleen bij de dierenarts). */
+  private overlayTap: (() => void) | null = null;
 
   constructor(private on: { tool(id: string, row?: string, option?: string): void; home(): void; goal(index: number): void; need(index: number): void }) {
     this.need.id = 'needs';
@@ -83,6 +87,13 @@ export class Hud {
     this.carry.id = 'carry';
     this.carry.hidden = true;
     document.getElementById('ui')!.append(this.carry);
+    // het handje ligt boven de knoppen, maar onder een kaart
+    this.hand.id = 'pointer';
+    this.hand.hidden = true;
+    this.overlay.before(this.hand);
+    this.overlay.addEventListener('click', e => {
+      if (e.target === this.overlay) this.overlayTap?.();
+    });
     const home = $('home');
     home.innerHTML = icon('home');
     home.setAttribute('aria-label', t('home'));
@@ -128,6 +139,7 @@ export class Hud {
 
   /** Een kaart met uitleg in stappen (plaatje en zin per stap) en een knop om verder te gaan. */
   showGuide(title: string, steps: { icon: string; text: string }[], ok: string): void {
+    this.overlayTap = null;
     this.overlay.replaceChildren();
     const card = el('div', 'card guide');
     const head = el('div', 'big');
@@ -218,14 +230,16 @@ export class Hud {
 
   /** De kas (munten) en het aantal gasten in het park. */
   /** `sky`: zon of maan naast het uur (vanaf het level waarin het ook nacht wordt); anders een klokje. */
-  setWallet(coins: number, cap: number, guests: number | null, hour: number | null = null, sky: 'sun' | 'moon' | null = null): void {
-    const key = `${coins}/${guests}/${hour}/${sky}`;
+  /** `extra`: kant-en-klaar plaatje (het seizoen, het weer) dat als laatste vakje onder het uur komt. */
+  setWallet(coins: number, cap: number, guests: number | null, hour: number | null = null, sky: 'sun' | 'moon' | null = null, extra = ''): void {
+    const key = `${coins}/${guests}/${hour}/${sky}/${extra}`;
     if (key === this.walletKey) return;
     this.walletKey = key;
     this.wallet.innerHTML =
       `<span class="pill${coins >= cap ? ' full' : ''}" title="${t('wallet.coins')}">${icon('coin')}<b>${coins}</b></span>` +
       (guests === null ? '' : `<span class="pill" title="${t('wallet.guests')}">${icon('guest')}<b>${guests}</b></span>`) +
-      (hour === null ? '' : `<span class="pill" title="${t('wallet.hour')}">${icon(sky ?? 'clock')}<b>${hour}</b></span>`);
+      (hour === null ? '' : `<span class="pill" title="${t('wallet.hour')}">${icon(sky ?? 'clock')}<b>${hour}</b></span>`) +
+      (extra ? `<span class="pill extra">${extra}</span>` : '');
   }
 
   // ------------------------------------------------------------ doelen
@@ -278,6 +292,17 @@ export class Hud {
     return b;
   }
 
+  /**
+   * Een rond bordje met een plaatje (vieze stal, jarig, kind kwijt). Het spel zet het zelf op zijn plek met
+   * `style.transform`. Met de klas `tap` erbij kun je erop tikken.
+   */
+  makeBadge(html: string, cls = ''): HTMLElement {
+    const b = el('div', `bubble badge ${cls}`, html);
+    b.hidden = true;
+    this.layer.append(b);
+    return b;
+  }
+
   /** Het prijskaartje boven een strook grond die te koop is; een tik erop opent het koopmenu. */
   makeForSale(price: number, tap: () => void): HTMLElement {
     const b = el('div', 'bubble forsale', `${icon('land')}<b>${price}</b>${icon('coin')}`);
@@ -302,6 +327,168 @@ export class Hud {
     f.style.top = `${y}px`;
     this.layer.append(f);
     setTimeout(() => f.remove(), 1200);
+  }
+
+  // ------------------------------------------------------------ het wijzende handje
+  get pointing(): boolean {
+    return !this.hand.hidden;
+  }
+
+  /** Het handje wijst met zijn vingertop naar dit punt op het scherm en tikt rustig, tot `hidePointer`. */
+  pointAt(x: number, y: number): void {
+    // onderin komt het handje van boven, helemaal rechts leunt het naar links: zo blijft het in beeld
+    this.hand.classList.toggle('down', y > innerHeight - 190);
+    this.hand.classList.toggle('left', x > innerWidth - 70);
+    this.hand.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+    this.hand.hidden = false;
+  }
+
+  /** Het handje wijst naar een knop in de balk, of naar een keuze in de rij erboven als die er staat. */
+  pointAtTool(toolId: string, option?: string): void {
+    let target = this.toolbar.querySelector<HTMLElement>(`[data-tool="${CSS.escape(toolId)}"]`);
+    if (option) target = this.options.querySelector<HTMLElement>(`[data-option="${CSS.escape(option)}"]`) ?? target;
+    const r = target?.getBoundingClientRect();
+    if (!r || !r.width) {
+      this.hidePointer();
+      return;
+    }
+    // een keuze die buiten beeld geschoven is: het handje blijft aan de rand staan
+    const x = Math.max(24, Math.min(innerWidth - 24, r.left + r.width / 2));
+    this.pointAt(x, r.top + r.height * 0.55);
+  }
+
+  hidePointer(): void {
+    this.hand.hidden = true;
+  }
+
+  // ------------------------------------------------------------ kaarten
+  private openCard(card: HTMLElement, outside: (() => void) | null = null): void {
+    this.overlayTap = outside;
+    this.overlay.replaceChildren(card);
+    this.overlay.hidden = false;
+  }
+
+  /** De grote groene knop met een vinkje onderaan een kaart. */
+  private okButton(card: HTMLElement, ok: string, then?: () => void): HTMLButtonElement {
+    const go = el('button', 'tool go', `${icon('check')}<b></b>`);
+    go.querySelector('b')!.textContent = ok;
+    go.addEventListener('click', () => {
+      if (card.isConnected) this.overlay.hidden = true;
+      then?.();
+    });
+    return go;
+  }
+
+  /**
+   * De dierenarts: het zieke dier in het midden en eronder de stappen op volgorde. Alleen de stap die aan de beurt is
+   * licht op. Een tik op een andere knop schudt alleen even; fout gaan kan niet. Na de laatste stap is het dier weer
+   * blij, gaat de kaart dicht en volgt `done`. Naast de kaart tikken sluit hem zonder `done`.
+   */
+  showVet(title: string, animalIcon: string, steps: { id: string; icon: string; label: string }[], done: () => void): void {
+    const card = el('div', 'card vet');
+    const head = el('div', 'big');
+    head.textContent = title;
+    const patient = el('div', 'patient sick', `<span class="pic">${animalIcon}</span>`);
+    const pic = patient.firstElementChild as HTMLElement;
+    const row = el('div', 'steps');
+    let at = 0;
+    const cured = (): void => {
+      // vanaf nu is het dier beter: naast de kaart tikken breekt niets meer af
+      this.overlayTap = null;
+      setTimeout(() => {
+        patient.classList.replace('sick', 'well');
+        for (let i = 0; i < 6; i++) {
+          const spark = el('i', 'spark', icon(i % 2 ? 'sparkle' : 'heart'));
+          const a = (i * 60 - 90) * (Math.PI / 180);
+          spark.style.setProperty('--x', `${Math.round(Math.cos(a) * 96)}px`);
+          spark.style.setProperty('--y', `${Math.round(Math.sin(a) * 96)}px`);
+          spark.style.setProperty('--d', `${i * 0.05}s`);
+          patient.append(spark);
+        }
+      }, 350);
+      setTimeout(() => {
+        // staat er intussen een andere kaart, dan blijft die open
+        if (card.isConnected) this.overlay.hidden = true;
+        done();
+      }, 1250);
+    };
+    const buttons = steps.map((step, i) => {
+      const b = el('button', 'tool vetstep', `${step.icon}<b></b><i class="tick">${icon('check')}</i>`);
+      b.querySelector('b')!.textContent = step.label;
+      b.setAttribute('aria-label', step.label);
+      b.dataset.step = step.id;
+      b.classList.toggle('now', i === 0);
+      b.addEventListener('animationend', e => {
+        if (e.target === b) b.classList.remove('no');
+      });
+      b.addEventListener('click', () => {
+        if (i < at) return;
+        if (i > at) {
+          // nog niet aan de beurt: even schudden
+          b.classList.remove('no');
+          void b.offsetWidth;
+          b.classList.add('no');
+          return;
+        }
+        at++;
+        sfx('place');
+        b.classList.replace('now', 'done');
+        // het ding vliegt van de knop naar het dier
+        const from = b.getBoundingClientRect(), to = patient.getBoundingClientRect();
+        const fly = el('i', 'fly', step.icon);
+        fly.style.setProperty('--dx', `${Math.round(from.left + from.width / 2 - to.left - to.width / 2)}px`);
+        fly.style.setProperty('--dy', `${Math.round(from.top + from.height / 2 - to.top - to.height / 2)}px`);
+        patient.append(fly);
+        setTimeout(() => fly.remove(), 700);
+        // bij elke stap krijgt het dier wat meer kleur
+        pic.style.setProperty('--sick', String(1 - at / steps.length));
+        if (at < steps.length) buttons[at].classList.add('now');
+        else cured();
+      });
+      row.append(b);
+      return b;
+    });
+    card.append(head, patient, row);
+    this.openCard(card, () => {
+      this.overlay.hidden = true;
+    });
+    if (!steps.length) cured();
+  }
+
+  /**
+   * Het gastenboek: een prikbord met tekeningen van het dier dat gasten het leukst vonden, met hartjes erbij
+   * (hooguit vijf, daarna het getal). Er passen twaalf tekeningen op.
+   */
+  showBook(title: string, entries: { icon: string; n: number }[], empty: string, ok: string): void {
+    const card = el('div', 'card book');
+    const head = el('div', 'big');
+    head.textContent = title;
+    const board = el('div', 'board');
+    if (!entries.length) {
+      const none = el('div', 'none');
+      none.textContent = empty;
+      board.append(none);
+    }
+    const tilt = [-5, 3, -2, 6, -4, 2, 5, -3];
+    entries.slice(0, 12).forEach((entry, i) => {
+      const n = Math.max(0, Math.floor(entry.n));
+      const note = el('div', 'note', `<span class="draw">${entry.icon}</span><span class="likes">${icon('heart').repeat(Math.min(5, n))}${n > 5 ? `<b>${n}</b>` : ''}</span>`);
+      note.style.setProperty('--r', `${tilt[i % tilt.length]}deg`);
+      note.style.setProperty('--d', `${i * 0.05}s`);
+      board.append(note);
+    });
+    card.append(head, board, this.okButton(card, ok));
+    this.openCard(card);
+  }
+
+  /** Wist je dat? Een groot plaatje van het dier, zijn naam, één weetje en een knop om verder te gaan. */
+  showFact(pic: string, name: string, text: string, ok: string, onOk?: () => void): void {
+    const card = el('div', 'card fact');
+    card.append(el('div', 'reward', `<span class="pic">${pic}</span><b></b><i class="deco">${icon('sparkle')}</i>`), el('div', 'say'));
+    card.querySelector('.reward b')!.textContent = name;
+    card.querySelector('.say')!.textContent = text;
+    card.append(this.okButton(card, ok, onOk));
+    this.openCard(card);
   }
 
   // ------------------------------------------------------------ menu
@@ -395,6 +582,7 @@ export class Hud {
   /** `extras`: plaatjes van wat er naast het dier nog vrijkomt (iets voor het park, een speeltoestel). */
   showLevelDone(levelNumber: number, rewardIcon: string, rewardName: string, text: string, next: () => void, who: FigureId = 'director', extras: string[] = []): void {
     this.hush();
+    this.overlayTap = null;
     this.overlay.replaceChildren();
     const card = el('div', 'card');
     card.append(

@@ -1,10 +1,14 @@
 // Alle spelinhoud als gegevens: soorten, voer, ondergrond, slaapplekken, winkels, prijzen en levels.
-export type Terrain = 'grass' | 'mud' | 'sand' | 'water' | 'path' | 'snow' | 'forest' | 'stones' | 'ice' | 'swamp' | 'meadow' | 'steppe';
+export type Terrain = 'grass' | 'mud' | 'sand' | 'water' | 'path' | 'snow' | 'forest' | 'stones' | 'ice' | 'swamp' | 'meadow' | 'steppe'
+  // soorten pad: gasten lopen over allemaal; de brug leg je over water
+  | 'gravel' | 'planks' | 'flowerpath' | 'bridge';
 export type FoodId = 'veg' | 'hay' | 'fruit' | 'grain' | 'meat' | 'leaves' | 'fish' | 'bamboo';
 export type BedKind = 'straw' | 'shed' | 'rock' | 'shade' | 'nest' | 'cave' | 'climb' | 'coral';
 export type ShopKind = 'foodstall' | 'drinkstall' | 'bench' | 'toilet' | 'icecream' | 'balloon' | 'flowers' | 'bin' | 'souvenir' | 'playground' | 'hats' | 'fountain' | 'carousel'
-  | 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline';
-export type FenceOption = 'fence' | 'gate' | 'wall' | 'net' | 'glass';
+  | 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline'
+  // uitkijktoren, restaurant, reuzenrad, botsauto's, schuilhut, treinhalte en een bak met paraplu's
+  | 'tower' | 'restaurant' | 'ferris' | 'bumper' | 'shelter' | 'station' | 'umbrellas';
+export type FenceOption = 'fence' | 'gate' | 'wall' | 'net' | 'glass' | 'window' | 'picket' | 'petgate';
 /** Wat voor hek een dier nodig heeft: sterke dieren een stenen muur, klimmers en vliegers een hoog net. */
 export type FenceNeed = 'wall' | 'net' | 'glass';
 export type WorldId = 'farm' | 'savanna' | 'jungle' | 'ice' | 'far';
@@ -15,14 +19,16 @@ export type SpeciesId =
   | 'penguin' | 'seal' | 'polarbear' | 'reindeer' | 'wolf' | 'arcticfox' | 'bear' | 'yak' | 'owl' | 'walrus'
   | 'flamingo' | 'turtle' | 'otter' | 'beaver' | 'pelican' | 'koala' | 'redpanda' | 'lemur' | 'bison' | 'kangaroo'
   // het aquarium: geen beloning van een level, maar erbij vanaf een bepaald level (zie BONUS)
-  | 'dolphin' | 'orca';
+  | 'dolphin' | 'orca' | 'ray' | 'shark';
 export type Variant = 'male' | 'female' | 'young_m' | 'young_f';
-export type WishId = 'health' | 'enclosure' | 'food' | 'bed' | 'terrain' | 'friend' | 'clean' | 'space' | 'fun';
+export type WishId = 'health' | 'enclosure' | 'food' | 'bed' | 'terrain' | 'friend' | 'clean' | 'space' | 'fun' | 'climate';
 /** Iets leuks in een verblijf: speelgoed of groen. Elk dier is er blij mee. */
-export type ToyKind = 'ball' | 'bush' | 'log' | 'flowerbed' | 'hoop';
+export type ToyKind = 'ball' | 'bush' | 'log' | 'flowerbed' | 'hoop'
+  // heuvel, rotsen, drinkvijver, waterval, warmtelamp, ijsblok, klimrek en tunnel
+  | 'hill' | 'rocks' | 'drink' | 'fall' | 'lamp' | 'icebox' | 'frame' | 'tunnel';
 
 /** De volgorde is ook de waarde in het opslagbestand: nieuwe soorten komen achteraan. */
-export const TERRAINS: Terrain[] = ['grass', 'mud', 'sand', 'water', 'path', 'snow', 'forest', 'stones', 'ice', 'swamp', 'meadow', 'steppe'];
+export const TERRAINS: Terrain[] = ['grass', 'mud', 'sand', 'water', 'path', 'snow', 'forest', 'stones', 'ice', 'swamp', 'meadow', 'steppe', 'gravel', 'planks', 'flowerpath', 'bridge'];
 export const TERRAIN_INFO: Record<Terrain, { colors: [number, number] }> = {
   grass: { colors: [0x86c95c, 0x7cc053] },
   mud: { colors: [0x9c6b44, 0x8f6039] },
@@ -37,17 +43,72 @@ export const TERRAIN_INFO: Record<Terrain, { colors: [number, number] }> = {
   swamp: { colors: [0x5f7f4a, 0x4f6f55] },
   meadow: { colors: [0x8fd06a, 0xf2c9de] },
   steppe: { colors: [0xd6c46a, 0xc9b65b] },
+  // paden: kiezels, houten planken, een pad met een bloemenrand, en een brug (het water eronder; de planken tekent het beeld)
+  gravel: { colors: [0xc9c5bd, 0xb8b4ac] },
+  planks: { colors: [0xc79a63, 0xb98a55] },
+  flowerpath: { colors: [0xe6d3b3, 0xdcc7a2] },
+  bridge: { colors: [0x6ec3e8, 0x62b7dd] },
 };
+/** Alles waar gasten over lopen. `PATH_FROM`: na hoeveel gehaalde levels je het vrijspeelt. */
+export const PATH_KINDS: Terrain[] = ['path', 'gravel', 'planks', 'flowerpath', 'bridge'];
+export const PATH_FROM: Partial<Record<Terrain, number>> = { path: 3, gravel: 10, bridge: 13, planks: 17, flowerpath: 24 };
+const PATH_IDS = new Set(PATH_KINDS.map(k => TERRAINS.indexOf(k)));
+/** Is dit (het nummer van) een soort pad? */
+export const isPath = (terrain: number): boolean => PATH_IDS.has(terrain);
+/** Grond die met de seizoenen meekleurt: wit in de winter, geel in de herfst. */
+export const SEASONAL: Terrain[] = ['grass', 'forest', 'meadow', 'steppe'];
 
 export const FOODS: FoodId[] = ['veg', 'hay', 'fruit', 'grain', 'meat', 'leaves', 'fish', 'bamboo'];
 export const BEDS: BedKind[] = ['straw', 'shed', 'rock', 'shade', 'nest', 'cave', 'climb', 'coral'];
-export const TOYS: ToyKind[] = ['ball', 'bush', 'log', 'flowerbed', 'hoop'];
+export const TOYS: ToyKind[] = ['ball', 'bush', 'log', 'flowerbed', 'hoop', 'tunnel', 'drink', 'hill', 'rocks', 'frame', 'fall', 'lamp', 'icebox'];
+/** Na hoeveel gehaalde levels je iets voor in het verblijf vrijspeelt, en wat het kost (anders PRICE.toy). */
+export const TOY_FROM: Record<ToyKind, number> = { ball: 9, bush: 9, log: 9, flowerbed: 9, tunnel: 11, drink: 12, hill: 14, rocks: 17, hoop: 20, frame: 22, fall: 27, lamp: 25, icebox: 30 };
+export const TOY_PRICE: Partial<Record<ToyKind, number>> = { hill: 4, rocks: 3, drink: 3, fall: 8, lamp: 5, icebox: 5, frame: 6, tunnel: 4 };
+/** Hier klimt een dier bovenop: zo hoog staat het dan (in tegels). */
+export const TOY_LIFT: Partial<Record<ToyKind, number>> = { hill: 0.34, rocks: 0.3, frame: 0.8 };
+/** Hier drinkt een dier uit. */
+export const TOY_DRINK: ToyKind[] = ['drink', 'fall'];
+/**
+ * Warmte en kou: een krokodil wil een warmtelamp in zijn verblijf, een pinguïn een blok ijs (vanaf FEATURE.climate).
+ * Net als bij speelgoed wordt een dier er nooit voor opgehaald.
+ */
+export const CLIMATE: Partial<Record<SpeciesId, 'lamp' | 'icebox'>> = {
+  crocodile: 'lamp', turtle: 'lamp', lemur: 'lamp', penguin: 'icebox', polarbear: 'icebox', walrus: 'icebox', arcticfox: 'icebox',
+};
+/**
+ * Vriendjes: deze soorten kunnen goed samen in één verblijf. Een vriendje van de andere soort telt mee als
+ * gezelschap, ze kroelen met elkaar en gasten vinden zo'n gemengd verblijf extra leuk.
+ */
+export const PALS: [SpeciesId, SpeciesId][] = [
+  ['zebra', 'giraffe'], ['ostrich', 'gazelle'], ['cow', 'sheep'], ['horse', 'donkey'], ['goat', 'alpaca'], ['chicken', 'duck'],
+  ['reindeer', 'yak'], ['flamingo', 'pelican'], ['otter', 'beaver'], ['dolphin', 'ray'],
+];
+export const palsOf = (sp: SpeciesId): SpeciesId[] => PALS.filter(p => p.includes(sp)).map(p => (p[0] === sp ? p[1] : p[0]));
+/**
+ * De kinderboerderij: een verblijf met het witte hekje (rand 7) en een poortje voor de gasten (rand 8), minstens
+ * PETTING_MIN tegels groot. Daar mogen alle boerderijdieren door elkaar in: elk dier heeft genoeg aan een paar
+ * tegels van zijn eigen grond, elke slaapplek en elk voer is goed en ieder ander dier is een vriendje. Gasten
+ * lopen door het poortje naar binnen om de dieren te aaien.
+ */
+export const PETTING_MIN = 12;
+/** Zoveel gasten mogen er tegelijk in één kinderboerderij. */
+export const PETTING_GUESTS = 4;
+export const PETTABLE: SpeciesId[] = ['pig', 'cow', 'sheep', 'horse', 'donkey', 'goat', 'alpaca', 'chicken', 'duck', 'rabbit'];
+/** Het karakter van een dier: je ziet het aan hoe het loopt en wat het doet. */
+export type Nature = 'plain' | 'shy' | 'playful' | 'sleepy' | 'brave';
+export const NATURES: Nature[] = ['plain', 'shy', 'playful', 'sleepy', 'brave'];
+/** Een zeldzame kleur: af en toe wordt er een wit, goudkleurig of donker jong geboren. */
+export type Rare = 'white' | 'gold' | 'dark';
+export const RARES: Rare[] = ['white', 'gold', 'dark'];
+export const RARE_CHANCE = 0.12;
+/** Dieren die graag in een regenplas rollen. */
+export const MUD_LOVERS: SpeciesId[] = ['pig', 'hippo', 'rhino', 'elephant', 'bison'];
 /**
  * Grote dieren hebben ruimte nodig: het verblijf moet minstens zoveel tegels groot zijn. Wie hier niet staat,
  * past in elk verblijf.
  */
 export const SPACE: Partial<Record<SpeciesId, number>> = {
-  orca: 12, dolphin: 9,
+  orca: 12, shark: 10, dolphin: 9, ray: 6,
   elephant: 9, giraffe: 9, rhino: 9, hippo: 9, polarbear: 9, bison: 9, walrus: 9,
   lion: 8, tiger: 8, bear: 8, gorilla: 8, camel: 8, panther: 8, cheetah: 8, wolf: 8, kangaroo: 8,
   horse: 6, cow: 6, zebra: 6, donkey: 6, reindeer: 6, yak: 6, crocodile: 6, seal: 6, panda: 6, ostrich: 6,
@@ -58,7 +119,7 @@ export const SPACE: Partial<Record<SpeciesId, number>> = {
  */
 export const HERD: Partial<Record<SpeciesId, number>> = {
   chicken: 5, penguin: 5, flamingo: 5,
-  dolphin: 3,
+  dolphin: 3, ray: 3,
   duck: 4, rabbit: 4, gazelle: 4, monkey: 4, lemur: 4,
   sheep: 3, goat: 3, alpaca: 3, zebra: 3, ostrich: 3, parrot: 3, toucan: 3, reindeer: 3, wolf: 3, otter: 3, pelican: 3, bison: 3,
 };
@@ -71,7 +132,9 @@ export const herdOf = (sp: SpeciesId): number => HERD[sp] ?? 2;
 export type DecorKind =
   | 'tree' | 'roses' | 'hedge' | 'tulips' | 'pine' | 'mushrooms' | 'cactus' | 'sunflowers' | 'palm' | 'pumpkins' | 'bamboogrove' | 'cherry'
   | 'pond' | 'well' | 'birdbath' | 'waterfall' | 'pump'
-  | 'boulder' | 'signpost' | 'flag' | 'lantern' | 'picnic' | 'scarecrow' | 'topiary' | 'arch' | 'totem' | 'snowman' | 'campfire' | 'windmill' | 'statue' | 'clocktower';
+  | 'boulder' | 'signpost' | 'flag' | 'lantern' | 'picnic' | 'scarecrow' | 'topiary' | 'arch' | 'totem' | 'snowman' | 'campfire' | 'windmill' | 'statue' | 'clocktower'
+  // een gastenboek, een plattegrond, en palen waar vanzelf vlaggetjes of lichtjes tussen komen te hangen
+  | 'guestbook' | 'mapboard' | 'bunting' | 'lightstring';
 export type DecorGroup = 'green' | 'water' | 'art';
 export const DECOR_GROUPS: DecorGroup[] = ['green', 'water', 'art'];
 export const DECOR: Record<DecorKind, { group: DecorGroup; price: number; from: number }> = {
@@ -86,7 +149,11 @@ export const DECOR: Record<DecorKind, { group: DecorGroup; price: number; from: 
   topiary: { group: 'art', price: 12, from: 23 }, arch: { group: 'art', price: 10, from: 24 }, totem: { group: 'art', price: 10, from: 29 },
   snowman: { group: 'art', price: 6, from: 31 }, campfire: { group: 'art', price: 8, from: 33 }, windmill: { group: 'art', price: 18, from: 36 },
   statue: { group: 'art', price: 20, from: 38 }, clocktower: { group: 'art', price: 25, from: 41 },
+  guestbook: { group: 'art', price: 6, from: 9 }, mapboard: { group: 'art', price: 8, from: 12 }, bunting: { group: 'art', price: 4, from: 13 }, lightstring: { group: 'art', price: 6, from: 15 },
 };
+/** Palen waar een slinger tussen komt: staan er twee in één lijn, hooguit zoveel tegels uit elkaar, dan hangt er vanzelf een slinger. */
+export const STRING_REACH = 5;
+export const STRING_HEIGHT = 1.25;
 export const DECORS = Object.keys(DECOR) as DecorKind[];
 /**
  * De meeste dieren hebben een eigen lievelingsding: daar spelen ze mee, en zonder vervelen ze zich (vanaf level 10).
@@ -96,11 +163,29 @@ export const TOY_OF: Partial<Record<SpeciesId, ToyKind>> = {
   pig: 'ball', cow: 'bush', sheep: 'bush', horse: 'ball', donkey: 'log', goat: 'log', alpaca: 'bush', 
   zebra: 'bush', giraffe: 'bush', lion: 'ball', camel: 'bush', rhino: 'log', hippo: 'ball', elephant: 'log', cheetah: 'ball', gazelle: 'flowerbed',
   monkey: 'ball', parrot: 'flowerbed', tiger: 'ball', gorilla: 'log', panda: 'bush', toucan: 'bush', sloth: 'log', panther: 'log',
-  dolphin: 'hoop', orca: 'ball',
+  dolphin: 'hoop', orca: 'ball', shark: 'ball',
   penguin: 'ball', seal: 'ball', polarbear: 'log', reindeer: 'bush', wolf: 'ball', arcticfox: 'flowerbed', bear: 'log', yak: 'bush', owl: 'log', walrus: 'ball',
   otter: 'ball', beaver: 'log', koala: 'bush', redpanda: 'log', lemur: 'bush', bison: 'log', kangaroo: 'ball',
 };
-export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'playground', 'slide', 'swing', 'seesaw', 'springer', 'trampoline', 'icecream', 'flowers', 'bin', 'balloon', 'hats', 'souvenir', 'fountain', 'carousel'];
+export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'playground', 'slide', 'swing', 'seesaw', 'springer', 'trampoline', 'icecream', 'flowers', 'bin', 'umbrellas', 'shelter', 'balloon', 'hats', 'souvenir', 'restaurant', 'fountain', 'tower', 'carousel', 'station', 'bumper', 'ferris'];
+/** Waar een gast naar kijkt (zin in iets moois) en waar hij in rijdt (zin in een ritje). */
+export const LOOKS: ShopKind[] = ['fountain', 'tower'];
+export const RIDES: ShopKind[] = ['carousel', 'ferris', 'bumper', 'station'];
+/** Maten van de grote attracties; het beeld en de gasten gebruiken dezelfde getallen. Alles ten opzichte van het midden van het gebouw. */
+export const FERRIS = { hub: 2.25, radius: 1.5, cabins: 6, speed: 0.45 };
+export const TOWER_TOP = 1.75;
+/** De tafels van het restaurant (x, z) met aan weerszijden (x - 0,27 en x + 0,27) een kruk. */
+export const RESTAURANT_TABLES: [number, number][] = [[-0.45, 0.5], [0.5, 0.5], [0.5, -0.4]];
+export const BUMPER_CARS = 3;
+/** Waar botsauto `i` op tijdstip `t` rijdt: [x, z, richting]. De vloer is 1,84 breed; de auto's blijven binnen de rand. */
+export function bumperCar(i: number, t: number): [number, number, number] {
+  const a = t * (0.9 + i * 0.17) + i * 2.1, b = t * (0.7 + i * 0.13) + i * 1.3;
+  const x = Math.sin(a) * 0.55 + Math.sin(b * 1.7) * 0.1, z = Math.cos(b) * 0.55 + Math.cos(a * 1.3) * 0.1;
+  const dx = Math.cos(a) * 0.55 * (0.9 + i * 0.17), dz = -Math.sin(b) * 0.55 * (0.7 + i * 0.13);
+  return [x, z, Math.atan2(dx, dz)];
+}
+/** Het treintje: een locomotief met zoveel wagons, elk met zoveel plekken; `gap` is de afstand tussen twee wagens, `speed` in tegels per tel. */
+export const TRAIN = { wagons: 2, seats: 3, gap: 0.95, speed: 1.5, stop: 5 };
 /** Kramen waar een gast iets koopt voor één munt. */
 export const STALLS: ShopKind[] = ['foodstall', 'drinkstall', 'icecream', 'balloon', 'hats', 'souvenir'];
 /** Alles waar kinderen op spelen: de speeltuin en de losse toestellen. Een kind dat wil spelen kiest er zelf een. */
@@ -114,24 +199,34 @@ export const SERVES: Partial<Record<ShopKind, number>> = { foodstall: 10, drinks
  * Zoveel gasten kunnen er hooguit tegelijk in het park zijn: het groeit mee met het level, tot 60. Op een
  * apparaat dat het niet bijhoudt (het spel merkt dat zelf) blijft het bij 45 of 30.
  */
-export const MAX_GUESTS = 60;
-export const guestsAt = (level: number, quality = 2): number => Math.min([30, 45, MAX_GUESTS][quality] ?? MAX_GUESTS, 14 + level);
+export const MAX_GUESTS = 160;
+export const guestsAt = (level: number, quality = 2): number => Math.min([45, 90, MAX_GUESTS][quality] ?? MAX_GUESTS, 14 + level * 3);
+/**
+ * Boven de twintig gasten telt elke gast maar voor een derde mee bij honger, dorst en drukte bij de kramen. Er
+ * lopen nu drie keer zoveel gasten rond als vroeger; zo heb je toch ongeveer evenveel kramen nodig als toen
+ * (bij 160 gasten tellen er 68 mee) en loopt de kas niet over.
+ */
+export const CROWD_EASE = 20;
+export const crowdLoad = (guests: number): number => (guests <= CROWD_EASE ? guests : CROWD_EASE + (guests - CROWD_EASE) * 0.34);
 
 /**
  * Tien kleuren per soort hek (1 = hout, 3 = steen, 4 = net). De eerste is de gewone kleur. Je kiest de kleur
  * door op een verblijf te tikken.
  */
-export const FENCE_COLORS: Record<1 | 3 | 4 | 5, number[]> = {
+export const FENCE_COLORS: Record<1 | 3 | 4 | 5 | 7, number[]> = {
   1: [0xc58a4b, 0xf3ead6, 0xe0584f, 0x4a90e2, 0x6cc04a, 0xffd23f, 0xf48fb1, 0xa06ad9, 0xf08a24, 0x6b4a2a],
   3: [0xa9adb3, 0xe8dcc0, 0xc9553f, 0xf7f4ec, 0x5a6470, 0x8fae7a, 0x8fb4d9, 0xe6a9b8, 0xe5c66a, 0x8a6a4a],
   4: [0x3f7f6b, 0x2b2f36, 0xf3f3f3, 0x4a90e2, 0xe0584f, 0xffd23f, 0xf08a24, 0xa06ad9, 0xf48fb1, 0xb9c2c9],
   // glas: de kleur van de lijst om de ruit
   5: [0xd9e6ee, 0x2b2f36, 0xf7f4ec, 0x4a90e2, 0xe0584f, 0xffd23f, 0xf08a24, 0xa06ad9, 0xf48fb1, 0x3f7f6b],
+  // het witte hekje van de kinderboerderij (en het poortje voor de gasten)
+  7: [0xf7f4ec, 0xffd23f, 0xe0584f, 0x4a90e2, 0x6cc04a, 0xf48fb1, 0xa06ad9, 0xf08a24, 0x9fd8f5, 0xc58a4b],
 };
 
 /** Hoeveel tegels breed en diep een winkel is: gebouwen 2 bij 2, losse dingen 1 bij 1. */
 export const SHOP_SIZE: Record<ShopKind, number> = {
   foodstall: 2, drinkstall: 2, toilet: 2, playground: 2, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2, icecream: 2, balloon: 2, hats: 2, souvenir: 2, bench: 1, flowers: 1, bin: 1, fountain: 2, carousel: 2,
+  tower: 2, restaurant: 2, ferris: 2, bumper: 2, shelter: 2, station: 2, umbrellas: 1,
 };
 
 // ------------------------------------------------------------ wat een kraam verkoopt
@@ -209,7 +304,22 @@ export const SHOP_PRICE: Record<ShopKind, number> = {
   foodstall: 4, drinkstall: 4, bench: 2, toilet: 5, icecream: 8, balloon: 12, flowers: 2, bin: 2, souvenir: 16, playground: 6, slide: 5, swing: 6, seesaw: 6, springer: 5, trampoline: 8, hats: 14,
   // de grote attracties: daar spaar je voor
   fountain: 30, carousel: 60,
+  tower: 25, restaurant: 30, ferris: 80, bumper: 45, shelter: 10, station: 20, umbrellas: 6,
 };
+/** Een kraam wordt vies van het verkopen (vanaf FEATURE.upkeep): na vijftig keer is hij vies en koopt een derde van de gasten er niets meer. */
+export const DIRT_PER_USE = 0.02;
+/** Personeel: een karretje kost eenmalig zoveel munten; daarmee werkt een werker sneller. */
+export const CART_PRICE = 6;
+/** De kleuren die je voor het pak van je personeel kunt kiezen (de eerste is het gewone groen). */
+export const SUIT_COLORS = [0x4fa35a, 0x4a90e2, 0xe0584f, 0xf5a623, 0xa06ad9, 0xf06aa6, 0x2bb5a8, 0x6b4a2a, 0xf4f1e8, 0x3d4f7a];
+/** Seizoenen (vanaf FEATURE.season): elk duurt twee dagen in het spel. */
+export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
+export const SEASONS: Season[] = ['spring', 'summer', 'autumn', 'winter'];
+/** Het weer (vanaf FEATURE.weather): af en toe een rustige bui. Tussen twee buien zit minstens RAIN_EVERY[0] tellen. */
+export const RAIN_EVERY: [number, number] = [330, 560];
+export const RAIN_SECONDS: [number, number] = [45, 75];
+export const RAINBOW_SECONDS = 50;
+export type Sky = 'clear' | 'rain' | 'snow' | 'leaves' | 'petals';
 
 export interface SpeciesInfo {
   terrain: Terrain;
@@ -283,6 +393,8 @@ export const SPECIES: Record<SpeciesId, SpeciesInfo> = {
   // aquarium: een bak van glas vol water, met koraal om bij te rusten
   dolphin: sp('water', 'fish', 'coral', 45, 'glass'),
   orca: sp('water', 'fish', 'coral', 60, 'glass'),
+  ray: sp('water', 'fish', 'coral', 35, 'glass'),
+  shark: sp('water', 'meat', 'coral', 55, 'glass'),
 };
 
 /**
@@ -336,7 +448,7 @@ const sold = (n: number, what?: string): Goal =>
 export const LEVELS: Level[] = [
   // ---- wereld 1: boerderij. Eén nieuw ding per level.
   { goals: [goal('enclosure', 1), goal('trough', 1)], reward: 'pig' },
-  { goals: [animals('pig'), goal('bed', 1), goal('fed', 2), happy('pig')], reward: 'cow' },
+  { goals: [animals('pig'), goal('bed', 1), goal('fed', 1), happy('pig')], reward: 'cow' },
   { goals: [animals('cow'), happy('cow'), goal('cleaned', 3)], reward: 'sheep' },
   { goals: [goal('path', 6), happy('sheep'), goal('guests', 3)], reward: 'horse' },
   { goals: [shop('foodstall'), happy('horse'), goal('coins', 8)], reward: 'donkey' },
@@ -406,8 +518,8 @@ export function unlockedSpecies(done: number): SpeciesId[] {
  * De dieren van het aquarium zijn geen beloning van een level: je krijgt ze erbij zodra je zoveel levels
  * gehaald hebt. Ze leven alleen in water, achter glas.
  */
-export const BONUS: Partial<Record<SpeciesId, number>> = { dolphin: 20, orca: 35 };
-export const AQUATIC: SpeciesId[] = ['dolphin', 'orca'];
+export const BONUS: Partial<Record<SpeciesId, number>> = { dolphin: 20, ray: 23, shark: 27, orca: 35 };
+export const AQUATIC: SpeciesId[] = ['dolphin', 'orca', 'ray', 'shark'];
 export const bonusSpecies = (done: number): SpeciesId[] => (Object.keys(BONUS) as SpeciesId[]).filter(sp => BONUS[sp]! <= done);
 /** Zo hoog staat het water in een bak van glas. */
 export const TANK_WATER = 0.42;
@@ -417,6 +529,15 @@ export const FEATURE = {
   paths: 3, foodstall: 4, drinkstall: 5, toilet: 7, bench: 8, playground: 9, slide: 12, swing: 16, seesaw: 19, springer: 23, trampoline: 28, icecream: 11, flowers: 14, bin: 5, hats: 22, souvenir: 26,
   /** De grote attracties: een fontein om naar te kijken en een draaimolen om in te rijden. */
   fountain: 15, carousel: 25,
+  tower: 20, restaurant: 24, ferris: 35, bumper: 30, shelter: 10, station: 27, umbrellas: 10,
+  /** Een ruit in het hek, het weer (regen), seizoenen, kramen die vies worden, warmte en kou. */
+  window: 13, weather: 10, season: 16, upkeep: 17, climate: 31,
+  /** Bijzondere gasten: rolstoel en kinderwagen, een schoolklas, een verjaardag, een beroemde gast, een verdwaald kind. */
+  wheels: 8, schoolclass: 12, party: 14, celeb: 15, lost: 18,
+  /** Meer personeel: fotograaf, gids en dierenarts; en een karretje voor je werkers. */
+  photo: 18, guide: 21, vet: 23, cart: 15,
+  /** Een kinderboerderij maak je van een verblijf met boerderijdieren. */
+  petting: 6,
   /** Vanaf hier kun je het park mooi maken met bomen, bloemen, water en beelden. */
   decor: 5,
   /** Vanaf hier slijten houten hekken: af en toe moet je er een repareren. */
@@ -457,7 +578,7 @@ export const GOAL_OWNER: Record<GoalType, 'builder' | 'keeper' | 'host' | 'cashi
   coins: 'cashier',
 };
 
-export const WISH_ORDER: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean', 'space', 'fun'];
+export const WISH_ORDER: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean', 'space', 'fun', 'climate'];
 /** Zoveel poepjes mogen er in een verblijf liggen voordat de dieren het vies vinden. */
 export const MAX_POOPS_CLEAN = 3;
 

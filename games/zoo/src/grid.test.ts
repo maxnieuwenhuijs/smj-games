@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FEATURE, LEVELS, PRODUCTS, SHOPS, SHOP_SIZE, SPECIES, migrateLevel, productsFor, unlockedSpecies, worldOf, type SpeciesId } from './data';
+import { CLIMATE, FEATURE, LEVELS, MAX_GUESTS, PALS, PATH_KINDS, PRODUCTS, SHOPS, SHOP_SIZE, SPECIES, TERRAINS, crowdLoad, guestsAt, isPath, migrateLevel, productsFor, unlockedSpecies, worldOf, type SpeciesId } from './data';
 import en from './en.json';
 import { BASE_LAND, FULL_LAND, Grid, H, PLOT, W, edgeAlong, nearestEdge, tileIndex, type Edge } from './grid';
 import { emptyStats, goalProgress, levelDone } from './levels';
@@ -176,7 +176,7 @@ describe('vijftig levels', () => {
   it('er zijn vijftig levels en vijftig dieren, elk dier één keer', () => {
     expect(LEVELS).toHaveLength(50);
     // vijftig beloningen en twee zeedieren voor het aquarium
-    expect(species).toHaveLength(52);
+    expect(species).toHaveLength(54);
     expect(new Set(LEVELS.map(l => l.reward)).size).toBe(50);
     expect(worldOf(0)).toBe('farm');
     expect(worldOf(10)).toBe('savanna');
@@ -274,5 +274,49 @@ describe('teksten en stemmen', () => {
     expect(voiceId('director', 'Goed gedaan!')).toBe(voiceId('director', 'Goed gedaan!'));
     expect(voiceId('director', 'Goed gedaan!')).not.toBe(voiceId('keeper', 'Goed gedaan!'));
     expect(voiceId('director', 'Goed gedaan!')).toMatch(/^[0-9a-f]{16}$/);
+  });
+});
+
+describe('paden, kinderboerderij en drukte', () => {
+  it('alle soorten pad tellen als pad, gras en water niet', () => {
+    for (const kind of PATH_KINDS) expect(isPath(TERRAINS.indexOf(kind)), kind).toBe(true);
+    expect(isPath(TERRAINS.indexOf('grass'))).toBe(false);
+    expect(isPath(TERRAINS.indexOf('water'))).toBe(false);
+  });
+
+  it('een verblijf met het witte hekje en een poortje voor gasten is een kinderboerderij', () => {
+    const g = new Grid(FULL_LAND);
+    const edges = fenceBox(g, 3, 3, 6, 5);
+    for (const e of edges) g.setEdge(e, 7);
+    g.setEdge(edges[0], 8);
+    expect(g.enclosures()).toHaveLength(1);
+    expect(g.penKind(g.enclosureAt(3, 3)!)).toBe(7);
+    // dieren en gasten lopen er niet zomaar door; personeel wel
+    expect(g.canStep(3, 3, 0, -1)).toBe(false);
+    expect(g.canStep(3, 3, 0, -1, true)).toBe(true);
+  });
+
+  it('een kijkruit past in elk soort hek', () => {
+    const g = new Grid(FULL_LAND);
+    const edges = fenceBox(g, 3, 3, 4, 4);
+    for (const e of edges) g.setEdge(e, 3);
+    g.setEdge(edges[2], 6);
+    expect(g.penKind(g.enclosureAt(3, 3)!)).toBe(3);
+  });
+
+  it('het park groeit mee tot veel meer gasten, maar de drukte bij de kramen loopt minder hard op', () => {
+    expect(guestsAt(0)).toBe(14);
+    expect(guestsAt(49)).toBe(MAX_GUESTS);
+    expect(guestsAt(49, 0)).toBeLessThan(guestsAt(49, 1));
+    expect(crowdLoad(20)).toBe(20);
+    expect(crowdLoad(160)).toBeLessThan(70);
+  });
+
+  it('elk dier dat warmte of kou wil en elk vriendje bestaat ook echt', () => {
+    for (const sp of Object.keys(CLIMATE)) expect(SPECIES[sp as SpeciesId], sp).toBeTruthy();
+    for (const [a, b] of PALS) {
+      expect(SPECIES[a], a).toBeTruthy();
+      expect(SPECIES[b], b).toBeTruthy();
+    }
   });
 });

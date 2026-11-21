@@ -28,6 +28,14 @@ const balloonIcon = (c: string, d: string): string =>
   `<ellipse cx="24" cy="18" rx="12" ry="14" fill="${c}"/><path d="M24 32 l-3 4 h6Z" fill="${d}"/>` +
   `<path d="M24 36 Q19 40 26 46" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/><ellipse cx="19" cy="12" rx="3" ry="4.5" fill="#fff" opacity=".55"/>`;
 
+// een druppel (regen, traan) met de punt omhoog, en een gloeiend lampje aan een snoer
+const drop = (x: number, y: number, c = '#6ec3e8'): string =>
+  `<path d="M${x} ${y - 5} C${x + 5} ${y} ${x + 4} ${y + 4} ${x} ${y + 4} C${x - 4} ${y + 4} ${x - 5} ${y} ${x} ${y - 5}Z" fill="${c}"/>`;
+const bulb = (x: number, y: number, c: string): string =>
+  `<circle cx="${x}" cy="${y + 9}" r="8" fill="${c}" opacity=".3"/><rect x="${x - 2}" y="${y}" width="4" height="4" rx="1" fill="#3d4f5a"/><ellipse cx="${x}" cy="${y + 9}" rx="4.2" ry="5.5" fill="${c}"/>`;
+const HEART_PATH = 'M24 41 C6 28 6 11 16 9 C21 8 24 12 24 15 C24 12 27 8 32 9 C42 11 42 28 24 41Z';
+const STAR_PATH = 'M24 4 L30 17 L44 19 L34 29 L36.5 43 L24 36.5 L11.5 43 L14 29 L4 19 L18 17Z';
+
 const ICONS = {
   hand: HAND,
   terrain:
@@ -441,6 +449,249 @@ const ICONS = {
   balloon_yellow: balloonIcon('#ffd23f', '#e5b520'),
   balloon_heart:
     `<path d="M24 34 C6 22 8 7 17 6 C21 6 24 9 24 12 C24 9 27 6 31 6 C40 7 42 22 24 34Z" fill="#f06aa6"/><path d="M24 34 Q19 39 26 46" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/><ellipse cx="16" cy="13" rx="3" ry="4" fill="#fff" opacity=".55"/>`,
+  // meer paden: kiezels, planken, een bloemenpad en een brug over water
+  gravel:
+    tile('#c3c6cb', '#b7bbc1') +
+    '<g fill="#8a8f98"><ellipse cx="14" cy="24" rx="3" ry="2"/><ellipse cx="24" cy="16" rx="2.6" ry="1.8"/><ellipse cx="32" cy="27" rx="3" ry="2"/><ellipse cx="21" cy="31" rx="2.6" ry="1.8"/><ellipse cx="27" cy="22" rx="2.2" ry="1.5"/></g>' +
+    '<g fill="#f1f2f4"><ellipse cx="20" cy="22" rx="2.6" ry="1.8"/><ellipse cx="34" cy="21" rx="2.4" ry="1.6"/><ellipse cx="27" cy="32" rx="2.2" ry="1.5"/><ellipse cx="9" cy="24" rx="2" ry="1.4"/><ellipse cx="38" cy="25" rx="1.8" ry="1.3"/></g>',
+  planks:
+    tile(WOOD) +
+    '<path d="M8.25 27.75 L29.25 12.75 M13.5 31.5 L34.5 16.5 M18.75 35.25 L39.75 20.25" stroke="#8a5a2c" stroke-width="2" stroke-linecap="round"/>' +
+    '<g fill="#8a5a2c"><circle cx="8.1" cy="24.1" r="1.1"/><circle cx="24.1" cy="12.7" r="1.1"/><circle cx="13.4" cy="27.8" r="1.1"/><circle cx="29.4" cy="16.4" r="1.1"/><circle cx="18.6" cy="31.6" r="1.1"/><circle cx="34.6" cy="20.2" r="1.1"/><circle cx="23.9" cy="35.3" r="1.1"/><circle cx="39.9" cy="23.9" r="1.1"/></g>',
+  flowerpath:
+    tile('#d8c7ab') +
+    '<g fill="#b9a686"><ellipse cx="20" cy="24" rx="4" ry="2.2"/><ellipse cx="28" cy="27" rx="3.4" ry="1.9"/><ellipse cx="27" cy="20" rx="3" ry="1.7"/></g>' +
+    '<g fill="#5bab4c"><circle cx="9" cy="24" r="3.8"/><circle cx="16" cy="18" r="3.8"/><circle cx="32" cy="18" r="3.8"/><circle cx="39" cy="24" r="3.8"/><circle cx="16" cy="30" r="3.8"/><circle cx="32" cy="30" r="3.8"/></g>' +
+    `<circle cx="9" cy="24" r="2.6" fill="#f06aa6"/><circle cx="16" cy="18" r="2.6" fill="${SUN}"/><circle cx="32" cy="18" r="2.6" fill="${RED}"/><circle cx="39" cy="24" r="2.6" fill="${SUN}"/><circle cx="16" cy="30" r="2.6" fill="${RED}"/><circle cx="32" cy="30" r="2.6" fill="#f06aa6"/>` +
+    '<g fill="#fff7e0"><circle cx="9" cy="24" r="1"/><circle cx="16" cy="18" r="1"/><circle cx="32" cy="18" r="1"/><circle cx="39" cy="24" r="1"/><circle cx="16" cy="30" r="1"/><circle cx="32" cy="30" r="1"/></g>',
+  bridge:
+    tile('#6ec3e8') +
+    '<path d="M13 19.5 q1.5 -1.6 3 0 M19 15 q1.5 -1.6 3 0 M27 33 q1.5 -1.6 3 0 M33 29 q1.5 -1.6 3 0" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>' +
+    `<path d="M9.3 28.5 L30.3 13.5 L38.7 19.5 L17.7 34.5Z" fill="${WOOD}"/><path d="M13.5 25.5 L21.9 31.5 M17.7 22.5 L26.1 28.5 M21.9 19.5 L30.3 25.5 M26.1 16.5 L34.5 22.5" stroke="${WOOD_D}" stroke-width="1.8"/>` +
+    '<path d="M9.3 28.5 V22.5 M19.8 21 V15 M30.3 13.5 V7.5 M9.3 22.5 L30.3 7.5 M17.7 34.5 V28.5 M28.2 27 V21 M38.7 19.5 V13.5 M17.7 28.5 L38.7 13.5" fill="none" stroke="#8a5a2c" stroke-width="2.6" stroke-linecap="round"/>',
+  // meer hekken: een muur met een ruit, een laag wit hekje en het poortje van de kinderboerderij
+  window:
+    '<rect x="4" y="9" width="40" height="32" rx="2" fill="#a9adb3"/>' +
+    '<path d="M4 17 H44 M4 33 H44 M10 9 V17 M24 9 V17 M38 9 V17 M9 17 V33 M39 17 V33 M10 33 V41 M24 33 V41 M38 33 V41" fill="none" stroke="#7d8189" stroke-width="2"/>' +
+    '<rect x="13" y="14" width="22" height="21" rx="2" fill="#bfe6f7" stroke="#7fa6bb" stroke-width="3"/><path d="M18 30 L26 19 M26 31 L30 25" stroke="#fff" stroke-width="3" stroke-linecap="round"/>',
+  picket:
+    `<rect x="2" y="40" width="44" height="5" rx="2.5" fill="${GRASS}"/>` +
+    `<g fill="#fff" stroke="${GREY}" stroke-width="1.6" stroke-linejoin="round"><rect x="2" y="24" width="44" height="4.5" rx="1.5"/><rect x="2" y="33" width="44" height="4.5" rx="1.5"/>` +
+    '<path d="M4.5 42 V19 L8 14 L11.5 19 V42Z M15 42 V19 L18.5 14 L22 19 V42Z M26 42 V19 L29.5 14 L33 19 V42Z M36.5 42 V19 L40 14 L43.5 19 V42Z"/></g>',
+  petgate:
+    `<g fill="#fff" stroke="${GREY}" stroke-width="1.8" stroke-linejoin="round"><path d="M12 43 V21 Q24 9 36 21 V43Z"/><rect x="4" y="13" width="8" height="31" rx="2"/><rect x="36" y="13" width="8" height="31" rx="2"/><circle cx="8" cy="10" r="4"/><circle cx="40" cy="10" r="4"/></g>` +
+    '<path d="M17 17.5 V43 M31 17.5 V43" stroke="#b9c2c9" stroke-width="1.6"/>' +
+    `<g transform="translate(15.5 20) scale(.355)">${HEART}</g>`,
+  // meer voor in een verblijf: heuvel, rotsen, drinkvijver, waterval, warmtelamp, ijsblok, klimrek en tunnel
+  hill:
+    `<path d="M2 42 Q6 10 24 10 Q42 10 46 42Z" fill="${GRASS}"/><path d="M24 10 Q42 10 46 42 H28 Q36 28 24 10Z" fill="${GRASS_D}"/>` +
+    `<path d="M10 35 l2 -5 l2 5 M17 25 l2 -5 l2 5" fill="none" stroke="${GRASS_D}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="22" cy="34" r="3" fill="#fff"/><circle cx="22" cy="34" r="1.3" fill="${SUN}"/>`,
+  rocks:
+    '<path d="M11 41 L14 20 L25 9 L36 15 L41 41Z" fill="#8f949c"/><path d="M25 9 L27 22 L36 15" fill="none" stroke="#6f747c" stroke-width="2" stroke-linejoin="round"/>' +
+    '<path d="M2 43 L5 31 L13 25 L22 30 L25 43Z" fill="#b4b8bf"/><path d="M22 43 L25 32 L35 27 L44 33 L46 43Z" fill="#a9adb3"/>' +
+    '<path d="M13 25 L14 34 M35 27 L33 35" stroke="#7d8189" stroke-width="2" stroke-linecap="round"/>',
+  drink:
+    '<ellipse cx="24" cy="33" rx="21" ry="10" fill="#a9adb3"/><ellipse cx="24" cy="32" rx="16.5" ry="6.5" fill="#6ec3e8"/><path d="M15 33 q3 -2.5 6 0 t6 0 t6 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>' +
+    '<path d="M24 2 C31 11 32 14 32 16 A8 8 0 0 1 16 16 C16 14 17 11 24 2Z" fill="#4aa8d8"/><ellipse cx="20.5" cy="15" rx="2" ry="3.2" fill="#fff" opacity=".6"/>',
+  fall:
+    '<path d="M5 44 V24 L11 13 H29 L33 23 H40 L44 31 V44Z" fill="#8f949c"/><path d="M13 13 H27 Q28 26 36 27 V40 H13Z" fill="#9fd8f5"/>' +
+    '<path d="M18 16 V34 M23 18 V31 M30 29 V37" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><ellipse cx="24" cy="41" rx="20" ry="5" fill="#6ec3e8"/>' +
+    '<circle cx="14" cy="38" r="2" fill="#fff"/><circle cx="33" cy="39" r="2.4" fill="#fff"/><circle cx="24" cy="37.5" r="1.8" fill="#fff"/>',
+  lamp:
+    '<path d="M21 17 L13 43 H43 L35 17Z" fill="#ff9a3c" opacity=".35"/><path d="M24 17 L21 43 H35 L32 17Z" fill="#ffd23f" opacity=".5"/>' +
+    '<path d="M8 44 V10 Q8 4 14 4 H28 V8" fill="none" stroke="#3d4f5a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="2" y="42" width="12" height="4" rx="2" fill="#3d4f5a"/>' +
+    `<ellipse cx="28" cy="18" rx="6" ry="4" fill="#ffb347"/><path d="M18 18 Q18 7 28 7 Q38 7 38 18Z" fill="${RED}"/>`,
+  icebox:
+    '<path d="M24 6 L42 15 V34 L24 43 L6 34 V15Z" fill="#bfe6f7"/><path d="M24 6 L42 15 L24 24 L6 15Z" fill="#e9f7fd"/><path d="M24 24 L42 15 V34 L24 43Z" fill="#8fcdeb"/>' +
+    '<path d="M11 22 V31 M15.5 25 V30 M29 30 L37 26" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><path d="M24 6 L42 15 V34 L24 43 L6 34 V15Z" fill="none" stroke="#6fb3d6" stroke-width="1.6" stroke-linejoin="round"/>',
+  frame:
+    `<g fill="${WOOD_D}"><rect x="6" y="8" width="5" height="37" rx="2"/><rect x="21.5" y="8" width="5" height="37" rx="2"/><rect x="37" y="8" width="5" height="37" rx="2"/></g>` +
+    '<path d="M27 26 L37 43 M37 26 L27 43 M27 34.5 H37" stroke="#e3c08a" stroke-width="2.2" stroke-linecap="round"/>' +
+    `<g fill="${WOOD}"><rect x="3" y="6" width="42" height="6" rx="2"/><rect x="6" y="21" width="36" height="5" rx="2"/><rect x="9" y="30" width="14" height="4" rx="2"/><rect x="9" y="38" width="14" height="4" rx="2"/></g>`,
+  tunnel:
+    `<path d="M3 43 V26 Q3 7 24 7 Q45 7 45 26 V43Z" fill="${WOOD}"/><path d="M7 19 L14 23 M13 10.5 L18 17 M24 7 V15 M35 10.5 L30 17 M41 19 L34 23 M3 32 H12 M36 32 H45" stroke="${WOOD_D}" stroke-width="2.2" stroke-linecap="round"/>` +
+    `<path d="M12 43 V27 Q12 15 24 15 Q36 15 36 27 V43Z" fill="${INK}"/><path d="M17 43 V31 Q17 24 24 24 Q31 24 31 31 V43Z" fill="${GRASS}"/>`,
+  // meer gebouwen: uitkijktoren, restaurant, reuzenrad, botsauto, schuilhut, treinhalte en paraplu's
+  tower:
+    `<path d="M14 45 L17 22 M34 45 L31 22 M15.5 34 H32.5" fill="none" stroke="${WOOD_D}" stroke-width="3.5" stroke-linecap="round"/>` +
+    `<path d="M21.5 22 V45 M26.5 22 V45 M21.5 28 H26.5 M21.5 34 H26.5 M21.5 40 H26.5" fill="none" stroke="${WOOD}" stroke-width="2"/>` +
+    `<path d="M12 17 V10 M24 17 V10 M36 17 V10" stroke="${WOOD_D}" stroke-width="3"/><rect x="10" y="12.5" width="28" height="2.5" fill="${WOOD}"/><rect x="9" y="17" width="30" height="5" rx="2" fill="${WOOD}"/><path d="M6 11 L24 1 L42 11Z" fill="${RED}"/>`,
+  restaurant:
+    `<path d="M24 3 V45" stroke="#8a857a" stroke-width="2.5" stroke-linecap="round"/><path d="M3 22 Q5 6 24 6 Q43 6 45 22Z" fill="${RED}"/><path d="M16 22 Q17 9 24 6 Q31 9 32 22Z" fill="#fff7e0"/>` +
+    `<path d="M4 45 V38 H10 M44 45 V38 H38" fill="none" stroke="${WOOD_D}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><rect x="8" y="31" width="32" height="4.5" rx="2" fill="${WOOD}"/>` +
+    `<g fill="#fff" stroke="${GREY}" stroke-width="1"><ellipse cx="15" cy="30" rx="5" ry="1.8"/><ellipse cx="33" cy="30" rx="5" ry="1.8"/></g><circle cx="15" cy="28.5" r="2.2" fill="#e9a23b"/><circle cx="33" cy="28.5" r="2.2" fill="${GREEN}"/>`,
+  ferris:
+    '<path d="M24 21 L12 45 M24 21 L36 45" stroke="#3d4f5a" stroke-width="3.5" stroke-linecap="round"/><rect x="7" y="43" width="34" height="3.5" rx="1.75" fill="#3d4f5a"/>' +
+    `<circle cx="24" cy="21" r="16" fill="none" stroke="${RED}" stroke-width="3"/><path d="M24 5 V37 M8 21 H40 M12.7 9.7 L35.3 32.3 M35.3 9.7 L12.7 32.3" stroke="#9aa0a6" stroke-width="1.8"/>` +
+    `<circle cx="24" cy="5" r="3.6" fill="${SUN}"/><circle cx="35.3" cy="9.7" r="3.6" fill="#4a90e2"/><circle cx="40" cy="21" r="3.6" fill="${GREEN}"/><circle cx="35.3" cy="32.3" r="3.6" fill="#f06aa6"/>` +
+    `<circle cx="24" cy="37" r="3.6" fill="${SUN}"/><circle cx="12.7" cy="32.3" r="3.6" fill="#4a90e2"/><circle cx="8" cy="21" r="3.6" fill="${GREEN}"/><circle cx="12.7" cy="9.7" r="3.6" fill="#f06aa6"/><circle cx="24" cy="21" r="3.2" fill="${RED}"/>`,
+  bumper:
+    `<path d="M33 22 V5" stroke="#8a857a" stroke-width="2.5" stroke-linecap="round"/><circle cx="33" cy="5" r="3" fill="${SUN}"/>` +
+    `<path d="M25 24 V15 Q25 12 28 12 H31 Q34 12 34 15 V24Z" fill="#b8433b"/><path d="M5 34 Q5 22 17 22 H31 Q43 22 43 34 V37 H5Z" fill="${RED}"/>` +
+    '<path d="M15 22 L19 14" stroke="#3d4f5a" stroke-width="3" stroke-linecap="round"/><circle cx="19.5" cy="13" r="3.2" fill="none" stroke="#3d4f5a" stroke-width="2.5"/>' +
+    `<circle cx="13" cy="42" r="3" fill="#8a857a"/><circle cx="35" cy="42" r="3" fill="#8a857a"/><rect x="2" y="33" width="44" height="8" rx="4" fill="#3d4f5a"/><circle cx="10" cy="28" r="2.8" fill="${SUN}"/><path d="M18 28 H36" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>`,
+  shelter:
+    drop(10, 8) + drop(24, 6) + drop(38, 8) +
+    `<rect x="8" y="27" width="5" height="18" rx="1.5" fill="${WOOD_D}"/><rect x="35" y="27" width="5" height="18" rx="1.5" fill="${WOOD_D}"/><path d="M17 39 V45 M31 39 V45" stroke="${WOOD_D}" stroke-width="3"/>` +
+    `<rect x="14" y="35" width="20" height="4" rx="2" fill="${WOOD}"/><path d="M2 29 L24 15 L46 29Z" fill="#c0523f"/>`,
+  station:
+    '<rect x="8" y="3" width="32" height="26" rx="6" fill="#4a90e2"/><g fill="#fff"><rect x="13" y="13" width="15" height="8" rx="2"/><rect x="25" y="8" width="9" height="13" rx="1.5"/><rect x="15.5" y="8.5" width="4" height="6" rx="1"/><circle cx="18" cy="23" r="3"/><circle cx="29" cy="23" r="3"/></g>' +
+    '<rect x="27.5" y="10.5" width="4" height="4" rx="1" fill="#4a90e2"/><rect x="22" y="29" width="4" height="10" fill="#3d4f5a"/>' +
+    `<rect x="3" y="38" width="42" height="7" rx="2" fill="#b9c2c9"/><rect x="3" y="38" width="42" height="2.5" rx="1.25" fill="${SUN}"/>`,
+  umbrellas:
+    `<g fill="none" stroke="${WOOD_D}" stroke-width="2.5" stroke-linecap="round"><path d="M13.5 11 L11.5 5 Q10.5 1.5 7.5 3.5"/><path d="M34.5 11 L36.5 5 Q37.5 1.5 40.5 3.5"/><path d="M24 9 V5 Q24 2 27 2 Q30 2 30 5"/></g>` +
+    `<path d="M10.5 10.5 L16.5 9 L20 30 L16 30Z" fill="${RED}"/><path d="M31.5 9 L37.5 10.5 L32 30 L28 30Z" fill="${SUN}"/><path d="M21 8 H27 L26 30 H22Z" fill="#4a90e2"/>` +
+    `<path d="M12 28 H36 L33 45 H15Z" fill="${GREY}"/><rect x="10" y="26" width="28" height="4.5" rx="2" fill="#6c7078"/><path d="M19 34 V41 M29 34 V41" stroke="#b9bdc3" stroke-width="2.5" stroke-linecap="round"/>`,
+  // meer versiering: gastenboek, plattegrond, vlaggetjes en lichtjes
+  guestbook:
+    `<rect x="2" y="12" width="44" height="31" rx="3" fill="${WOOD_D}"/><g fill="#fff7e0"><path d="M5 11 Q15 6 24 11 V39 Q15 34 5 39Z"/><path d="M43 11 Q33 6 24 11 V39 Q33 34 43 39Z"/></g><path d="M24 11 V39" stroke="#d3b96c" stroke-width="2"/>` +
+    '<path d="M9 17 Q14 15 20 17.5 M9 23 Q14 21 20 23.5 M9 29 Q14 27 20 29.5" fill="none" stroke="#b9a686" stroke-width="2" stroke-linecap="round"/>' +
+    `<g transform="translate(25.5 13) scale(.34)">${HEART}</g>`,
+  mapboard:
+    `<rect x="9" y="30" width="4.5" height="16" rx="1.5" fill="${WOOD_D}"/><rect x="34.5" y="30" width="4.5" height="16" rx="1.5" fill="${WOOD_D}"/><rect x="4" y="5" width="40" height="29" rx="3" fill="#fff7e0" stroke="${WOOD_D}" stroke-width="3"/>` +
+    `<circle cx="13" cy="14" r="4.5" fill="${GRASS}"/><ellipse cx="35" cy="26" rx="5" ry="3" fill="#6ec3e8"/><path d="M9 28 Q15 16 24 20 T39 11" fill="none" stroke="#d3b96c" stroke-width="3.5" stroke-linecap="round"/>` +
+    `<circle cx="24" cy="20" r="4.5" fill="${RED}" stroke="#fff" stroke-width="1.8"/>`,
+  bunting:
+    `<g transform="translate(0 4)"><path d="M3.3 9.9 L13 15 L9 28Z" fill="${RED}"/><path d="M13.9 15.3 L23.6 17 L19 31Z" fill="${SUN}"/><path d="M24.4 17 L34.1 15.3 L29 31Z" fill="#4a90e2"/><path d="M35 15 L44.7 9.9 L39 28Z" fill="${GREEN}"/>` +
+    `<path d="M2 9 Q24 25 46 9" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/></g>`,
+  lightstring:
+    `<g transform="translate(0 5)"><path d="M2 8 Q24 26 46 8" fill="none" stroke="#3d4f5a" stroke-width="2.2" stroke-linecap="round"/>` +
+    bulb(6.4, 11.2, SUN) + bulb(15.2, 15.6, '#ff9a3c') + bulb(24, 17, SUN) + bulb(32.8, 15.6, '#ff9a3c') + bulb(41.6, 11.2, SUN) +
+    '</g>',
+  // meer personeel: gids, fotograaf, karretje en de kleur van het pak
+  guide:
+    `<path d="M40 44 V4" stroke="${WOOD_D}" stroke-width="3" stroke-linecap="round"/><path d="M40 4 L30 8 L40 12Z" fill="${RED}"/>` +
+    `<path d="M2 46 Q2 31 18 31 Q34 31 34 46Z" fill="#2bb5a8"/><path d="M28 38 L40 30" stroke="#2bb5a8" stroke-width="6" stroke-linecap="round"/><circle cx="40" cy="29" r="3.6" fill="${SKIN}"/>` +
+    `<circle cx="18" cy="20" r="10" fill="${SKIN}"/><path d="M8 17 Q9 8 18 8 Q27 8 28 17Z" fill="#1f8f85"/><rect x="6" y="15.5" width="20" height="4" rx="2" fill="#177a71"/>` +
+    `<circle cx="14.5" cy="23" r="1.7" fill="${INK}"/><circle cx="21.5" cy="23" r="1.7" fill="${INK}"/><path d="M14 26.5 Q18 30 22 26.5" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>`,
+  photo:
+    `<rect x="16" y="7" width="14" height="9" rx="2.5" fill="#3d4f5a"/><rect x="7" y="9.5" width="7" height="5" rx="1.5" fill="${RED}"/><rect x="4" y="13" width="40" height="28" rx="6" fill="#3d4f5a"/>` +
+    `<circle cx="24" cy="27" r="10" fill="#fff"/><circle cx="24" cy="27" r="7" fill="#4a90e2"/><circle cx="21.5" cy="24.5" r="2.2" fill="#fff" opacity=".8"/><rect x="35" y="17" width="5.5" height="4" rx="1.2" fill="${SUN}"/>`,
+  cart:
+    `<path d="M34 21 L46 15" stroke="${WOOD_D}" stroke-width="4" stroke-linecap="round"/><path d="M30 30 L34 43 M17 30 L13 37" stroke="#3d4f5a" stroke-width="3.2" stroke-linecap="round"/>` +
+    '<path d="M11 16 Q22 3 35 16Z" fill="#e9d05a"/><path d="M6 15 H38 L32 31 H15Z" fill="#3c8747"/><path d="M6 15 H38" stroke="#2f6e39" stroke-width="3.5" stroke-linecap="round"/>' +
+    '<circle cx="13" cy="38" r="7" fill="#3d4f5a"/><circle cx="13" cy="38" r="2.6" fill="#b9c2c9"/>',
+  suit:
+    '<path d="M16 6 L3 15 L9 25 L14 21.5 V43 H34 V21.5 L39 25 L45 15 L32 6 Q24 14 16 6Z" fill="#3c8747"/><path d="M16 6 Q24 14 32 6" fill="none" stroke="#2f6e39" stroke-width="3" stroke-linecap="round"/>' +
+    `<g stroke="#fff" stroke-width="1.8"><circle cx="31" cy="33" r="4.5" fill="${RED}"/><circle cx="39.5" cy="38" r="4.5" fill="${SUN}"/><circle cx="31.5" cy="42" r="4.5" fill="#4a90e2"/></g>`,
+  // het doktersspel: thermometer, pleister en een drankje
+  thermo:
+    `<g transform="rotate(45 24 24)"><rect x="19.5" y="1" width="9" height="33" rx="4.5" fill="#fff" stroke="${INK}" stroke-width="2"/><circle cx="24" cy="38" r="7.5" fill="${RED}" stroke="${INK}" stroke-width="2"/>` +
+    `<rect x="22.2" y="14" width="3.6" height="22" rx="1.8" fill="${RED}"/><path d="M28.5 8 h-3.5 M28.5 13 h-3.5 M28.5 18 h-3.5 M28.5 23 h-3.5" stroke="${INK}" stroke-width="1.5"/></g>`,
+  plaster:
+    '<g transform="rotate(-35 24 24)"><rect x="3" y="15" width="42" height="18" rx="9" fill="#f0c493" stroke="#d49a63" stroke-width="2"/><rect x="16" y="16" width="16" height="16" rx="2.5" fill="#fbe6cb" stroke="#d49a63" stroke-width="1.5"/>' +
+    '<g fill="#d49a63"><circle cx="8" cy="21" r="1.2"/><circle cx="8" cy="27" r="1.2"/><circle cx="12" cy="24" r="1.2"/><circle cx="40" cy="21" r="1.2"/><circle cx="40" cy="27" r="1.2"/><circle cx="36" cy="24" r="1.2"/></g></g>',
+  syrup:
+    `<rect x="14.5" y="10" width="9" height="8" fill="#a8622a"/><rect x="12" y="4" width="14" height="7" rx="2" fill="#fff" stroke="${GREY}" stroke-width="1.6"/><rect x="7" y="16" width="24" height="29" rx="5" fill="#a8622a"/>` +
+    `<rect x="10" y="24" width="18" height="14" rx="2" fill="#fff"/><path d="M19 27 V35 M15 31 H23" stroke="${RED}" stroke-width="3.2" stroke-linecap="round"/>` +
+    '<path d="M39 28 V44" stroke="#9aa0a6" stroke-width="4" stroke-linecap="round"/><ellipse cx="39" cy="20" rx="6.5" ry="8.5" fill="#b9c2c9"/><ellipse cx="39" cy="20.5" rx="4.3" ry="6" fill="#f06aa6"/>',
+  // het weer en de seizoenen
+  rain:
+    '<g fill="#9fb2c4"><circle cx="15" cy="19" r="9"/><circle cx="27" cy="14" r="11"/><circle cx="37" cy="20" r="7.5"/><rect x="6" y="18" width="39" height="10" rx="5"/></g>' +
+    drop(13, 38, '#4a90e2') + drop(24, 41, '#4a90e2') + drop(35, 38, '#4a90e2'),
+  rainbow:
+    `<g fill="none" stroke-width="4.6"><path d="M4.5 35 A19.5 19.5 0 0 1 43.5 35" stroke="${RED}"/><path d="M9 35 A15 15 0 0 1 39 35" stroke="${SUN}"/><path d="M13.5 35 A10.5 10.5 0 0 1 34.5 35" stroke="${GREEN}"/><path d="M18 35 A6 6 0 0 1 30 35" stroke="#4a90e2"/></g>` +
+    '<g fill="#dfe8f0"><circle cx="6" cy="35" r="4.5"/><circle cx="12" cy="36.5" r="3.5"/><circle cx="42" cy="35" r="4.5"/><circle cx="36" cy="36.5" r="3.5"/><rect x="2" y="35" width="14" height="5" rx="2.5"/><rect x="32" y="35" width="14" height="5" rx="2.5"/></g>',
+  spring:
+    `<path d="M6 45 Q20 40 24 24" fill="none" stroke="#8a5a2c" stroke-width="3.5" stroke-linecap="round"/><ellipse cx="11" cy="37" rx="6" ry="3.2" fill="${GRASS_D}" transform="rotate(35 11 37)"/>` +
+    '<g fill="#f7b6cf" stroke="#f48fb1" stroke-width="1.4"><circle cx="24" cy="11" r="7.5"/><circle cx="34.5" cy="18.6" r="7.5"/><circle cx="30.5" cy="30.9" r="7.5"/><circle cx="17.5" cy="30.9" r="7.5"/><circle cx="13.5" cy="18.6" r="7.5"/></g>' +
+    `<circle cx="24" cy="22" r="5.5" fill="${SUN}"/>`,
+  summer:
+    `<g stroke="#f5a623" stroke-width="4" stroke-linecap="round"><path d="M20 2 v4 M20 34 v4 M2 20 h4 M34 20 h4 M7.3 7.3 l2.8 2.8 M29.9 29.9 l2.8 2.8 M32.7 7.3 l-2.8 2.8 M10.1 29.9 l-2.8 2.8"/></g><circle cx="20" cy="20" r="11.5" fill="${SUN}" stroke="${SUN_D}" stroke-width="2"/>` +
+    `<circle cx="16" cy="18" r="1.7" fill="${INK}"/><circle cx="24" cy="18" r="1.7" fill="${INK}"/><path d="M15 23 Q20 27.5 25 23" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>` +
+    `<path d="M38 46 V38" stroke="${GRASS_D}" stroke-width="3" stroke-linecap="round"/><g fill="${RED}"><circle cx="38" cy="30.2" r="3.4"/><circle cx="42.6" cy="33.5" r="3.4"/><circle cx="40.8" cy="38.9" r="3.4"/><circle cx="35.2" cy="38.9" r="3.4"/><circle cx="33.4" cy="33.5" r="3.4"/></g><circle cx="38" cy="35" r="2.6" fill="#fff7e0"/>`,
+  autumn:
+    '<path d="M24 39 V46" stroke="#8a5a2c" stroke-width="3" stroke-linecap="round"/><path d="M24 3 L28 12 L35 8 L34 18 L43 19 L37 27 L41 34 L30 34 L24 40 L18 34 L7 34 L11 27 L5 19 L14 18 L13 8 L20 12Z" fill="#f08a2c" stroke="#c96a15" stroke-width="2" stroke-linejoin="round"/>' +
+    '<path d="M24 37 V14 M24 29 L15 21 M24 29 L33 21" fill="none" stroke="#c96a15" stroke-width="2" stroke-linecap="round"/>',
+  winter:
+    '<rect x="21" y="37" width="6" height="8" fill="#a8743f"/>' +
+    '<path d="M24 22 L40 38 H8Z" fill="#468f3e"/><path d="M24 22 L35 33 Q32 35.5 29 32.5 Q26.5 35.5 24 32.5 Q21.5 35.5 19 32.5 Q16 35.5 13 33Z" fill="#fff"/>' +
+    '<path d="M24 12 L37 28 H11Z" fill="#468f3e"/><path d="M24 12 L32 21.8 Q29.5 24 27 21.5 Q24 24.5 21 21.5 Q18.5 24 16 21.8Z" fill="#fff"/>' +
+    '<path d="M24 3 L34 17 H14Z" fill="#468f3e"/><path d="M24 3 L29.5 10.7 Q27 12.5 24 10.5 Q21 12.5 18.5 10.7Z" fill="#fff"/>' +
+    '<g fill="#9fd8f5"><circle cx="7" cy="9" r="2"/><circle cx="41" cy="7" r="2"/><circle cx="43" cy="22" r="1.8"/><circle cx="5" cy="23" r="1.8"/><circle cx="39" cy="43" r="1.6"/><circle cx="9" cy="43" r="1.6"/></g>',
+  umbrella:
+    `<path d="M24 22 V40 Q24 45 19.5 45 Q15.5 45 15.5 41" fill="none" stroke="${WOOD_D}" stroke-width="3.5" stroke-linecap="round"/><path d="M24 3 V7" stroke="${WOOD_D}" stroke-width="3" stroke-linecap="round"/>` +
+    `<path d="M3 25 Q4 6 24 6 Q44 6 45 25 Q41.5 21 38 25 Q34.5 21 31 25 Q27.5 21 24 25 Q20.5 21 17 25 Q13.5 21 10 25 Q6.5 21 3 25Z" fill="${RED}"/><path d="M17 25 Q17 10 24 6 Q31 10 31 25 Q27.5 21 24 25 Q20.5 21 17 25Z" fill="#b8433b"/>`,
+  // bijzondere gasten
+  lost:
+    `<circle cx="24" cy="26" r="17" fill="${SKIN}"/><path d="M7 24 Q8 6 24 6 Q40 6 41 24 Q33 13 24 15 Q15 13 7 24Z" fill="#7a4a22"/>` +
+    `<path d="M13 20 L19 18 M35 20 L29 18 M13.5 25 Q16.5 22 19.5 25 M28.5 25 Q31.5 22 34.5 25" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>` +
+    `<path d="M19 38 Q24 30 29 38 Q24 40.5 19 38Z" fill="${INK}"/>` +
+    drop(14, 32) + drop(34, 32) + '<circle cx="8" cy="40" r="1.8" fill="#6ec3e8"/><circle cx="40" cy="40" r="1.8" fill="#6ec3e8"/>',
+  seek:
+    `<circle cx="21" cy="29" r="15.5" fill="${SKIN}"/><path d="M5.5 28 Q5 12 21 12 Q37 12 36.5 28 Q31 19 21 20 Q11 19 5.5 28Z" fill="${INK}"/>` +
+    `<circle cx="15.5" cy="30" r="2.1" fill="${INK}"/><circle cx="26.5" cy="30" r="2.1" fill="${INK}"/><path d="M11.5 26 L17.5 24 M30.5 26 L24.5 24 M15.5 38 q2.75 -2.6 5.5 0 t5.5 0" fill="none" stroke="${INK}" stroke-width="2.3" stroke-linecap="round"/>` +
+    '<circle cx="38" cy="11" r="8.5" fill="#4a90e2" stroke="#fff" stroke-width="2"/><path d="M35 9 Q35 5.5 38 5.5 Q41 5.5 41 8.3 Q41 10.3 38 11.3 V12.8" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="16" r="1.4" fill="#fff"/>',
+  wheelchair:
+    '<rect x="10" y="12" width="5" height="18" rx="2" fill="#4a90e2"/><path d="M12.5 13 H7" stroke="#3d4f5a" stroke-width="3" stroke-linecap="round"/>' +
+    `<circle cx="21" cy="8" r="5.5" fill="${SKIN}"/><path d="M21 16 V26" stroke="#f08a2c" stroke-width="8" stroke-linecap="round"/><path d="M21 27 H32 L35 35" fill="none" stroke="#3572b8" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>` +
+    '<circle cx="19" cy="33" r="10.5" fill="none" stroke="#3d4f5a" stroke-width="3.5"/><circle cx="19" cy="33" r="2.5" fill="#3d4f5a"/><circle cx="35.5" cy="42.5" r="3.2" fill="#3d4f5a"/>',
+  pram:
+    '<path d="M39 21 L45 10" stroke="#3d4f5a" stroke-width="3.5" stroke-linecap="round"/><path d="M14 32 L12 40 M30 32 L32 40" stroke="#3d4f5a" stroke-width="2.5"/>' +
+    `<circle cx="30" cy="17" r="5" fill="${SKIN}"/><circle cx="28.5" cy="16.5" r=".9" fill="${INK}"/><circle cx="31.8" cy="16.5" r=".9" fill="${INK}"/>` +
+    '<path d="M5 20 Q5 5 21 5 V20Z" fill="#3572b8"/><path d="M21 20 L9.5 9.5 M21 20 L14 6.5" stroke="#4a90e2" stroke-width="1.6"/><path d="M5 20 H39 Q39 34 22 34 Q5 34 5 20Z" fill="#4a90e2"/>' +
+    '<circle cx="12" cy="41" r="5" fill="#3d4f5a"/><circle cx="12" cy="41" r="1.8" fill="#b9c2c9"/><circle cx="32" cy="41" r="5" fill="#3d4f5a"/><circle cx="32" cy="41" r="1.8" fill="#b9c2c9"/>',
+  cake:
+    '<ellipse cx="24" cy="41.5" rx="21" ry="4" fill="#cfd6dc"/><rect x="7" y="23" width="34" height="18" rx="3" fill="#f7a8c8"/>' +
+    '<path d="M7 28 Q7 22 12 22 H36 Q41 22 41 28 Q38 33 35 28.5 Q32 33 29.5 28.5 Q26.5 33 24 28.5 Q21.5 33 18.5 28.5 Q16 33 13 28.5 Q10 33 7 28Z" fill="#fff7e0"/>' +
+    `<g fill="${RED}"><circle cx="14" cy="36.5" r="2"/><circle cx="24" cy="37" r="2"/><circle cx="34" cy="36.5" r="2"/></g><rect x="22" y="11" width="4" height="12" rx="1" fill="#4a90e2"/><path d="M22 16 l4 -2 M22 20 l4 -2" stroke="#fff" stroke-width="1.3"/>` +
+    `<path d="M24 2 C28 7 27.5 11 24 11 C20.5 11 20 7 24 2Z" fill="#f08a24"/><path d="M24 6 C26 8.5 25.5 10.5 24 10.5 C22.5 10.5 22 8.5 24 6Z" fill="${SUN}"/>`,
+  schoolclass:
+    `<path d="M1 45 Q1 32 10 32 Q19 32 19 45Z" fill="${RED}"/><path d="M29 45 Q29 32 38 32 Q47 32 47 45Z" fill="#4a90e2"/>` +
+    `<circle cx="10" cy="24" r="7.5" fill="${SKIN}"/><path d="M2.5 23 Q3 15 10 15 Q17 15 17.5 23 Q10 19 2.5 23Z" fill="#7a4a22"/>` +
+    `<circle cx="38" cy="24" r="7.5" fill="#c99872"/><path d="M30.5 23 Q31 15 38 15 Q45 15 45.5 23 Q38 19 30.5 23Z" fill="${INK}"/>` +
+    `<path d="M12 46 Q12 30 24 30 Q36 30 36 46Z" fill="${SUN}"/><circle cx="24" cy="19" r="9" fill="${SKIN}"/><path d="M15 18 Q15.5 8 24 8 Q32.5 8 33 18 Q24 13 15 18Z" fill="#e9a23b"/>` +
+    `<g fill="${INK}"><circle cx="7.5" cy="25" r="1.2"/><circle cx="12.5" cy="25" r="1.2"/><circle cx="35.5" cy="25" r="1.2"/><circle cx="40.5" cy="25" r="1.2"/><circle cx="21" cy="20.5" r="1.5"/><circle cx="27" cy="20.5" r="1.5"/></g>` +
+    `<path d="M21 24 Q24 26.5 27 24" fill="none" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/>`,
+  celeb:
+    `<path d="${STAR_PATH}" fill="${SUN}" stroke="${SUN_D}" stroke-width="2.5" stroke-linejoin="round"/>` +
+    `<path d="M10 20.5 H38" stroke="${INK}" stroke-width="2"/><rect x="14" y="19.5" width="9" height="7.5" rx="3" fill="${INK}"/><rect x="25" y="19.5" width="9" height="7.5" rx="3" fill="${INK}"/>` +
+    `<path d="M16.5 24.5 l2.5 -2.5 M27.5 24.5 l2.5 -2.5" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><path d="M20 31 Q24 34.5 28 31" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>`,
+  wide:
+    '<g fill="#d8c7ab" stroke="#b9a686" stroke-width="1.6" stroke-linejoin="round"><path d="M13 23 L24 31.5 L13 40 L2 31.5Z"/><path d="M35 23 L46 31.5 L35 40 L24 31.5Z"/></g>' +
+    '<g fill="#b9a686"><ellipse cx="11" cy="31" rx="3" ry="1.7"/><ellipse cx="16" cy="34.5" rx="2.4" ry="1.4"/><ellipse cx="33" cy="31" rx="3" ry="1.7"/><ellipse cx="38" cy="34.5" rx="2.4" ry="1.4"/></g>' +
+    '<path d="M6 11 H42 M6 11 l6 -6 M6 11 l6 6 M42 11 l-6 -6 M42 11 l-6 6" fill="none" stroke="#2f8f3a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>',
+  train:
+    '<circle cx="20" cy="5" r="3.4" fill="#dfe8f0"/><circle cx="26" cy="3.5" r="2.4" fill="#dfe8f0"/>' +
+    `<path d="M9 21 V11 H7 V8 H17 V11 H15 V21Z" fill="#3d4f5a"/><rect x="4" y="19" width="26" height="15" rx="5" fill="${RED}"/><rect x="26" y="10" width="17" height="24" rx="2" fill="#4a90e2"/>` +
+    `<rect x="24" y="7" width="21" height="4.5" rx="2" fill="#3572b8"/><rect x="30" y="15" width="9" height="8" rx="1.5" fill="#cfeaff"/><circle cx="8" cy="25" r="2.6" fill="${SUN}"/>` +
+    '<rect x="3" y="32" width="42" height="4" rx="2" fill="#3d4f5a"/><path d="M4 36 L1 43 H9Z" fill="#3d4f5a"/>' +
+    `<g fill="#3d4f5a"><circle cx="15" cy="39" r="5.5"/><circle cx="27" cy="39" r="5.5"/><circle cx="39" cy="39" r="5.5"/></g><g fill="${SUN}"><circle cx="15" cy="39" r="2"/><circle cx="27" cy="39" r="2"/><circle cx="39" cy="39" r="2"/></g>`,
+  petting:
+    '<ellipse cx="20" cy="37" rx="14" ry="9" fill="#e3bf94"/><ellipse cx="29" cy="19" rx="2.8" ry="7" fill="#e3bf94" transform="rotate(-10 29 19)"/><ellipse cx="35.5" cy="19.5" rx="2.8" ry="7" fill="#d3a876" transform="rotate(14 35.5 19.5)"/><circle cx="32" cy="31" r="8.5" fill="#e3bf94"/>' +
+    `<circle cx="34.5" cy="29.5" r="1.6" fill="${INK}"/><circle cx="39.5" cy="33" r="1.5" fill="${PINK_D}"/><circle cx="7" cy="36" r="3.5" fill="#fff7e0"/>` +
+    `<g transform="translate(25 31) rotate(180) scale(.55)">${HAND}</g><g transform="translate(34 1) scale(.26)">${HEART}</g>`,
+  // over de dieren: zeldzaam, karakter, vriendjes, een weetje en een vieze kraam
+  rare:
+    '<path d="M12 9 H36 L45 20 L24 44 L3 20Z" fill="#7fd6f5"/><path d="M12 9 L18 20 H3Z M24 9 L30 20 H18Z M36 9 L45 20 H30Z" fill="#b6e8fa"/><path d="M30 20 H45 L24 44Z" fill="#4aa8d8"/>' +
+    '<path d="M3 20 H45 M18 20 L24 44 L30 20" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 9 H36 L45 20 L24 44 L3 20Z" fill="none" stroke="#3a9ccc" stroke-width="2" stroke-linejoin="round"/>' +
+    `<g fill="${SUN}" stroke="#fff" stroke-width="1"><path d="M41 1 Q42 6 47 7 Q42 8 41 13 Q40 8 35 7 Q40 6 41 1Z"/><path d="M7 30 Q7.8 34.2 12 35 Q7.8 35.8 7 40 Q6.2 35.8 2 35 Q6.2 34.2 7 30Z"/></g>`,
+  nature_shy:
+    '<circle cx="11" cy="12" r="6" fill="#c99a66"/><circle cx="37" cy="12" r="6" fill="#c99a66"/><circle cx="24" cy="24" r="16" fill="#e3bf94"/>' +
+    `<circle cx="18" cy="22" r="4.2" fill="#fff"/><circle cx="30" cy="22" r="4.2" fill="#fff"/><circle cx="19.5" cy="23" r="2.2" fill="${INK}"/><circle cx="31.5" cy="23" r="2.2" fill="${INK}"/><circle cx="11.5" cy="29" r="3.2" fill="${PINK}"/><circle cx="36.5" cy="29" r="3.2" fill="${PINK}"/>` +
+    `<path d="M1 46 V39 Q5 30 12 36 Q17 29 24 35 Q31 29 36 36 Q43 30 47 39 V46Z" fill="${GRASS_D}"/><path d="M12 36 Q17 29 24 35 Q31 29 36 36" fill="none" stroke="${GRASS}" stroke-width="2" stroke-linecap="round"/>`,
+  nature_playful:
+    `<path d="M3 38 Q8 10 14 30" fill="none" stroke="${GREY}" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="1 5"/><ellipse cx="29" cy="43.5" rx="10" ry="2.5" fill="${INK}" opacity=".22"/>` +
+    `<circle cx="29" cy="19" r="13" fill="${RED}"/><path d="M17 15.5 Q29 23.5 41 15.5 L41.8 21 Q29 29 16.2 21Z" fill="#fff7e0"/><circle cx="23.5" cy="12" r="3.2" fill="#fff" opacity=".6"/>` +
+    `<path d="M21 35 v4 M29 36 v5 M37 35 v4" stroke="${GREY}" stroke-width="2.5" stroke-linecap="round"/>`,
+  nature_sleepy:
+    '<circle cx="8" cy="18" r="5.5" fill="#c99a66"/><circle cx="30" cy="18" r="5.5" fill="#c99a66"/><circle cx="19" cy="30" r="15" fill="#e3bf94"/>' +
+    `<path d="M10.5 29 q3 3 6 0 M21.5 29 q3 3 6 0" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/><ellipse cx="19" cy="36.5" rx="2.2" ry="2.6" fill="${INK}"/>` +
+    '<path d="M32 3 H41 L32 11.5 H41 M39 17 H45 L39 24 H45" fill="none" stroke="#6f8fe0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>',
+  nature_brave:
+    '<path d="M24 3 L42 9 V23 Q42 37 24 45 Q6 37 6 23 V9Z" fill="#4a90e2" stroke="#3572b8" stroke-width="2.5" stroke-linejoin="round"/>' +
+    `<path d="M24 11 L27.4 18.3 L35.3 19.5 L29.7 25.1 L31.1 33 L24 29.4 L16.9 33 L18.3 25.1 L12.7 19.5 L20.6 18.3Z" fill="${SUN}" stroke="${SUN_D}" stroke-width="1.5" stroke-linejoin="round"/>`,
+  pals:
+    `<g transform="translate(-1 3) scale(.7)">${HEART}</g><g transform="translate(15.5 11) scale(.7)"><path d="${HEART_PATH}" fill="${PINK_D}" stroke="#fff" stroke-width="3"/></g>`,
+  fact:
+    `<path d="M24 1.5 V4.5 M9 6 l2.3 2.3 M39 6 l-2.3 2.3 M3 21 h3.5 M41.5 21 h3.5" stroke="${SUN_D}" stroke-width="3" stroke-linecap="round"/>` +
+    `<path d="M24 8 Q37 8 37 21 Q37 27 32 31.5 V36 H16 V31.5 Q11 27 11 21 Q11 8 24 8Z" fill="${SUN}" stroke="${SUN_D}" stroke-width="2"/><path d="M20 35 L21.5 24 L24 28 L26.5 24 L28 35" fill="none" stroke="${SUN_D}" stroke-width="2" stroke-linejoin="round"/>` +
+    `<ellipse cx="18.5" cy="16" rx="2.6" ry="4" fill="#fff" opacity=".7"/><rect x="16.5" y="36" width="15" height="4.5" rx="1.5" fill="${GREY}"/><rect x="19.5" y="40.5" width="9" height="4" rx="2" fill="#6c7078"/>`,
+  dirty:
+    '<path d="M5 37 Q3 29 12 29 Q14 23 22 26 Q30 22 34 29 Q44 29 43 37 Q43 44 32 43 Q24 47 16 43 Q6 44 5 37Z" fill="#8a6a3a"/><ellipse cx="16" cy="35" rx="4" ry="2" fill="#a6844f"/><ellipse cx="30" cy="38" rx="3" ry="1.6" fill="#6f5228"/>' +
+    '<path d="M12 23 q-3 -3.5 0 -7 t0 -7 M22 20 q-3 -3.5 0 -7 t0 -7" fill="none" stroke="#8fae3a" stroke-width="2.6" stroke-linecap="round"/>' +
+    `<path d="M29 22 q2 4 5 -2" fill="none" stroke="${GREY}" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="1.5 2.5"/>` +
+    `<ellipse cx="35" cy="10.5" rx="3.4" ry="2.6" fill="#cfeaff" stroke="${GREY}" stroke-width="1" transform="rotate(-30 35 10.5)"/><ellipse cx="41" cy="10.5" rx="3.4" ry="2.6" fill="#cfeaff" stroke="${GREY}" stroke-width="1" transform="rotate(30 41 10.5)"/><ellipse cx="38" cy="15" rx="4" ry="3" fill="${INK}"/>`,
 } satisfies Record<string, string>;
 
 export type IconId = keyof typeof ICONS;

@@ -564,6 +564,67 @@ Op 17 november 2026 zijn de prijzen omhooggegaan (zie Munten). De proefspeler-al
 
 De eerste versie van het zorgtempo was te zwaar: daarmee raakte de proefspeler-als-kind vanaf level 14 honderden dieren kwijt. Daarom eten en poepen dieren nu minder vaak en zijn verzorgers al vanaf level 13 te huur.
 
+## De grote ronde van 21 november 2026 (41 ideeën uit de lijst)
+
+Alles hieronder staat in `games/zoo/src`; de vaste getallen in `data.ts`. De volledige lijst van bewegingen staat in `docs/ANIMATIES.md`, de ideeën die zijn blijven liggen in `docs/IDEEEN.md`.
+
+### Veel meer gasten
+- **Tekenen:** de gasten staan niet meer los in het beeld. `Crowd` (in `people.ts`) tekent alle blokjes van dezelfde vorm in één keer; voor alle gasten samen zijn dat nog maar een stuk of vijftien tekenopdrachten in plaats van acht per gast.
+- **Aantal:** `guestsAt` laat het park groeien tot 160 gasten (90 of 45 op een apparaat dat het niet bijhoudt). Ze komen sneller na elkaar binnen naarmate het park er meer trekt.
+- **Drukte:** boven de 20 gasten telt elke gast maar voor een derde mee bij honger, dorst en drukte bij de kramen (`crowdLoad`, `ease`). Zo heb je ongeveer evenveel kramen nodig als vroeger, toen er hooguit 60 gasten kwamen, en loopt de kas niet over.
+- Wolkjes boven gasten buiten beeld worden niet meer bijgewerkt.
+
+### Gasten
+- **Groepjes:** een gast kan achter een leider aan lopen (`Leader`, `join`, `follow`). Zo werken de schoolklas (juf met vijf tot zeven kinderen, 3 munten entree), de verjaardag (naar een speeltoestel; daar slingers en taart, 3 munten), de rondleiding van de gids en het kind dat weer bij papa of mama loopt.
+- **Bijzondere gasten** komen om de paar minuten, steeds een andere: schoolklas (vanaf level 13), verjaardag (15), beroemde gast (16; is hij blij weggegaan, dan komen er drie minuten een kwart meer gasten), verdwaald kind (19; tik erop, 3 munten).
+- **Rolstoel en kinderwagen** (vanaf level 9, ongeveer één op de zestien gasten): ze lopen langzamer en willen een pad van twee tegels breed; anders worden ze minder blij en vraagt de gastvrouw om een breder pad.
+- **Plattegrond:** wie erlangs loopt, vindt daarna zijn lievelingsdier meteen.
+- **Gastenboek:** blije gasten laten een tekening van hun lievelingsdier achter; tik op het boek om ze te zien.
+- **Kletsen, zwaaien en tussendoortjes:** zie `docs/ANIMATIES.md`.
+
+### Gebouwen
+- **Uitkijktoren** (25 munten, level 21): hoe meer soorten in de buurt, hoe leuker.
+- **Restaurant** (30, level 25): zes plekken aan tafel; eten én drinken in één keer, twee munten.
+- **Reuzenrad** (80, level 36) en **botsauto's** (45, level 31): ritjes, net als de draaimolen.
+- **Treinhalte** (20, level 28): met twee haltes aan hetzelfde pad rijdt het treintje van halte naar halte; gasten stappen in en bij de volgende halte weer uit.
+- **Schuilhut** (10) en **paraplu's** (6), beide vanaf level 11: voor als het regent.
+- **Slingers:** palen met vlaggetjes of lichtjes (knop Park); tussen twee palen in één lijn, hooguit vijf tegels uit elkaar, hangt vanzelf een slinger. Lichtjes geven 's nachts licht.
+- **Paden:** kiezels (level 11), brug (14), planken (18), bloemenpad (25). Gasten lopen over allemaal (`isPath`). Een rivier maak je door water te verven en er een brug overheen te leggen.
+- **Vieze kramen** (vanaf level 18): na 50 keer verkopen is een kraam vies en koopt een derde van de gasten er niets. Vegen met de veger (1 munt) of een schoonmaker laten komen.
+
+### Dieren
+- **Niet meer door het hek:** een lang dier wordt op het scherm zo ver naar binnen geschoven dat het hele lijf in het verblijf blijft.
+- **Haai en rog** in het aquarium (rog na level 23, haai na level 27).
+- **Karakter:** gewoon, verlegen, speels, slaperig of dapper; je ziet het aan het gedrag en het staat achter de naam.
+- **Zeldzame kleur:** ongeveer één op de acht jongen is wit, goud of donker. Gasten vinden dat extra leuk; zo'n jong verhuist als laatste.
+- **Vriendjes:** tien paren soorten (zebra en giraffe, koe en schaap, ...) tellen als gezelschap voor elkaar, kroelen samen en maken een verblijf leuker voor gasten.
+- **Warmte en kou** (vanaf level 32): krokodil, schildpad en maki willen een warmtelamp; pinguïn, ijsbeer, walrus en poolvos een blok ijs. Een dier wordt er nooit voor opgehaald.
+- **In het verblijf:** heuvel, rotsen en klimrek (om op te klimmen), tunnel, drinkvijver en waterval.
+- **Kijkruit:** een stuk hek met glas dat in elk hek past; gasten zien er 40 procent meer door (net als door het glas van het aquarium).
+- **Dokterspel:** een ziek dier maak je beter in drie stappen: thermometer, pleister, drankje.
+- **Weetjes:** bij het eerste dier van een soort hoor je een ingesproken weetje; later via het menu van het dier.
+- **Voeren:** het doel in level 2 is nu één keer voeren.
+- **Menu van een dier:** bovenin een levend plaatje van het dier (het park wordt van dichtbij nog eens getekend, `View.portrait`) met eronder in één of twee woorden wat het doet (`Animal.doing`, teksten `doing.*`).
+
+### De kinderboerderij (vanaf level 7)
+- Bouw een verblijf met het **witte hekje** en zet er een **poortje voor gasten** in dat aan een pad ligt. Minstens twaalf tegels groot.
+- Alle tien boerderijdieren mogen er door elkaar in wonen: elk dier heeft genoeg aan twee tegels van zijn eigen grond, elke slaapplek en elk voer is goed, en ieder ander dier is een vriendje.
+- Gasten (hooguit vier tegelijk per boerderij) lopen door het poortje naar binnen en aaien een dier, dat naar ze toe komt. Vier op de tien keer kopen ze een zakje voer: een munt.
+- De uitleg komt de eerste keer dat je het witte hekje kiest.
+
+### Personeel
+- **Dierenarts** (level 24) maakt zieke dieren beter, **gids** (22) neemt hooguit vijf gasten mee langs drie verblijven en vertelt soms een weetje, **fotograaf** (19) verkoopt foto's aan tevreden gasten in de buurt.
+- **Pak:** tien kleuren, te kiezen in het menu van de werker. **Karretje** (6 munten, level 16): sneller lopen en sneller klaar.
+
+### Weer, seizoenen en tijd
+- **Tijd:** de klok van het park loopt door over opslaan heen (`time` in het opslagbestand).
+- **Regen** (vanaf level 11): om de zes tot negen minuten een bui van ongeveer een minuut. Gasten zonder paraplu worden minder blij en gaan eerder weg; ze halen een paraplu of schuilen. Dieren schuilen op hun slaapplek; modderliefhebbers rollen in een plas. Daarna een regenboog.
+- **Seizoenen** (vanaf level 17): lente, zomer, herfst, winter, elk twee dagen in het spel. In de winter valt er sneeuw in plaats van regen.
+- **Zonsopgang:** de haan kraait en de dieren worden een voor een wakker.
+
+### Hulp
+- **Hulphandje:** na 25 tellen niets doen wijst een handje zeven tellen lang aan waar je kunt tikken, daarna minstens 80 tellen niet.
+
 ## Bekende zwakke punten van de modellen
 
 De modellen zijn op stilstaande beelden bekeken en doorgemeten (niets zakt meer dan een centimeter door de grond), maar geen enkele animatie is in beweging beoordeeld. Wat de modelbouwers zelf als zwak aanmerkten:

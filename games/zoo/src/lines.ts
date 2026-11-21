@@ -1,7 +1,7 @@
 // Alles wat de figuren kunnen zeggen. Het spel bouwt zijn zinnen hier, en het stemmenscript
 // (tools/voice) vraagt hier de volledige lijst op, zodat elke zin ook ingesproken kan worden.
 // Geen DOM en geen Three.js in dit bestand: het draait ook buiten de browser.
-import { ALSO, GOAL_OWNER, LEVELS, SPECIES, type FenceNeed, type Goal, type SpeciesId, type WishId, TOY_OF, SPACE, herdOf, SERVES } from './data';
+import { ALSO, CLIMATE, GOAL_OWNER, LEVELS, SEASONS, SPECIES, type FenceNeed, type Goal, type Season, type SpeciesId, type WishId, TOY_OF, SPACE, herdOf, SERVES } from './data';
 import { FIGURES, type FigureId, type Mood } from './figures';
 
 export type Vars = Record<string, string | number>;
@@ -40,6 +40,7 @@ export function speciesVars(tr: Tr, sp: SpeciesId): Vars {
       : tr(`terrain.${info.terrain}.want`),
     bed: tr(`bed.${info.bed}.a`),
     toy: TOY_OF[sp] ? tr(`toy.${TOY_OF[sp]}.a`) : '',
+    climate: CLIMATE[sp] ? tr(`toy.${CLIMATE[sp]}.a`) : '',
     herd: String(herdOf(sp)),
   };
 }
@@ -47,7 +48,7 @@ export function speciesVars(tr: Tr, sp: SpeciesId): Vars {
 export function goalKey(g: Goal): string {
   if (g.type === 'sold') return g.product ? `goal.sold.${g.product}` : g.shop ? `goal.sold.shop.${g.shop}` : 'goal.sold';
   if (g.type === 'shop') return `goal.shop.${g.shop}${g.n > 1 ? '.n' : ''}`;
-  return g.n === 1 && (g.type === 'born' || g.type === 'healed' || g.type === 'caught' || g.type === 'keeper') ? `goal.${g.type}.1` : `goal.${g.type}`;
+  return g.n === 1 && (g.type === 'fed' || g.type === 'born' || g.type === 'healed' || g.type === 'caught' || g.type === 'keeper') ? `goal.${g.type}.1` : `goal.${g.type}`;
 }
 
 export function goalVars(tr: Tr, g: Goal): Vars {
@@ -115,10 +116,32 @@ export const say = {
   staffHow: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.staff.how' }),
   broken: (): Line => ({ who: 'builder', mood: 'worried', key: 'alert.broken' }),
   funNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.fun.new' }),
-  host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident' | 'nopath' | 'dark', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
+  host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident' | 'nopath' | 'dark' | 'rain' | 'wide', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
   busy: (kind: string): Line => ({ who: 'host', mood: 'worried', key: `host.busy.${kind}` }),
   cash: (key: 'short' | 'full' | 'wage'): Line => ({ who: 'cashier', mood: key === 'full' ? 'happy' : 'worried', key: `cash.${key}` }),
-  hiredAs: (role: 'feed' | 'clean' | 'fix'): Line => ({ who: 'keeper', mood: 'happy', key: `say.hired.${role}` }),
+  hiredAs: (role: 'feed' | 'clean' | 'fix' | 'vet' | 'guide' | 'photo'): Line => ({ who: 'keeper', mood: 'happy', key: `say.hired.${role}` }),
+  /** Het weetje van een diersoort, verteld door de verzorger. */
+  fact: (sp: SpeciesId): Line => ({ who: 'keeper', mood: 'happy', key: `fact.${sp}` }),
+  climateNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.climate.new' }),
+  rare: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.rare' }),
+  pals: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.pals' }),
+  season: (season: Season): Line => ({ who: 'director', mood: 'happy', key: `say.season.${season}` }),
+  rain: (): Line => ({ who: 'host', mood: 'worried', key: 'say.rain' }),
+  rainbow: (): Line => ({ who: 'director', mood: 'happy', key: 'say.rainbow' }),
+  visit: (): Line => ({ who: 'host', mood: 'happy', key: 'say.class' }),
+  party: (): Line => ({ who: 'host', mood: 'happy', key: 'say.party' }),
+  celeb: (): Line => ({ who: 'host', mood: 'happy', key: 'say.celeb' }),
+  celebHappy: (): Line => ({ who: 'host', mood: 'happy', key: 'say.celeb.happy' }),
+  lost: (): Line => ({ who: 'host', mood: 'urgent', key: 'say.lost' }),
+  found: (): Line => ({ who: 'host', mood: 'happy', key: 'say.found' }),
+  trainOne: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.train.one' }),
+  trainGo: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.train.go' }),
+  dirty: (): Line => ({ who: 'host', mood: 'worried', key: 'say.dirty' }),
+  vetHow: (): Line => ({ who: 'keeper', mood: 'worried', key: 'say.vet.how' }),
+  pettingNew: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.petting.new' }),
+  pettingOpen: (): Line => ({ who: 'host', mood: 'happy', key: 'say.petting.open' }),
+  pettingSmall: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.petting.small' }),
+  pettingGate: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.petting.gate' }),
 };
 
 /** De tekst van een zin, zoals hij op het scherm komt en wordt uitgesproken. */
@@ -194,11 +217,11 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
     add(say.grown(name));
     add(say.moved(name));
   }
-  const wishes: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean', 'space', 'fun'];
+  const wishes: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean', 'space', 'fun', 'climate'];
   for (const sp of Object.keys(SPECIES) as SpeciesId[]) {
     for (const wish of wishes) {
       // alleen wat dit dier ook echt kan willen
-      if ((wish === 'fun' && !TOY_OF[sp]) || (wish === 'space' && !SPACE[sp])) continue;
+      if ((wish === 'fun' && !TOY_OF[sp]) || (wish === 'space' && !SPACE[sp]) || (wish === 'climate' && !CLIMATE[sp])) continue;
       add(wishLine(tr, wish, sp, null, false));
     }
     const need = SPECIES[sp].need;
@@ -206,6 +229,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
     add(say.wrongFood(tr, sp));
     add(say.taken(tr, sp));
     add(say.escaped(tr, sp));
+    add(say.fact(sp));
   }
   add(say.healed());
   add(say.caught());
@@ -217,7 +241,10 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.decorNew());
   CHEERS.forEach((_, i) => add(say.cheer(i)));
   add(say.tipKeeper());
-  for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter', 'product', 'new', 'accident', 'nopath', 'dark'] as const) add(say.host(key));
+  for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter', 'product', 'new', 'accident', 'nopath', 'dark', 'rain', 'wide'] as const) add(say.host(key));
+  for (const season of SEASONS) add(say.season(season));
+  for (const line of [say.climateNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.visit(), say.party(), say.celeb(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
+    say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate()]) add(line);
   add(say.night());
   add(say.aquaNew());
   for (const kind of Object.keys(SERVES)) add(say.busy(kind));
@@ -227,5 +254,8 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.hiredAs('feed'));
   add(say.hiredAs('clean'));
   add(say.hiredAs('fix'));
+  add(say.hiredAs('vet'));
+  add(say.hiredAs('guide'));
+  add(say.hiredAs('photo'));
   return [...out.values()];
 }

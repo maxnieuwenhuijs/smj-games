@@ -85,9 +85,10 @@ def sea_flippers(c, col, reach, wide, stock, fluke, sweep=40, tipk=0.55, paddle=
     c.piv['tail2'] = end - u * 0.09
 
     # staartvin: twee platte lobben die schuin naar achteren wijzen, met een inkeping ertussen
-    fl_len, fl_w = fluke
+    # (fluke=None laat hem weg: de haai tekent zelf een staande staartvin)
+    fl_len, fl_w = fluke or (0.0, 0.0)
     base = end - u * 0.07
-    for sx in (1, -1):
+    for sx in ((1, -1) if fluke else ()):
         n = len(b.bm.verts)
         b.box('tail2', col, (fl_w, fl_len, 0.055), (0, fl_len / 2 - 0.05, 0), taper=(1, 1.0, 0.42), hard=True, seg=1)
         sea_turn(b, n, rz=-sx * spread, rx=fluke_up, loc=base + Vector((sx * 0.02, 0, 0)))

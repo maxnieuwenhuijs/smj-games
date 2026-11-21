@@ -21,8 +21,11 @@ export const BASE_LAND: Land = { x0: PLOT, y0: PLOT, x1: PLOT + BASE_W, y1: H };
 export const FULL_LAND: Land = { x0: 0, y0: 0, x1: W, y1: H };
 export const MIN_ENCLOSURE = 4;
 
-/** 0 = niets, 1 = houten hek, 2 = poort, 3 = stenen muur, 4 = hoog net, 5 = glas (aquarium). */
-export type EdgeKind = 0 | 1 | 2 | 3 | 4 | 5;
+/**
+ * 0 = niets, 1 = houten hek, 2 = poort, 3 = stenen muur, 4 = hoog net, 5 = glas (aquarium), 6 = kijkvenster (past in
+ * elk hek), 7 = het witte hekje van de kinderboerderij, 8 = het poortje waar gasten door naar binnen gaan.
+ */
+export type EdgeKind = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 /** 'h' ligt aan de noordkant van tegel (x,y); 'v' aan de westkant. */
 export interface Edge {
@@ -114,7 +117,7 @@ export class Grid {
   canStep(x: number, y: number, dx: number, dy: number, gates = false): boolean {
     if (!this.inBounds(x + dx, y + dy)) return false;
     const edge = dy === -1 ? this.h[x + y * W] : dy === 1 ? this.h[x + (y + 1) * W] : dx === -1 ? this.v[x + y * (W + 1)] : this.v[x + 1 + y * (W + 1)];
-    return edge === 0 || (gates && edge === 2);
+    return edge === 0 || (gates && (edge === 2 || edge === 8));
   }
 
   /** Ligt de tegel aan de rand van het park zonder hek ertussen? */
@@ -183,7 +186,8 @@ export class Grid {
       ];
       for (const [dx, dy, kind] of sides) {
         const out = !this.inBounds(x + dx, y + dy) || !inside.has(tileIndex(x + dx, y + dy));
-        if (!out || kind === 2) continue;
+        // een poort en een kijkvenster passen bij elk soort hek
+        if (!out || kind === 2 || kind === 6 || kind === 8) continue;
         if (kind === 1 || (found && found !== kind)) return 1;
         found = kind as EdgeKind;
       }
@@ -191,7 +195,7 @@ export class Grid {
     return found || 1;
   }
 
-  /** De randen (geen poorten) aan de buitenkant van een verblijf. */
+  /** De randen aan de buitenkant van een verblijf (ook de poorten: vraag met getEdge wat er staat). */
   borderEdges(region: Region): Edge[] {
     const inside = new Set(region.tiles);
     const out: Edge[] = [];

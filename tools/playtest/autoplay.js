@@ -138,6 +138,16 @@ export const T = {
     // vanaf level 10 willen dieren iets leuks in hun verblijf
     const inSlot = b => b.x >= slot.x0 && b.x <= slot.x1 && b.y >= slot.y0 && b.y <= slot.y1;
     if (game.level >= FEATURE.fun && data.TOY_OF[sp] && !game.toys.some(b => inSlot(b) && b.kind === data.TOY_OF[sp]) && !game.taken(slot.x1, slot.y0 + 1) && this.pay(PRICE.toy)) game.addToy(slot.x1, slot.y0 + 1, data.TOY_OF[sp]);
+    // warmte of kou: een lamp of een blok ijs op de eerste vrije tegel
+    const climate = data.CLIMATE?.[sp];
+    if (climate && game.level >= FEATURE.climate && !game.toys.some(b => inSlot(b) && b.kind === climate)) {
+      place: for (let y = slot.y0; y <= slot.y1; y++)
+        for (let x = slot.x0; x <= slot.x1; x++) {
+          if (game.taken(x, y) || (x === slot.x1 && y === slot.y0 + 1)) continue;
+          if (this.pay(data.TOY_PRICE?.[climate] ?? PRICE.toy)) game.addToy(x, y, climate);
+          break place;
+        }
+    }
   },
 
   /** Zorgt dat er minstens `n` volwassen dieren van de soort zijn (om en om jongen en meisje). */

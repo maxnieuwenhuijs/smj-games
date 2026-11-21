@@ -995,6 +995,48 @@
         "A woman's short annoyed 'tsk' and sigh. No words, no speech. Short, soft, clean recording with no background noise.",
         "A man's short grumpy 'hmm' groan. No words, no speech. Short, soft, clean recording with no background noise."
       ]
+    },
+    {
+      "id": "amb.rain",
+      "seconds": 20,
+      "loop": true,
+      "influence": 0.3,
+      "prompt": "Gentle steady rain falling on leaves and a path, soft and calm, no thunder, no wind, no music."
+    },
+    {
+      "id": "rooster",
+      "seconds": 2.5,
+      "influence": 0.5,
+      "prompt": "A rooster crowing once in the morning, cock-a-doodle-doo, friendly and clear. Clean recording with no background noise."
+    },
+    {
+      "id": "train.toot",
+      "seconds": 1.5,
+      "influence": 0.5,
+      "prompt": "A small toy steam train whistle, two short cheerful toots. Cute, for a children's game. Clean, no background noise."
+    },
+    {
+      "id": "camera",
+      "seconds": 0.6,
+      "prompt": "A single camera shutter click. Short, dry, clean."
+    },
+    {
+      "id": "party",
+      "seconds": 2.5,
+      "influence": 0.5,
+      "prompt": "A birthday party horn blowing and a few children cheering 'yay' for a moment. Happy, short, no music."
+    },
+    {
+      "id": "animal.shark",
+      "seconds": 1.5,
+      "influence": 0.4,
+      "prompt": "A big fish swishing through water with a deep bubbly whoosh. Friendly, cartoon, clean recording."
+    },
+    {
+      "id": "animal.ray",
+      "seconds": 1.5,
+      "influence": 0.4,
+      "prompt": "Soft underwater bubbles and a gentle flapping swish, like a ray gliding by. Calm, cartoon, clean recording."
     }
   ]
 }

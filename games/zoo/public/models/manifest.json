@@ -936,6 +936,30 @@
    "length": 0.527,
    "v": "9eaf00ad"
   },
+  "ray_female": {
+   "height": 0.267,
+   "back": 0.903,
+   "length": 1.401,
+   "v": "33695982"
+  },
+  "ray_male": {
+   "height": 0.291,
+   "back": 0.971,
+   "length": 1.507,
+   "v": "b9612300"
+  },
+  "ray_young_f": {
+   "height": 0.212,
+   "back": 0.532,
+   "length": 0.82,
+   "v": "a4355258"
+  },
+  "ray_young_m": {
+   "height": 0.212,
+   "back": 0.532,
+   "length": 0.82,
+   "v": "bbca951e"
+  },
   "redpanda_female": {
    "height": 0.634,
    "back": 0.251,
@@ -1031,6 +1055,30 @@
    "back": 0.491,
    "length": 0.974,
    "v": "81a774dd"
+  },
+  "shark_female": {
+   "height": 0.638,
+   "back": 0.959,
+   "length": 1.827,
+   "v": "b84d7f88"
+  },
+  "shark_male": {
+   "height": 0.728,
+   "back": 1.031,
+   "length": 1.981,
+   "v": "7d0517fd"
+  },
+  "shark_young_f": {
+   "height": 0.379,
+   "back": 0.554,
+   "length": 1.176,
+   "v": "413c792a"
+  },
+  "shark_young_m": {
+   "height": 0.379,
+   "back": 0.554,
+   "length": 1.176,
+   "v": "4c6e807b"
   },
   "sheep_female": {
    "height": 0.642,

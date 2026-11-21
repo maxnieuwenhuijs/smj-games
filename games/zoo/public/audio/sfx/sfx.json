@@ -17,6 +17,9 @@
  "amb.night": [
   "amb.night-1-300da1.mp3"
  ],
+ "amb.rain": [
+  "amb.rain-1-3e08ba.mp3"
+ ],
  "amb.savanna": [
   "amb.savanna-1-44ede3.mp3"
  ],
@@ -214,6 +217,9 @@
   "animal.rabbit-2-511d6a.mp3",
   "animal.rabbit-3-511d6a.mp3"
  ],
+ "animal.ray": [
+  "animal.ray-1-4fb18f.mp3"
+ ],
  "animal.redpanda": [
   "animal.redpanda-1-0fefae.mp3",
   "animal.redpanda-2-0fefae.mp3",
@@ -233,6 +239,9 @@
   "animal.seal-1-01eda9.mp3",
   "animal.seal-2-01eda9.mp3",
   "animal.seal-3-01eda9.mp3"
+ ],
+ "animal.shark": [
+  "animal.shark-1-d68b66.mp3"
  ],
  "animal.sheep": [
   "animal.sheep-1-52d43d.mp3",
@@ -281,6 +290,9 @@
  ],
  "born": [
   "born-1-9d7146.mp3"
+ ],
+ "camera": [
+  "camera-1-2ad750.mp3"
  ],
  "cheer": [
   "cheer-1-300011.mp3",
@@ -392,6 +404,9 @@
  "paint": [
   "paint-1-b35234.mp3"
  ],
+ "party": [
+  "party-1-4b7d92.mp3"
+ ],
  "pee.trickle": [
   "pee.trickle-1-7ba168.mp3",
   "pee.trickle-2-7ba168.mp3"
@@ -406,6 +421,9 @@
  ],
  "pour": [
   "pour-1-b9eb8e.mp3"
+ ],
+ "rooster": [
+  "rooster-1-0444a8.mp3"
  ],
  "sad": [
   "sad-1-b32151.mp3"
@@ -428,6 +446,9 @@
   "toilet.poop-1-a79382.mp3",
   "toilet.poop-2-a79382.mp3",
   "toilet.poop-3-a79382.mp3"
+ ],
+ "train.toot": [
+  "train.toot-1-b2c12c.mp3"
  ],
  "young.alpaca": [
   "young.alpaca-1-8b4cdc.mp3",

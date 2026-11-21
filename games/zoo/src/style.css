@@ -117,6 +117,8 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 }
 .pill b { font-size: 20px; font-weight: 800; min-width: 22px; text-align: center; }
 .pill.full { background: #ffe58a; box-shadow: 0 4px 0 var(--sun-shade); }
+/* alleen een plaatje (het seizoen, het weer) */
+.pill.extra { padding: 5px 8px; }
 
 #goals {
   position: absolute; top: 12px; left: 12px; display: flex; flex-direction: column; gap: 6px;
@@ -158,6 +160,29 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 .bubble.danger { animation: alarm 1.8s ease-in-out infinite; }
 @keyframes alarm { 50% { box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15), 0 0 0 7px rgba(224, 88, 79, 0.35); } }
 .bubble .ic.badge { position: absolute; right: 0; bottom: 0; }
+/* een rond bordje met een plaatje: vieze stal, jarig, kind kwijt */
+.bubble.badge { align-items: center; justify-content: center; gap: 2px; min-width: 40px; padding: 7px; border-radius: 999px; }
+.bubble.badge.tap { pointer-events: auto; cursor: pointer; }
+/* verdrietig: lichtblauw, met een traan die langzaam valt */
+.bubble.sad, .bubble.sad::after { background: #d7ebff; }
+.bubble.sad { box-shadow: 0 3px 0 rgba(60, 110, 170, 0.3); }
+.bubble.sad::before {
+  content: ''; position: absolute; right: -3px; top: 55%; width: 9px; height: 9px; background: #6db3f2; border-radius: 0 50% 50% 50%;
+  z-index: 2; animation: tear 2.6s ease-in infinite;
+}
+@keyframes tear {
+  0% { opacity: 0; transform: translateY(-6px) rotate(45deg) scale(0.5); }
+  25% { opacity: 1; transform: translateY(0) rotate(45deg) scale(1); }
+  80% { opacity: 1; transform: translateY(12px) rotate(45deg) scale(1); }
+  100% { opacity: 0; transform: translateY(18px) rotate(45deg) scale(0.8); }
+}
+/* iets bijzonders: een gouden rand die zacht glanst */
+.bubble.star { background: #fff7d1; box-shadow: inset 0 0 0 3px #f2b824, 0 3px 0 rgba(0, 0, 0, 0.15); animation: shine 2.6s ease-in-out infinite; }
+.bubble.star::after { background: #fff7d1; border-right: 3px solid #f2b824; border-bottom: 3px solid #f2b824; }
+@keyframes shine {
+  0%, 100% { box-shadow: inset 0 0 0 3px #f2b824, 0 3px 0 rgba(0, 0, 0, 0.15), 0 0 0 0 rgba(255, 205, 60, 0.75); }
+  50% { box-shadow: inset 0 0 0 3px #f2b824, 0 3px 0 rgba(0, 0, 0, 0.15), 0 0 0 9px rgba(255, 205, 60, 0); }
+}
 
 .penname {
   position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 5px; border: 0; cursor: pointer;
@@ -189,9 +214,15 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
   border-radius: 24px; box-shadow: 0 6px 0 var(--shade), 0 10px 24px rgba(0, 0, 0, 0.18); max-width: calc(100vw - 16px);
 }
 #menu .title { font-weight: 800; font-size: 17px; }
-#menu .header { display: flex; align-items: center; gap: 6px; font-size: 24px; }
+#menu .header { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; font-size: 24px; }
+/* het dier zelf, zoals het nu beweegt, met eronder wat het doet */
+#menu .live { flex-basis: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+#menu .portrait3d { width: 120px; height: 120px; border-radius: 22px; background: #dff0d0; box-shadow: inset 0 0 0 3px #fff, 0 2px 0 var(--shade); }
+#menu .doing { font-size: 15px; font-weight: 800; color: #5a4636; min-height: 18px; }
 #menu .header .ask { font-size: 13px; font-weight: 700; opacity: 0.7; }
 #menu .row { flex-wrap: wrap; }
+/* meer dan zes knoppen: zes naast elkaar, de rest op een volgende regel (met kleurvlakjes erbij is de rij al smal) */
+#menu .row:has(.tool:nth-child(7)):not(:has(.swatch)) { max-width: calc(6 * min(70px, 13vw) + 5 * min(10px, 1vw) + 2px); }
 .wish { position: relative; display: flex; padding: 3px; border-radius: 10px; background: #e2f4d8; }
 .wish.no { background: #fbdcd9; }
 .wish.no .ic { opacity: 0.55; }
@@ -241,6 +272,160 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 .card .reward b { font-size: 24px; }
 .tool.go { width: 120px; height: 96px; background: #6cc04a; box-shadow: 0 6px 0 #4a9431; color: #fff; }
 .tool.go b { font-size: 16px; }
+
+/* ---------- het wijzende handje ---------- */
+/* Het punt (0, 0) van #pointer is de vingertop; het spel schuift het met transform naar de goede plek. */
+#pointer {
+  position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; font-size: 72px;
+  transition: transform 0.35s ease-out; will-change: transform;
+}
+/* de top van de langste vinger zit in het plaatje op 46% van links en 12% van boven */
+#pointer .arm {
+  position: absolute; left: -0.458em; top: -0.125em; width: 1em; height: 1em; transform-origin: 45.8% 12.5%; transform: rotate(-16deg);
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.22));
+}
+#pointer.left .arm { transform: rotate(16deg); }
+#pointer.down .arm { transform: rotate(196deg); }
+#pointer.down.left .arm { transform: rotate(164deg); }
+#pointer .arm .ic { transform-origin: 45.8% 12.5%; animation: tap 2.6s ease-in-out infinite; }
+#pointer .ring {
+  position: absolute; left: -24px; top: -24px; width: 48px; height: 48px; border-radius: 50%; border: 4px solid #fff;
+  box-shadow: 0 0 0 3px rgba(255, 190, 40, 0.9); opacity: 0; animation: tapring 2.6s ease-out infinite;
+}
+/* tik, tik, en dan even rust */
+@keyframes tap {
+  0%, 60%, 100% { transform: translateY(14px) scale(1); }
+  14%, 40% { transform: translateY(0) scale(0.9); }
+  27% { transform: translateY(9px) scale(1); }
+}
+@keyframes tapring {
+  0%, 13% { transform: scale(0.3); opacity: 0; }
+  14% { transform: scale(0.3); opacity: 0.95; }
+  32% { transform: scale(1.4); opacity: 0; }
+  39% { transform: scale(0.3); opacity: 0; }
+  40% { transform: scale(0.3); opacity: 0.95; }
+  58%, 100% { transform: scale(1.4); opacity: 0; }
+}
+
+/* ---------- dierenarts ---------- */
+.card.vet { gap: 14px; padding: 24px min(36px, 4vw); max-width: 96vw; }
+.patient {
+  position: relative; width: min(190px, 44vw, 34vh); height: min(190px, 44vw, 34vh); border-radius: 50%; background: #e3eef6;
+  display: grid; place-items: center; transition: background 0.4s;
+}
+/* ziek: wat grijs en scheef; bij elke stap komt er kleur terug (--sick loopt van 1 naar 0) */
+.patient .pic {
+  --sick: 1; display: block; font-size: min(130px, 30vw, 23vh);
+  filter: grayscale(calc(var(--sick) * 0.75)) brightness(calc(1 - var(--sick) * 0.06)); transition: filter 0.4s;
+}
+.patient.sick .pic { animation: sickly 2.8s ease-in-out infinite; }
+@keyframes sickly {
+  0%, 100% { transform: rotate(-9deg) translateY(4px); }
+  50% { transform: rotate(-5deg) translateY(8px); }
+}
+.patient.well { background: #fff1b8; }
+.patient.well .pic { filter: none; animation: cheer 0.35s ease-in-out infinite alternate; }
+@keyframes cheer {
+  from { transform: translateY(5px) scale(1.04, 0.95); }
+  to { transform: translateY(-16px) scale(1.08); }
+}
+/* het ding van de knop vliegt naar het dier; hartjes en sterretjes spatten eruit */
+.patient .fly, .patient .spark { position: absolute; left: 50%; top: 50%; pointer-events: none; font-style: normal; }
+.patient .fly { font-size: 56px; margin: -28px 0 0 -28px; animation: vetfly 0.55s ease-in-out forwards; }
+.patient .spark { font-size: 30px; margin: -15px 0 0 -15px; opacity: 0; animation: vetspark 0.85s ease-out var(--d, 0s) forwards; }
+@keyframes vetfly {
+  from { transform: translate(var(--dx), var(--dy)) scale(1) rotate(0deg); opacity: 1; }
+  60% { transform: translate(0, 0) scale(1.25) rotate(-14deg); opacity: 1; }
+  80% { transform: translate(0, 0) scale(1.1) rotate(10deg); opacity: 1; }
+  to { transform: translate(0, 0) scale(0.6) rotate(0deg); opacity: 0; }
+}
+@keyframes vetspark {
+  0% { transform: translate(0, 0) scale(0.3); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translate(var(--x), var(--y)) scale(1.1); opacity: 0; }
+}
+.card.vet .steps { display: flex; justify-content: center; gap: min(18px, 3vw); }
+/* grote ronde knoppen; alleen de stap die aan de beurt is licht op */
+.tool.vetstep {
+  width: min(104px, 24vw); height: min(104px, 24vw); border-radius: 50%; opacity: 0.45; filter: grayscale(0.6);
+  transition: opacity 0.25s, filter 0.25s;
+}
+.tool.vetstep .ic { font-size: min(52px, 12vw); }
+.tool.vetstep.now { opacity: 1; filter: none; background: var(--sun); box-shadow: 0 5px 0 var(--sun-shade); animation: vetnow 1.4s ease-in-out infinite; }
+@keyframes vetnow {
+  0%, 100% { transform: scale(1); box-shadow: 0 5px 0 var(--sun-shade), 0 0 0 0 rgba(255, 190, 40, 0.9); }
+  50% { transform: scale(1.07); box-shadow: 0 5px 0 var(--sun-shade), 0 0 0 12px rgba(255, 190, 40, 0); }
+}
+.tool.vetstep.done { opacity: 1; filter: none; background: #e2f4d8; box-shadow: 0 5px 0 #a9d48f; }
+.tool.vetstep .tick { position: absolute; right: -4px; top: -4px; display: none; }
+.tool.vetstep .tick .ic { font-size: 34px; }
+.tool.vetstep.done .tick { display: block; animation: pop 0.3s ease-out; }
+.tool.vetstep.no { animation: shake 0.3s ease-in-out; }
+
+/* ---------- gastenboek ---------- */
+.card.book { gap: 12px; padding: 20px min(28px, 4vw); max-width: 96vw; }
+/* een prikbord van kurk in een houten lijst */
+.card.book .board {
+  display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; gap: 14px 12px; width: min(500px, 84vw);
+  min-height: 110px; max-height: calc(100vh - 230px); overflow-y: auto; padding: 16px 12px 14px; border: 8px solid #a8703a; border-radius: 22px;
+  background: #d8a868 radial-gradient(rgba(120, 70, 20, 0.22) 1.5px, transparent 2px) 0 0 / 14px 14px;
+  box-shadow: inset 0 4px 0 rgba(0, 0, 0, 0.14); touch-action: pan-y; scrollbar-width: none;
+}
+.card.book .board::-webkit-scrollbar { display: none; }
+/* een blaadje papier met een punaise, een beetje scheef opgehangen */
+.card.book .note {
+  position: relative; flex: none; width: min(100px, 20vw); padding: 10px 6px 5px; background: #fffdf3; border-radius: 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.2);
+  transform: rotate(var(--r, 0deg)); animation: pinup 0.35s ease-out var(--d, 0s) both;
+}
+@keyframes pinup {
+  from { transform: rotate(var(--r, 0deg)) scale(0.4); opacity: 0; }
+  to { transform: rotate(var(--r, 0deg)) scale(1); opacity: 1; }
+}
+.card.book .note::before {
+  content: ''; position: absolute; left: 50%; top: -5px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%;
+  background: #e0584f; box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.2), 0 2px 0 rgba(0, 0, 0, 0.2);
+}
+/* de tekening: een rand als van een krijtje, een zonnetje in de hoek en een streep gras */
+.card.book .draw {
+  display: grid; place-items: center; width: 100%; padding: 5px 0 7px; font-size: min(56px, 12vw); border: 3px solid #e8743b;
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  background: radial-gradient(circle at 100% 0, #ffd95a 0 13px, transparent 14px), linear-gradient(transparent 80%, rgba(120, 200, 90, 0.5) 80%);
+}
+.card.book .draw .ic { filter: saturate(1.6) contrast(1.15); transform: rotate(-3deg); }
+.card.book .note:nth-child(4n + 2) .draw { border-color: #4a90e2; border-radius: 15px 225px 15px 255px / 255px 15px 225px 15px; }
+.card.book .note:nth-child(4n + 3) .draw { border-color: #6cc04a; }
+.card.book .note:nth-child(4n + 4) .draw { border-color: #b06ad8; border-radius: 15px 225px 15px 255px / 255px 15px 225px 15px; }
+.card.book .note:nth-child(odd) .draw .ic { transform: rotate(4deg); }
+.card.book .likes { display: flex; align-items: center; justify-content: center; gap: 1px; min-height: 15px; font-size: 13px; }
+.card.book .likes b { font: 800 13px/1 system-ui, sans-serif; margin-left: 3px; }
+/* nog geen tekeningen: één leeg blaadje met de zin erop */
+.card.book .none {
+  align-self: center; max-width: 84%; margin: 8px 0; padding: 16px 18px; background: #fffdf3; border-radius: 4px; transform: rotate(-2deg);
+  font-size: 18px; font-weight: 700; line-height: 1.3; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* ---------- wist je dat? ---------- */
+.card.fact { gap: 12px; max-width: min(520px, 92vw); }
+.card.fact .reward { position: relative; margin: 0; }
+.card.fact .reward .pic { display: block; font-size: min(120px, 30vw, 26vh); animation: bob 2.8s ease-in-out infinite; }
+.card.fact .reward b { font-size: 26px; }
+.card.fact .deco { position: absolute; right: -24px; top: 0; font-size: 34px; font-style: normal; animation: spin 2.4s ease-in-out infinite; }
+.card.fact .say { font-size: clamp(19px, 3.6vw, 25px); font-weight: 700; line-height: 1.3; margin-bottom: 6px; }
+@keyframes bob { 50% { transform: translateY(-8px) rotate(3deg); } }
+
+/* ---------- liever weinig beweging: alles blijft, maar trager en kleiner ---------- */
+@media (prefers-reduced-motion: reduce) {
+  #pointer { transition: none; }
+  #pointer .arm .ic, #pointer .ring { animation-duration: 5s; }
+  .tool.vetstep.now { animation-duration: 2.8s; }
+  .patient.sick .pic { animation: none; transform: rotate(-8deg); }
+  .patient.well .pic { animation-duration: 0.9s; }
+  .patient .fly { animation-duration: 0.7s; }
+  .card.book .note { animation: none; }
+  .card.fact .reward .pic, .card.fact .deco { animation-duration: 6s; }
+  .bubble.star, .bubble.sad::before { animation-duration: 6s; }
+}
 
 /* ---------- start en laden ---------- */
 #start, #loading {
