@@ -235,6 +235,8 @@ const ICONS = {
     '<circle cx="14" cy="11" r="6" fill="#b07a4a"/><circle cx="34" cy="11" r="6" fill="#b07a4a"/><ellipse cx="24" cy="39" rx="11" ry="8" fill="#b07a4a"/>' +
     '<circle cx="24" cy="20" r="13" fill="#b07a4a"/><ellipse cx="24" cy="25" rx="6.5" ry="5" fill="#e3bf94"/><ellipse cx="24" cy="40" rx="6" ry="4.5" fill="#e3bf94"/>' +
     `<g fill="${INK}"><circle cx="19" cy="17" r="2"/><circle cx="29" cy="17" r="2"/><circle cx="24" cy="23" r="1.9"/></g>`,
+  turn:
+    `<path d="M38 24 A14 14 0 1 1 30 11" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><path d="M28 3 L40 10 L29 18Z" fill="${INK}"/>`,
   hammer:
     `<path d="M12 40 L28 20" stroke="${WOOD_D}" stroke-width="6" stroke-linecap="round"/><path d="M20 12 L34 6 L42 16 L36 22 L30 16 L24 22Z" fill="#8a857a" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`,
   grow:

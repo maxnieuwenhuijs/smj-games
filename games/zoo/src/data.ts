@@ -329,7 +329,7 @@ export function unlockedSpecies(done: number): SpeciesId[] {
 
 /** Vanaf hoeveel gehaalde levels iets meedoet. */
 export const FEATURE = {
-  paths: 3, foodstall: 4, drinkstall: 5, toilet: 7, bench: 8, playground: 9, icecream: 11, flowers: 14, bin: 17, hats: 22, souvenir: 26,
+  paths: 3, foodstall: 4, drinkstall: 5, toilet: 7, bench: 8, playground: 9, icecream: 11, flowers: 14, bin: 5, hats: 22, souvenir: 26,
   /** De grote attracties: een fontein om naar te kijken en een draaimolen om in te rijden. */
   fountain: 15, carousel: 25,
   /** Vanaf hier kun je het park mooi maken met bomen, bloemen, water en beelden. */

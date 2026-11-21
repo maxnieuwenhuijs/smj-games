@@ -231,6 +231,14 @@ export class Hud {
   }
 
   /** Bordje boven een verblijf dat even dicht is. De naam van een verblijf zie je pas als je erop tikt. */
+  /** Een bordje boven iets wat niet aan het pad staat: gasten kunnen er niet bij. */
+  makeNoPath(): HTMLElement {
+    const b = el('div', 'bubble nopath', `${icon('path')}${icon('cross', 'badge')}`);
+    b.hidden = true;
+    this.layer.append(b);
+    return b;
+  }
+
   makeSign(text: string): HTMLElement {
     const b = el('div', 'penname closed', `${icon('pen')}<b></b>`);
     b.querySelector('b')!.textContent = text;

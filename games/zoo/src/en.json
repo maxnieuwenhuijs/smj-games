@@ -135,6 +135,7 @@
   "product.hat_party": "Party hat",
   "product.hat_crown": "Crown",
   "shop.sells": "What do you sell here?",
+  "shop.turn": "Turn",
   "shop.playground": "Playground",
 
   "wallet.coins": "Coins",
@@ -494,6 +495,7 @@
   "host.toilet": "The guests need the toilet. Put a toilet next to the path!",
   "host.sad": "The guests are bored. Show them happy animals!",
   "host.litter": "There is litter on the path. Pick it up and put it in a bin!",
+  "host.nopath": "The guests cannot get there. Lay a path to it!",
   "host.busy.foodstall": "The food stall is too busy. Add another food stall!",
   "host.busy.drinkstall": "The drink stall is too busy. Add another one!",
   "host.busy.toilet": "There is a queue for the toilet. Add another toilet!",

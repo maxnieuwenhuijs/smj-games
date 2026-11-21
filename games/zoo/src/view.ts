@@ -462,10 +462,28 @@ function buildShop(kind: ShopKind, mat?: THREE.Material): THREE.Group {
   }
   return group;
 }
-const LITTER_PARTS: Part[] = [
-  [boxAt(0.13, 0.03, 0.1, 0.03, 0.02, 0), WHITE_MAT],
-  [boxAt(0.07, 0.11, 0.07, -0.09, 0.055, 0.05), std(0xe0584f)],
-  [boxAt(0.09, 0.04, 0.09, 0.06, 0.03, -0.11), std(0xd8a14a)],
+// Afval in vier soorten, groot en fel genoeg om tussen de gasten op te vallen: een beker met rietje, een
+// frietzak met een verfrommeld papiertje, een bananenschil en een blikje met een servet.
+const LITTER_KINDS: Part[][] = [
+  [
+    [tube(0.09, 0.07, 0.2, 0, 0.07, 0).rotateZ(1.35), WHITE_MAT],
+    [tube(0.095, 0.095, 0.03, 0.1, 0.09, 0).rotateZ(1.35), std(0xe0584f)],
+    [boxAt(0.02, 0.02, 0.2, 0.2, 0.06, 0.04), std(0x4a90e2)],
+  ],
+  [
+    [boxAt(0.2, 0.05, 0.16, 0, 0.03, 0), std(0xd8362e)],
+    [boxAt(0.12, 0.09, 0.12, -0.14, 0.05, 0.1), std(0xffd23f)],
+    [boxAt(0.1, 0.07, 0.09, 0.12, 0.04, -0.12), WHITE_MAT],
+  ],
+  [
+    [mergeGeometries([boxAt(0.06, 0.03, 0.2, 0, 0.02, 0.06), boxAt(0.2, 0.03, 0.06, 0.06, 0.02, 0), boxAt(0.06, 0.03, 0.18, -0.02, 0.02, -0.1)])!, std(0xffd23f, 0.6)],
+    [boxAt(0.07, 0.05, 0.07, 0, 0.045, 0), std(0xc9a93a)],
+  ],
+  [
+    [tube(0.055, 0.055, 0.17, 0, 0.055, 0).rotateX(Math.PI / 2), std(0x4a90e2, 0.4)],
+    [boxAt(0.18, 0.02, 0.16, 0.14, 0.015, 0.1), WHITE_MAT],
+    [boxAt(0.1, 0.06, 0.1, -0.14, 0.035, -0.08), std(0xd8a14a)],
+  ],
 ];
 
 function build(parts: Part[], mat?: THREE.Material): THREE.Group {
@@ -891,9 +909,9 @@ export class View {
   }
 
   /** Een winkel met zijn linkerbovenhoek op tegel (x, y); een gebouw beslaat 2 bij 2 tegels. */
-  makeShop(x: number, y: number, kind: ShopKind, edge?: EdgePose): THREE.Group {
+  makeShop(x: number, y: number, kind: ShopKind, edge?: EdgePose, rot = 0): THREE.Group {
     const group = buildShop(kind);
-    this.poseShop(group, x, y, kind, edge);
+    this.poseShop(group, x, y, kind, edge, rot);
     this.scene.add(group);
     return group;
   }
@@ -902,10 +920,11 @@ export class View {
    * Zet een winkel op zijn plek. Een bankje, bloembak of afvalbak staat op een rand: langs die rand, een
    * stukje van het pad af en met het gezicht naar het pad (`face`: 1 = het pad ligt aan de zuid- of oostkant).
    */
-  poseShop(group: THREE.Object3D, x: number, y: number, kind: ShopKind, edge?: EdgePose): void {
+  poseShop(group: THREE.Object3D, x: number, y: number, kind: ShopKind, edge?: EdgePose, rot = 0): void {
     if (!edge) {
+      // een gebouw draait in kwartslagen: 0 = voorkant naar het zuiden, 1 = oosten, 2 = noorden, 3 = westen
       group.position.set(toWorldX(x + SHOP_SIZE[kind] / 2), 0, toWorldZ(y + SHOP_SIZE[kind] / 2));
-      group.rotation.y = 0;
+      group.rotation.y = (rot * Math.PI) / 2;
       return;
     }
     const off = -0.2 * edge.face;
@@ -918,16 +937,17 @@ export class View {
     }
   }
 
-  ghostShop(x: number, y: number, kind: ShopKind, ok: boolean, edge?: EdgePose): void {
+  ghostShop(x: number, y: number, kind: ShopKind, ok: boolean, edge?: EdgePose, rot = 0): void {
     this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
     const ghost = this.ghostShops[kind];
-    this.poseShop(ghost, x, y, kind, edge);
+    this.poseShop(ghost, x, y, kind, edge, rot);
     ghost.visible = true;
   }
 
   /** Afval dat een gast op het pad heeft laten vallen. */
   makeLitter(gx: number, gy: number): THREE.Group {
-    const group = build(LITTER_PARTS);
+    const group = build(LITTER_KINDS[Math.floor(Math.random() * LITTER_KINDS.length)]);
+    group.scale.setScalar(1.25);
     group.position.set(toWorldX(gx), 0, toWorldZ(gy));
     group.rotation.y = Math.random() * Math.PI * 2;
     this.scene.add(group);

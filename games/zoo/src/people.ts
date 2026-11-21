@@ -29,6 +29,10 @@ export interface ShopSpot {
   face?: number;
   /** De speler heeft het omgedraaid: het kijkt van het pad af. */
   turned?: boolean;
+  /** Een gebouw draait in kwartslagen: 0 = voorkant naar het zuiden, 1 = oosten, 2 = noorden, 3 = westen. */
+  rot?: number;
+  /** De speler heeft het gebouw zelf gedraaid: dan draait het niet meer vanzelf naar het pad. */
+  manual?: boolean;
 }
 
 /** Waar een bankje op een rand precies staat en hoe het gedraaid is: [x, y, draaiing]. Zelfde regels als in het beeld. */
@@ -352,13 +356,16 @@ export class Guest {
       // de trap op, van de glijbaan af en weer terug: twee keer per bezoek
       const u = ((6 - this.timer) % 3) / 3;
       const cx = this.shop.x + 1, cy = this.shop.y + 1;
-      const top: [number, number, number] = [cx - 0.39, 1.0, cy + 0.1], low: [number, number, number] = [cx - 0.39, 0.1, cy + 1.1];
+      // de glijbaan draait mee met het gebouw
+      const turn = ((this.shop.rot ?? 0) * Math.PI) / 2, cos = Math.cos(turn), sin = Math.sin(turn);
+      const at = (lx: number, h: number, lz: number): [number, number, number] => [cx + lx * cos + lz * sin, h, cy - lx * sin + lz * cos];
+      const top = at(-0.39, 1.0, 0.1), low = at(-0.39, 0.1, 1.1);
       const here: [number, number, number] = [this.gx, 0, this.gy];
       const mix = (a: number[], b: number[], t: number): number[] => a.map((v, i) => v + (b[i] - v) * t);
       const sliding = u >= 0.45 && u < 0.8;
       const p = u < 0.45 ? mix(here, top, u / 0.45) : sliding ? mix(top, low, (u - 0.45) / 0.35) : mix(low, here, (u - 0.8) / 0.2);
       this.mesh.position.set(toWorldX(p[0]), p[1], toWorldZ(p[2]));
-      this.mesh.rotation.y = sliding ? 0 : this.heading;
+      this.mesh.rotation.y = sliding ? turn : this.heading;
       if (sliding) this.limbs[0].rotation.x = this.limbs[1].rotation.x = -1.3;
       return;
     }
@@ -799,6 +806,11 @@ export class GuestManager {
       this.scene.add(guest.mesh);
       this.guests.push(guest);
     }
+  }
+
+  /** Kunnen gasten deze tegel bereiken (pad dat aan de ingang vastzit)? */
+  reaches(tile: number): boolean {
+    return this.reach.has(tile);
   }
 
   /** Is de ingang met een pad verbonden? Zonder pad komen er geen gasten. */

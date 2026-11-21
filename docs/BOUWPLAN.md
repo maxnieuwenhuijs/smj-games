@@ -202,6 +202,12 @@ Winkels zijn gebouwen van 2 bij 2 tegels met een open voorkant; achter de toonba
 
 Gasten gaan echt op een bankje zitten: twee naast elkaar, benen naar voren, en ze staan weer op als ze uitgerust zijn. Kinderen klimmen in de speeltuin de trap op en glijden twee keer van de glijbaan. In de draaimolen zitten ze op een paardje. Elke winkel heeft een eigen vorm: friet op het dak van de eetkraam, een beker op de drinkkraam, een reuzenijsje op de ijskraam, een tros ballonnen, een strohoed, een beer op de knuffelkraam. Het wc-gebouw heeft twee deuren en de speeltuin een glijbaan.
 
+### Draaien en aan het pad
+
+Een gebouw (kraam, wc, speeltuin, fontein, draaimolen) draait vanzelf met zijn voorkant naar de kant waar het meeste pad ligt, ook als je het pad pas later legt. Bij gelijk spel kijkt het naar het zuiden of oosten, want dan zie je de voorkant. Tik je met het handje op een gebouw, dan staat bovenaan het menu de knop Draaien: elke tik is een kwartslag, en daarna draait dat gebouw niet meer vanzelf. De glijbaan van de speeltuin draait mee.
+
+Staat een gebouw, bankje, bloembak of afvalbak niet aan een pad dat aan de ingang vastzit, dan kunnen gasten er niet bij en werkt het niet. Je ziet dat aan een oranje wolkje erboven met een pad en een rood kruis, en de gastvrouw zegt dat er een pad naartoe moet.
+
 ### De grote attracties
 
 Twee dure dingen om voor te sparen. Ze leveren zelf geen munten op; gasten worden er blijer van, en blije gasten kopen meer.
@@ -272,7 +278,7 @@ Gasten die binnen twee tegels van een versiering lopen, worden er een beetje bli
 
 ## Afval oprapen
 
-Gasten laten soms afval vallen als er geen afvalbak in de buurt staat (hooguit acht stuks tegelijk in het park). Tik er met het handje op om het op te rapen: je hebt het dan in je handen (links in beeld zie je hoeveel, hooguit vijf). Tik daarna op een afvalbak om het weg te gooien; dat levert een munt per stuk op en telt voor de opdrachten. Een schoonmaker raapt het ook op.
+Vanaf level 6, zodra er een eetkraam is, laten gasten afval vallen als er geen afvalbak binnen anderhalve tegel staat (hooguit acht stuks tegelijk in het park). Afvalbakken zijn er daarom ook al vanaf level 6. Het afval is er in vier soorten, groot en kleurig genoeg om op te vallen: een beker met rietje, een frietzak, een bananenschil en een blikje. Tik er met het handje op om het op te rapen: je hebt het dan in je handen (links in beeld zie je hoeveel, hooguit vijf). Tik daarna op een afvalbak om het weg te gooien; dat levert een munt per stuk op en telt voor de opdrachten. Een schoonmaker raapt het ook op.
 
 ## Dier in nood
 

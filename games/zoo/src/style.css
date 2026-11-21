@@ -120,6 +120,8 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 }
 .bubble .ic { position: relative; z-index: 1; }
 .bubble .count, .wish .count { position: absolute; right: -8px; bottom: -6px; min-width: 20px; padding: 0 3px; border-radius: 10px; background: #4a90e2; color: #fff; font: 800 12px/18px system-ui, sans-serif; font-style: normal; text-align: center; }
+.bubble.nopath, .bubble.nopath::after { background: #ffd08a; }
+.bubble.nopath { animation: needy 2.2s ease-in-out infinite; }
 .bubble.warn, .bubble.warn::after { background: #ffd08a; }
 .bubble.danger, .bubble.danger::after { background: #ff9a8f; }
 .bubble.danger { animation: alarm 1.8s ease-in-out infinite; }
