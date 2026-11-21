@@ -33,9 +33,10 @@ Elke wereld heeft tien levels en tien dieren. De lucht, het land en de bomen ron
 3. Het juiste voer in de voerbak.
 4. De juiste slaapplek.
 5. De juiste ondergrond.
-6. Een vriendje van dezelfde soort.
+6. Een vriendje van dezelfde soort; groepsdieren willen met meer zijn (zie hieronder).
 7. Een schoon hok.
-8. Iets leuks in het verblijf (vanaf level 10): speelgoed of een plant.
+8. Genoeg ruimte: grote dieren willen een groot verblijf (zie hieronder).
+9. Iets leuks in het verblijf (vanaf level 10): het eigen lievelingsding van het dier.
 
 | Dier | Ondergrond | Voer | Slaapplek | Prijs | Hek |
 |---|---|---|---|---|---|
@@ -92,7 +93,16 @@ Elke wereld heeft tien levels en tien dieren. De lucht, het land en de bomen ron
 
 ### Iets leuks in het verblijf
 
-Vanaf level 10 willen alle dieren iets leuks in hun verblijf. Met de knop Speelgoed zet je er een bal, een struik met bessen, een boomstam of een bloemperk in; elk kost 2 munten en één ding is genoeg voor het hele verblijf. Blije dieren lopen er af en toe naartoe en spelen erbij. Een dier dat zich verveelt is niet blij (het telt dus niet mee voor een level), maar wordt er nooit voor opgehaald. De verzorger vertelt het één keer als het begint, ook in een ouder opgeslagen spel dat al verder is.
+Vanaf level 10 willen de meeste dieren iets leuks in hun verblijf, en elk dier heeft een eigen lievelingsding: een bal (varken, paard, leeuw, aap, zeehond, kangoeroe en andere speelse dieren), een struik met bessen (koe, schaap, giraf, panda, koala), een boomstam (ezel, geit, olifant, gorilla, beer, bever) of een bloemperk (gazelle, papegaai, poolvos). Het wolkje boven het dier laat zien welk ding het wil. Kippen, eenden, konijnen, struisvogels, pauwen, flamingo's, pelikanen, schildpadden en krokodillen hebben niets nodig. Met de knop Speelgoed zet je het neer; elk ding kost 2 munten en één is genoeg voor alle dieren van die soort in het verblijf. Blije dieren lopen er geregeld naartoe en spelen ermee, en dan beweegt het ding mee: de bal stuitert, de struik ritselt, de stam wiebelt, de bloemen wuiven. Een dier dat zich verveelt is niet blij (het telt dus niet mee voor een level), maar wordt er nooit voor opgehaald. De verzorger vertelt het één keer als het begint, ook in een ouder opgeslagen spel dat al verder is.
+
+### Ruimte en groepen
+
+- **Ruimte:** grote dieren willen een groot verblijf. Minstens 9 tegels: olifant, giraf, neushoorn, nijlpaard, ijsbeer, bizon, walrus. Minstens 8: leeuw, tijger, beer, gorilla, kameel, panter, cheeta, wolf, kangoeroe. Minstens 6: paard, koe, zebra, ezel, rendier, jak, krokodil, zeehond, panda, struisvogel. De rest past overal. Is het te klein, dan zegt de bouwer dat het verblijf groter moet; het dier wordt er niet voor opgehaald.
+- **Groepen:** groepsdieren willen met meer bij elkaar zijn (jongen tellen mee). Vijf: kip, pinguïn, flamingo. Vier: eend, konijn, gazelle, aap, maki. Drie: schaap, geit, alpaca, zebra, struisvogel, papegaai, toekan, rendier, wolf, otter, pelikaan, bizon. Alle andere dieren zijn tevreden met z'n tweeën. In het wolkje staat hoeveel er nog bij moeten (+3).
+
+### Zwemmen
+
+Op een watertegel zakt een dier voor een derde weg en dobbert het; als het door het water loopt, spatten er druppels op.
 
 ### Slapen
 
@@ -107,7 +117,7 @@ Een dier dat gaat slapen, loopt naar zijn slaapplek en gaat er midden bovenop li
 
 Ziek zijn, ontsnapt zijn, een open hek, honger en een vies hok tellen zwaar. Het soort hek, ondergrond, slaapplek en een vriendje tellen licht. De tijden staan bovenaan `games/zoo/src/game.ts`.
 
-Hoe vaak je moet zorgen: een volle voerbak houdt twee volwassen dieren ongeveer twaalf minuten zoet (een dier eet eens in de zes minuten en heeft pas na negen minuten zonder eten echt honger; vraagt een level om voeren, dan gaat dat tweeënhalf keer zo snel), en een verblijf met twee dieren is pas na ongeveer een kwartier vies: een volwassen dier poept eens in de zes tot negen minuten, en de dieren vinden het vies vanaf vier poepjes. Vraagt een level om opruimen, dan poepen ze vier keer zo vaak, zodat dat doel niet lang duurt. Jongen eten mee zonder dat de bak leger wordt en poepen niet. Zo is een boerderij met tien verblijven met de hand bij te houden. Wordt het park groter, dan zijn er verzorgers. Wordt er een dier opgehaald uit een verblijf zonder verzorger, dan geeft de verzorger de tip om hulp aan te nemen.
+Hoe vaak je moet zorgen: een volle voerbak houdt twee volwassen dieren ongeveer een kwartier zoet (een dier eet eens in de acht minuten en heeft pas na twaalf minuten zonder eten echt honger; vraagt een level om voeren, dan gaat dat tweeënhalf keer zo snel), en een verblijf met twee dieren is pas na ongeveer een kwartier vies: een volwassen dier poept eens in de zes tot negen minuten, en de dieren vinden het vies vanaf vier poepjes. Vraagt een level om opruimen, dan poepen ze vier keer zo vaak, zodat dat doel niet lang duurt. Jongen eten mee zonder dat de bak leger wordt en poepen niet. Zo is een boerderij met tien verblijven met de hand bij te houden. Wordt het park groter, dan zijn er verzorgers. Wordt er een dier opgehaald uit een verblijf zonder verzorger, dan geeft de verzorger de tip om hulp aan te nemen.
 
 ## Complimentjes tussendoor
 
@@ -192,6 +202,12 @@ Moet een gast naar de wc en is er geen wc te bereiken, dan houdt hij het nog een
 
 Wie iets gekocht heeft, loopt even met afval rond. Staat er een afvalbak in de buurt, dan gaat het daarin; anders valt het op het pad. Afval wegvegen levert 1 munt op. Bloembakken en schone verblijven met blije dieren maken gasten blijer; afval en poep maken ze minder blij. Gasten kopen alleen als ze het naar hun zin hebben.
 
+### Hoe meer gasten, hoe meer kramen
+
+Het aantal gasten groeit mee met het park en het level: hooguit 14 plus het level (dus 18 in level 4 en 60 vanaf level 46), en nooit meer dan het aantal volwassen dieren maal 1,3 plus 2. Op een apparaat dat het niet bijhoudt blijft het bij 45 of 30.
+
+Eén kraam kan maar een beperkt aantal gasten aan: een eetkraam of drinkkraam 10, een wc 8, een ijskraam 12, een speeltuin 14, een bankje 6. Zijn er meer gasten, dan is het er te druk: een deel van de gasten vindt geen plek, laat een oranje wolkje zien en wordt wat minder blij, en de gastvrouw zegt waar er een bij moet ("Er staat een rij voor de wc. Zet er nog een wc bij!"). Bij 60 gasten heb je dus 6 eetkramen, 6 drinkkramen, 8 wc's, 5 ijskramen, 5 speeltuinen en 10 bankjes nodig. Te weinig wc's geeft vanzelf meer ongelukjes.
+
 ## Munten
 
 - De kas gaat nooit hoger dan 99 (twee cijfers). Je begint met 10. Kun je iets niet betalen, dan is het prijskaartje grijs; een kind hoeft dus niet te rekenen.
@@ -211,6 +227,18 @@ Na het neerzetten van een voerbak, slaapplek, winkel of dier staat het handje we
 Poep en afval ruim je alleen op met de knop Veger (vanaf level 2). Tik je er met een andere knop op, dan gebeurt er niets, behalve dat er een bezempje boven verschijnt en de veger een paar tellen knippert. Met de veger sleep je het veld net als met het handje; begin je op een poepje, dan veeg je. Met de veger aan krijgen alle poepjes en al het afval een gele ring, zodat je ze goed ziet, en veeg je alles weg waar je overheen sleept. Wat onder de muis ligt, krijgt een grotere oranje ring. Vraagt een level om opruimen, dan knippert de veger als tip.
 
 Een poepje valt nooit onder een slaapplek of voerbak: het komt op de vrije tegel ernaast terecht. Zet je een slaapplek of voerbak op een tegel waar al poep ligt, dan schuift die ernaast.
+
+## Versieringen
+
+Vanaf level 6 is er de knop Mooi: versieringen op een vrije tegel buiten de verblijven, in drie groepen.
+
+| Groep | Wat (prijs) |
+|---|---|
+| Groen | Boom (4), den (4), palm (6), heg (3), rozen (3), tulpen (3), paddenstoelen (2) |
+| Water | Vijver (10), waterval (15), waterput (8) |
+| Sier | Beeld (20), snoeiboom (12), lantaarn (5), vlag (5), wegwijzer (4), kei (2), picknicktafel (8) |
+
+Gasten die binnen twee tegels van een versiering lopen, worden er een beetje blijer van (tot drie versieringen tellen mee). Weghalen met de gum geeft de helft terug.
 
 ## Dier in nood
 
@@ -232,7 +260,7 @@ Een hek teken je door te slepen. De eerste beweging (een derde tegel) bepaalt de
 | Gum op een dier | Dezelfde vraag: mag dit dier verhuizen? |
 | Ontsnapt dier | Eén tik pakt het op, een tweede tik zet het in een verblijf |
 | Verblijf | Je ziet de naam. Andere naam, voerder en schoonmaker aannemen of naar huis sturen, leegmaken (met bevestiging) |
-| Voerbak | Vullen met een voersoort; het voer dat de dieren daar lusten staat vooraan; je ziet hoeveel erin zit |
+| Voerbak | Vullen met een voersoort; het voer staat altijd in dezelfde volgorde en wat de dieren daar lusten is geel; je ziet hoeveel erin zit |
 | Gast | Zien hoe het gaat, wat zijn lievelingsdier is en wat hij nu wil; zwaaien |
 | Poep en afval | Alleen met de veger; een tik met een andere knop wijst de veger aan |
 
@@ -368,7 +396,7 @@ De proefspeler bouwt zonder muis en zonder na te denken, dus de tijden zeggen ni
 | Als een trager kind: één handeling per 15 seconden, verder hetzelfde | Alle 50 levels gehaald, geen dier kwijt |
 | Als een kind dat alleen verzorgers aanneemt als een level erom vraagt | Goed tot en met level 24, daarna dieren kwijt en vast in level 26 |
 
-Op 17 november 2026 zijn de prijzen omhooggegaan (zie Munten). De proefspeler-als-kind (één handeling per 8 seconden, kas nooit bijgevuld) haalde daarna opnieuw alle 50 levels zonder een dier kwijt te raken. Tot en met level 19 houdt hij na een level 11 tot 40 munten over; daarna loopt de kas tijdens de meeste levels vol tot 99, omdat hij alleen koopt wat een level vraagt. Laat in het spel is geld dus nog steeds ruim. Sinds de werkers loon kosten (21 november 2026) gaat er in een vol park met 40 werkers 20 munten per minuut naar loon; de proefspeler haalde ook daarmee alle 50 levels en eindigde de levels met 27 tot 99 munten. Daarna zijn de fontein en de draaimolen erbij gekomen; ook daarmee haalde hij alle 50 levels zonder een dier kwijt te raken (level 16 duurde door het sparen bijna twee keer zo lang).
+Op 17 november 2026 zijn de prijzen omhooggegaan (zie Munten). De proefspeler-als-kind (één handeling per 8 seconden, kas nooit bijgevuld) haalde daarna opnieuw alle 50 levels zonder een dier kwijt te raken. Tot en met level 19 houdt hij na een level 11 tot 40 munten over; daarna loopt de kas tijdens de meeste levels vol tot 99, omdat hij alleen koopt wat een level vraagt. Laat in het spel is geld dus nog steeds ruim. Met de regels voor ruimte, groepen, lievelingsdingen en drukte (21 november 2026) haalde de proefspeler opnieuw alle 50 levels zonder een dier kwijt te raken; aan het eind stonden er 50 gasten, 6 eetkramen, 6 drinkkramen, 8 wc's, 5 ijskramen, 5 speeltuinen en 10 bankjes. Sinds de werkers loon kosten (21 november 2026) gaat er in een vol park met 40 werkers 20 munten per minuut naar loon; de proefspeler haalde ook daarmee alle 50 levels en eindigde de levels met 27 tot 99 munten. Daarna zijn de fontein en de draaimolen erbij gekomen; ook daarmee haalde hij alle 50 levels zonder een dier kwijt te raken (level 16 duurde door het sparen bijna twee keer zo lang).
 
 De eerste versie van het zorgtempo was te zwaar: daarmee raakte de proefspeler-als-kind vanaf level 14 honderden dieren kwijt. Daarom eten en poepen dieren nu minder vaak en zijn verzorgers al vanaf level 13 te huur.
 

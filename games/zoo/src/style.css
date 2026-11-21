@@ -31,6 +31,9 @@ button { font: inherit; color: inherit; }
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
 }
 .tool .ic { font-size: min(42px, 6vw); }
+/* veel knoppen in de balk: iets smaller, zodat ze naast elkaar passen */
+#toolbar:has(.tool:nth-child(10)) .tool { width: min(80px, 8vw); }
+#toolbar:has(.tool:nth-child(10)) .tool b { font-size: clamp(7px, 1.5vw, 12px); }
 .tool b { font-size: clamp(7px, 1.9vw, 13px); font-weight: 700; line-height: 1.1; }
 .tool.small { width: min(70px, 13vw); height: min(70px, 13vw); border-radius: 18px; }
 .tool.small .ic { font-size: min(34px, 6.4vw); }
@@ -77,8 +80,7 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 
 #home { position: absolute; top: 12px; right: 12px; }
 #sound { position: absolute; top: 12px; right: calc(22px + min(70px, 13vw)); }
-#wallet { position: absolute; top: 20px; right: calc(34px + 2 * min(70px, 13vw)); display: flex; gap: 8px; }
-@media (max-width: 900px) { #wallet { top: 92px; right: 12px; flex-direction: column; align-items: flex-end; } }
+#wallet { position: absolute; top: calc(24px + min(70px, 13vw)); right: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .pill {
   display: flex; align-items: center; gap: 5px; background: rgba(255, 255, 255, 0.92); border-radius: 18px; padding: 5px 12px 5px 6px;
   font-size: 26px; box-shadow: 0 4px 0 var(--shade);
@@ -115,6 +117,7 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
   transform: translateX(-50%) rotate(45deg); border-radius: 2px;
 }
 .bubble .ic { position: relative; z-index: 1; }
+.bubble .count, .wish .count { position: absolute; right: -8px; bottom: -6px; min-width: 20px; padding: 0 3px; border-radius: 10px; background: #4a90e2; color: #fff; font: 800 12px/18px system-ui, sans-serif; font-style: normal; text-align: center; }
 .bubble.warn, .bubble.warn::after { background: #ffd08a; }
 .bubble.danger, .bubble.danger::after { background: #ff9a8f; }
 .bubble.danger { animation: alarm 1.8s ease-in-out infinite; }

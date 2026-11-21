@@ -69,7 +69,8 @@ export interface GuestSave {
   balloon?: string;
 }
 
-export type GuestWish = { kind: Need | 'bored' | 'fav'; lacking: boolean; product?: string };
+/** `busy`: het is er wel, maar te druk: er zijn te weinig van voor zoveel gasten. */
+export type GuestWish = { kind: Need | 'bored' | 'fav'; lacking: boolean; product?: string; busy?: boolean };
 
 export interface GuestWorld {
   grid: Grid;
@@ -100,6 +101,10 @@ export interface GuestWorld {
   guestSound(kind: 'flush' | 'guest.laugh' | 'toilet.pee' | 'toilet.poop'): void;
   /** Vraagt het level om afval op te ruimen? Dan laten gasten ook naast een afvalbak weleens iets vallen. */
   messy(): boolean;
+  /** Welk deel van de gasten bij dit soort kraam geen plek vindt, omdat er te weinig van zijn (0 = genoeg). */
+  busy(kind: ShopKind): number;
+  /** Hoeveel blijer een gast op deze tegel wordt van versieringen in de buurt. */
+  charm(tile: number): number;
   /** Hoeveel sneller gasten zin krijgen in iets van dit soort kraam: meer als een level erom vraagt. */
   craving(kind: ShopKind): number;
 }
@@ -430,6 +435,7 @@ export class Guest {
       return;
     }
     if (w.litterOn(this.tile)) this.fun = Math.max(0, this.fun - 0.04);
+    this.fun = Math.min(1, this.fun + w.charm(this.tile));
     this.wish = this.fun < 0.2 ? { kind: 'bored', lacking: true } : null;
     const want = this.want();
     if (want) {
@@ -445,7 +451,9 @@ export class Guest {
       let spot = this.spotBeside(w, reach, kind, product);
       // nergens te koop: de tweede keer neemt de gast ook iets anders van dezelfde kraam
       if (!spot && product && this.settled.has(want)) spot = this.spotBeside(w, reach, kind);
-      if (spot && (spot.tile === this.tile || this.go(w, reach, spot.tile))) {
+      // te veel gasten voor zo weinig kramen: dan is het er vol en moet de gast later terugkomen
+      const full = !!spot && Math.random() < w.busy(kind);
+      if (spot && !full && (spot.tile === this.tile || this.go(w, reach, spot.tile))) {
         this.shop = spot.shop;
         this.errand = want;
         this.wish = { kind: want, lacking: false, product };
@@ -453,8 +461,9 @@ export class Guest {
         return;
       }
       // het is er niet: de gast laat zien wat hij mist en heeft het wat minder naar zijn zin
-      this.wish = { kind: want, lacking: true, product };
-      if (product && w.shops.some(sh => sh.kind === kind)) {
+      this.wish = { kind: want, lacking: true, product, busy: full || undefined };
+      if (full) this.fun = Math.max(0, this.fun - 0.03);
+      else if (product && w.shops.some(sh => sh.kind === kind)) {
         this.settled.add(want);
         this.fun = Math.max(0, this.fun - 0.03);
       } else {

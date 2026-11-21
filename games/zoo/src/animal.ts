@@ -1,5 +1,5 @@
 // Eén dier: wat het wil, wat het doet en welke animatie daarbij hoort.
-import { MAX_POOPS_CLEAN, SPECIES, TERRAINS, WISH_ORDER, type FenceNeed, type SpeciesId, type Variant, type WishId } from './data';
+import { MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, type FenceNeed, type SpeciesId, type Variant, type WishId } from './data';
 import { Grid, tileIndex, tileXY } from './grid';
 import { MODEL_SCALE, modelInfo, spawnModel, type ModelInfo, type Spawned } from './models';
 import { toWorldX, toWorldZ } from './view';
@@ -31,6 +31,8 @@ export interface AnimalWorld {
   toys: Toy[];
   /** Willen dieren al iets leuks in hun verblijf (vanaf level 10)? */
   wantsFun(): boolean;
+  /** Een dier speelt zoveel seconden met dit ding: het ding beweegt mee. */
+  playWith(toy: Toy, seconds: number): void;
   animals: Animal[];
   poopsIn(regionId: number): number;
   dropPoop(gx: number, gy: number): void;
@@ -39,6 +41,8 @@ export interface AnimalWorld {
   messSound(kind: 'poop' | 'pee'): void;
   /** Hoeveel sneller dieren honger krijgen: meer als een level om voeren vraagt. */
   hungerRate(): number;
+  /** Een dier beweegt door het water: een paar spatters op deze plek. */
+  splash(gx: number, gy: number): void;
   ate(trough: Trough): void;
   /** Hoe snel dieren moeten poepen; sneller als het level om opruimen vraagt. */
   poopRate(): number;
@@ -46,13 +50,14 @@ export interface AnimalWorld {
 
 type State = 'idle' | 'walk' | 'eat' | 'poop' | 'pee' | 'rest' | 'emote';
 
-// Een volle bak (vier porties) houdt twee volwassen dieren ongeveer twaalf minuten zoet; daarna duurt het
+// Een volle bak (vier porties) houdt twee volwassen dieren ongeveer een kwartier zoet; daarna duurt het
 // nog een paar minuten voor ze echt honger hebben. Jongen eten mee zonder dat de bak er leger van wordt, en
 // poepen niet. Zo wordt het zorgen niet zwaarder als er jongen bij komen.
-const HUNGER_PER_SEC = 1 / 900;
+const HUNGER_PER_SEC = 1 / 1200;
 const NEED_KIND: Record<FenceNeed, number> = { wall: 3, net: 4 };
 /** Zo hoog ligt een dier dat op zijn slaapplek slaapt: boven op de rots of het stro, niet erin. */
 const BED_LIFT: Record<string, number> = { straw: 0.1, shed: 0.1, rock: 0.22, nest: 0.07, cave: 0.03 };
+const WATER_TILE = TERRAINS.indexOf('water');
 const SEEK_FOOD = 0.4;
 const HUNGRY = 0.6;
 
@@ -89,6 +94,8 @@ export class Animal {
   private napFor = 0;
   /** De slaapplek waar het dier naartoe loopt. */
   private napBed: Bed | null = null;
+  /** Hoeveel soortgenoten er nog bij moeten voor het dier zich thuis voelt. */
+  lonely = 0;
   /** Het speelgoed waar het dier naartoe loopt om mee te spelen. */
   private playAt: Toy | null = null;
   /** Hoe hoog het dier nu ligt en moet liggen (boven op een slaapplek). */
@@ -118,9 +125,15 @@ export class Animal {
     return this.info.height * MODEL_SCALE + 0.25;
   }
 
+  /** Hoe diep het dier in het water ligt, en de tel voor het dobberen. */
+  private sink = 0;
+  private bob = Math.random() * 6;
+
   private place(): void {
-    this.y += (this.lift - this.y) * 0.18;
-    this.model.root.position.set(toWorldX(this.gx), this.y, toWorldZ(this.gy));
+    // in het water zakt het dier een stuk weg en dobbert het: zo zwemt het
+    this.y += (this.lift - this.sink - this.y) * 0.18;
+    const wave = this.sink ? Math.sin(this.bob * 3) * 0.02 : 0;
+    this.model.root.position.set(toWorldX(this.gx), this.y + wave, toWorldZ(this.gy));
     this.model.root.rotation.y = this.heading;
   }
 
@@ -220,19 +233,34 @@ export class Animal {
     const info = SPECIES[this.species];
     this.needsFence = region && info.need && w.grid.penKind(region) !== NEED_KIND[info.need] ? info.need : null;
     const result: Record<WishId, boolean> = {
-      health: !this.sick, enclosure: !!region && !this.needsFence, food: this.hunger < HUNGRY, bed: false, terrain: false, friend: false, clean: false, fun: true,
+      health: !this.sick, enclosure: !!region && !this.needsFence, food: this.hunger < HUNGRY, bed: false, terrain: false, friend: false, clean: false, space: true, fun: true,
     };
     if (region) {
       const want = TERRAINS.indexOf(info.terrain);
       result.terrain = region.tiles.filter(i => w.grid.terrain[i] === want).length * 2 >= region.tiles.length;
-      result.friend = w.animals.some(a => a !== this && a.species === this.species && w.grid.regionOf[a.tile] === region.id);
+      // groepsdieren willen met meer bij elkaar zijn; grote dieren willen een groot verblijf
+      this.lonely = Math.max(0, herdOf(this.species) - w.animals.filter(a => a.species === this.species && w.grid.regionOf[a.tile] === region.id).length);
+      result.friend = this.lonely === 0;
+      result.space = region.tiles.length >= (SPACE[this.species] ?? 0);
       result.clean = w.poopsIn(region.id) <= MAX_POOPS_CLEAN;
       result.bed = w.beds.some(b => b.kind === info.bed && w.grid.regionOf[tileIndex(b.x, b.y)] === region.id);
-      result.fun = !w.wantsFun() || w.toys.some(t => w.grid.regionOf[tileIndex(t.x, t.y)] === region.id);
+      const fav = TOY_OF[this.species];
+      result.fun = !fav || !w.wantsFun() || w.toys.some(t => t.kind === fav && w.grid.regionOf[tileIndex(t.x, t.y)] === region.id);
     }
     this.unmet = WISH_ORDER.find(k => !result[k]) ?? null;
     this.happy = this.unmet === null;
     return result;
+  }
+
+  /** Bij het speelgoed aangekomen: ernaar kijken en spelen; het ding beweegt mee. */
+  private startPlay(w: AnimalWorld): void {
+    const toy = this.playAt;
+    this.playAt = null;
+    if (!toy) return;
+    this.heading = Math.atan2(toy.x + 0.5 - this.gx, toy.y + 0.5 - this.gy);
+    const seconds = 4 + Math.random() * 2;
+    w.playWith(toy, seconds);
+    this.emote('Play', seconds);
   }
 
   private choose(w: AnimalWorld): void {
@@ -284,6 +312,21 @@ export class Animal {
         }
       }
     }
+    // een blij dier loopt graag naar zijn speelgoed of struik en doet er iets mee
+    if (this.happy && Math.random() < 0.22) {
+      const here = w.toys.filter(t => w.grid.regionOf[tileIndex(t.x, t.y)] === region.id);
+      const mine = here.filter(t => t.kind === TOY_OF[this.species]);
+      const pool = mine.length ? mine : here;
+      const toy = pool[Math.floor(Math.random() * pool.length)];
+      const spots = toy ? w.grid.neighbors(tileIndex(toy.x, toy.y)).filter(i => !isTrough(i) && w.grid.regionOf[i] === region.id) : [];
+      const spot = spots[Math.floor(Math.random() * spots.length)];
+      const route = spot === undefined ? null : w.grid.path(this.tile, spot, isTrough);
+      if (toy && route) {
+        this.playAt = toy;
+        if (route.length > 1) return this.startWalk(route);
+        return this.startPlay(w);
+      }
+    }
     const r = Math.random();
     if (r < 0.55) {
       const free = region.tiles.filter(i => !isTrough(i));
@@ -305,21 +348,7 @@ export class Animal {
       }
       if (r < 0.82 && this.happy) return this.rest('Sleep', 8 + Math.random() * 4);
     }
-    if (r < 0.92) {
-      // een blij dier loopt graag naar het speelgoed of de struik en speelt daar
-      const toys = this.happy ? w.toys.filter(t => w.grid.regionOf[tileIndex(t.x, t.y)] === region.id) : [];
-      const toy = toys[Math.floor(Math.random() * toys.length)];
-      if (toy) {
-        const spots = w.grid.neighbors(tileIndex(toy.x, toy.y)).filter(i => !isTrough(i) && w.grid.regionOf[i] === region.id);
-        const spot = spots[Math.floor(Math.random() * spots.length)];
-        const route = spot === undefined ? null : w.grid.path(this.tile, spot, isTrough);
-        if (route) {
-          this.playAt = toy;
-          return route.length > 1 ? this.startWalk(route) : this.emote('Play', 4);
-        }
-      }
-      return this.emote(this.happy ? 'Play' : 'Sad', 3);
-    }
+    if (r < 0.92) return this.emote(this.happy ? 'Play' : 'Sad', 3);
     if (r < 0.96) {
       this.state = 'pee';
       this.timeLeft = 2.6;
@@ -357,6 +386,11 @@ export class Animal {
 
   update(dt: number, w: AnimalWorld): void {
     this.model.mixer.update(dt);
+    this.bob += dt;
+    const swims = w.grid.terrain[this.tile] === WATER_TILE && !this.lift;
+    this.sink = swims ? this.top * 0.34 : 0;
+    // wie door het water loopt, spat af en toe
+    if (swims && this.state === 'walk' && Math.random() < dt * 2.2) w.splash(this.gx, this.gy);
     this.hunger = Math.min(1, this.hunger + dt * HUNGER_PER_SEC * w.hungerRate() * (this.young ? 0.5 : 1));
     this.poopIn -= dt * w.poopRate();
 
@@ -364,8 +398,7 @@ export class Animal {
       const next = this.route[0];
       if (next === undefined) {
         if (this.playAt) {
-          this.playAt = null;
-          this.emote('Play', 4);
+          this.startPlay(w);
         } else if (this.napFor) {
           const seconds = this.napFor;
           this.napFor = 0;

@@ -1,7 +1,7 @@
 // Alles wat de figuren kunnen zeggen. Het spel bouwt zijn zinnen hier, en het stemmenscript
 // (tools/voice) vraagt hier de volledige lijst op, zodat elke zin ook ingesproken kan worden.
 // Geen DOM en geen Three.js in dit bestand: het draait ook buiten de browser.
-import { GOAL_OWNER, LEVELS, SPECIES, type FenceNeed, type Goal, type SpeciesId, type WishId } from './data';
+import { GOAL_OWNER, LEVELS, SPECIES, type FenceNeed, type Goal, type SpeciesId, type WishId, TOY_OF, SPACE, herdOf, SERVES } from './data';
 import { FIGURES, type FigureId, type Mood } from './figures';
 
 export type Vars = Record<string, string | number>;
@@ -36,6 +36,8 @@ export function speciesVars(tr: Tr, sp: SpeciesId): Vars {
     food: tr(`food.${info.food}`).toLowerCase(),
     terrain: tr(`terrain.${info.terrain}.want`),
     bed: tr(`bed.${info.bed}.a`),
+    toy: TOY_OF[sp] ? tr(`toy.${TOY_OF[sp]}.a`) : '',
+    herd: String(herdOf(sp)),
   };
 }
 
@@ -57,9 +59,9 @@ export function goalLine(tr: Tr, g: Goal): Line {
 export function wishLine(tr: Tr, wish: WishId, sp: SpeciesId, need: FenceNeed | null, urgent: boolean): Line {
   const fence = wish === 'enclosure' && need;
   return {
-    who: wish === 'enclosure' ? 'builder' : 'keeper',
+    who: wish === 'enclosure' || wish === 'space' ? 'builder' : 'keeper',
     mood: urgent ? 'urgent' : 'worried',
-    key: fence ? `alert.${need}` : `alert.${wish}`,
+    key: fence ? `alert.${need}` : wish === 'friend' && herdOf(sp) > 2 ? 'alert.herd' : `alert.${wish}`,
     vars: speciesVars(tr, sp),
     id: `alert.${wish}.${sp}`,
   };
@@ -101,8 +103,10 @@ export const say = {
   hired: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.hired' }),
   tipKeeper: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.tip.keeper' }),
   cheer: (i: number): Line => ({ who: CHEERS[i].who, mood: 'happy', key: `cheer.${i + 1}` }),
+  decorNew: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.decor.new' }),
   funNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.fun.new' }),
   host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
+  busy: (kind: string): Line => ({ who: 'host', mood: 'worried', key: `host.busy.${kind}` }),
   cash: (key: 'short' | 'full' | 'wage'): Line => ({ who: 'cashier', mood: key === 'full' ? 'happy' : 'worried', key: `cash.${key}` }),
   hiredAs: (role: 'feed' | 'clean'): Line => ({ who: 'keeper', mood: 'happy', key: `say.hired.${role}` }),
 };
@@ -178,9 +182,13 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
     add(say.grown(name));
     add(say.moved(name));
   }
-  const wishes: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean', 'fun'];
+  const wishes: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean', 'space', 'fun'];
   for (const sp of Object.keys(SPECIES) as SpeciesId[]) {
-    for (const wish of wishes) add(wishLine(tr, wish, sp, null, false));
+    for (const wish of wishes) {
+      // alleen wat dit dier ook echt kan willen
+      if ((wish === 'fun' && !TOY_OF[sp]) || (wish === 'space' && !SPACE[sp])) continue;
+      add(wishLine(tr, wish, sp, null, false));
+    }
     const need = SPECIES[sp].need;
     if (need) add(wishLine(tr, 'enclosure', sp, need, false));
     add(say.wrongFood(tr, sp));
@@ -191,9 +199,11 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.caught());
   add(say.hired());
   add(say.funNew());
+  add(say.decorNew());
   CHEERS.forEach((_, i) => add(say.cheer(i)));
   add(say.tipKeeper());
   for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter', 'product', 'new', 'accident'] as const) add(say.host(key));
+  for (const kind of Object.keys(SERVES)) add(say.busy(kind));
   add(say.cash('short'));
   add(say.cash('full'));
   add(say.cash('wage'));

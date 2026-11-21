@@ -28,13 +28,15 @@ const z = () => window.__zoo;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const KIND = { wall: 3, net: 4 };
 
-// Plekken voor verblijven: vier rijen van vijf, langs twee dwarspaden (y = 4 en y = 12).
+// Plekken voor verblijven: vier rijen van zes, elk 3 bij 3 en los van elkaar, langs twee dwarspaden (y = 4 en y = 12).
 const SLOTS = [];
-for (const y0 of [1, 5, 9, 13]) for (const [x0, x1] of [[0, 2], [4, 6], [8, 9], [11, 13], [15, 17]]) SLOTS.push({ x0: x0 + OX, y0: y0 + OY, x1: x1 + OX, y1: y0 + 2 + OY });
+for (const y0 of [1, 5, 9, 13]) for (const [x0, x1] of [[-1, 1], [3, 5], [7, 9], [11, 13], [15, 17], [19, 21]]) SLOTS.push({ x0: x0 + OX, y0: y0 + OY, x1: x1 + OX, y1: y0 + 2 + OY });
 // Plekken voor winkels langs een zijpad bij de ingang (y = 17): gebouwen van 2 bij 2 eronder, losse dingen erboven.
-const BIG_SPOTS = [7, 11, 5, 13, 3, 15, 1, 17, 19, -1].map(x => [x + OX, 18 + OY]);
+const BIG_SPOTS = [7, 11, 5, 13, 3, 15, 1, 17, 19, -1, 21, -3].map(x => [x + OX, 18 + OY]);
+// meer gasten vragen om meer kramen: die staan achter in het park, langs twee paden boven de verblijven (y = -1 en y = -5)
+for (const py of [-1, -5]) for (const x of [8, 11, 6, 13, 4, 15, 2, 17, 0, 19, -2, 21, -4]) BIG_SPOTS.push([x + OX, py - 2 + OY]);
 // losse dingen staan op de noordrand van het zijpad
-const SMALL_SPOTS = [9, 11, 8, 12, 7, 13, 6, 14, 5, 15].map(x => [x + OX, 17 + OY]);
+const SMALL_SPOTS = [9, 11, 8, 12, 7, 13, 6, 14, 5, 15, 4, 16, 3, 17, 2, 18, 1, 19].map(x => [x + OX, 17 + OY]);
 
 export const T = {
   log: [],
@@ -102,6 +104,10 @@ export const T = {
         game.view.scene.remove(b.mesh);
         game.beds = game.beds.filter(k => k !== b);
       }
+      for (const b of game.toys.filter(b => b.x >= slot.x0 && b.x <= slot.x1 && b.y >= slot.y0 && b.y <= slot.y1)) {
+        game.view.scene.remove(b.mesh);
+        game.toys = game.toys.filter(k => k !== b);
+      }
     }
     const slot = SLOTS[n];
     this.home[sp] = n;
@@ -119,7 +125,8 @@ export const T = {
     if (!game.troughs.some(t => t.x === slot.x0 && t.y === slot.y0) && this.pay(PRICE.trough)) game.addTrough(slot.x0, slot.y0, null, 0);
     if (!game.beds.some(b => b.x === slot.x1 && b.y === slot.y0) && this.pay(PRICE.bed)) game.addBed(slot.x1, slot.y0, SPECIES[sp].bed);
     // vanaf level 10 willen dieren iets leuks in hun verblijf
-    if (game.level >= FEATURE.fun && !game.toys.some(b => b.x === slot.x1 && b.y === slot.y0 + 1) && this.pay(PRICE.toy)) game.addToy(slot.x1, slot.y0 + 1, ['ball', 'bush', 'log', 'flowerbed'][this.home[sp] % 4]);
+    const inSlot = b => b.x >= slot.x0 && b.x <= slot.x1 && b.y >= slot.y0 && b.y <= slot.y1;
+    if (game.level >= FEATURE.fun && data.TOY_OF[sp] && !game.toys.some(b => inSlot(b) && b.kind === data.TOY_OF[sp]) && !game.taken(slot.x1, slot.y0 + 1) && this.pay(PRICE.toy)) game.addToy(slot.x1, slot.y0 + 1, data.TOY_OF[sp]);
   },
 
   /** Zorgt dat er minstens `n` volwassen dieren van de soort zijn (om en om jongen en meisje). */
@@ -141,10 +148,8 @@ export const T = {
   paths() {
     if (this.pathsDone) return;
     this.pathsDone = true;
-    this.terrain(10 + OX, 4 + OY, 10 + OX, 19 + OY, 'path');
-    this.terrain(OX, 4 + OY, 19 + OX, 4 + OY, 'path');
-    this.terrain(OX, 12 + OY, 19 + OX, 12 + OY, 'path');
-    this.terrain(OX - 1, 17 + OY, 20 + OX, 17 + OY, 'path');
+    this.terrain(10 + OX, -5 + OY, 10 + OX, 19 + OY, 'path');
+    for (const py of [-5, -1, 4, 12, 17]) this.terrain(OX - 4, py + OY, 23 + OX, py + OY, 'path');
   },
 
   shop(kind, n = 1) {
@@ -237,9 +242,11 @@ export const T = {
       const busy = game.pens.filter(p => staff(p) < 2 && game.animalsIn(p.region.id).length).sort((a, b) => game.poopsIn(b.region.id) - game.poopsIn(a.region.id))[0];
       if (busy) hire(busy, busy.feeder ? 'clean' : 'feed');
     }
-    for (const g of level.goals) if (g.species) await this.stock(g.species, Math.max(2, g.type === 'animals' ? g.n : 2));
+    // groepsdieren willen met meer zijn: vul elke soort aan tot zijn groep
+    for (const sp of this.order) if (this.animalsOf(sp).length) await this.stock(sp, data.HERD[sp] ?? 2);
+    for (const g of level.goals) if (g.species) await this.stock(g.species, Math.max(data.HERD[g.species] ?? 2, g.type === 'animals' ? g.n : 2));
     if (done >= FEATURE.paths) this.paths();
-    for (const kind of ['foodstall', 'drinkstall', 'toilet', 'bench', 'playground', 'icecream', 'balloon', 'bin', 'hats', 'souvenir']) if (done >= FEATURE[kind]) this.shop(kind, 1);
+    for (const kind of ['foodstall', 'drinkstall', 'toilet', 'bench', 'playground', 'icecream', 'balloon', 'bin', 'hats', 'souvenir']) if (done >= FEATURE[kind]) this.shop(kind, game.shopsNeeded(kind));
     for (const g of level.goals) {
       if (g.type === 'shop') this.shop(g.shop, g.n);
       if (g.type === 'sold' && g.shop) this.shop(g.shop, 1);

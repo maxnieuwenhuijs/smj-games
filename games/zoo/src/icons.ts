@@ -235,6 +235,48 @@ const ICONS = {
     '<circle cx="14" cy="11" r="6" fill="#b07a4a"/><circle cx="34" cy="11" r="6" fill="#b07a4a"/><ellipse cx="24" cy="39" rx="11" ry="8" fill="#b07a4a"/>' +
     '<circle cx="24" cy="20" r="13" fill="#b07a4a"/><ellipse cx="24" cy="25" rx="6.5" ry="5" fill="#e3bf94"/><ellipse cx="24" cy="40" rx="6" ry="4.5" fill="#e3bf94"/>' +
     `<g fill="${INK}"><circle cx="19" cy="17" r="2"/><circle cx="29" cy="17" r="2"/><circle cx="24" cy="23" r="1.9"/></g>`,
+  grow:
+    `<rect x="15" y="15" width="18" height="18" rx="3" fill="#bfe3a8" stroke="${INK}" stroke-width="2.5" stroke-dasharray="4 3"/>` +
+    `<path d="M24 12 V3 M24 3 l-5 5 M24 3 l5 5 M24 36 V45 M24 45 l-5 -5 M24 45 l5 -5 M12 24 H3 M3 24 l5 -5 M3 24 l5 5 M36 24 H45 M45 24 l-5 -5 M45 24 l-5 5" fill="none" stroke="${INK}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  tree:
+    '<rect x="21" y="26" width="6" height="18" rx="2" fill="#a8743f"/><circle cx="24" cy="18" r="14" fill="#5bab4c"/><circle cx="16" cy="24" r="8" fill="#4f9e45"/><circle cx="33" cy="23" r="8" fill="#468f3e"/>',
+  pine:
+    '<rect x="21" y="36" width="6" height="8" fill="#a8743f"/><path d="M24 3 L34 17 H14Z M24 12 L37 28 H11Z M24 22 L40 38 H8Z" fill="#468f3e"/>',
+  palm:
+    '<path d="M22 44 Q20 28 25 16" fill="none" stroke="#b88a52" stroke-width="5" stroke-linecap="round"/>' +
+    '<path d="M25 16 Q13 6 4 14 M25 16 Q37 6 46 14 M25 16 Q16 14 9 24 M25 16 Q34 14 41 24 M25 16 Q25 5 30 3" fill="none" stroke="#5bab4c" stroke-width="5" stroke-linecap="round"/>',
+  hedge:
+    '<rect x="4" y="18" width="40" height="24" rx="8" fill="#468f3e"/><rect x="7" y="16" width="34" height="10" rx="5" fill="#5bab4c"/>',
+  roses:
+    '<rect x="5" y="36" width="38" height="8" rx="4" fill="#7a5636"/><circle cx="16" cy="30" r="9" fill="#468f3e"/><circle cx="32" cy="30" r="9" fill="#468f3e"/><circle cx="24" cy="24" r="9" fill="#4f9e45"/>' +
+    '<g fill="#d8362e"><circle cx="15" cy="26" r="5"/><circle cx="33" cy="27" r="5"/></g><circle cx="24" cy="18" r="5.5" fill="#f06aa6"/><g fill="#fff7e0"><circle cx="15" cy="26" r="1.6"/><circle cx="33" cy="27" r="1.6"/><circle cx="24" cy="18" r="1.8"/></g>',
+  tulips:
+    '<rect x="5" y="38" width="38" height="6" rx="3" fill="#7a5636"/><path d="M12 39 V24 M24 39 V20 M36 39 V24" stroke="#4f9e45" stroke-width="3" stroke-linecap="round"/>' +
+    '<path d="M7 24 Q7 12 12 14 Q17 12 17 24Z" fill="#e0584f"/><path d="M19 20 Q19 8 24 10 Q29 8 29 20Z" fill="#ffd23f"/><path d="M31 24 Q31 12 36 14 Q41 12 41 24Z" fill="#b06ad9"/>',
+  mushrooms:
+    '<rect x="13" y="26" width="8" height="16" rx="3" fill="#fff7e0"/><path d="M3 28 Q17 4 31 28Z" fill="#d8362e"/><g fill="#fff"><circle cx="13" cy="21" r="2.4"/><circle cx="21" cy="17" r="2"/></g>' +
+    '<rect x="33" y="33" width="5" height="10" rx="2" fill="#fff7e0"/><path d="M27 35 Q35.5 20 44 35Z" fill="#d8362e"/>',
+  pond:
+    '<ellipse cx="24" cy="30" rx="21" ry="12" fill="#b9c2c9"/><ellipse cx="24" cy="29" rx="17" ry="9" fill="#6ec3e8"/><ellipse cx="17" cy="30" rx="5" ry="3" fill="#5bab4c"/><ellipse cx="31" cy="26" rx="4" ry="2.4" fill="#5bab4c"/><circle cx="17" cy="28" r="2.4" fill="#f48fb1"/>',
+  waterfall:
+    '<path d="M6 44 V20 L14 10 H34 L42 20 V44Z" fill="#8f949c"/><rect x="19" y="10" width="10" height="28" fill="#d6f1ff"/><ellipse cx="24" cy="40" rx="15" ry="5" fill="#6ec3e8"/>',
+  well:
+    '<path d="M6 16 L24 4 L42 16Z" fill="#c9553f"/><path d="M12 16 V34 M36 16 V34" stroke="#a8743f" stroke-width="4"/><rect x="9" y="30" width="30" height="14" rx="3" fill="#b9c2c9"/><rect x="20" y="20" width="8" height="7" rx="1.5" fill="#8a857a"/><path d="M24 16 V20" stroke="#8a857a" stroke-width="2"/>',
+  statue:
+    '<rect x="8" y="36" width="32" height="8" rx="2" fill="#b9c2c9"/><rect x="13" y="28" width="22" height="9" fill="#cfd6dc"/>' +
+    '<path d="M14 26 V19 H18 V14 H30 V8 L34 5 V8 H38 V16 H34 V26 H30 V21 H22 V26Z" fill="#ffd23f" stroke="#e5b520" stroke-width="1.5" stroke-linejoin="round"/>',
+  topiary:
+    '<path d="M16 36 H32 L29 45 H19Z" fill="#c9553f"/><rect x="22" y="28" width="4" height="9" fill="#a8743f"/><circle cx="24" cy="23" r="10" fill="#468f3e"/><circle cx="24" cy="10" r="6.5" fill="#4f9e45"/>',
+  lantern:
+    '<rect x="22" y="18" width="4" height="26" fill="#3d4f5a"/><rect x="17" y="42" width="14" height="4" rx="2" fill="#3d4f5a"/><rect x="16" y="8" width="16" height="13" rx="2" fill="#fff1a8" stroke="#3d4f5a" stroke-width="2.5"/><path d="M14 8 L24 2 L34 8Z" fill="#3d4f5a"/>',
+  flag:
+    '<rect x="9" y="4" width="4" height="42" rx="2" fill="#9aa0a6"/><path d="M13 7 H40 L34 15 L40 23 H13Z" fill="#e0584f"/><rect x="13" y="13" width="23" height="4" fill="#ffd23f"/>',
+  signpost:
+    '<rect x="21" y="6" width="6" height="40" rx="2" fill="#a8743f"/><path d="M14 10 H38 L44 16 L38 22 H14Z" fill="#fff7e0" stroke="#8a857a" stroke-width="1.5"/><path d="M34 26 H10 L4 32 L10 38 H34Z" fill="#9fd8f5" stroke="#8a857a" stroke-width="1.5"/>',
+  boulder:
+    '<path d="M5 40 L10 22 L22 14 L36 20 L43 40Z" fill="#8f949c"/><path d="M22 14 L26 28 L36 20" fill="none" stroke="#6f747c" stroke-width="2"/>',
+  picnic:
+    '<rect x="6" y="16" width="36" height="6" rx="2" fill="#a8743f"/><rect x="3" y="28" width="42" height="5" rx="2" fill="#a8743f"/><path d="M14 22 L8 42 M34 22 L40 42" stroke="#8a5a2c" stroke-width="4" stroke-linecap="round"/><rect x="18" y="12" width="12" height="5" rx="1" fill="#e0584f"/>',
   ball:
     '<circle cx="24" cy="26" r="17" fill="#e0584f"/><path d="M8 22 Q24 32 40 22 L41 29 Q24 39 7 29Z" fill="#fff7e0"/><circle cx="17" cy="17" r="4" fill="#fff" opacity=".6"/>',
   bush:

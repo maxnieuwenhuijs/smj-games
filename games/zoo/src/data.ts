@@ -14,7 +14,7 @@ export type SpeciesId =
   | 'penguin' | 'seal' | 'polarbear' | 'reindeer' | 'wolf' | 'arcticfox' | 'bear' | 'yak' | 'owl' | 'walrus'
   | 'flamingo' | 'turtle' | 'otter' | 'beaver' | 'pelican' | 'koala' | 'redpanda' | 'lemur' | 'bison' | 'kangaroo';
 export type Variant = 'male' | 'female' | 'young_m' | 'young_f';
-export type WishId = 'health' | 'enclosure' | 'food' | 'bed' | 'terrain' | 'friend' | 'clean' | 'fun';
+export type WishId = 'health' | 'enclosure' | 'food' | 'bed' | 'terrain' | 'friend' | 'clean' | 'space' | 'fun';
 /** Iets leuks in een verblijf: speelgoed of groen. Elk dier is er blij mee. */
 export type ToyKind = 'ball' | 'bush' | 'log' | 'flowerbed';
 
@@ -33,9 +33,67 @@ export const TERRAIN_INFO: Record<Terrain, { colors: [number, number] }> = {
 export const FOODS: FoodId[] = ['veg', 'hay', 'fruit', 'grain', 'meat', 'leaves', 'fish', 'bamboo'];
 export const BEDS: BedKind[] = ['straw', 'shed', 'rock', 'shade', 'nest', 'cave', 'climb'];
 export const TOYS: ToyKind[] = ['ball', 'bush', 'log', 'flowerbed'];
+/**
+ * Grote dieren hebben ruimte nodig: het verblijf moet minstens zoveel tegels groot zijn. Wie hier niet staat,
+ * past in elk verblijf.
+ */
+export const SPACE: Partial<Record<SpeciesId, number>> = {
+  elephant: 9, giraffe: 9, rhino: 9, hippo: 9, polarbear: 9, bison: 9, walrus: 9,
+  lion: 8, tiger: 8, bear: 8, gorilla: 8, camel: 8, panther: 8, cheetah: 8, wolf: 8, kangaroo: 8,
+  horse: 6, cow: 6, zebra: 6, donkey: 6, reindeer: 6, yak: 6, crocodile: 6, seal: 6, panda: 6, ostrich: 6,
+};
+/**
+ * Groepsdieren willen met meer bij elkaar zijn: zoveel van dezelfde soort in één verblijf (jongen tellen mee).
+ * Alle andere dieren zijn tevreden met één vriendje, dus met z'n tweeën.
+ */
+export const HERD: Partial<Record<SpeciesId, number>> = {
+  chicken: 5, penguin: 5, flamingo: 5,
+  duck: 4, rabbit: 4, gazelle: 4, monkey: 4, lemur: 4,
+  sheep: 3, goat: 3, alpaca: 3, zebra: 3, ostrich: 3, parrot: 3, toucan: 3, reindeer: 3, wolf: 3, otter: 3, pelican: 3, bison: 3,
+};
+export const herdOf = (sp: SpeciesId): number => HERD[sp] ?? 2;
+
+/** Versieringen om het park mooi te maken: ze staan op een tegel buiten de verblijven en maken gasten in de buurt blijer. */
+export type DecorKind =
+  | 'tree' | 'pine' | 'palm' | 'hedge' | 'roses' | 'tulips' | 'mushrooms'
+  | 'pond' | 'waterfall' | 'well'
+  | 'statue' | 'topiary' | 'lantern' | 'flag' | 'signpost' | 'boulder' | 'picnic';
+export type DecorGroup = 'green' | 'water' | 'art';
+export const DECOR_GROUPS: DecorGroup[] = ['green', 'water', 'art'];
+export const DECOR: Record<DecorKind, { group: DecorGroup; price: number }> = {
+  tree: { group: 'green', price: 4 }, pine: { group: 'green', price: 4 }, palm: { group: 'green', price: 6 }, hedge: { group: 'green', price: 3 },
+  roses: { group: 'green', price: 3 }, tulips: { group: 'green', price: 3 }, mushrooms: { group: 'green', price: 2 },
+  pond: { group: 'water', price: 10 }, waterfall: { group: 'water', price: 15 }, well: { group: 'water', price: 8 },
+  statue: { group: 'art', price: 20 }, topiary: { group: 'art', price: 12 }, lantern: { group: 'art', price: 5 }, flag: { group: 'art', price: 5 },
+  signpost: { group: 'art', price: 4 }, boulder: { group: 'art', price: 2 }, picnic: { group: 'art', price: 8 },
+};
+export const DECORS = Object.keys(DECOR) as DecorKind[];
+/**
+ * De meeste dieren hebben een eigen lievelingsding: daar spelen ze mee, en zonder vervelen ze zich (vanaf level 10).
+ * Kippen, eenden en een paar andere rustige dieren hebben niets nodig.
+ */
+export const TOY_OF: Partial<Record<SpeciesId, ToyKind>> = {
+  pig: 'ball', cow: 'bush', sheep: 'bush', horse: 'ball', donkey: 'log', goat: 'log', alpaca: 'bush', 
+  zebra: 'bush', giraffe: 'bush', lion: 'ball', camel: 'bush', rhino: 'log', hippo: 'ball', elephant: 'log', cheetah: 'ball', gazelle: 'flowerbed',
+  monkey: 'ball', parrot: 'flowerbed', tiger: 'ball', gorilla: 'log', panda: 'bush', toucan: 'bush', sloth: 'log', panther: 'log',
+  penguin: 'ball', seal: 'ball', polarbear: 'log', reindeer: 'bush', wolf: 'ball', arcticfox: 'flowerbed', bear: 'log', yak: 'bush', owl: 'log', walrus: 'ball',
+  otter: 'ball', beaver: 'log', koala: 'bush', redpanda: 'log', lemur: 'bush', bison: 'log', kangaroo: 'ball',
+};
 export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'playground', 'icecream', 'flowers', 'bin', 'balloon', 'hats', 'souvenir', 'fountain', 'carousel'];
 /** Kramen waar een gast iets koopt voor één munt. */
 export const STALLS: ShopKind[] = ['foodstall', 'drinkstall', 'icecream', 'balloon', 'hats', 'souvenir'];
+/**
+ * Hoeveel gasten één kraam, wc, speeltuin of bankje aankan. Zijn er meer gasten in het park, dan is het er
+ * te druk en moet er een bij: zo groeit het park mee met het aantal gasten.
+ */
+export const SERVES: Partial<Record<ShopKind, number>> = { foodstall: 10, drinkstall: 10, toilet: 8, icecream: 12, playground: 14, bench: 6 };
+/**
+ * Zoveel gasten kunnen er hooguit tegelijk in het park zijn: het groeit mee met het level, tot 60. Op een
+ * apparaat dat het niet bijhoudt (het spel merkt dat zelf) blijft het bij 45 of 30.
+ */
+export const MAX_GUESTS = 60;
+export const guestsAt = (level: number, quality = 2): number => Math.min([30, 45, MAX_GUESTS][quality] ?? MAX_GUESTS, 14 + level);
+
 /** Hoeveel tegels breed en diep een winkel is: gebouwen 2 bij 2, losse dingen 1 bij 1. */
 export const SHOP_SIZE: Record<ShopKind, number> = {
   foodstall: 2, drinkstall: 2, toilet: 2, playground: 2, icecream: 2, balloon: 2, hats: 2, souvenir: 2, bench: 1, flowers: 1, bin: 1, fountain: 2, carousel: 2,
@@ -274,6 +332,8 @@ export const FEATURE = {
   paths: 3, foodstall: 4, drinkstall: 5, toilet: 7, bench: 8, playground: 9, icecream: 11, flowers: 14, bin: 17, hats: 22, souvenir: 26,
   /** De grote attracties: een fontein om naar te kijken en een draaimolen om in te rijden. */
   fountain: 15, carousel: 25,
+  /** Vanaf hier kun je het park mooi maken met bomen, bloemen, water en beelden. */
+  decor: 5,
   /** Vanaf hier willen dieren iets leuks in hun verblijf: speelgoed of een plant. */
   fun: 9,
   /** Vanaf hier kunnen dieren ziek worden. */
@@ -308,7 +368,7 @@ export const GOAL_OWNER: Record<GoalType, 'builder' | 'keeper' | 'host' | 'cashi
   coins: 'cashier',
 };
 
-export const WISH_ORDER: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean', 'fun'];
+export const WISH_ORDER: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean', 'space', 'fun'];
 /** Zoveel poepjes mogen er in een verblijf liggen voordat de dieren het vies vinden. */
 export const MAX_POOPS_CLEAN = 3;
 

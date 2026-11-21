@@ -1,7 +1,7 @@
 // Het beeld: isometrische camera, tegels, hekken, voerbakken en het voorbeeld van wat je gaat plaatsen.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { BEDS, SHOPS, SHOP_SIZE, TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind } from './data';
+import { BEDS, SHOPS, SHOP_SIZE, TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind } from './data';
 import { Grid, H, W, edgeKey, tileXY, type Edge } from './grid';
 
 const SQRT2 = Math.SQRT2;
@@ -334,6 +334,106 @@ const SHOP_MOVING: Partial<Record<ShopKind, { y: number; parts: Part[] }>> = {
     ],
   },
 };
+// Versieringen: één tegel groot, het midden is (0, 0).
+const LEAF2 = std(0x468f3e, 1);
+const flowersOn = (spots: [number, number, number][], color: number): Part =>
+  [mergeGeometries(spots.map(([x, y, z]) => boxAt(0.13, 0.1, 0.13, x, y, z)))!, std(color)];
+const DECOR_PARTS: Record<DecorKind, Part[]> = {
+  tree: [
+    [boxAt(0.16, 0.6, 0.16, 0, 0.3, 0), WOOD_MAT],
+    [mergeGeometries([ball(0.4, 0, 0.9, 0), ball(0.28, 0.2, 1.2, 0.08), ball(0.26, -0.22, 1.12, -0.1)])!, LEAF_MAT],
+  ],
+  pine: [
+    [boxAt(0.12, 0.3, 0.12, 0, 0.15, 0), WOOD_MAT],
+    [mergeGeometries([cone(0.42, 0.55, 0, 0.52, 0), cone(0.33, 0.5, 0, 0.88, 0), cone(0.22, 0.42, 0, 1.2, 0)])!, LEAF2],
+  ],
+  palm: [
+    [tube(0.055, 0.085, 1.1, 0, 0.55, 0), std(0xb88a52, 1)],
+    [mergeGeometries([0, 1, 2, 3, 4, 5].map(i => new THREE.BoxGeometry(0.56, 0.04, 0.16).translate(0.3, 0, 0).rotateZ(-0.35).rotateY((i * Math.PI) / 3).translate(0, 1.12, 0)))!, LEAF_MAT],
+    [mergeGeometries([ball(0.07, 0.07, 1.04, 0.03), ball(0.07, -0.05, 1.02, -0.05)])!, std(0x6b4a2a)],
+  ],
+  hedge: [
+    [boxAt(0.92, 0.42, 0.4, 0, 0.21, 0), LEAF2],
+    [boxAt(0.86, 0.1, 0.34, 0, 0.45, 0), LEAF_MAT],
+  ],
+  roses: [
+    [boxAt(0.8, 0.05, 0.8, 0, 0.025, 0), DARK_MAT, false],
+    [mergeGeometries([ball(0.16, -0.2, 0.2, -0.18), ball(0.18, 0.2, 0.22, 0.14), ball(0.15, -0.14, 0.19, 0.24), ball(0.15, 0.22, 0.19, -0.22)])!, LEAF2],
+    flowersOn([[-0.2, 0.38, -0.18], [0.2, 0.42, 0.14], [0.26, 0.36, -0.22]], 0xd8362e),
+    flowersOn([[-0.14, 0.36, 0.24], [0.1, 0.4, 0.2]], 0xf06aa6),
+    flowersOn([[-0.26, 0.34, -0.1]], 0xf7f4ec),
+  ],
+  tulips: [
+    [boxAt(0.8, 0.05, 0.5, 0, 0.025, 0), DARK_MAT, false],
+    [mergeGeometries([-0.3, -0.15, 0, 0.15, 0.3].flatMap(x => [boxAt(0.025, 0.24, 0.025, x, 0.17, -0.12), boxAt(0.025, 0.22, 0.025, x, 0.16, 0.12)]))!, LEAF_MAT],
+    flowersOn([[-0.3, 0.33, -0.12], [0, 0.33, -0.12], [0.3, 0.33, -0.12]], 0xe0584f),
+    flowersOn([[-0.15, 0.33, -0.12], [0.15, 0.33, -0.12], [-0.3, 0.31, 0.12], [0.3, 0.31, 0.12]], 0xffd23f),
+    flowersOn([[-0.15, 0.31, 0.12], [0, 0.31, 0.12], [0.15, 0.31, 0.12]], 0xb06ad9),
+  ],
+  mushrooms: [
+    [mergeGeometries([tube(0.05, 0.06, 0.2, -0.16, 0.1, 0.06), tube(0.04, 0.05, 0.14, 0.14, 0.07, -0.1), tube(0.035, 0.04, 0.1, 0.1, 0.05, 0.2)])!, WHITE_MAT],
+    [mergeGeometries([tube(0.03, 0.17, 0.1, -0.16, 0.25, 0.06), tube(0.025, 0.13, 0.08, 0.14, 0.18, -0.1), tube(0.02, 0.1, 0.07, 0.1, 0.135, 0.2)])!, std(0xd8362e, 0.6)],
+  ],
+  pond: [
+    [tube(0.46, 0.48, 0.09, 0, 0.045, 0), STONE],
+    [tube(0.4, 0.4, 0.03, 0, 0.085, 0), WATER_MAT, false],
+    [mergeGeometries([tube(0.1, 0.1, 0.012, -0.14, 0.106, 0.1), tube(0.08, 0.08, 0.012, 0.16, 0.106, -0.08), tube(0.06, 0.06, 0.012, 0.04, 0.106, 0.22)])!, LEAF_MAT, false],
+    [boxAt(0.07, 0.06, 0.07, -0.14, 0.14, 0.1), std(0xf48fb1)],
+  ],
+  waterfall: [
+    [mergeGeometries([boxAt(0.8, 0.5, 0.4, 0, 0.25, -0.22), boxAt(0.6, 0.4, 0.36, -0.06, 0.7, -0.24), boxAt(0.34, 0.26, 0.3, 0.06, 1.02, -0.26)])!, ROCK_MAT],
+    [mergeGeometries([boxAt(0.2, 0.74, 0.05, 0.02, 0.66, -0.03), boxAt(0.24, 0.26, 0.05, 0.02, 0.16, 0.0)])!, SPRAY_MAT, false],
+    [tube(0.4, 0.42, 0.07, 0, 0.035, 0.18), STONE],
+    [tube(0.34, 0.34, 0.03, 0, 0.07, 0.18), WATER_MAT, false],
+  ],
+  well: [
+    [tube(0.3, 0.32, 0.36, 0, 0.18, 0), STONE],
+    [tube(0.22, 0.22, 0.03, 0, 0.35, 0), WATER_MAT, false],
+    [mergeGeometries([boxAt(0.06, 0.7, 0.06, -0.3, 0.55, 0), boxAt(0.06, 0.7, 0.06, 0.3, 0.55, 0), boxAt(0.66, 0.05, 0.05, 0, 0.78, 0)])!, WOOD_MAT],
+    [cone(0.5, 0.3, 0, 1.03, 0, 4), std(0xc9553f)],
+    [tube(0.07, 0.06, 0.1, 0, 0.6, 0), std(0x8a857a)],
+  ],
+  statue: [
+    [mergeGeometries([boxAt(0.6, 0.12, 0.6, 0, 0.06, 0), boxAt(0.46, 0.3, 0.46, 0, 0.27, 0)])!, STONE],
+    [mergeGeometries([
+      boxAt(0.34, 0.2, 0.18, 0, 0.66, 0), boxAt(0.16, 0.18, 0.16, 0.2, 0.82, 0), boxAt(0.2, 0.2, 0.2, 0.2, 0.84, 0).scale(1, 0.5, 1).translate(0, 0.42, 0),
+      boxAt(0.06, 0.16, 0.06, -0.12, 0.5, 0.05), boxAt(0.06, 0.16, 0.06, -0.12, 0.5, -0.05), boxAt(0.06, 0.16, 0.06, 0.12, 0.5, 0.05), boxAt(0.06, 0.16, 0.06, 0.12, 0.5, -0.05),
+      boxAt(0.05, 0.05, 0.16, -0.2, 0.72, 0).rotateZ(0.3),
+    ])!, GOLD_MAT],
+  ],
+  topiary: [
+    [tube(0.18, 0.14, 0.2, 0, 0.1, 0), std(0xc9553f)],
+    [boxAt(0.07, 0.4, 0.07, 0, 0.36, 0), WOOD_MAT],
+    [mergeGeometries([ball(0.3, 0, 0.7, 0), ball(0.2, 0, 1.08, 0), ball(0.12, 0, 1.34, 0)])!, LEAF2],
+  ],
+  lantern: [
+    [mergeGeometries([tube(0.035, 0.05, 1.05, 0, 0.525, 0), tube(0.1, 0.12, 0.06, 0, 0.03, 0)])!, std(0x3d4f5a, 0.7)],
+    [boxAt(0.17, 0.2, 0.17, 0, 1.15, 0), new THREE.MeshStandardMaterial({ color: 0xfff1a8, emissive: 0xffd23f, emissiveIntensity: 0.6, roughness: 0.4 })],
+    [cone(0.16, 0.12, 0, 1.31, 0, 4), std(0x3d4f5a, 0.7)],
+  ],
+  flag: [
+    [tube(0.03, 0.035, 1.5, 0, 0.75, 0), WHITE_MAT],
+    [boxAt(0.5, 0.3, 0.02, 0.27, 1.3, 0), std(0xe0584f, 0.8)],
+    [boxAt(0.5, 0.1, 0.022, 0.27, 1.3, 0), std(0xffd23f, 0.8)],
+    [ball(0.05, 0, 1.52, 0), GOLD_MAT],
+  ],
+  signpost: [
+    [boxAt(0.08, 0.95, 0.08, 0, 0.475, 0), WOOD_MAT],
+    [boxAt(0.5, 0.14, 0.04, 0.2, 0.82, 0.05), std(0xf7f4ec)],
+    [boxAt(0.5, 0.14, 0.04, -0.2, 0.6, 0.05), std(0x9fd8f5)],
+  ],
+  boulder: [
+    [mergeGeometries([boxAt(0.5, 0.32, 0.42, -0.06, 0.16, 0), boxAt(0.3, 0.22, 0.3, 0.24, 0.11, 0.14), boxAt(0.26, 0.16, 0.24, -0.1, 0.38, -0.02)])!, ROCK_MAT],
+  ],
+  picnic: [
+    [mergeGeometries([
+      boxAt(0.8, 0.05, 0.4, 0, 0.36, 0), boxAt(0.8, 0.04, 0.16, 0, 0.2, 0.34), boxAt(0.8, 0.04, 0.16, 0, 0.2, -0.34),
+      boxAt(0.06, 0.36, 0.7, -0.3, 0.18, 0), boxAt(0.06, 0.36, 0.7, 0.3, 0.18, 0),
+    ])!, WOOD_MAT],
+    [boxAt(0.3, 0.012, 0.3, 0.05, 0.392, 0), std(0xe0584f)],
+  ],
+};
+
 /** Hoe iets op een rand staat: langs welke rand, en aan welke kant het pad ligt (1, -1 of 0 = geen van beide). */
 export interface EdgePose {
   o: 'h' | 'v';
@@ -454,6 +554,7 @@ export class View {
   private ghostNetMesh = new THREE.Mesh(NET_GEO, this.ghostMat);
   private ghostBeds = Object.fromEntries(BEDS.map(k => [k, build(BED_PARTS[k], this.ghostMat)])) as Record<BedKind, THREE.Group>;
   private ghostToys = Object.fromEntries(TOYS.map(k => [k, build(TOY_PARTS[k], this.ghostMat)])) as Record<ToyKind, THREE.Group>;
+  private ghostDecors = Object.fromEntries(DECORS.map(k => [k, build(DECOR_PARTS[k], this.ghostMat)])) as Record<DecorKind, THREE.Group>;
   private ghostShops = Object.fromEntries(SHOPS.map(k => [k, buildShop(k, this.ghostMat)])) as Record<ShopKind, THREE.Group>;
   private ghostTileMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.75, depthWrite: false });
   private ghostTileMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.94, 0.94).rotateX(-Math.PI / 2), this.ghostTileMat);
@@ -468,6 +569,10 @@ export class View {
   private markGeo = new THREE.RingGeometry(0.2, 0.3, 28).rotateX(-Math.PI / 2);
   private markMat = new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0.9, depthWrite: false });
   private hotMat = new THREE.MeshBasicMaterial({ color: 0xff7a3d, transparent: true, opacity: 0.95, depthWrite: false, depthTest: false });
+  /** Spatters: kleine druppels die opspringen en weer vallen. */
+  private drops: { mesh: THREE.Mesh; vx: number; vy: number; vz: number; life: number }[] = [];
+  private dropGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+  private dropMat = new THREE.MeshBasicMaterial({ color: 0xe6f6ff });
   /** Waar het beeld rustig naartoe schuift (de knop 'dier in nood'). */
   private fly: { x: number; z: number } | null = null;
   private flashGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
@@ -517,7 +622,7 @@ export class View {
 
     this.ghostTileMesh.position.y = 0.012;
     this.ghostRing.position.y = 0.014;
-    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostWallMesh, this.ghostNetMesh, this.ghostTroughMesh, ...Object.values(this.ghostBeds), ...Object.values(this.ghostToys), ...Object.values(this.ghostShops), this.ghostTileMesh, this.ghostRing];
+    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostWallMesh, this.ghostNetMesh, this.ghostTroughMesh, ...Object.values(this.ghostBeds), ...Object.values(this.ghostToys), ...Object.values(this.ghostDecors), ...Object.values(this.ghostShops), this.ghostTileMesh, this.ghostRing];
     for (const g of this.ghosts) {
       g.visible = false;
       g.traverse(o => { o.renderOrder = 5; });
@@ -612,6 +717,17 @@ export class View {
       const k = (s.r ?? 1) * (1 + 0.12 * Math.sin(pulse + i));
       m.scale.set(k, 1, k);
     });
+  }
+
+  /** Een paar druppels die opspatten uit het water op deze plek. */
+  splash(gx: number, gy: number): void {
+    if (this.drops.length > 60) return;
+    for (let i = 0; i < 4; i++) {
+      const mesh = new THREE.Mesh(this.dropGeo, this.dropMat);
+      mesh.position.set(toWorldX(gx) + (Math.random() - 0.5) * 0.3, 0.05, toWorldZ(gy) + (Math.random() - 0.5) * 0.3);
+      this.scene.add(mesh);
+      this.drops.push({ mesh, vx: (Math.random() - 0.5) * 0.9, vy: 1.3 + Math.random() * 0.9, vz: (Math.random() - 0.5) * 0.9, life: 0.6 });
+    }
   }
 
   /** Schuif het beeld rustig naar deze plek op het raster. */
@@ -738,6 +854,17 @@ export class View {
   ghostBed(x: number, y: number, kind: BedKind, ok: boolean): void {
     this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
     this.at(this.ghostBeds[kind], x, y).visible = true;
+  }
+
+  makeDecor(x: number, y: number, kind: DecorKind): THREE.Group {
+    const group = this.at(build(DECOR_PARTS[kind]), x, y);
+    this.scene.add(group);
+    return group;
+  }
+
+  ghostDecor(x: number, y: number, kind: DecorKind, ok: boolean): void {
+    this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
+    this.at(this.ghostDecors[kind], x, y).visible = true;
   }
 
   makeToy(x: number, y: number, kind: ToyKind): THREE.Group {
@@ -875,6 +1002,15 @@ export class View {
   }
 
   update(dt: number): void {
+    for (const d of this.drops) {
+      d.life -= dt;
+      d.vy -= 5 * dt;
+      d.mesh.position.x += d.vx * dt;
+      d.mesh.position.y += d.vy * dt;
+      d.mesh.position.z += d.vz * dt;
+      if (d.life <= 0 || d.mesh.position.y < 0) this.scene.remove(d.mesh);
+    }
+    if (this.drops.length) this.drops = this.drops.filter(d => d.life > 0 && d.mesh.position.y >= 0);
     if (this.fly) {
       const k = Math.min(1, dt * 5);
       this.target.x += (this.fly.x - this.target.x) * k;
@@ -897,6 +1033,11 @@ export class View {
    * Houdt het beeld vloeiend op een traag apparaat: blijft het een paar tellen haperen, dan wordt het
    * beeld eerst minder scherp en daarna gaan de schaduwen uit. `dt` is de echte tijd van het vorige beeldje.
    */
+  /** Hoe goed het apparaat het bijhoudt: 2 = prima, 1 = wat traag, 0 = traag. */
+  get speed(): number {
+    return this.quality;
+  }
+
   adapt(dt: number): void {
     if (dt > 0.5 || this.quality === 0) return; // het tabblad was even weg, of er valt niets meer te winnen
     this.slowFor = dt > 1 / 26 ? this.slowFor + dt : Math.max(0, this.slowFor - dt * 2);
