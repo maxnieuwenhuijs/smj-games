@@ -240,6 +240,30 @@
    "length": 1.398,
    "v": "440b69ee"
   },
+  "dolphin_female": {
+   "height": 0.513,
+   "back": 0.843,
+   "length": 1.641,
+   "v": "cbe941ca"
+  },
+  "dolphin_male": {
+   "height": 0.576,
+   "back": 0.91,
+   "length": 1.787,
+   "v": "65bc9c85"
+  },
+  "dolphin_young_f": {
+   "height": 0.301,
+   "back": 0.479,
+   "length": 1.05,
+   "v": "be5e8496"
+  },
+  "dolphin_young_m": {
+   "height": 0.301,
+   "back": 0.479,
+   "length": 1.05,
+   "v": "21cd0836"
+  },
   "donkey_female": {
    "height": 1.253,
    "back": 0.357,
@@ -599,6 +623,30 @@
    "back": 0.104,
    "length": 0.631,
    "v": "80bd89bc"
+  },
+  "orca_female": {
+   "height": 0.911,
+   "back": 1.218,
+   "length": 2.253,
+   "v": "2d16c7af"
+  },
+  "orca_male": {
+   "height": 1.289,
+   "back": 1.342,
+   "length": 2.5,
+   "v": "aee0c2e4"
+  },
+  "orca_young_f": {
+   "height": 0.52,
+   "back": 0.677,
+   "length": 1.366,
+   "v": "41b54965"
+  },
+  "orca_young_m": {
+   "height": 0.52,
+   "back": 0.677,
+   "length": 1.366,
+   "v": "74dc79c5"
   },
   "ostrich_female": {
    "height": 1.509,
