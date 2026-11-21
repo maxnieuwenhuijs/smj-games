@@ -17,7 +17,7 @@ De volledige lijst van de dierentuin: per onderdeel wat je ermee kunt doen (tikk
 | Verblijf | Het verblijf licht heel zacht op als je het aanwijst en zolang het menu open staat (**nieuw**). Menu: kleur van het hek, andere naam, leegmaken. |
 | Kraam | Kiezen wat hij verkoopt, of draaien. |
 | Vieze kraam | Met de veger: schoonvegen, 1 munt (**nieuw**). |
-| Bankje, bloembak, afvalbak | Omdraaien; afval in de bak doen. |
+| Bankje, bloembak, afvalbak | Het veert even op (omdraaien met een tik kan niet meer); afval in de bak doen. Bij het neerzetten kijkt het naar de kant van de rand waar je tikt. |
 | Boom, bloemen, vijver, lantaarn en alle andere dingen van de knop Park | Het ding schudt, draait of flitst en er springen blaadjes, druppels of vonkjes uit (**nieuw**). |
 | Gastenboek | Het boek gaat open met de tekeningen van de gasten (**nieuw**). |
 | Grond die te koop is | Het koopmenu. |

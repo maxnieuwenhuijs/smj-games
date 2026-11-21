@@ -30,8 +30,10 @@ export interface ShopSpot {
   edge?: 'h' | 'v';
   /** Naar welke kant het kijkt: 1 = zuid of oost, -1 = noord of west. Het spel houdt dit bij. */
   face?: number;
-  /** De speler heeft het omgedraaid: het kijkt van het pad af. */
+  /** Uit oudere spellen: de speler had het omgedraaid, het kijkt van het pad af. */
   turned?: boolean;
+  /** De kant die de speler bij het neerzetten heeft gekozen (1 of -1). Staat dit er, dan draait het niet meer vanzelf. */
+  set?: number;
   /** Een gebouw draait in kwartslagen: 0 = voorkant naar het zuiden, 1 = oosten, 2 = noorden, 3 = westen. */
   rot?: number;
   /** De speler heeft het gebouw zelf gedraaid: dan draait het niet meer vanzelf naar het pad. */

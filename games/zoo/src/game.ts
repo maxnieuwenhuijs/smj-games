@@ -129,7 +129,7 @@ export interface SaveData {
   beds?: { x: number; y: number; kind: BedKind }[];
   toys?: { x: number; y: number; kind: ToyKind }[];
   decor?: { x: number; y: number; kind: DecorKind; edge?: 'h' | 'v' }[];
-  shops?: { x: number; y: number; kind: ShopKind; sells?: string[]; edge?: 'h' | 'v'; turned?: boolean; rot?: number; manual?: boolean; dirt?: number }[];
+  shops?: { x: number; y: number; kind: ShopKind; sells?: string[]; edge?: 'h' | 'v'; turned?: boolean; face?: number; rot?: number; manual?: boolean; dirt?: number }[];
   sold?: Record<string, number>;
   soldAt?: Record<string, number>;
   soldAll?: number;
@@ -456,7 +456,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (size === 1) {
         // een bankje, bloembak of afvalbak staat op een rand; uit een ouder spel stond het nog op een tegel
         const spot = sh.edge ? { o: sh.edge, x, y } : this.edgeNear(x, y);
-        if (spot && this.edgeFits(spot)) this.addShop(spot.x, spot.y, sh.kind, sh.sells, spot.o, sh.turned).dirt = sh.dirt;
+        if (spot && this.edgeFits(spot)) this.addShop(spot.x, spot.y, sh.kind, sh.sells, spot.o, sh.turned, undefined, undefined, sh.face).dirt = sh.dirt;
         else this.coins = Math.min(COIN_CAP, this.coins + SHOP_PRICE[sh.kind]);
         continue;
       }
@@ -534,7 +534,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       beds: this.beds.map(({ x, y, kind }) => ({ x, y, kind })),
       toys: this.toys.map(({ x, y, kind }) => ({ x, y, kind })),
       decor: this.decors.map(({ x, y, kind, edge }) => ({ x, y, kind, edge })),
-      shops: this.shops.map(({ x, y, kind, sells, edge, turned, rot, manual, dirt }) => ({ x, y, kind, sells, edge, turned, rot, manual, dirt: dirt ? Math.round(dirt * 100) / 100 : undefined })),
+      shops: this.shops.map(({ x, y, kind, sells, edge, turned, set, rot, manual, dirt }) => ({ x, y, kind, sells, edge, turned, face: set, rot, manual, dirt: dirt ? Math.round(dirt * 100) / 100 : undefined })),
       gw: W,
       gh: H,
       land: SIDES.filter(side => this.grid.owns(side)),
@@ -1545,8 +1545,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return fits.find(e => this.edgeFace(e) !== 0) ?? fits[0] ?? null;
   }
 
-  /** Naar welke kant iets op een rand kijkt: naar het pad, of juist andersom als de speler het heeft omgedraaid. */
-  private faceOf(s: { x: number; y: number; edge?: 'h' | 'v'; turned?: boolean }): number {
+  /**
+   * Naar welke kant iets op een rand kijkt: de kant die de speler bij het neerzetten koos. Bij iets uit een ouder
+   * spel (zonder gekozen kant): naar het pad, of andersom als het toen was omgedraaid.
+   */
+  private faceOf(s: { x: number; y: number; edge?: 'h' | 'v'; turned?: boolean; set?: number }): number {
+    if (s.set) return s.set;
     const auto = this.edgeFace({ o: s.edge!, x: s.x, y: s.y }) || 1;
     return s.turned ? -auto : auto;
   }
@@ -1580,13 +1584,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
   }
 
-  /** Een tik met het handje draait een bankje, bloembak of afvalbak om. */
-  private turnItem(item: ShopObj): void {
-    item.turned = !item.turned || undefined;
-    this.faceEdgeItems();
-    sfx('place');
-    const [x, y] = edgePose(item);
-    this.floatAt(icon('sparkle'), x, y, 0.5);
+  /** Aan welke kant van de rand ligt dit punt? 1 = zuid of oost, -1 = noord of west. Daar kijkt een bankje of bak naartoe. */
+  private edgeSide(e: Edge, gx: number, gy: number): 1 | -1 {
+    return (e.o === 'h' ? gy >= e.y : gx >= e.x) ? 1 : -1;
   }
 
   private taken(x: number, y: number): boolean {
@@ -1827,13 +1827,14 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return bed;
   }
 
-  private addShop(x: number, y: number, kind: ShopKind, sells?: string[], edge?: 'h' | 'v', turned?: boolean, rot?: number, manual?: boolean): ShopObj {
-    const face = edge ? this.faceOf({ x, y, edge, turned }) : undefined;
+  /** `set`: de kant waar een bankje of bak naartoe kijkt, zoals de speler die bij het neerzetten koos. */
+  private addShop(x: number, y: number, kind: ShopKind, sells?: string[], edge?: 'h' | 'v', turned?: boolean, rot?: number, manual?: boolean, set?: number): ShopObj {
+    const face = edge ? this.faceOf({ x, y, edge, turned, set }) : undefined;
     // een gebouw kijkt vanzelf naar het pad, tenzij de speler het zelf heeft gedraaid
     const turn = edge ? undefined : rot ?? this.autoRot(x, y, SHOP_SIZE[kind]);
     const shop: ShopObj = {
       x, y, kind, size: SHOP_SIZE[kind], sells: sells?.length ? [...sells] : this.products(kind).slice(0, slotsOf(kind)),
-      mesh: this.view.makeShop(x, y, kind, edge && { o: edge, face: face! }, turn), vendor: Vendor.of(kind), edge, face, turned: turned || undefined, rot: turn, manual: manual || undefined,
+      mesh: this.view.makeShop(x, y, kind, edge && { o: edge, face: face! }, turn), vendor: Vendor.of(kind), edge, face, turned: turned || undefined, set: edge ? set : undefined, rot: turn, manual: manual || undefined,
     };
     if (shop.vendor) shop.mesh.add(shop.vendor.mesh);
     this.shops.push(shop);
@@ -2073,14 +2074,17 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return SHOP_SIZE[kind] === 1 ? [Math.floor(g.gx), Math.floor(g.gy)] : [Math.round(g.gx) - 1, Math.round(g.gy) - 1];
   }
 
-  /** Een bankje, bloembak of afvalbak zet je op een rand, net als een hek. */
-  private placeOnEdge(e: Edge | null): void {
+  /**
+   * Een bankje, bloembak of afvalbak zet je op een rand, net als een hek. Het kijkt naar de kant van de rand waar
+   * je tikt (`side`); wil je het anders, dan haal je het weg en zet je het opnieuw neer.
+   */
+  private placeOnEdge(e: Edge | null, side: 1 | -1 = 1): void {
     const kind = this.option.shop as ShopKind;
     if (!e) return;
     const [cx, cy] = shopCenter({ x: e.x, y: e.y, kind, size: 1, sells: [], edge: e.o });
     if (!this.edgeFits(e)) return this.nope(cx, cy);
     if (!this.pay(SHOP_PRICE[kind], cx, cy)) return;
-    this.addShop(e.x, e.y, kind, undefined, e.o);
+    this.addShop(e.x, e.y, kind, undefined, e.o, undefined, undefined, undefined, side);
     sfx('place');
     this.floatAt(icon('sparkle'), cx, cy, 0.5);
     this.backToHand();
@@ -2635,7 +2639,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         const kind = this.option.shop as ShopKind;
         if (SHOP_SIZE[kind] === 1) {
           const e = nearestEdge(g.gx, g.gy);
-          if (e) this.view.ghostShop(e.x, e.y, kind, this.edgeFits(e), { o: e.o, face: this.edgeFace(e) || 1 });
+          // het voorbeeld kijkt al naar de kant waar je bent: zo zie je hoe het komt te staan
+          if (e) this.view.ghostShop(e.x, e.y, kind, this.edgeFits(e), { o: e.o, face: this.edgeSide(e, g.gx, g.gy) });
           return this.hud.setCursor(CUR[this.option.shop]);
         }
         const [ax, ay] = this.shopAnchor(g, kind);
@@ -2908,7 +2913,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
     if (this.tool === 'hand' && g) {
       // een tik op een bankje, bloembak of afvalbak draait het om (ook als er iemand op zit)
-      if (item && !this.pickAnimal(cx, cy, 0.3)) return item.kind === 'bin' && this.carry ? this.dump(item) : this.turnItem(item);
+      // een tik op een bankje, bloembak of afvalbak draait het niet meer om: het veert alleen even op
+      if (item && !this.pickAnimal(cx, cy, 0.3)) {
+        if (item.kind === 'bin' && this.carry) return this.dump(item);
+        sfx('tap');
+        return this.pulse(item.mesh, 0.1);
+      }
       // een paal of bord op een rand: aantikken laat het bewegen
       const post = this.decors.find(d => d.edge && Math.hypot(this.decorPos(d)[0] - g.gx, this.decorPos(d)[1] - g.gy) < 0.38);
       if (post && !this.pickAnimal(cx, cy, 0.3)) return this.pokeDecor(post);
@@ -2934,7 +2944,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.tool === 'decor' && g && EDGE_DECOR.includes(this.option.decor as DecorKind)) return this.placeDecorOnEdge(nearestEdge(g.gx, g.gy));
     if (this.tool === 'shop' && g) {
       const kind = this.option.shop as ShopKind;
-      return SHOP_SIZE[kind] === 1 ? this.placeOnEdge(nearestEdge(g.gx, g.gy)) : this.placeShop(...this.shopAnchor(g, kind));
+      const e = SHOP_SIZE[kind] === 1 ? nearestEdge(g.gx, g.gy) : null;
+      return SHOP_SIZE[kind] === 1 ? this.placeOnEdge(e, e ? this.edgeSide(e, g.gx, g.gy) : 1) : this.placeShop(...this.shopAnchor(g, kind));
     }
     if (!inside) return;
     const tr = this.troughAt(x, y);
