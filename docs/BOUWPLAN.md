@@ -26,6 +26,8 @@ Elke wereld heeft tien levels en tien dieren. De lucht, het land en de bomen ron
 | IJs en bergen | 31 t/m 40 | Sneeuw, vis, dieren die ontsnappen |
 | Verre landen | 41 t/m 50 | Alles door elkaar, en steeds meer tegelijk |
 
+Bij de knop Dier staan alle dieren die je al hebt achter elkaar in één rij waar je opzij doorheen schuift. Voor elke groep staat een kopje met het plaatje van de wereld (schuur, savanneboom, junglepalm, besneeuwde berg, eiland). De rij blijft staan waar je was als je een dier kiest.
+
 ## Wensen van een dier
 
 1. Gezond zijn (een ziek dier wil de dokter).
@@ -290,7 +292,7 @@ Vanaf level 6, zodra er een eetkraam is, laten gasten afval vallen als er geen a
 
 ## Dier in nood
 
-Is er een dier ontsnapt, ziek, of heeft het al twintig tellen honger, een vies hok of een open hek, dan verschijnt links een alarmbubbel met dat dier en wat het mist. Er staan er tot vijf onder elkaar; zijn het er meer, dan kun je in het lijstje scrollen. Een tik op een bubbel schuift het beeld naar dat dier en zet er acht tellen een oranje ring omheen. De dringendste staat bovenaan: ontsnapt, dan ziek, dan wie het langst wacht.
+Is er een dier ontsnapt, ziek, of heeft het al twintig tellen honger, een vies hok of een open hek, dan verschijnt links een alarmbubbel met dat dier en wat het mist. Elke diersoort staat er maar één keer in: je ziet het dier van die soort dat het hardst hulp nodig heeft, en is dat geholpen, dan komt het volgende vanzelf. Er staan er tot vijf onder elkaar; zijn het er meer, dan kun je in het lijstje scrollen. Een tik op een bubbel schuift het beeld naar dat dier en zet er acht tellen een oranje ring omheen. De dringendste staat bovenaan: ontsnapt, dan ziek, dan wie het langst wacht.
 
 ## Cursor
 

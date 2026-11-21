@@ -58,7 +58,6 @@ const PATH = TERRAINS.indexOf('path');
 const WATER = TERRAINS.indexOf('water');
 /** In welke wereld hoort een soort thuis? Dat volgt uit het level waarin je hem krijgt. */
 const HOME = Object.fromEntries(LEVELS.map((l, i) => [l.reward, worldOf(i)])) as Record<SpeciesId, WorldId>;
-const WORLD_ICON: Record<WorldId, SpeciesId> = { farm: 'pig', savanna: 'zebra', jungle: 'monkey', ice: 'penguin', far: 'flamingo' };
 const between = ([lo, hi]: [number, number]): number => lo + Math.random() * (hi - lo);
 /** Bij welke winkel hoort een wens van een gast? */
 const NEED_KIND: Record<string, ShopKind> = {
@@ -250,6 +249,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private hoverPoop: PoopObj | null = null;
   /** Dieren die hulp nodig hebben, de dringendste eerst; en het dier waar de knop je net heen bracht. */
   private needy: Animal[] = [];
+  /** Alle dieren in nood; `needy` is daarvan één per diersoort (wat je links in beeld ziet). */
+  private needyAll: Animal[] = [];
   private marked: { a: Animal; until: number } | null = null;
   private savedPens: { tile: number; name: string }[] = [];
   /** Het personeel, en de klussen die al iemand doet. */
@@ -697,7 +698,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (!list.includes(this.option[key] as T)) this.option[key] = list[list.length - 1] ?? '';
     };
     pickFrom('world', this.worldOptions());
-    const shown = species.filter(sp => HOME[sp] === this.option.world);
+    // alle dieren staan achter elkaar in één rij, per wereld met een kopje ervoor
+    const shown = species;
     pickFrom('animal', shown);
     pickFrom('terrain', this.terrainOptions());
     pickFrom('bed', this.bedOptions());
@@ -759,12 +761,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         { key: 'sex', active: this.option.sex, options: [opt('male', 'boy', t('sex.male'), 0, 'boy'), opt('female', 'girl', t('sex.female'), 0, 'girl')] },
       ];
       // bij veel dieren kies je eerst de wereld, zodat de rij met dieren kort blijft
-      if (this.worldOptions().length > 1)
-        rows.push({ key: 'world', active: this.option.world, options: this.worldOptions().map(w => ({ id: w, icon: speciesIcon(WORLD_ICON[w]), label: t(`world.${w}`) })) });
       rows.push({
         key: 'animal',
         active: this.option.animal,
-        options: shown.map(k => ({ id: k, icon: speciesIcon(k), label: t(`species.${k}`), price: SPECIES[k].cost, cant: SPECIES[k].cost > this.coins })),
+        options: this.worldOptions().flatMap(w => [
+          ...(this.worldOptions().length > 1 ? [{ id: `@${w}`, icon: icon(`world_${w}` as IconId), label: t(`world.${w}`), divider: true }] : []),
+          ...shown.filter(k => HOME[k] === w).map(k => ({ id: k, icon: speciesIcon(k), label: t(`species.${k}`), price: SPECIES[k].cost, cant: SPECIES[k].cost > this.coins })),
+        ]),
       });
       defs.push({ ...opt('animal', 'paw', t('tool.animal')), rows });
     }
@@ -2536,13 +2539,16 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
     // dieren in nood: ontsnapt, ziek, of al een poosje honger, een vies hok of een open hek
     const rank = (a: Animal): number => (a.escaped ? 3 : a.sick ? 2 : 1);
-    this.needy = this.animals
+    this.needyAll = this.animals
       .filter(a => {
         if (a.escaped || a.sick) return true;
         const care = a.unmet === 'health' || (a.unmet === 'enclosure' && !a.needsFence) || a.unmet === 'food' || a.unmet === 'clean';
         return care && this.clock - (this.unmet.get(a)?.since ?? this.clock) > 20;
       })
       .sort((p, q) => rank(q) - rank(p) || q.neglect - p.neglect);
+    // in het lijstje links staat elke diersoort maar één keer: het dier van die soort dat het hardst hulp nodig heeft
+    const seen = new Set<SpeciesId>();
+    this.needy = this.needyAll.filter(a => !seen.has(a.species) && !!seen.add(a.species));
     this.hud.setNeeds(this.needy.slice(0, 20).map(a => ({
       icon: speciesIcon(a.species),
       badge: a.escaped ? icon('catch') : a.unmet ? this.wishIcon(a, a.unmet) : icon('sick'),
@@ -2593,7 +2599,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     else if (crowd.total >= 3 && crowd.happy * 3 < crowd.total) this.alert(say.host('sad'), 300);
     // gaat het goed, dan komt er af en toe een complimentje: over de dieren, de gasten, het park of de kas
     // alleen als er niets ernstigs speelt: geen dier dat al lang op hulp wacht
-    if (this.clock > this.cheerAt && !this.needy.some(a => a.neglect > NEGLECT_WARN) && this.animals.length >= 2) {
+    if (this.clock > this.cheerAt && !this.needyAll.some(a => a.neglect > NEGLECT_WARN) && this.animals.length >= 2) {
       const fits = CHEERS.map((c, i) => ({ c, i })).filter(({ c }) =>
         c.about === 'animals' ? stats.happyAll * 5 >= this.animals.length * 4
         : c.about === 'guests' ? crowd.total >= 3 && crowd.happy * 3 >= crowd.total * 2

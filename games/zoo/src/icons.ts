@@ -235,6 +235,23 @@ const ICONS = {
     '<circle cx="14" cy="11" r="6" fill="#b07a4a"/><circle cx="34" cy="11" r="6" fill="#b07a4a"/><ellipse cx="24" cy="39" rx="11" ry="8" fill="#b07a4a"/>' +
     '<circle cx="24" cy="20" r="13" fill="#b07a4a"/><ellipse cx="24" cy="25" rx="6.5" ry="5" fill="#e3bf94"/><ellipse cx="24" cy="40" rx="6" ry="4.5" fill="#e3bf94"/>' +
     `<g fill="${INK}"><circle cx="19" cy="17" r="2"/><circle cx="29" cy="17" r="2"/><circle cx="24" cy="23" r="1.9"/></g>`,
+  // de vijf werelden: een schuur, een savanneboom met zon, een junglepalm, een besneeuwde berg en een eiland met zee
+  world_farm:
+    '<path d="M6 44 V22 L24 8 L42 22 V44Z" fill="#d8362e"/><path d="M3 24 L24 6 L45 24" fill="none" stroke="#8a2a24" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>' +
+    '<rect x="17" y="27" width="14" height="17" fill="#fff7e0"/><path d="M17 27 L31 44 M31 27 L17 44" stroke="#d8362e" stroke-width="2.5"/><rect x="20" y="15" width="8" height="6" rx="1" fill="#fff7e0"/>',
+  world_savanna:
+    '<circle cx="36" cy="13" r="8" fill="#ffd23f"/><rect x="2" y="36" width="44" height="9" rx="4" fill="#ecd591"/><path d="M19 38 V25" stroke="#8a5a2c" stroke-width="4" stroke-linecap="round"/>' +
+    '<ellipse cx="19" cy="20" rx="15" ry="6" fill="#6cc04a"/><ellipse cx="12" cy="24" rx="7" ry="3.5" fill="#5bab4c"/>',
+  world_jungle:
+    '<path d="M24 45 Q22 30 26 17" fill="none" stroke="#8a5a2c" stroke-width="5" stroke-linecap="round"/>' +
+    '<path d="M26 17 Q12 6 3 16 Q14 12 26 17 Q38 4 46 14 Q36 11 26 17 Q16 18 8 30 Q14 21 26 17 Q36 18 42 30 Q36 21 26 17" fill="#3d8b3a" stroke="#2f6e2d" stroke-width="2" stroke-linejoin="round"/>' +
+    '<ellipse cx="24" cy="44" rx="16" ry="3" fill="#4f9a4a"/>',
+  world_ice:
+    '<path d="M3 44 L18 14 L27 30 L33 20 L45 44Z" fill="#9fd8f5"/><path d="M18 14 L12 26 L17 23 L21 27 L24 24Z M33 20 L29 27 L33 25 L37 28Z" fill="#fff"/>' +
+    '<g stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M38 6 v8 M34 10 h8 M35.2 7.2 l5.6 5.6 M40.8 7.2 l-5.6 5.6"/></g>',
+  world_far:
+    '<path d="M2 34 Q8 28 14 34 T26 34 T38 34 T50 34 V46 H2Z" fill="#6ec3e8"/><ellipse cx="24" cy="33" rx="14" ry="5" fill="#ecd591"/>' +
+    '<path d="M24 31 Q23 22 27 14" fill="none" stroke="#8a5a2c" stroke-width="3.5" stroke-linecap="round"/><path d="M27 14 Q18 8 13 15 M27 14 Q36 8 41 16 M27 14 Q24 6 30 4" fill="none" stroke="#5bab4c" stroke-width="4" stroke-linecap="round"/>',
   turn:
     `<path d="M38 24 A14 14 0 1 1 30 11" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><path d="M28 3 L40 10 L29 18Z" fill="${INK}"/>`,
   hammer:

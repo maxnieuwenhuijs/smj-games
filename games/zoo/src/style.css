@@ -81,6 +81,10 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 #options .row { flex-wrap: nowrap; overflow-x: auto; justify-content: safe center; padding: 6px 10px 8px; scrollbar-width: none; }
 #options .row::-webkit-scrollbar { display: none; }
 #options .row .tool { flex: none; }
+/* een kopje in de rij: de wereld waar de dieren erna bij horen */
+#options .row .sep { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: min(64px, 12vw); height: min(70px, 13vw); border-radius: 18px; background: rgba(255, 255, 255, 0.55); color: var(--ink); }
+#options .row .sep .ic { font-size: min(34px, 6.4vw); }
+#options .row .sep b { font-size: clamp(7px, 1.4vw, 10px); font-weight: 800; text-align: center; line-height: 1.05; }
 /* een lange rij (alle winkels): iets smallere knoppen, zodat alles op een tablet in beeld past */
 #options .row:has(.tool:nth-child(12)) .tool { width: min(64px, 7.2vw); }
 #options .row:has(.tool:nth-child(12)) .tool b { font-size: clamp(7px, 1.5vw, 11px); }

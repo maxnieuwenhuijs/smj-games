@@ -16,6 +16,8 @@ export interface ToolOption {
   cant?: boolean;
   /** De prijs is loon per uur, niet eenmalig. */
   per?: boolean;
+  /** Geen knop maar een kopje in de rij (bijvoorbeeld de wereld waar de dieren erna bij horen). */
+  divider?: boolean;
   /** Munten die je ervoor terugkrijgt. */
   gain?: number;
   /** In een menu: deze keuze staat aan. */
@@ -65,6 +67,7 @@ export class Hud {
   private voice: Voice | null = null;
 
   private need = el('div', '');
+  private rowsOf = '';
   private carry = el('div', 'pill');
   private needKey = '';
 
@@ -100,7 +103,7 @@ export class Hud {
 
   // ------------------------------------------------------------ knoppen
   /**
-   * Dieren die hulp nodig hebben: voor elk een knop met dat dier en wat het mist, onder elkaar aan de
+   * Dieren die hulp nodig hebben: per diersoort één knop met dat dier en wat het mist, onder elkaar aan de
    * linkerkant. Er passen er vijf in beeld; zijn het er meer, dan kun je in het lijstje scrollen. Een tik
    * brengt je naar dat dier.
    */
@@ -150,6 +153,10 @@ export class Hud {
   /** `open`: de knop waarvan de keuzerij open blijft staan terwijl het handje aan staat (net iets neergezet). */
   setTools(defs: ToolDef[], active: string, hint: string | null, open: string | null = null): void {
     document.getElementById('ui')!.dataset.tool = active;
+    // waar de rijen stonden (bij veel dieren scrol je opzij): dat blijft zo als de rij opnieuw wordt opgebouwd
+    const scrolled = [...this.options.children].map(row => row.scrollLeft);
+    const sameRows = this.rowsOf === (open ?? active);
+    this.rowsOf = open ?? active;
     this.toolbar.replaceChildren();
     this.options.replaceChildren();
     for (const def of defs) {
@@ -164,6 +171,10 @@ export class Hud {
       for (const row of def.rows ?? []) {
         const line = el('div', 'row');
         for (const opt of row.options) {
+          if (opt.divider) {
+            line.append(el('div', 'sep', `${opt.icon}<b>${opt.label}</b>`));
+            continue;
+          }
           const o = button(opt, 'small');
           o.dataset.option = opt.id;
           o.classList.toggle(def.id === active ? 'on' : 'last', opt.id === row.active);
@@ -173,6 +184,11 @@ export class Hud {
         this.options.append(line);
       }
     }
+    // dezelfde rij als net: weer op dezelfde plek; een nieuwe rij: de gekozen knop in beeld
+    [...this.options.children].forEach((row, i) => {
+      if (sameRows && scrolled[i] !== undefined) row.scrollLeft = scrolled[i];
+      else (row.querySelector('.tool.on, .tool.last') as HTMLElement | null)?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    });
   }
 
   /** Kleurt de prijskaartjes: grijs als er niet genoeg munten zijn. De knoppen zelf blijven staan. */
