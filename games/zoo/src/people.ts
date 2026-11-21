@@ -1178,7 +1178,56 @@ export class Worker {
     this.timer = 2 + Math.random() * 2;
   }
 
+  /** Maakt van dit poppetje een doorzichtig voorbeeld (voor onder de muis, voordat je het neerzet). */
+  ghost(): this {
+    this.mesh.traverse(o => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const own = (m.material as THREE.MeshStandardMaterial).clone();
+      own.transparent = true;
+      own.opacity = 0.6;
+      own.depthWrite = false;
+      m.material = own;
+      m.castShadow = false;
+    });
+    return this;
+  }
+
+  /** Het voorbeeld hangt in de lucht boven deze plek en spartelt, tot je het neerzet. `ok`: mag het hier staan? */
+  dangle(gx: number, gy: number, t: number, ok: boolean): void {
+    this.mesh.position.set(toWorldX(gx), 0.5 + Math.sin(t * 4) * 0.07, toWorldZ(gy));
+    this.mesh.rotation.set(Math.sin(t * 7) * 0.14, Math.PI / 4 + Math.sin(t * 2.5) * 0.5, Math.sin(t * 9) * 0.16);
+    // spartelen: benen trappelen, armen zwaaien boven het hoofd
+    this.limbs[0].rotation.x = Math.sin(t * 14) * 0.9;
+    this.limbs[1].rotation.x = -Math.sin(t * 14) * 0.9;
+    this.limbs[2].rotation.x = -2.5 + Math.sin(t * 11) * 0.55;
+    this.limbs[3].rotation.x = -2.5 + Math.cos(t * 12) * 0.55;
+    this.mesh.traverse(o => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh) (m.material as THREE.MeshStandardMaterial).opacity = ok ? 0.6 : 0.28;
+    });
+  }
+
+  /** Neerploffen: de werker valt het laatste stukje, veert in en begint dan pas. */
+  plop(): void {
+    this.dropT = 0.55;
+  }
+
+  private dropT = 0;
+
   update(dt: number, w: WorkerWorld, claimed: Set<object>): void {
+    if (this.dropT > 0) {
+      // eerst vallen (0,3 tel), dan inveren (0,25 tel)
+      this.dropT -= dt;
+      const fall = Math.max(0, (this.dropT - 0.25) / 0.3);
+      const squash = this.dropT < 0.25 ? Math.sin((Math.max(0, this.dropT) / 0.25) * Math.PI) * 0.28 : 0;
+      this.place();
+      this.mesh.position.y = fall * fall * 0.5;
+      const size = this.height / 0.66;
+      this.mesh.scale.set(size * (1 + squash * 0.5), size * (1 - squash), size * (1 + squash * 0.5));
+      this.limbs[2].rotation.x = this.limbs[3].rotation.x = -2.5 * fall;
+      return;
+    }
     if (!this.paid) {
       // geen loon: even wachten
       swing(this.limbs, 0);

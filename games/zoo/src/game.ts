@@ -679,6 +679,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   // ------------------------------------------------------------ knoppen
   private selectTool(id: ToolId, row?: string, option?: string): void {
+    if (this.staffGhost) this.staffGhost.worker.mesh.visible = false;
     // wie voor het eerst personeel kiest, krijgt de uitleg
     if (id === 'staff' && !this.workers.length && !this.guideShown) this.showStaffGuide();
     this.tool = id;
@@ -928,6 +929,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
   }
 
+  /** Het doorzichtige poppetje onder de muis als je personeel gaat neerzetten. */
+  private staffGhost: { worker: Worker; role: WorkerRole; gx: number; gy: number; ok: boolean } | null = null;
+
   private addWorker(role: WorkerRole, gx: number, gy: number): Worker {
     const worker = new Worker(gx, gy, role);
     this.view.scene.add(worker.mesh);
@@ -945,7 +949,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private placeStaff(x: number, y: number): void {
     if (!this.grid.inBounds(x, y) || this.grid.enclosureAt(x, y) || this.taken(x, y)) return this.nope(x + 0.5, y + 0.5);
     const role = this.option.staff as WorkerRole;
-    this.addWorker(role, x + 0.5, y + 0.5);
+    this.addWorker(role, x + 0.5, y + 0.5).plop();
+    if (this.staffGhost) this.staffGhost.worker.mesh.visible = false;
     sfx('place');
     this.floatAt(icon(role === 'feed' ? 'feed' : 'broom'), x + 0.5, y + 0.5, 0.9);
     this.sayNow(say.hiredAs(role));
@@ -2042,6 +2047,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Onder de muis: het voorbeeld van wat je gaat plaatsen en de cursor die bij de handeling hoort. */
   private hover(cx: number, cy: number, dragging: boolean): void {
     this.view.hideGhost();
+    if (this.staffGhost) this.staffGhost.worker.mesh.visible = false;
     this.hoverPoop = null;
     const g = this.view.groundPoint(cx, cy);
     if (!g) return;
@@ -2083,9 +2089,26 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       case 'decor':
         if (inside) this.view.ghostDecor(x, y, this.option.decor as DecorKind, this.decorFits(x, y));
         return this.hud.setCursor(CUR[this.option.decor]);
-      case 'staff':
-        if (inside) this.view.ghostTile(x, y, this.grid.enclosureAt(x, y) || this.taken(x, y) ? 0xe0584f : 0x8fd16a);
+      case 'staff': {
+        const role = this.option.staff as WorkerRole;
+        const ok = inside && !this.grid.enclosureAt(x, y) && !this.taken(x, y);
+        if (inside) this.view.ghostTile(x, y, ok ? 0x8fd16a : 0xe0584f);
+        // een doorzichtige werker hangt spartelend boven de plek tot je hem neerzet
+        if (this.staffGhost && this.staffGhost.role !== role) {
+          this.view.scene.remove(this.staffGhost.worker.mesh);
+          this.staffGhost = null;
+        }
+        if (!this.staffGhost) {
+          const worker = new Worker(0, 0, role).ghost();
+          this.view.scene.add(worker.mesh);
+          this.staffGhost = { worker, role, gx: 0, gy: 0, ok };
+        }
+        this.staffGhost.worker.mesh.visible = inside;
+        this.staffGhost.gx = x + 0.5;
+        this.staffGhost.gy = y + 0.5;
+        this.staffGhost.ok = ok;
         return this.hud.setCursor(CUR.staff);
+      }
       case 'shop': {
         const kind = this.option.shop as ShopKind;
         if (SHOP_SIZE[kind] === 1) {
@@ -2368,7 +2391,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       e.preventDefault();
       this.view.zoomBy(e.deltaY > 0 ? 1.1 : 0.9);
     }, { passive: false });
-    canvas.addEventListener('pointerleave', () => this.view.hideGhost());
+    canvas.addEventListener('pointerleave', () => {
+      this.view.hideGhost();
+      if (this.staffGhost) this.staffGhost.worker.mesh.visible = false;
+    });
 
     canvas.addEventListener('pointerdown', e => {
       canvas.setPointerCapture(e.pointerId);
@@ -2428,7 +2454,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         else if (this.tool !== 'terrain') this.paint(flick ? d.sx : e.clientX, flick ? d.sy : e.clientY);
       }
       if (e.pointerType === 'mouse') this.hover(e.clientX, e.clientY, false);
-      else this.view.hideGhost();
+      else {
+        this.view.hideGhost();
+        if (this.staffGhost) this.staffGhost.worker.mesh.visible = false;
+      }
     };
     canvas.addEventListener('pointerup', end);
     canvas.addEventListener('pointercancel', end);
@@ -2673,6 +2702,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     for (const a of this.animals) a.update(dt, this);
     this.guests.update(dt);
     this.animateToys();
+    if (this.staffGhost?.worker.mesh.visible) this.staffGhost.worker.dangle(this.staffGhost.gx, this.staffGhost.gy, this.clock, this.staffGhost.ok);
     this.animateProps();
     for (const worker of this.workers) worker.update(dt, this, this.claimed);
     const hour = Math.floor(this.clock / HOUR_SECONDS);

@@ -165,6 +165,7 @@ Gemeten met `tools/playtest/berichten.js` in een park met 80 dieren zonder verzo
   - de voerder vult voerbakken die bijna leeg zijn;
   - de schoonmaker veegt poep (in de verblijven en op het pad) en raapt afval op.
   - Ze gaan een verblijf alleen in door een **poort**. Poorten kun je vanaf level 12 bouwen (knop Hek, keuze Poort). Kan een werker ergens niet in, dan verschijnt er een poortje boven die plek en zegt de bouwer dat er een poort moet komen.
+  - Bij het neerzetten hangt er een doorzichtige werker boven de plek onder je vinger of muis: hij zweeft, trappelt met zijn benen en zwaait met zijn armen. Mag hij daar niet staan (in een verblijf of op iets anders), dan is hij bijna onzichtbaar en is de tegel rood. Tik je, dan ploft hij neer, veert even in en gaat aan het werk.
   - Al het personeel draagt hetzelfde groene pak. De rol zie je aan de pet en de streep (oranje voor de voerder, blauw voor de schoonmaker) en aan wat ze dragen: een voerzak of een bezem.
   - Loon: 2 munten per uur per werker. Een uur in het spel duurt twee minuten; rechtsboven staat een klokje met het uur. Is er op het hele uur te weinig geld, dan wachten de werkers die niets kregen tot het volgende uur en zegt de kassier dat.
   - Een tik op een werker met het handje laat zien wat hij doet en stuurt hem naar huis.
