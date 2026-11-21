@@ -166,6 +166,17 @@ export const COIN_CAP = 99;
 export const START_COINS = 10;
 export const LEVEL_BONUS = 5;
 export const PRICE = { trough: 1, bed: 1, toy: 2 };
+/**
+ * Drie soorten voerbakken: hoe groter, hoe meer porties erin passen en hoe langer het voer meegaat.
+ * `from`: na hoeveel gehaalde levels je hem vrijspeelt.
+ */
+export type TroughKind = 'wood' | 'big' | 'silo';
+export const TROUGHS: TroughKind[] = ['wood', 'big', 'silo'];
+export const TROUGH: Record<TroughKind, { price: number; portions: number; from: number }> = {
+  wood: { price: 1, portions: 4, from: 0 },
+  big: { price: 4, portions: 8, from: 6 },
+  silo: { price: 10, portions: 16, from: 16 },
+};
 /** Werkers (voerder, schoonmaker) kosten loon: zoveel munten per uur. Een uur in het spel duurt twee minuten. */
 export const WAGE = 2;
 export const HOUR_SECONDS = 120;

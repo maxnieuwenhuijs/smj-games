@@ -1091,13 +1091,22 @@ export interface KeeperTrough {
   food: string | null;
   amount: number;
 }
-export type WorkerRole = 'feed' | 'clean';
+export type WorkerRole = 'feed' | 'clean' | 'fix';
+/** Een versleten hek dat gemaakt moet worden. */
+export interface FixJob {
+  e: { o: 'h' | 'v'; x: number; y: number };
+  gx: number;
+  gy: number;
+}
 export interface WorkerWorld {
   grid: Grid;
   /** Voerbakken die bijgevuld moeten worden, met het voer dat erin hoort. */
   feedJobs(): { trough: KeeperTrough; food: FoodId }[];
   /** Poep (in de verblijven en op het pad) en afval dat opgeruimd moet worden. */
   cleanJobs(): KeeperPoop[];
+  /** Versleten hekken die gemaakt moeten worden. */
+  fixJobs(): FixJob[];
+  workerFix(job: FixJob): void;
   /** Mag een werker over deze tegel lopen? Niet door een gebouw, voerbak of versiering. */
   walkable(tile: number): boolean;
   workerFill(trough: KeeperTrough, food: FoodId): void;
@@ -1107,7 +1116,9 @@ export interface WorkerWorld {
 }
 
 // Al het personeel draagt hetzelfde groene pak; de rol zie je aan de streep, de pet en wat ze dragen.
-const ROLE_COLOR: Record<WorkerRole, number> = { feed: 0xf5a623, clean: 0x4a90e2 };
+const ROLE_COLOR: Record<WorkerRole, number> = { feed: 0xf5a623, clean: 0x4a90e2, fix: 0xe0584f };
+const HAMMER_GEO = new THREE.BoxGeometry(0.03, 0.3, 0.03).translate(0, -0.14, 0.06);
+const HAMMERHEAD_GEO = new THREE.BoxGeometry(0.13, 0.07, 0.07).translate(0, -0.3, 0.06);
 const STRIPE_GEO = new THREE.BoxGeometry(0.21, 0.05, 0.14);
 const BROOM_GEO = new THREE.BoxGeometry(0.025, 0.46, 0.025).translate(0, -0.1, 0.06);
 const BRISTLE_GEO = new THREE.BoxGeometry(0.13, 0.07, 0.05).translate(0, -0.34, 0.06);
@@ -1116,7 +1127,7 @@ const PATCH_GEO = new THREE.BoxGeometry(0.07, 0.07, 0.01).translate(0, -0.2, 0.1
 
 /**
  * Een werker loopt door het hele park. Een voerder vult lege voerbakken, een schoonmaker veegt poep en raapt
- * afval op. Naar binnen kan hij alleen door een poort.
+ * afval op, een klusser timmert versleten hekken vast. Naar binnen kan hij alleen door een poort.
  */
 export class Worker {
   readonly mesh: THREE.Group;
@@ -1127,7 +1138,7 @@ export class Worker {
   paid = true;
   private limbs: THREE.Mesh[];
   private route: number[] = [];
-  private job: { key: object; trough?: KeeperTrough; food?: FoodId; mess?: KeeperPoop } | null = null;
+  private job: { key: object; trough?: KeeperTrough; food?: FoodId; mess?: KeeperPoop; fix?: FixJob } | null = null;
   private timer = 0.5;
   private working = 0;
   private heading = 0;
@@ -1146,6 +1157,7 @@ export class Worker {
     this.mesh.add(stripe);
     // wat hij draagt, zit aan zijn arm en beweegt dus mee
     if (role === 'clean') this.limbs[2].add(new THREE.Mesh(BROOM_GEO, mat(0xa8743f)), new THREE.Mesh(BRISTLE_GEO, mat(0xffd23f)));
+    else if (role === 'fix') this.limbs[2].add(new THREE.Mesh(HAMMER_GEO, mat(0xa8743f)), new THREE.Mesh(HAMMERHEAD_GEO, mat(0x8a857a)));
     else this.limbs[2].add(new THREE.Mesh(SACK_GEO, mat(0xb88a52)), new THREE.Mesh(PATCH_GEO, accent));
     this.gx = gx;
     this.gy = gy;
@@ -1206,6 +1218,19 @@ export class Worker {
         }
         this.job = { key: j.trough, trough: j.trough, food: j.food };
         claimed.add(j.trough);
+        this.route = route.slice(1);
+        return;
+      }
+    } else if (this.role === 'fix') {
+      const jobs = w.fixJobs().filter(j => !claimed.has(j)).map(j => ({ fix: j, at: [j.gx, j.gy] as [number, number] }));
+      for (const j of near(jobs)) {
+        // naast het hek gaan staan: aan de kant waar hij bij kan
+        const { o, x, y } = j.fix.e;
+        const sides = (o === 'h' ? [[x, y - 1], [x, y]] : [[x - 1, y], [x, y]]).filter(([sx, sy]) => w.grid.inBounds(sx, sy)).map(([sx, sy]) => tileIndex(sx, sy)).filter(i => w.walkable(i));
+        const route = sides.length ? this.routeTo(w, new Set(sides)) : null;
+        if (!route) continue;
+        this.job = { key: j.fix, fix: j.fix };
+        claimed.add(j.fix);
         this.route = route.slice(1);
         return;
       }
@@ -1293,6 +1318,7 @@ export class Worker {
       if (this.working <= 0 && this.job) {
         if (this.job.trough && this.job.food) w.workerFill(this.job.trough, this.job.food);
         if (this.job.mess) w.workerClean(this.job.mess);
+        if (this.job.fix) w.workerFix(this.job.fix);
         this.drop(claimed);
         this.timer = 0.4;
       }
@@ -1321,7 +1347,7 @@ export class Worker {
     if (!this.job && this.timer > 1.4 && this.timer < 2.4) this.limbs[3].rotation.x = -2.5 + Math.sin(this.phase * 0.6) * 0.15;
     if (this.job) {
       // aangekomen: naar het werk kijken en beginnen
-      const [ax, ay] = this.job.trough ? [this.job.trough.x + 0.5, this.job.trough.y + 0.5] : [this.job.mess!.gx, this.job.mess!.gy];
+      const [ax, ay] = this.job.trough ? [this.job.trough.x + 0.5, this.job.trough.y + 0.5] : this.job.fix ? [this.job.fix.gx, this.job.fix.gy] : [this.job.mess!.gx, this.job.mess!.gy];
       if (Math.hypot(ax - this.gx, ay - this.gy) > 0.05) this.heading = Math.atan2(ax - this.gx, ay - this.gy);
       this.working = 1.4;
     } else {

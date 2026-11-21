@@ -343,6 +343,20 @@ Vanaf level 8 slijt een houten hek (stenen muren en netten niet). Ongeveer eens 
 
 Kies bij de actieknop de hamer; een tik op het hek timmert het in elke fase weer vast. Bij een kapot hek voelen de dieren in dat verblijf zich niet veilig: ze zijn niet blij, het wolkje toont een hamertje en de bouwer zegt dat je het moet maken. Ze worden er niet voor opgehaald.
 
+## Drie voerbakken
+
+| Voerbak | Prijs | Porties | Vanaf level | Hoe hij eruitziet |
+|---|---|---|---|---|
+| Houten bak | 1 | 4 | 1 | De gewone bak |
+| Grote bak | 4 | 8 | 7 | Van steen, breder en dieper, met twee rijen voer |
+| Voersilo | 10 | 16 | 17 | Een ronde toren met een rood dak en een bakje ervoor |
+
+Hoe groter de bak, hoe minder vaak je hoeft te vullen. Zodra de grote bak er is, kies je de soort in de rij boven de knop Voerbak. Tik je op een grote bak of silo, dan staat er een getal bij het voer (zoveel porties zitten er nog in). Weghalen geeft de helft terug. De getallen staan in `games/zoo/src/data.ts` (`TROUGH`).
+
+## De klusser
+
+Bij Personeel is er een derde werker: de klusser (rode pet en streep, hamer in de hand, 2 munten per uur, vanaf level 12). Hij loopt naar elk versleten houten hek en timmert het vast. Hij hoeft het verblijf niet in: hij gaat naast het hek staan aan de kant waar hij bij kan. Twee klussers gaan nooit naar hetzelfde hek.
+
 ## Hekken in een kleur
 
 Tik met het handje op een verblijf en kies Kleur (de kwast): je krijgt tien kleuren die bij dat soort hek horen. Hout: gewoon, wit, rood, blauw, groen, geel, roze, paars, oranje en donkerbruin. Steen: grijs, zand, baksteen, wit, donkergrijs, mosgroen, blauwgrijs, roze, geel en bruin. Net: groen, zwart, wit, blauw, rood, geel, oranje, paars, roze en zilver. Het hele hek van dat verblijf krijgt de kleur, ook de poort; een hek tussen twee verblijven krijgt de kleur van het laatste. De kleur wordt bewaard met het spel. Versleten hout blijft zichtbaar donkerder.

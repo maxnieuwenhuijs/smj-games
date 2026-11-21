@@ -1,7 +1,7 @@
 // Het beeld: isometrische camera, tegels, hekken, voerbakken en het voorbeeld van wat je gaat plaatsen.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind } from './data';
+import { FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind } from './data';
 import { Grid, H, W, edgeKey, tileXY, type Edge } from './grid';
 
 const SQRT2 = Math.SQRT2;
@@ -350,6 +350,11 @@ const SHOP_MOVING: Partial<Record<ShopKind, { y: number; parts: Part[] }>> = {
     ],
   },
 };
+// De voersilo: een ronde toren met een rood dak en een bakje ervoor waar de dieren uit eten.
+const SILO_GEO = tube(0.24, 0.24, 0.85, 0, 0.475, -0.2);
+const SILO_ROOF_GEO = cone(0.3, 0.24, 0, 1.02, -0.2);
+const SILO_TRAY_GEO = TROUGH_GEO.clone().scale(0.75, 0.8, 0.55).translate(0, 0, 0.26);
+const SILO_MAT = std(0xd9dde2, 0.5);
 // Losse speeltoestellen van 2 bij 2 tegels. Wat beweegt (de zitjes van de schommel, de plank van de wipwap,
 // de wipkippen) staat in SHOP_MOVING en draait om het midden op hoogte `y`.
 const PLAY_FLOOR: Part = [boxAt(1.84, 0.04, 1.84, 0, 0.02, 0), std(0xe9b66b, 1), false];
@@ -715,6 +720,7 @@ export const toWorldZ = (gy: number): number => gy - H / 2;
 export interface TroughMesh {
   group: THREE.Group;
   food: THREE.Group;
+  kind: TroughKind;
 }
 
 export class View {
@@ -1017,26 +1023,47 @@ export class View {
   }
 
   // ------------------------------------------------------------ voerbak
-  makeTrough(x: number, y: number): TroughMesh {
+  makeTrough(x: number, y: number, kind: TroughKind = 'wood'): TroughMesh {
     const group = new THREE.Group();
-    const box = new THREE.Mesh(TROUGH_GEO, WOOD_MAT);
-    const bottom = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.02, 0.36), DARK_MAT);
-    bottom.position.y = 0.07;
     const food = new THREE.Group();
-    group.add(box, bottom, food);
-    box.castShadow = true;
+    if (kind === 'silo') {
+      const parts = [new THREE.Mesh(SILO_GEO, SILO_MAT), new THREE.Mesh(SILO_ROOF_GEO, ROOF_MAT), new THREE.Mesh(SILO_TRAY_GEO, WOOD_MAT)];
+      for (const m of parts) m.castShadow = true;
+      // het voer ligt in het bakje voor de toren
+      food.position.set(0, -0.02, 0.26);
+      food.scale.setScalar(0.75);
+      group.add(...parts, food);
+    } else {
+      const box = new THREE.Mesh(TROUGH_GEO, kind === 'big' ? STONE_MAT : WOOD_MAT);
+      const bottom = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.02, 0.36), DARK_MAT);
+      bottom.position.y = 0.07;
+      if (kind === 'big') {
+        // de grote bak: van steen, breder, dieper en hoger
+        box.scale.set(1.15, 1.4, 1.6);
+        bottom.scale.set(1.15, 1, 1.6);
+        bottom.position.y = 0.1;
+        food.scale.set(1.12, 1.15, 1);
+        food.position.y = 0.04;
+      }
+      group.add(box, bottom, food);
+      box.castShadow = true;
+    }
     group.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
     this.scene.add(group);
-    return { group, food };
+    return { group, food, kind };
   }
 
-  /** Toont net zoveel stukjes voer als er porties in de bak zitten. */
+  /**
+   * Toont het voer in de bak: in de houten bak een stukje per portie, in de grote bak twee rijen, en in het
+   * bakje van de silo een stukje per vier porties.
+   */
   fillTrough(mesh: TroughMesh, food: FoodId | null, amount: number): void {
     mesh.food.clear();
     if (!food) return;
-    for (let i = 0; i < amount; i++) {
+    const pieces = mesh.kind === 'silo' ? Math.ceil(amount / 4) : amount;
+    for (let i = 0; i < pieces; i++) {
       const piece = foodPiece(food);
-      piece.position.set(-0.255 + i * 0.17, food === 'hay' ? 0.14 : 0.13, 0);
+      piece.position.set(-0.255 + (i % 4) * 0.17, food === 'hay' ? 0.14 : 0.13, mesh.kind === 'big' ? (i < 4 ? -0.1 : 0.1) : 0);
       piece.rotation.y = food === 'veg' || food === 'meat' ? (i % 2 ? 0.25 : -0.25) : 0;
       piece.traverse(o => { o.castShadow = true; });
       mesh.food.add(piece);

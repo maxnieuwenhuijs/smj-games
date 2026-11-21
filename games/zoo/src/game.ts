@@ -8,14 +8,14 @@ import {
   BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
-  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, FENCE_COLORS, SPACE, guestsAt, SERVES, } from './data';
+  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, SPACE, guestsAt, SERVES, } from './data';
 import { Grid, H, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region } from './grid';
 import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
 import { cursor, icon, type IconId } from './icons';
 import { emptyStats, goalProgress, levelDone, type Stats } from './levels';
 import { CHEERS, NAMED, PRAISE, callText, goalLine, say, textOf, voiceId, wishLine, type Line } from './lines';
 import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStatic, speciesIcon } from './models';
-import { ENTRANCE, GuestManager, Vendor, Worker, edgePose, edgeSides, shopCenter, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type ShopSpot, type WorkerRole, type WorkerWorld } from './people';
+import { ENTRANCE, GuestManager, Vendor, Worker, edgePose, edgeSides, shopCenter, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type ShopSpot, type WorkerRole, type WorkerWorld, type FixJob } from './people';
 import { View, toWorldX, toWorldZ, type TroughMesh } from './view';
 
 /** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken. */
@@ -41,7 +41,8 @@ const PAINT_TOOLS = new Set<ToolId>(['terrain', 'fence', 'erase', 'action']);
 const AXIS_AFTER = 0.3;
 const TURN_AFTER = 0.75;
 const EDGE_REACH = 0.35;
-const TROUGH_PORTIONS = 4;
+const TROUGH_ICON: Record<TroughKind, IconId> = { wood: 'trough_empty', big: 'trough_big', silo: 'trough_silo' };
+const ROLE_ICON: Record<WorkerRole, IconId> = { feed: 'feed', clean: 'broom', fix: 'hammer' };
 /** Verwaarlozing in seconden: eerst waarschuwen, daarna haalt de verzorger het dier op. */
 const NEGLECT_WARN = 150;
 const NEGLECT_GONE = 360;
@@ -110,7 +111,7 @@ export interface SaveData {
   terrain: number[];
   h: number[];
   vv: number[];
-  troughs: { x: number; y: number; food: FoodId | null; amount: number }[];
+  troughs: { x: number; y: number; food: FoodId | null; amount: number; kind?: TroughKind }[];
   animals: { species: SpeciesId; variant: Variant; gx: number; gy: number; hunger: number; name?: string; sick?: boolean; escaped?: boolean }[];
   poops: { gx: number; gy: number }[];
   /** `keeper`, `feeder` en `cleaner` komen uit oudere spellen, toen een werker bij één verblijf hoorde. */
@@ -146,6 +147,7 @@ export const slotKey = (slot: number): string => `zoo-slot-${slot}`;
 
 interface TroughObj extends Trough {
   food: FoodId | null;
+  kind: TroughKind;
   mesh: TroughMesh;
 }
 interface BedObj {
@@ -230,7 +232,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   stats: Stats = emptyStats();
   tool: ToolId = 'hand';
 
-  private option = { action: 'broom', terrain: 'mud', fence: 'fence', bed: 'straw', toy: 'ball', staff: 'feed', decor: 'tree', decorGroup: 'green', shop: 'foodstall', animal: '', sex: 'male', world: 'farm' };
+  private option = { trough: 'wood', action: 'broom', terrain: 'mud', fence: 'fence', bed: 'straw', toy: 'ball', staff: 'feed', decor: 'tree', decorGroup: 'green', shop: 'foodstall', animal: '', sex: 'male', world: 'farm' };
   private puddles: { mesh: THREE.Mesh; life: number }[] = [];
   private bubbles = new Map<Animal, HTMLElement>();
   private guestBubbles = new Map<Guest, HTMLElement>();
@@ -370,7 +372,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.coins = d.coins ?? START_COINS;
     this.debt = d.debt ?? 0;
     this.savedPens = (d.pens ?? []).map(p => ({ name: p.name, color: p.color, tile: tileIndex((p.tile % ow) + ox, Math.floor(p.tile / ow) + oy) }));
-    for (const tr of d.troughs) this.addTrough(tr.x + ox, tr.y + oy, tr.food, tr.amount);
+    for (const tr of d.troughs) this.addTrough(tr.x + ox, tr.y + oy, tr.food, tr.amount, tr.kind && TROUGH[tr.kind] ? tr.kind : 'wood');
     for (const b of d.beds ?? []) this.addBed(b.x + ox, b.y + oy, b.kind);
     for (const b of d.toys ?? []) this.addToy(b.x + ox, b.y + oy, b.kind);
     for (const b of d.decor ?? []) if (DECOR[b.kind]) this.addDecor(b.x + ox, b.y + oy, b.kind);
@@ -443,7 +445,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       terrain: Array.from(this.grid.terrain),
       h: Array.from(this.grid.h),
       vv: Array.from(this.grid.v),
-      troughs: this.troughs.map(({ x, y, food, amount }) => ({ x, y, food, amount })),
+      troughs: this.troughs.map(({ x, y, food, amount, kind }) => ({ x, y, food, amount, kind: kind === 'wood' ? undefined : kind })),
       animals: this.animals.map(a => ({
         species: a.species, variant: a.variant, gx: a.gx, gy: a.gy, hunger: a.hunger, name: a.name, sick: a.sick || undefined, escaped: a.escaped || undefined,
       })),
@@ -722,6 +724,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (!list.includes(this.option[key] as T)) this.option[key] = list[list.length - 1] ?? '';
     };
     pickFrom('world', this.worldOptions());
+    const troughs = TROUGHS.filter(k => TROUGH[k].from <= this.level);
+    if (!troughs.includes(this.option.trough as TroughKind)) this.option.trough = 'wood';
     if (!this.actionOptions().includes(this.option.action as ActionId)) this.option.action = 'broom';
     // eerst kies je de wereld (schuur, savanneboom, ...), daarboven staan de dieren van die wereld
     const shown = species.filter(sp => HOME[sp] === this.option.world);
@@ -767,7 +771,14 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         ...opt('fence', 'fence', t('tool.fence')),
         rows: [{ key: 'fence', active: this.option.fence, options: this.fenceOptions().map(k => opt(k, k as IconId, t(`fence.${k}`))) }],
       },
-      opt('trough', 'trough_empty', t('tool.trough'), PRICE.trough),
+      // eerst is er alleen de houten bak; komen er grotere bij, dan kies je in de rij erboven
+      troughs.length > 1
+        ? {
+            ...opt('trough', 'trough_empty', t('tool.trough')),
+            fresh: troughs.some(k => this.fresh.has(k)),
+            rows: [{ key: 'trough', active: this.option.trough, options: troughs.map(k => ({ ...opt(k, TROUGH_ICON[k], t(`trough.${k}`), TROUGH[k].price), fresh: this.fresh.has(k) })) }],
+          }
+        : opt('trough', 'trough_empty', t('tool.trough'), PRICE.trough),
       {
         ...opt('bed', 'shed', t('tool.bed')),
         rows: [{ key: 'bed', active: this.option.bed, options: this.bedOptions().map(k => opt(k, k, t(`bed.${k}`), PRICE.bed)) }],
@@ -811,7 +822,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.has('keeper'))
       defs.push({
         ...opt('staff', 'keeper', t('tool.staff')),
-        rows: [{ key: 'staff', active: this.option.staff, options: (['feed', 'clean'] as const).map(r => ({ id: r, icon: icon(r === 'feed' ? 'feed' : 'broom'), label: t(`staff.${r}`), price: WAGE, per: true })) }],
+        rows: [{ key: 'staff', active: this.option.staff, options: (['feed', 'clean', ...(this.has('wear') ? (['fix'] as const) : [])] as WorkerRole[]).map(r => ({ id: r, icon: icon(ROLE_ICON[r]), label: t(`staff.${r}`), price: WAGE, per: true })) }],
       });
     defs.push(opt('erase', 'erase', t('tool.erase')));
     const grouped = TOOL_GROUPS.flatMap(([group, ids]) => ids.flatMap(id => defs.filter(d => d.id === id).map(d => ({ ...d, group }))));
@@ -1021,7 +1032,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.addWorker(role, x + 0.5, y + 0.5).plop();
     if (this.staffGhost) this.staffGhost.worker.mesh.visible = false;
     sfx('place');
-    this.floatAt(icon(role === 'feed' ? 'feed' : 'broom'), x + 0.5, y + 0.5, 0.9);
+    this.floatAt(icon(ROLE_ICON[role]), x + 0.5, y + 0.5, 0.9);
     this.sayNow(say.hiredAs(role));
     this.backToHand();
   }
@@ -1029,7 +1040,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Tik op een werker: je ziet wat hij doet en kunt hem naar huis sturen. */
   private workerMenu(worker: Worker): void {
     const s = this.view.toScreen(worker.gx, worker.gy, worker.height);
-    const header = icon(worker.role === 'feed' ? 'feed' : 'broom') + `<i class="price">${WAGE}${t('per.hour')}</i>`;
+    const header = icon(ROLE_ICON[worker.role]) + `<i class="price">${WAGE}${t('per.hour')}</i>`;
     this.hud.showMenu(s.x, s.y, t(`staff.${worker.role}`), [{ id: 'bye', icon: icon('empty'), label: t('staff.bye') }], () => {
       this.removeWorker(worker);
       sfx('erase');
@@ -1058,6 +1069,22 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   cleanJobs(): PoopObj[] {
     return [...this.poops, ...this.litter];
+  }
+
+  /** Voor de klusser: elk versleten hek is een klus. Hetzelfde hek geeft steeds hetzelfde briefje, zodat er maar één klusser op afgaat. */
+  private fixTargets = new Map<string, FixJob>();
+  fixJobs(): FixJob[] {
+    for (const key of [...this.fixTargets.keys()]) if (!this.wear.has(key)) this.fixTargets.delete(key);
+    for (const key of this.wear.keys()) {
+      if (this.fixTargets.has(key)) continue;
+      const o = key[0] as 'h' | 'v', [x, y] = key.slice(1).split(',').map(Number);
+      this.fixTargets.set(key, { e: { o, x, y }, gx: o === 'h' ? x + 0.5 : x, gy: o === 'h' ? y : y + 0.5 });
+    }
+    return [...this.fixTargets.values()];
+  }
+
+  workerFix(job: FixJob): void {
+    if (this.wear.has(edgeKey(job.e))) this.repair(job.e);
   }
 
   walkable(tile: number): boolean {
@@ -1373,8 +1400,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return !!(this.troughAt(x, y) || this.bedAt(x, y) || this.toyAt(x, y) || this.decorAt(x, y) || this.shopAt(x, y));
   }
 
-  private addTrough(x: number, y: number, food: FoodId | null, amount: number): TroughObj {
-    const tr: TroughObj = { x, y, food, amount, mesh: this.view.makeTrough(x, y) };
+  private addTrough(x: number, y: number, food: FoodId | null, amount: number, kind: TroughKind = 'wood'): TroughObj {
+    const tr: TroughObj = { x, y, food, amount, kind, mesh: this.view.makeTrough(x, y, kind) };
     this.view.fillTrough(tr.mesh, food, amount);
     this.troughs.push(tr);
     return tr;
@@ -1541,7 +1568,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   keeperFill(trough: KeeperTrough, food: FoodId): void {
     const tr = trough as TroughObj;
     tr.food = food;
-    tr.amount = TROUGH_PORTIONS;
+    tr.amount = TROUGH[tr.kind].portions;
     this.view.fillTrough(tr.mesh, food, tr.amount);
     this.floatAt(icon(food), tr.x + 0.5, tr.y + 0.5, 0.6);
   }
@@ -1629,8 +1656,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private placeTrough(x: number, y: number): void {
     const region = this.grid.enclosureAt(x, y);
     if (!region) return this.nope(x + 0.5, y + 0.5);
-    if (this.taken(x, y) || !this.pay(PRICE.trough, x + 0.5, y + 0.5)) return;
-    this.addTrough(x, y, null, 0);
+    const kind = this.option.trough as TroughKind;
+    if (this.taken(x, y) || !this.pay(TROUGH[kind].price, x + 0.5, y + 0.5)) return;
+    this.addTrough(x, y, null, 0, kind);
     this.uncover(x, y);
     sfx('place');
     this.floatAt(icon('sparkle'), x + 0.5, y + 0.5);
@@ -1792,9 +1820,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       return this.nope(tr.x + 0.5, tr.y + 0.5, 0.6);
     }
     // bijvullen van een bak die al vol zit met dit voer telt niet mee voor het doel
-    const wasFull = tr.food === food && tr.amount >= TROUGH_PORTIONS;
+    const wasFull = tr.food === food && tr.amount >= TROUGH[tr.kind].portions;
     tr.food = food;
-    tr.amount = TROUGH_PORTIONS;
+    tr.amount = TROUGH[tr.kind].portions;
     this.view.fillTrough(tr.mesh, food, tr.amount);
     sfx('pour');
     this.floatAt(icon(food), tr.x + 0.5, tr.y + 0.5, 0.6);
@@ -2006,7 +2034,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   private troughMenu(tr: TroughObj): void {
     const s = this.view.toScreen(tr.x + 0.5, tr.y + 0.5, 0.3);
-    const inside = tr.food && tr.amount ? icon(tr.food).repeat(tr.amount) : icon('trough_empty');
+    // in een grote bak of silo passen te veel porties om allemaal te tekenen: dan staat er een getal bij
+    const inside = tr.food && tr.amount ? (tr.amount > 4 ? `${icon(tr.food)}<b>${tr.amount}</b>` : icon(tr.food).repeat(tr.amount)) : icon(TROUGH_ICON[tr.kind]);
     const wanted = this.animalsIn(this.grid.regionOf[tileIndex(tr.x, tr.y)]).map(a => SPECIES[a.species].food);
     this.hud.showMenu(s.x, s.y, t('tool.trough'), this.foodOptions(wanted), id => this.feed(tr, id as FoodId), inside);
   }
@@ -2310,6 +2339,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (tr) {
         this.view.scene.remove(tr.mesh.group);
         this.troughs = this.troughs.filter(k => k !== tr);
+        this.earn(refund(TROUGH[tr.kind].price), x + 0.5, y + 0.5);
         const region = this.grid.enclosureAt(x, y);
         if (region) for (const a of this.animalsIn(region.id)) this.react(a, 'bad');
       } else if (bed) {
@@ -2732,7 +2762,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const ready = loadSpecies(level.reward);
       const done = this.praise();
       // wat er naast het dier nog vrijkomt: iets voor het park of een nieuw speeltoestel
-      const soon: string[] = [...DECORS.filter(k => DECOR[k].from === this.level + 1), ...SHOPS.filter(k => FEATURE[k] === this.level + 1)];
+      const soon: string[] = [...TROUGHS.filter(k => TROUGH[k].from === this.level + 1), ...DECORS.filter(k => DECOR[k].from === this.level + 1), ...SHOPS.filter(k => FEATURE[k] === this.level + 1)];
       sfx('fanfare');
       this.hud.showLevelDone(this.level + 1, speciesIcon(level.reward), t(`species.${level.reward}`), textOf(t, done), () => {
         void ready.then(() => {
@@ -2759,7 +2789,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
           animalSound(level.reward, false);
           void this.save();
         });
-      }, done.who, soon.map(k => icon(k as IconId)));
+      }, done.who, soon.map(k => icon(k in TROUGH ? TROUGH_ICON[k as TroughKind] : (k as IconId))));
       playVoice(voiceId(done.who, textOf(t, done)));
       return;
     }

@@ -112,7 +112,7 @@ export const say = {
   host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident' | 'nopath', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
   busy: (kind: string): Line => ({ who: 'host', mood: 'worried', key: `host.busy.${kind}` }),
   cash: (key: 'short' | 'full' | 'wage'): Line => ({ who: 'cashier', mood: key === 'full' ? 'happy' : 'worried', key: `cash.${key}` }),
-  hiredAs: (role: 'feed' | 'clean'): Line => ({ who: 'keeper', mood: 'happy', key: `say.hired.${role}` }),
+  hiredAs: (role: 'feed' | 'clean' | 'fix'): Line => ({ who: 'keeper', mood: 'happy', key: `say.hired.${role}` }),
 };
 
 /** De tekst van een zin, zoals hij op het scherm komt en wordt uitgesproken. */
@@ -217,5 +217,6 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.cash('wage'));
   add(say.hiredAs('feed'));
   add(say.hiredAs('clean'));
+  add(say.hiredAs('fix'));
   return [...out.values()];
 }
