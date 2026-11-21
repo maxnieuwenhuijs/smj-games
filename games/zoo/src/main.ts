@@ -7,7 +7,7 @@ import en from './en.json';
 import { Game, slotKey, type SaveData } from './game';
 import { icon, type IconId } from './icons';
 import { hasSpecies, loadManifest, loadModel, loadSpecies, probeIcons } from './models';
-import { cleanName, elevenKey, loadName, setElevenKey } from './names';
+import { cleanName, loadName, setElevenKey, storedElevenKey } from './names';
 import nl from './nl.json';
 import './style.css';
 import { View } from './view';
@@ -206,7 +206,7 @@ async function showParents(): Promise<void> {
   keyInput.className = 'nameinput small wide';
   keyInput.type = 'password';
   keyInput.autocomplete = 'off';
-  keyInput.value = elevenKey();
+  keyInput.value = storedElevenKey();
   keyInput.addEventListener('change', () => {
     setElevenKey(keyInput.value);
     note.textContent = t('parents.done');

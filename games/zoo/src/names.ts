@@ -13,12 +13,21 @@ import { namedLines, voiceId } from './lines';
 const KEY_STORE = 'zoo-eleven-key';
 type Cast = Record<string, Record<string, { voice: string; model?: string; settings?: Record<string, number> }>>;
 
-export function elevenKey(): string {
+/** Alleen gevuld bij `npm run dev` op de eigen computer (zie vite.config.ts); in het gepubliceerde spel leeg. */
+declare const __ELEVEN_DEV_KEY__: string;
+
+/** De sleutel die een ouder op dit apparaat heeft ingevuld. */
+export function storedElevenKey(): string {
   try {
     return localStorage.getItem(KEY_STORE) ?? '';
   } catch {
     return '';
   }
+}
+
+/** De sleutel om een naam mee in te spreken: die van de ouder, of bij het ontwikkelen die uit `.env`. */
+export function elevenKey(): string {
+  return storedElevenKey() || __ELEVEN_DEV_KEY__;
 }
 
 export function setElevenKey(key: string): void {

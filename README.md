@@ -54,6 +54,8 @@ node tools/voice/build.mjs all
 
 Er zijn ook `node tools/voice/build.mjs music` (de achtergrondmuziek) en `node tools/voice/build.mjs names` (de zinnen met een naam erin; `--add Sepp` voegt een naam toe).
 
+Bij `npm run dev` gebruikt het spel die sleutel ook als standaard om een naam in te spreken die nog niet in het lijstje staat. Dat geldt alleen op je eigen computer: in de gebouwde site zit de sleutel nooit (zie `games/zoo/vite.config.ts`). Op de gepubliceerde site vul je hem per apparaat in het oudermenu in.
+
 `plan` telt alleen wat er ontbreekt. `all` maakt de ontbrekende zinnen (Nederlands en Engels) en geluiden; wat er al is, wordt overgeslagen. De zinnen komen uit het spel zelf (`games/zoo/src/lines.ts`), de stemmen staan in `tools/voice/voices.json` en de geluiden in `tools/voice/sounds.json`.
 
 ## Proefspelen
