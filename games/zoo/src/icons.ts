@@ -294,6 +294,8 @@ const ICONS = {
     `<path d="M24 44 q-6 -3 0 -6 q6 -3 0 -6 q-6 -3 0 -5" fill="none" stroke="#8a857a" stroke-width="3" stroke-linecap="round"/><ellipse cx="22" cy="20" rx="14" ry="8" fill="${RED}"/><circle cx="37" cy="13" r="7" fill="${RED}"/><path d="M43 13 l5 2 l-5 2Z" fill="${SUN}"/><circle cx="38.5" cy="11.5" r="1.5" fill="#fff"/><path d="M8 18 l-5 -6 l8 2Z" fill="${SUN}"/><path d="M26 10 v-6" stroke="#3d4f5a" stroke-width="3" stroke-linecap="round"/><rect x="18" y="42" width="12" height="4" rx="2" fill="#3d4f5a"/>`,
   trampoline:
     `<ellipse cx="24" cy="30" rx="21" ry="9" fill="#4a90e2"/><ellipse cx="24" cy="29" rx="16" ry="6" fill="#3d4f5a"/><path d="M8 34 V44 M40 34 V44 M24 39 V46" stroke="#8a857a" stroke-width="3.5" stroke-linecap="round"/><circle cx="24" cy="10" r="5" fill="${SUN}"/><path d="M17 19 q7 -4 14 0" fill="none" stroke="${SUN}" stroke-width="3" stroke-linecap="round"/>`,
+  // een stuk grond erbij kopen: een tegel gras met een vlag
+  land: tile(GRASS) + `<path d="M24 27 V7" stroke="${WOOD_D}" stroke-width="3.5" stroke-linecap="round"/><path d="M24 7 H39 L35 12.5 L39 18 H24Z" fill="${RED}"/>`,
   // meer grond: rots, ijs, moeras, bloemenwei en droog gras
   stones: tile('#9aa0a8', '#8a9099') + '<g fill="#6f757d"><ellipse cx="16" cy="24" rx="4" ry="2.5"/><ellipse cx="27" cy="29" rx="5" ry="3"/><ellipse cx="29" cy="19" rx="4" ry="2.4"/></g>',
   ice: tile('#cfeaf7', '#bfe0f1') + '<path d="M12 25 l8 -4 M22 31 l10 -5 M24 19 l6 -3" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>',

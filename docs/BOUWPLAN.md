@@ -343,6 +343,14 @@ Vanaf level 8 slijt een houten hek (stenen muren en netten niet). Ongeveer eens 
 
 Kies bij de actieknop de hamer; een tik op het hek timmert het in elke fase weer vast. Bij een kapot hek voelen de dieren in dat verblijf zich niet veilig: ze zijn niet blij, het wolkje toont een hamertje en de bouwer zegt dat je het moet maken. Ze worden er niet voor opgehaald.
 
+## Het park uitbreiden
+
+Het park begint als een veld van 28 bij 28 tegels. Links, rechts en achter ligt een strook van 8 tegels breed die te koop is: je ziet er een licht vlak over de grond, een bordje met een vlag en een kaartje met de prijs. Een strook kost 75 munten (de kas gaat tot 99, dus daar spaar je echt voor). Tik op de strook of op het kaartje en kies Kopen; heb je te weinig, dan is de prijs grijs.
+
+Na het kopen licht de nieuwe grond op, schuift het beeld ernaartoe en zegt de bouwer: "Het park is groter geworden! Hier kun je weer bouwen." De bomen die er stonden zijn weg en je kunt er alles bouwen. Wat er al stond, blijft staan; een verblijf tegen de oude rand blijft een verblijf. Met alle drie de stroken is het park 44 bij 36 tegels, ruim twee keer zo groot. De stroken worden bewaard met het spel, en een ouder opgeslagen park komt vanzelf midden tegen de voorkant te liggen.
+
+De maten staan in `games/zoo/src/grid.ts` (`BASE_W`, `BASE_H`, `PLOT`), de prijs in `data.ts` (`LAND_PRICE`).
+
 ## Twaalf soorten grond en dieren die een mix willen
 
 Er zijn vijf soorten grond bijgekomen: rots, ijs, moeras, bloemenwei en droog gras (naast gras, modder, zand, water, sneeuw, bos en pad). Je krijgt een soort in de rij bij Grond zodra je een dier hebt dat hem wil.

@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind } from './data';
-import { Grid, H, W, edgeKey, tileXY, type Edge } from './grid';
+import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type Land, type Side } from './grid';
 
 const SQRT2 = Math.SQRT2;
 const SQRT3 = Math.sqrt(3);
@@ -42,12 +42,12 @@ const GATE_GEO = mergeGeometries([
   boxAt(0.07, 0.36, 0.06, 0.5, 0.27, 0),
   boxAt(0.07, 0.36, 0.06, 0.8, 0.27, 0),
 ])!;
-// Stenen muur voor sterke dieren.
+// Stenen muur voor sterke dieren: laag en smal genoeg om eroverheen het verblijf in te kijken.
 const WALL_GEO = mergeGeometries([
-  boxAt(1.1, 0.46, 0.2, 0.5, 0.23, 0),
-  boxAt(0.22, 0.12, 0.24, 0.12, 0.52, 0),
-  boxAt(0.22, 0.12, 0.24, 0.5, 0.52, 0),
-  boxAt(0.22, 0.12, 0.24, 0.88, 0.52, 0),
+  boxAt(1.06, 0.3, 0.13, 0.5, 0.15, 0),
+  boxAt(0.2, 0.09, 0.16, 0.12, 0.345, 0),
+  boxAt(0.2, 0.09, 0.16, 0.5, 0.345, 0),
+  boxAt(0.2, 0.09, 0.16, 0.88, 0.345, 0),
 ])!;
 // Hoog net voor klimmers, vliegers en springers: hoge palen met gaas ertussen.
 const NET_GEO = mergeGeometries([
@@ -774,6 +774,11 @@ export class View {
   private quality = 2;
   private slowFor = 0;
   private outerMat = new THREE.MeshStandardMaterial({ color: 0x6fb44c, roughness: 1 });
+  /** De bomen rond het park: één vorm per onderdeel, voor alle bomen samen. */
+  private treeSpots: { gx: number; gy: number; s: number; rot: number }[] = [];
+  private treeParts: THREE.InstancedMesh[] = [];
+  /** Per strook die te koop is: een licht vlak over de grond en een bordje. */
+  private plots = new Map<Side, { plane: THREE.Mesh; sign: THREE.Group }>();
   private leafMats = [0x4f9e45, 0x5bab4c, 0x468f3e].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 1 }));
 
   constructor(parent: HTMLElement) {
@@ -812,6 +817,8 @@ export class View {
         this.ground.setMatrixAt(x + y * W, m);
       }
     this.scene.add(this.ground);
+    this.addPlots();
+    this.setLand(BASE_LAND, SIDES);
 
     this.ghostTileMesh.position.y = 0.012;
     this.ghostRing.position.y = 0.014;
@@ -845,31 +852,96 @@ export class View {
     this.scene.add(gate);
   }
 
+  /**
+   * Bomen rond het park en op de grond die je nog niet hebt. Ze staan verspreid over het hele gebied; een boom
+   * verdwijnt zodra het park er komt (zie setLand).
+   */
   private addTrees(): void {
-    const trunk = new THREE.MeshStandardMaterial({ color: 0x8a5a33, roughness: 1 });
-    const leaves = this.leafMats;
     let seed = 7;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    for (let i = 0; i < 64; i++) {
-      const side = i % 4;
-      const along = rnd() * (W + 8) - (W + 8) / 2;
-      const out = W / 2 + 1.2 + rnd() * 5;
-      const x = side === 0 ? along : side === 1 ? out : side === 2 ? along : -out;
-      const z = side === 0 ? -out : side === 1 ? along : side === 2 ? out : along;
-      const s = 0.8 + rnd() * 0.7;
-      const tree = new THREE.Group();
-      const t = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.6, 0.22), trunk);
-      t.position.y = 0.3;
-      const a = new THREE.Mesh(new THREE.BoxGeometry(1, 0.8, 1), leaves[i % 3]);
-      a.position.y = 0.95;
-      const b = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.55, 0.65), leaves[(i + 1) % 3]);
-      b.position.y = 1.55;
-      tree.add(t, a, b);
-      tree.traverse(o => { o.castShadow = true; });
-      tree.position.set(x, 0, z);
-      tree.scale.setScalar(s);
-      tree.rotation.y = rnd() * Math.PI;
-      this.scene.add(tree);
+    const mid = Math.floor(W / 2) + 0.5;
+    while (this.treeSpots.length < 190) {
+      const gx = -8 + rnd() * (W + 16), gy = -8 + rnd() * (H + 15);
+      const s = 0.8 + rnd() * 0.7, rot = rnd() * Math.PI;
+      // niet in het park waar je mee begint, en niet op de weg naar de ingang
+      const inBase = gx > BASE_LAND.x0 - 1.2 && gx < BASE_LAND.x1 + 1.2 && gy > BASE_LAND.y0 - 1.2 && gy < BASE_LAND.y1 + 1.2;
+      if (inBase || (Math.abs(gx - mid) < 2.6 && gy > H - 2)) continue;
+      this.treeSpots.push({ gx, gy, s, rot });
+    }
+    const n = this.treeSpots.length;
+    const trunk = new THREE.MeshStandardMaterial({ color: 0x8a5a33, roughness: 1 });
+    this.treeParts = [
+      new THREE.InstancedMesh(new THREE.BoxGeometry(0.22, 0.6, 0.22).translate(0, 0.3, 0), trunk, n),
+      new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.8, 1).translate(0, 0.95, 0), this.leafMats[0], n),
+      new THREE.InstancedMesh(new THREE.BoxGeometry(0.65, 0.55, 0.65).translate(0, 1.55, 0), this.leafMats[1], n),
+    ];
+    // elke boom een tikje lichter of donkerder
+    const tint = new THREE.Color();
+    for (let i = 0; i < n; i++) {
+      this.treeParts[1].setColorAt(i, tint.setScalar(0.86 + rnd() * 0.24));
+      this.treeParts[2].setColorAt(i, tint.setScalar(0.86 + rnd() * 0.24));
+    }
+    for (const part of this.treeParts) {
+      part.castShadow = true;
+      part.frustumCulled = false;
+      this.scene.add(part);
+    }
+  }
+
+  /** Voor elke strook: een licht vlak dat laat zien welk stuk je koopt, en een bordje met een vlag. */
+  private addPlots(): void {
+    const flat = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+    for (const side of SIDES) {
+      const plane = new THREE.Mesh(flat, new THREE.MeshBasicMaterial({ color: 0xfff6c8, transparent: true, opacity: 0.22, depthWrite: false }));
+      plane.position.y = 0.012;
+      plane.renderOrder = 1;
+      const sign = new THREE.Group();
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.5, 0.14).translate(0, 0.75, 0), WOOD_MAT);
+      const board = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.7, 0.1).translate(0, 1.35, 0.06), WHITE_MAT);
+      const flag = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.32, 0.04).translate(0.3, 1.95, 0), ROOF_MAT);
+      const pole = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.5, 0.05).translate(0.04, 1.85, 0), WOOD_MAT);
+      sign.add(post, board, flag, pole);
+      sign.traverse(o => { o.castShadow = true; });
+      sign.rotation.y = Math.PI / 4;
+      this.scene.add(plane, sign);
+      this.plots.set(side, { plane, sign });
+    }
+  }
+
+  /** Waar het bordje van een strook staat (in rastercoördinaten): midden op de strook. */
+  plotCenter(plot: Land): [number, number] {
+    return [(plot.x0 + plot.x1) / 2, (plot.y0 + plot.y1) / 2];
+  }
+
+  /**
+   * De grond van het park is veranderd: alleen die tegels worden getekend, de bomen die er stonden gaan weg en
+   * op elke strook die nog te koop is (`plots`) ligt een licht vlak met een bordje.
+   */
+  setLand(land: Land, forSale: Side[], plotOf: (side: Side) => Land = side => new Grid(land).plot(side)): void {
+    const m = new THREE.Matrix4();
+    const none = new THREE.Matrix4().makeScale(0, 0, 0);
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        const mine = x >= land.x0 && x < land.x1 && y >= land.y0 && y < land.y1;
+        this.ground.setMatrixAt(x + y * W, mine ? m.makeTranslation(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5)) : none);
+      }
+    this.ground.instanceMatrix.needsUpdate = true;
+    const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), at = new THREE.Vector3(), size = new THREE.Vector3();
+    this.treeSpots.forEach((spot, i) => {
+      const inside = spot.gx > land.x0 - 0.9 && spot.gx < land.x1 + 0.9 && spot.gy > land.y0 - 0.9 && spot.gy < land.y1 + 0.9;
+      m.compose(at.set(toWorldX(spot.gx), 0, toWorldZ(spot.gy)), q.setFromAxisAngle(up, spot.rot), size.setScalar(inside ? 0 : spot.s));
+      for (const part of this.treeParts) part.setMatrixAt(i, m);
+    });
+    for (const part of this.treeParts) part.instanceMatrix.needsUpdate = true;
+    for (const [side, { plane, sign }] of this.plots) {
+      const open = forSale.includes(side);
+      plane.visible = sign.visible = open;
+      if (!open) continue;
+      const plot = plotOf(side);
+      const [cx, cy] = this.plotCenter(plot);
+      plane.position.set(toWorldX(cx), 0.012, toWorldZ(cy));
+      plane.scale.set(plot.x1 - plot.x0 - 0.3, 1, plot.y1 - plot.y0 - 0.3);
+      sign.position.set(toWorldX(cx), 0, toWorldZ(cy));
     }
   }
 

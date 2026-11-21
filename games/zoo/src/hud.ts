@@ -277,6 +277,15 @@ export class Hud {
     return b;
   }
 
+  /** Het prijskaartje boven een strook grond die te koop is; een tik erop opent het koopmenu. */
+  makeForSale(price: number, tap: () => void): HTMLElement {
+    const b = el('div', 'bubble forsale', `${icon('land')}<b>${price}</b>${icon('coin')}`);
+    b.hidden = true;
+    b.addEventListener('click', tap);
+    this.layer.append(b);
+    return b;
+  }
+
   makeSign(text: string): HTMLElement {
     const b = el('div', 'penname closed', `${icon('pen')}<b></b>`);
     b.querySelector('b')!.textContent = text;

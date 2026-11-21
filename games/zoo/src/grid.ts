@@ -1,7 +1,24 @@
 // Het raster: tegels van 1 bij 1, hekken op de randen van tegels.
 // Geen Three.js hier, zodat dit los te testen is.
-export const W = 28;
-export const H = 28;
+// Het raster is zo groot als het park ooit kan worden. Je begint met het middelste stuk tegen de voorkant
+// (BASE_W bij BASE_H); links, rechts en achter ligt een strook van PLOT tegels die je erbij kunt kopen.
+export const BASE_W = 28;
+export const BASE_H = 28;
+export const PLOT = 8;
+export const W = BASE_W + 2 * PLOT;
+export const H = BASE_H + PLOT;
+
+/** Het stuk van het raster dat van het park is: van (x0, y0) tot (x1, y1), die laatste niet meer. */
+export interface Land {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+export type Side = 'left' | 'right' | 'back';
+export const SIDES: Side[] = ['left', 'right', 'back'];
+export const BASE_LAND: Land = { x0: PLOT, y0: PLOT, x1: PLOT + BASE_W, y1: H };
+export const FULL_LAND: Land = { x0: 0, y0: 0, x1: W, y1: H };
 export const MIN_ENCLOSURE = 4;
 
 /** 0 = niets, 1 = houten hek, 2 = poort, 3 = stenen muur, 4 = hoog net. */
@@ -33,17 +50,43 @@ export class Grid {
   v = new Uint8Array((W + 1) * H);
   regionOf = new Int16Array(W * H);
   regions: Region[] = [];
+  /** De grond van het park. Daarbuiten kun je niets bouwen en loopt er niemand. */
+  land: Land;
 
-  constructor() {
+  constructor(land: Land = BASE_LAND) {
+    this.land = { ...land };
     this.recompute();
   }
 
+  /** Ligt de tegel op de grond van het park? */
   inBounds(x: number, y: number): boolean {
-    return x >= 0 && x < W && y >= 0 && y < H;
+    return x >= this.land.x0 && x < this.land.x1 && y >= this.land.y0 && y < this.land.y1;
+  }
+
+  /** Heeft het park deze strook er al bij? */
+  owns(side: Side): boolean {
+    return side === 'left' ? this.land.x0 === 0 : side === 'right' ? this.land.x1 === W : this.land.y0 === 0;
+  }
+
+  /** De strook die je aan deze kant kunt kopen (zolang je hem nog niet hebt). */
+  plot(side: Side): Land {
+    const { x0, y0, x1, y1 } = this.land;
+    return side === 'left' ? { x0: x0 - PLOT, y0, x1: x0, y1 } : side === 'right' ? { x0: x1, y0, x1: x1 + PLOT, y1 } : { x0, y0: y0 - PLOT, x1, y1: y0 };
+  }
+
+  /** Het park krijgt er aan deze kant een strook bij. Wat er al staat, blijft staan. */
+  expand(side: Side): boolean {
+    if (this.owns(side)) return false;
+    if (side === 'left') this.land.x0 = 0;
+    else if (side === 'right') this.land.x1 = W;
+    else this.land.y0 = 0;
+    this.recompute();
+    return true;
   }
 
   validEdge(e: Edge): boolean {
-    return e.o === 'h' ? e.x >= 0 && e.x < W && e.y >= 0 && e.y <= H : e.x >= 0 && e.x <= W && e.y >= 0 && e.y < H;
+    const { x0, y0, x1, y1 } = this.land;
+    return e.o === 'h' ? e.x >= x0 && e.x < x1 && e.y >= y0 && e.y <= y1 : e.x >= x0 && e.x <= x1 && e.y >= y0 && e.y < y1;
   }
 
   getEdge(e: Edge): EdgeKind {
@@ -74,13 +117,14 @@ export class Grid {
     return edge === 0 || (gates && edge === 2);
   }
 
-  /** Ligt de tegel aan de rand van de kaart zonder hek ertussen? */
+  /** Ligt de tegel aan de rand van het park zonder hek ertussen? */
   private leaks(x: number, y: number): boolean {
+    const { x0, y0, x1, y1 } = this.land;
     return (
-      (y === 0 && this.h[x] === 0) ||
-      (y === H - 1 && this.h[x + H * W] === 0) ||
-      (x === 0 && this.v[y * (W + 1)] === 0) ||
-      (x === W - 1 && this.v[W + y * (W + 1)] === 0)
+      (y === y0 && this.h[x + y * W] === 0) ||
+      (y === y1 - 1 && this.h[x + (y + 1) * W] === 0) ||
+      (x === x0 && this.v[x + y * (W + 1)] === 0) ||
+      (x === x1 - 1 && this.v[x + 1 + y * (W + 1)] === 0)
     );
   }
 
@@ -88,7 +132,8 @@ export class Grid {
     this.regionOf.fill(-1);
     this.regions = [];
     for (let start = 0; start < W * H; start++) {
-      if (this.regionOf[start] !== -1) continue;
+      // alleen de grond van het park doet mee
+      if (this.regionOf[start] !== -1 || !this.inBounds(start % W, Math.floor(start / W))) continue;
       const region: Region = { id: this.regions.length, tiles: [], enclosed: true };
       const queue = [start];
       this.regionOf[start] = region.id;

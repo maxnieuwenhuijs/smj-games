@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FEATURE, LEVELS, PRODUCTS, SHOPS, SHOP_SIZE, SPECIES, migrateLevel, productsFor, unlockedSpecies, worldOf, type SpeciesId } from './data';
 import en from './en.json';
-import { Grid, H, W, edgeAlong, nearestEdge, tileIndex, type Edge } from './grid';
+import { BASE_LAND, FULL_LAND, Grid, H, PLOT, W, edgeAlong, nearestEdge, tileIndex, type Edge } from './grid';
 import { emptyStats, goalProgress, levelDone } from './levels';
 import { allLines, fill, goalLine, textOf, voiceId, type Tr } from './lines';
 import nl from './nl.json';
@@ -17,13 +17,13 @@ function fenceBox(g: Grid, x0: number, y0: number, x1: number, y1: number): Edge
 
 describe('verblijven', () => {
   it('een leeg park heeft geen verblijf', () => {
-    const g = new Grid();
+    const g = new Grid(FULL_LAND);
     expect(g.regions).toHaveLength(1);
     expect(g.enclosures()).toHaveLength(0);
   });
 
   it('een dicht hek van 2 bij 2 is een verblijf', () => {
-    const g = new Grid();
+    const g = new Grid(FULL_LAND);
     fenceBox(g, 3, 3, 4, 4);
     expect(g.enclosures()).toHaveLength(1);
     expect(g.enclosureAt(3, 3)?.tiles).toHaveLength(4);
@@ -31,34 +31,34 @@ describe('verblijven', () => {
   });
 
   it('een gat in het hek maakt het verblijf open', () => {
-    const g = new Grid();
+    const g = new Grid(FULL_LAND);
     const edges = fenceBox(g, 3, 3, 4, 4);
     g.setEdge(edges[0], 0);
     expect(g.enclosures()).toHaveLength(0);
   });
 
   it('een poort telt als dicht', () => {
-    const g = new Grid();
+    const g = new Grid(FULL_LAND);
     const edges = fenceBox(g, 3, 3, 4, 4);
     g.setEdge(edges[0], 2);
     expect(g.enclosures()).toHaveLength(1);
   });
 
   it('te klein telt niet', () => {
-    const g = new Grid();
+    const g = new Grid(FULL_LAND);
     fenceBox(g, 5, 5, 5, 5);
     expect(g.enclosures()).toHaveLength(0);
   });
 
   it('werkt ook tegen de rand van de kaart', () => {
-    const g = new Grid();
+    const g = new Grid(FULL_LAND);
     fenceBox(g, 0, 0, 1, 1);
     fenceBox(g, W - 2, H - 2, W - 1, H - 1);
     expect(g.enclosures()).toHaveLength(2);
   });
 
   it('een verblijf is van hout, van steen of van net; een poort past overal bij', () => {
-    const g = new Grid();
+    const g = new Grid(FULL_LAND);
     const edges = fenceBox(g, 3, 3, 4, 4);
     expect(g.penKind(g.enclosureAt(3, 3)!)).toBe(1);
     for (const e of edges) g.setEdge(e, 3);
@@ -73,16 +73,51 @@ describe('verblijven', () => {
   });
 
   it('kent de buitenrand van een verblijf', () => {
-    const g = new Grid();
+    const g = new Grid(FULL_LAND);
     fenceBox(g, 3, 3, 4, 4);
     expect(g.borderEdges(g.enclosureAt(3, 3)!)).toHaveLength(8);
   });
 
   it('een route gaat niet door een hek', () => {
-    const g = new Grid();
+    const g = new Grid(FULL_LAND);
     fenceBox(g, 3, 3, 5, 4);
     expect(g.path(tileIndex(3, 3), tileIndex(5, 4))).toHaveLength(4);
     expect(g.path(tileIndex(3, 3), tileIndex(8, 8))).toBeNull();
+  });
+});
+
+describe('grond van het park', () => {
+  it('je begint met het middelste stuk tegen de voorkant', () => {
+    const g = new Grid();
+    expect(g.inBounds(BASE_LAND.x0, BASE_LAND.y0)).toBe(true);
+    expect(g.inBounds(BASE_LAND.x0 - 1, BASE_LAND.y0)).toBe(false);
+    expect(g.inBounds(BASE_LAND.x0, BASE_LAND.y0 - 1)).toBe(false);
+    expect(g.inBounds(Math.floor(W / 2), H - 1)).toBe(true);
+    // buiten het park kun je geen hek zetten
+    expect(g.setEdge({ o: 'h', x: 0, y: 0 }, 1)).toBe(false);
+  });
+
+  it('een verblijf tegen de rand blijft een verblijf als het park groter wordt', () => {
+    const g = new Grid();
+    const { x0, y0 } = BASE_LAND;
+    fenceBox(g, x0, y0, x0 + 1, y0 + 1);
+    expect(g.enclosures()).toHaveLength(1);
+    expect(g.expand('left')).toBe(true);
+    expect(g.expand('left')).toBe(false);
+    expect(g.inBounds(0, y0)).toBe(true);
+    expect(g.enclosures()).toHaveLength(1);
+    expect(g.enclosureAt(x0, y0)?.tiles).toHaveLength(4);
+    // op de nieuwe grond kun je bouwen
+    fenceBox(g, 1, y0, 2, y0 + 1);
+    expect(g.enclosures()).toHaveLength(2);
+  });
+
+  it('drie stroken: links, rechts en achter', () => {
+    const g = new Grid();
+    expect(g.plot('back')).toEqual({ x0: PLOT, y0: 0, x1: W - PLOT, y1: PLOT });
+    for (const side of ['left', 'right', 'back'] as const) g.expand(side);
+    expect(g.land).toEqual(FULL_LAND);
+    expect(g.owns('back')).toBe(true);
   });
 });
 

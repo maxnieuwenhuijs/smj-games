@@ -8,8 +8,8 @@ import {
   BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
-  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, SPACE, guestsAt, SERVES, } from './data';
-import { Grid, H, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region } from './grid';
+  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, LAND_PRICE, SPACE, guestsAt, SERVES, } from './data';
+import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region, type Side } from './grid';
 import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
 import { cursor, icon, type IconId } from './icons';
 import { emptyStats, goalProgress, levelDone, type Stats } from './levels';
@@ -141,6 +141,8 @@ export interface SaveData {
   /** Afmetingen van het park toen dit is opgeslagen; oudere spellen waren 14 bij 14 of 20 bij 20. */
   gw?: number;
   gh?: number;
+  /** De stroken grond die erbij gekocht zijn. */
+  land?: Side[];
 }
 
 export const slotKey = (slot: number): string => `zoo-slot-${slot}`;
@@ -262,6 +264,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private toolsKey = '';
   /** Tot dit moment knippert de veger, omdat er net op een poepje is getikt. */
   private nudge = 0;
+  /** De prijskaartjes boven de stroken grond die te koop zijn. */
+  private landSigns = new Map<Side, HTMLElement>();
   /** Wat je dit level hebt vrijgespeeld voor het park en bij de winkels: daar staat een sterretje op. */
   private fresh = new Set<string>();
   private fullAt = 0;
@@ -330,6 +334,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.view.paintTerrain(this.grid);
     this.syncPens(false);
     this.syncWear();
+    this.syncLand();
     this.refreshGoals();
     this.refreshTools();
     this.attachInput(this.view.renderer.domElement);
@@ -357,7 +362,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       for (let y = 0; y <= oh; y++) for (let x = 0; x < ow; x++) this.grid.h[x + ox + (y + oy) * W] = d.h[x + y * ow];
     if (d.vv.length === (ow + 1) * oh)
       for (let y = 0; y < oh; y++) for (let x = 0; x <= ow; x++) this.grid.v[x + ox + (y + oy) * (W + 1)] = d.vv[x + y * (ow + 1)];
+    for (const side of d.land ?? []) if (SIDES.includes(side)) this.grid.expand(side);
     this.grid.recompute();
+    this.syncLand();
     this.savedLevel = migrateLevel(d.level, d.v ?? 1);
     this.level = Math.min(this.savedLevel, this.maxLevel);
     this.fed = d.fed;
@@ -422,7 +429,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const old = (role: WorkerRole): number => Math.ceil((d.pens ?? []).filter(p => p.keeper || (role === 'feed' ? p.feeder : p.cleaner)).length / 5);
       for (const role of ['feed', 'clean'] as const) for (let i = 0; i < old(role); i++) this.addWorker(role, ex + 0.5, ey + 0.5 - i * 0.4);
     }
-    if (!ox && !oy) for (const [key, phase] of Object.entries(d.wear ?? {})) this.wear.set(key, phase);
+    // slijtage staat per rand opgeslagen; in een ouder, kleiner raster schuift de rand mee met het park
+    for (const [key, phase] of Object.entries(d.wear ?? {})) {
+      const [x, y] = key.slice(1).split(',').map(Number);
+      this.wear.set(`${key[0]}${x + ox},${y + oy}`, phase);
+    }
   }
 
   serialize(): SaveData {
@@ -461,6 +472,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       shops: this.shops.map(({ x, y, kind, sells, edge, turned, rot, manual }) => ({ x, y, kind, sells, edge, turned, rot, manual })),
       gw: W,
       gh: H,
+      land: SIDES.filter(side => this.grid.owns(side)),
     };
   }
 
@@ -1160,6 +1172,54 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       for (const a of this.animals) if (gone.has(a.tile)) this.react(a, 'bad');
     }
     this.pens = next;
+  }
+
+  // ------------------------------------------------------------ grond erbij
+  /** Het beeld volgt de grond van het park: tegels, bomen en de bordjes Te koop. */
+  private syncLand(): void {
+    this.view.setLand(this.grid.land, SIDES.filter(side => !this.grid.owns(side)), side => this.grid.plot(side));
+    for (const side of SIDES) {
+      if (this.grid.owns(side)) {
+        this.landSigns.get(side)?.remove();
+        this.landSigns.delete(side);
+      } else if (!this.landSigns.has(side)) this.landSigns.set(side, this.hud.makeForSale(LAND_PRICE, () => this.landMenu(side)));
+    }
+  }
+
+  /** De strook die te koop is op dit punt, als die er is. */
+  private plotAt(gx: number, gy: number): Side | null {
+    for (const side of SIDES) {
+      if (this.grid.owns(side)) continue;
+      const p = this.grid.plot(side);
+      if (gx >= p.x0 && gx < p.x1 && gy >= p.y0 && gy < p.y1) return side;
+    }
+    return null;
+  }
+
+  /** Tik op een strook grond die te koop is: kopen voor LAND_PRICE munten. */
+  private landMenu(side: Side): void {
+    const [cx, cy] = this.view.plotCenter(this.grid.plot(side));
+    const s = this.view.toScreen(cx, cy, 1.6);
+    this.hud.showMenu(s.x, s.y, t('land.title'), [{ id: 'buy', icon: icon('land'), label: t('land.buy'), price: LAND_PRICE, cant: this.coins < LAND_PRICE }], () => this.buyLand(side));
+  }
+
+  private buyLand(side: Side): void {
+    const plot = this.grid.plot(side);
+    const [cx, cy] = this.view.plotCenter(plot);
+    if (this.grid.owns(side) || !this.pay(LAND_PRICE, cx, cy)) return;
+    this.grid.expand(side);
+    this.syncLand();
+    this.view.paintTerrain(this.grid);
+    this.gridChanged();
+    // feest: de nieuwe grond licht op en het beeld schuift ernaartoe
+    const tiles: number[] = [];
+    for (let y = plot.y0; y < plot.y1; y++) for (let x = plot.x0; x < plot.x1; x++) tiles.push(tileIndex(x, y));
+    this.view.flash(tiles);
+    this.view.flyTo(cx, cy);
+    sfx('fanfare');
+    for (let k = 0; k < 9; k++) setTimeout(() => this.floatAt(icon('sparkle'), plot.x0 + Math.random() * (plot.x1 - plot.x0), plot.y0 + Math.random() * (plot.y1 - plot.y0), 0.4), k * 120);
+    this.sayNow(say.bigger());
+    void this.save();
   }
 
   /** Een hek is een verblijf geworden: witte gloed, sterretjes en de bouwer noemt de naam. */
@@ -2288,6 +2348,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!g) return;
     const first = !along;
     const x = Math.floor(g.gx), y = Math.floor(g.gy);
+    // ook met het hek of de grond in de hand: een tik op grond die te koop is, opent het koopmenu
+    if (first && !this.grid.inBounds(x, y)) {
+      const side = this.plotAt(g.gx, g.gy);
+      if (side) return this.landMenu(side);
+    }
     if (this.tool === 'action') {
       if (this.option.action === 'broom') {
         // vegen: alles waar je overheen gaat is weg
@@ -2450,6 +2515,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const x = g ? Math.floor(g.gx) : -1, y = g ? Math.floor(g.gy) : -1;
     const inside = this.grid.inBounds(x, y);
 
+    // een tik op grond die te koop is: het koopmenu
+    if (!inside && g && !this.moving) {
+      const side = this.plotAt(g.gx, g.gy);
+      if (side) return this.landMenu(side);
+    }
     if (this.moving) {
       const a = this.moving;
       if (!inside) {
@@ -2922,6 +2992,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       bubble.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%)`;
     }
     this.guestBubblesUpdate();
+    // het prijskaartje boven elke strook grond die te koop is
+    for (const [side, sign] of this.landSigns) {
+      const [cx, cy] = this.view.plotCenter(this.grid.plot(side));
+      const s = this.view.toScreen(cx, cy, 2.4);
+      sign.hidden = false;
+      sign.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%)`;
+    }
     // een bordje boven alles wat niet aan het pad staat
     for (const shop of this.shops) {
       if (!shop.off) {

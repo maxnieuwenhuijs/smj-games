@@ -169,6 +169,8 @@ export const WORLDS: WorldId[] = ['farm', 'savanna', 'jungle', 'ice', 'far'];
 // ------------------------------------------------------------ munten
 /** Er passen nooit meer munten in de kas dan dit: twee cijfers, net genoeg voor twee van de duurste dieren. */
 export const COIN_CAP = 99;
+/** Een strook grond erbij (links, rechts of achter) is duur: daar spaar je lang voor. */
+export const LAND_PRICE = 75;
 export const START_COINS = 10;
 export const LEVEL_BONUS = 5;
 export const PRICE = { trough: 1, bed: 1, toy: 2 };
