@@ -71,7 +71,6 @@ export class Hud {
   private voice: Voice | null = null;
 
   private need = el('div', '');
-  private carry = el('div', 'pill');
   private needKey = '';
   /** Het handje dat wijst waar je kunt tikken. */
   private hand = el('div', '', `<i class="ring"></i><span class="arm">${icon('hand')}</span>`);
@@ -84,9 +83,6 @@ export class Hud {
     this.need.setAttribute('aria-label', t('need'));
     // onderin het midden, boven de keuzerijen en de knoppenbalk
     document.getElementById('bottom')!.prepend(this.need);
-    this.carry.id = 'carry';
-    this.carry.hidden = true;
-    document.getElementById('ui')!.append(this.carry);
     // het handje ligt boven de knoppen, maar onder een kaart
     this.hand.id = 'pointer';
     this.hand.hidden = true;
@@ -158,12 +154,6 @@ export class Hud {
     card.append(go);
     this.overlay.append(card);
     this.overlay.hidden = false;
-  }
-
-  /** Het afval dat je in je handen hebt: zoveel stuks, op weg naar een afvalbak. */
-  setCarry(n: number): void {
-    this.carry.hidden = !n;
-    if (n) this.carry.innerHTML = `${icon('litter')}<b>${n}</b>${icon('bin')}`;
   }
 
   /** `open`: de knop waarvan de keuzerij open blijft staan terwijl het handje aan staat (net iets neergezet). */

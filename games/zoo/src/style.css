@@ -69,7 +69,6 @@ button { font: inherit; color: inherit; }
 #needs .what { position: absolute; right: -8px; bottom: -6px; width: 28px; height: 28px; border-radius: 50%; background: #fff; display: grid; place-items: center; font-size: 19px; font-style: normal; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18); }
 #needs .what .ic { font-size: 19px; width: 19px; height: 19px; }
 @keyframes needy { 50% { transform: scale(1.07); } }
-#carry { position: absolute; right: 12px; top: calc(190px + min(70px, 13vw)); gap: 6px; animation: needy 2.6s ease-in-out infinite; }
 .tool.boy { box-shadow: 0 5px 0 var(--boy); outline: 3px solid var(--boy); outline-offset: -3px; }
 .tool.girl { box-shadow: 0 5px 0 var(--girl); outline: 3px solid var(--girl); outline-offset: -3px; }
 .tool.boy.on { background: #cfe3fb; }

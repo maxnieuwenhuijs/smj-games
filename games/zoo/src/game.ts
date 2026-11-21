@@ -1435,7 +1435,6 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.view.scene.remove(p.mesh);
     this.litter = this.litter.filter(x => x !== p);
     this.carry++;
-    this.hud.setCarry(this.carry);
     sfx('tap', { every: 0.1 });
     this.floatAt(icon('litter'), p.gx, p.gy, 0.4);
   }
@@ -1446,7 +1445,6 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.tidied += this.carry;
     this.earn(this.carry, x, y);
     this.carry = 0;
-    this.hud.setCarry(0);
     sfx('place');
     this.floatAt(icon('sparkle'), x, y, 0.6);
     this.pulse(bin.mesh, 0.25);
