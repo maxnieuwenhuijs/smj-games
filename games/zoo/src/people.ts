@@ -26,6 +26,22 @@ export interface ShopSpot {
 export type Need = 'food' | 'drink' | 'toilet' | 'icecream' | 'balloon' | 'hat' | 'souvenir' | 'play' | 'sit' | 'look' | 'ride';
 
 /** Wat een gast wil, voor het wolkje boven zijn hoofd. `lacking`: het is er niet in het park. `product`: het ding waar hij om vraagt. */
+/** Een gast zoals hij bewaard wordt: waar hij loopt, hoe het met hem gaat en wat hij draagt. */
+export interface GuestSave {
+  gx: number;
+  gy: number;
+  child: boolean;
+  fun: number;
+  age: number;
+  stay: number;
+  hunger: number;
+  thirst: number;
+  bladder: number;
+  hat?: string;
+  /** De ballon die hij vasthoudt ('' als de kleur niet vastligt). */
+  balloon?: string;
+}
+
 export type GuestWish = { kind: Need | 'bored' | 'fav'; lacking: boolean; product?: string };
 
 export interface GuestWorld {
@@ -209,6 +225,9 @@ export class Guest {
   private wantsBalloon: boolean;
   private wantsHat: boolean;
   private headwear: THREE.Object3D | null = null;
+  /** Wat de gast draagt, om te kunnen bewaren. */
+  private wornHat: string | null = null;
+  private wornBalloon: string | null = null;
   private mess: 'poop' | 'pee' = 'pee';
   private ox = (Math.random() - 0.5) * 0.4;
   private oy = (Math.random() - 0.5) * 0.4;
@@ -233,6 +252,37 @@ export class Guest {
 
   get tile(): number {
     return tileIndex(Math.floor(this.gx), Math.floor(this.gy));
+  }
+
+  snapshot(): GuestSave {
+    return {
+      gx: this.gx, gy: this.gy, child: this.child, fun: this.fun, age: this.age, stay: this.stay,
+      hunger: this.hunger, thirst: this.thirst, bladder: this.bladder,
+      hat: this.wornHat ?? undefined, balloon: this.wornBalloon ?? undefined,
+    };
+  }
+
+  /** Zet een bewaarde gast terug op zijn plek, met zijn hoedje en ballon. */
+  restore(s: GuestSave, dx = 0, dy = 0): void {
+    this.gx = s.gx + dx;
+    this.gy = s.gy + dy;
+    this.fun = s.fun;
+    this.age = s.age;
+    this.stay = s.stay;
+    this.hunger = s.hunger;
+    this.thirst = s.thirst;
+    this.bladder = Math.min(0.9, s.bladder);
+    if (s.hat) {
+      this.addHat(s.hat);
+      this.bought.hats = 1;
+      this.hat = 0;
+    }
+    if (s.balloon !== undefined) {
+      this.addBalloon(s.balloon || undefined);
+      this.bought.balloon = 1;
+      this.balloon = 0;
+    }
+    this.place();
   }
 
   get happy(): boolean {
@@ -464,6 +514,7 @@ export class Guest {
 
   /** De gast loopt verder met de ballon die hij kocht. */
   private addBalloon(product?: string): void {
+    this.wornBalloon = product ?? '';
     const colors = [0xe0584f, 0x4a90e2, 0xffd23f, 0x6cc04a, 0xf06aa6];
     const color = (product && COLOR_OF[product]) || pick(colors);
     const balloon = new THREE.Mesh(BALLOON_GEO, new THREE.MeshStandardMaterial({ color, roughness: 0.4 }));
@@ -476,6 +527,7 @@ export class Guest {
 
   /** De gast zet het hoedje op dat hij kocht: een petje, een strohoed, een feestmuts of een kroon. */
   private addHat(product = 'cap_red'): void {
+    this.wornHat = product;
     if (this.headwear) this.mesh.remove(this.headwear);
     const color = mat(COLOR_OF[product] ?? 0xe0584f);
     const hat = new THREE.Group();
@@ -598,6 +650,22 @@ export class GuestManager {
   private reachIn = 0;
 
   constructor(private scene: THREE.Scene, private world: GuestWorld) {}
+
+  snapshot(): GuestSave[] {
+    return this.guests.filter(g => !g.gone).map(g => g.snapshot());
+  }
+
+  /** De gasten uit een bewaard spel lopen weer rond waar ze waren. Kind blijft kind; kleren zijn nieuw. */
+  restore(list: GuestSave[], dx = 0, dy = 0): void {
+    const species = this.world.parkSpecies();
+    for (const s of list) {
+      let guest = new Guest(ENTRANCE, species);
+      for (let tries = 0; tries < 8 && guest.child !== s.child; tries++) guest = new Guest(ENTRANCE, species);
+      guest.restore(s, dx, dy);
+      this.scene.add(guest.mesh);
+      this.guests.push(guest);
+    }
+  }
 
   /** Is de ingang met een pad verbonden? Zonder pad komen er geen gasten. */
   get open(): boolean {

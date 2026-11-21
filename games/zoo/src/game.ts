@@ -16,7 +16,7 @@ import { cursor, icon, type IconId } from './icons';
 import { emptyStats, goalProgress, levelDone, type Stats } from './levels';
 import { NAMED, PRAISE, callText, goalLine, say, textOf, voiceId, wishLine, type Line } from './lines';
 import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStatic, speciesIcon } from './models';
-import { ENTRANCE, GuestManager, Keeper, Vendor, type Guest, type GuestWorld, type KeeperPoop, type KeeperTrough, type KeeperWorld, type ShopSpot } from './people';
+import { ENTRANCE, GuestManager, Keeper, Vendor, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type KeeperWorld, type ShopSpot } from './people';
 import { View, toWorldX, toWorldZ, type TroughMesh } from './view';
 
 export type ToolId = 'hand' | 'broom' | 'terrain' | 'fence' | 'trough' | 'bed' | 'shop' | 'animal' | 'erase';
@@ -103,6 +103,8 @@ export interface SaveData {
   soldAt?: Record<string, number>;
   soldAll?: number;
   litter?: { gx: number; gy: number }[];
+  /** De gasten die in het park liepen toen het spel werd bewaard. */
+  guests?: GuestSave[];
   coins?: number;
   debt?: number;
   born?: number;
@@ -331,6 +333,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     }
     for (const p of d.poops) this.dropPoop(p.gx + ox, p.gy + oy);
     for (const p of d.litter ?? []) this.dropLitter(p.gx + ox, p.gy + oy);
+    this.guests.restore(d.guests ?? [], ox, oy);
   }
 
   serialize(): SaveData {
@@ -359,6 +362,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       })),
       poops: this.poops.map(({ gx, gy }) => ({ gx, gy })),
       litter: this.litter.map(({ gx, gy }) => ({ gx, gy })),
+      guests: this.guests.snapshot(),
       pens: this.pens.map(p => ({ tile: p.region.tiles[0], name: p.name, keeper: p.keeper ? true : undefined })),
       beds: this.beds.map(({ x, y, kind }) => ({ x, y, kind })),
       shops: this.shops.map(({ x, y, kind, sells }) => ({ x, y, kind, sells })),

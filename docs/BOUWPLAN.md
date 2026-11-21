@@ -313,6 +313,10 @@ Complimenten bij een gehaald level wisselen: acht stuks, van vijf figuren, elk i
 - **Wc en poep:** bij de wc hoor je af en toe iemand plassen of poepen achter de deur, en daarna het doortrekken (drie opnames van elk). Bij de dieren hoor je af en toe een plofje of een straaltje: bij de helft van de poepjes en een kwart van de plasjes, en nooit vlak achter elkaar.
 - **Dieren en mensen:** elk dierengeluid heeft drie varianten en klinkt nooit twee keer hetzelfde achter elkaar; alles behalve de stemmen van de figuren staat zacht. Jonge dieren hebben een eigen geluid (twee opnames per soort: een big, een kuiken, een welp).
 
+## Wat er bewaard wordt
+
+Het hele park: grond, hekken, verblijven, dieren, voerbakken, slaapplekken, winkels met hun assortiment, poep en afval, munten, de stand van de levels en de naam van de speler. Ook de gasten: waar ze lopen, hoe blij ze zijn, hoe lang ze er al zijn, en het hoedje of de ballon die ze kochten. Open je het spel opnieuw, dan lopen ze weer rond waar ze waren (een kind blijft een kind; de kleur van de kleren is nieuw).
+
 ## Een opgeslagen spel wissen
 
 Op het startscherm staat bij elk opgeslagen spel een prullenbakje. Een gewone tik wist niets en laat alleen de tip "Houd vast om te wissen" zien; ruim een tel vasthouden wist het spel. Wissen kan ook in het oudermenu.
