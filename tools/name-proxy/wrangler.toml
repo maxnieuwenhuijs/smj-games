@@ -1,0 +1,12 @@
+name = "smj-zoo-namen"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# De sleutel staat hier niet: die zet je als geheim met
+#   npx wrangler secret put ELEVENLABS_API_KEY
+
+# Wil je een dagelijkse rem (hooguit 40 nieuwe namen per dag)? Maak dan een KV-opslag en zet het id hier:
+#   npx wrangler kv namespace create NAMES
+# [[kv_namespaces]]
+# binding = "NAMES"
+# id = "<het id dat je terugkrijgt>"

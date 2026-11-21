@@ -8,6 +8,7 @@ Spelen: https://maxnieuwenhuijs.github.io/smj-games/
 - `packages/shared`: gedeelde code voor teksten en opslaan.
 - `tools/animals`: het Blender-script dat de diermodellen maakt, en het script dat ze klein maakt.
 - `tools/voice`: het script dat stemmen en geluiden maakt met ElevenLabs.
+- `tools/name-proxy`: een servertje dat namen laat inspreken zonder dat de sleutel in het spel staat (zie de README daar).
 - `tools/playtest`: een proefspeler die alle levels automatisch doorspeelt.
 - `docs/BOUWPLAN.md`: het bouwplan met alle fases, dieren en levels.
 

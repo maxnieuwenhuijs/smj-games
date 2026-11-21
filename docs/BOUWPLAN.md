@@ -360,11 +360,13 @@ Elk level speelt een dier vrij en vraagt om twee blije dieren van de soort die j
 
 Bij een nieuw spel vraagt het spel: hoe heet je? Een ouder typt de naam (overslaan kan). De figuren noemen die naam daarna alleen op bijzondere momenten: één begroeting bij het begin, een compliment bij elk gehaald level, en bij nood ("Help, Bram! Er is een dier ontsnapt."), hooguit eens in de drie minuten. Daarnaast begint een gewone melding af en toe met de naam ("Senna, de gasten hebben honger."): ongeveer één op de drie keer en hooguit eens per veertig seconden. Daarvoor is van elk figuur een losse opname van de naam gemaakt, die vóór de zin wordt afgespeeld.
 
-De opname van de naam komt uit een van deze drie bronnen:
+De opname van de naam komt uit een van deze vier bronnen:
 
 1. De naam staat in het lijstje van ruim 140 veelvoorkomende namen (ook Senna, Maxime, Loua, Faas en Joep) die al zijn ingesproken (`tools/voice/names.json`). Een naam toevoegen: `node tools/voice/build.mjs names --add Sepp`, daarna committen.
 2. De naam is eerder op dit apparaat ingesproken en bewaard.
 3. In het oudermenu staat een eigen ElevenLabs-sleutel: dan spreekt het spel elke nieuwe naam ter plekke in en bewaart die op het apparaat. De sleutel blijft in de browser van dat apparaat en zit nooit in het spel of in de repo.
+
+4. Er is een servertje aangezet (`tools/name-proxy`, een Cloudflare Worker): dat bewaart de ElevenLabs-sleutel als geheim en spreekt alleen de vaste zinnen met een naam in. Het adres staat in `games/zoo/public/config.json`; zolang dat leeg is, doet het spel dit niet. Zo werkt elke naam op de live site zonder dat de sleutel openbaar wordt. Aanzetten staat in `tools/name-proxy/README.md`.
 
 Is er geen opname, dan staat de naam alleen in beeld en klinken de gewone complimenten.
 

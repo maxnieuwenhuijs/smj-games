@@ -4,6 +4,8 @@
 //   2. De naam is op dit apparaat eerder ingesproken en bewaard.
 //   3. Een ouder heeft in het oudermenu een eigen ElevenLabs-sleutel ingevuld: dan wordt de naam nu ingesproken
 //      en op dit apparaat bewaard. De sleutel blijft in deze browser en gaat alleen naar ElevenLabs zelf.
+//   4. Er is een servertje ingesteld (tools/name-proxy, adres in config.json): dat spreekt de naam in met een
+//      sleutel die alleen daar staat, en het spel bewaart de opnames op dit apparaat.
 // Lukt geen van drie, dan staat de naam alleen in beeld en klinken de gewone complimenten.
 import { saveGet, saveSet, t } from '@smj/shared';
 import cast from '../../../tools/voice/voices.json';
@@ -36,6 +38,17 @@ export function setElevenKey(key: string): void {
     else localStorage.removeItem(KEY_STORE);
   } catch {
     /* dan blijft het zoals het was */
+  }
+}
+
+/** Het adres van het servertje dat namen inspreekt (zie tools/name-proxy); leeg als er geen is. */
+async function nameProxy(): Promise<string> {
+  try {
+    const res = await fetch('./config.json', { cache: 'no-cache' });
+    const url = res.ok ? ((await res.json()) as { nameProxy?: string }).nameProxy : '';
+    return typeof url === 'string' && /^https:\/\//.test(url) ? url : '';
+  } catch {
+    return '';
   }
 }
 
@@ -92,6 +105,24 @@ export async function loadName(lang: string, name: string, onWait?: () => void):
       await saveSet(store, clips);
     } catch {
       clips = undefined; // inspreken lukte niet: dan zonder naam
+    }
+  }
+  // 4. via het servertje, als dat is ingesteld
+  const proxy = !clips && !apiKey && voices.languages[lang] ? await nameProxy() : '';
+  if (proxy) {
+    onWait?.();
+    try {
+      const made: Record<string, ArrayBuffer> = {};
+      const lines = namedLines(t, name);
+      for (let i = 0; i < lines.length; i++) {
+        const res = await fetch(proxy, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lang, name, i }) });
+        if (!res.ok) throw new Error(String(res.status));
+        made[voiceId(lines[i].who, lines[i].text)] = await res.arrayBuffer();
+      }
+      clips = made;
+      await saveSet(store, clips);
+    } catch {
+      clips = undefined;
     }
   }
   if (!clips) return false;
