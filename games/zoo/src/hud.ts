@@ -77,7 +77,8 @@ export class Hud {
     this.need.id = 'needs';
     this.need.hidden = true;
     this.need.setAttribute('aria-label', t('need'));
-    document.getElementById('ui')!.append(this.need);
+    // onderin het midden, boven de keuzerijen en de knoppenbalk
+    document.getElementById('bottom')!.prepend(this.need);
     this.carry.id = 'carry';
     this.carry.hidden = true;
     document.getElementById('ui')!.append(this.carry);
@@ -105,8 +106,8 @@ export class Hud {
 
   // ------------------------------------------------------------ knoppen
   /**
-   * Dieren die hulp nodig hebben: per diersoort één knop met dat dier en wat het mist, onder elkaar aan de
-   * linkerkant. Er passen er vijf in beeld; zijn het er meer, dan kun je in het lijstje scrollen. Een tik
+   * Dieren die hulp nodig hebben: per diersoort één knop met dat dier en wat het mist, naast elkaar onderin het
+   * midden, boven de knoppen. Er passen er vijf in beeld; zijn het er meer, dan kun je in het lijstje scrollen. Een tik
    * brengt je naar dat dier.
    */
   setNeeds(needs: { icon: string; badge: string }[]): void {
@@ -114,14 +115,14 @@ export class Hud {
     if (key === this.needKey) return;
     this.needKey = key;
     this.need.hidden = !needs.length;
-    const top = this.need.scrollTop;
+    const left = this.need.scrollLeft;
     this.need.replaceChildren();
     needs.forEach((n, i) => {
       const b = el('button', 'tool small', `${n.icon}<i class="what">${n.badge}</i>`);
       b.addEventListener('click', () => this.on.need(i));
       this.need.append(b);
     });
-    this.need.scrollTop = top;
+    this.need.scrollLeft = left;
   }
 
   /** Een kaart met uitleg in stappen (plaatje en zin per stap) en een knop om verder te gaan. */

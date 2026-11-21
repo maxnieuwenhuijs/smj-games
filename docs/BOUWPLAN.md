@@ -313,7 +313,7 @@ Vanaf level 6, zodra er een eetkraam is, laten gasten afval vallen als er geen a
 
 ## Dier in nood
 
-Is er een dier ontsnapt, ziek, of heeft het al twintig tellen honger, een vies hok of een open hek, dan verschijnt links een alarmbubbel met dat dier en wat het mist. Elke diersoort staat er maar één keer in: je ziet het dier van die soort dat het hardst hulp nodig heeft, en is dat geholpen, dan komt het volgende vanzelf. Er staan er tot vijf onder elkaar; zijn het er meer, dan kun je in het lijstje scrollen. Een tik op een bubbel schuift het beeld naar dat dier en zet er acht tellen een oranje ring omheen. De dringendste staat bovenaan: ontsnapt, dan ziek, dan wie het langst wacht.
+Is er een dier ontsnapt, ziek, of heeft het al twintig tellen honger, een vies hok of een open hek, dan verschijnt onderin het midden, net boven de knoppen, een alarmbubbel met dat dier en wat het mist. Elke diersoort staat er maar één keer in: je ziet het dier van die soort dat het hardst hulp nodig heeft, en is dat geholpen, dan komt het volgende vanzelf. Er staan er tot vijf naast elkaar; zijn het er meer, dan schuif je het rijtje opzij. Een tik op een bubbel schuift het beeld naar dat dier en zet er acht tellen een oranje ring omheen. De dringendste staat links: ontsnapt, dan ziek, dan wie het langst wacht.
 
 ## Cursor
 

@@ -52,11 +52,12 @@ button { font: inherit; color: inherit; }
 .tool.on { background: var(--sun); box-shadow: 0 5px 0 var(--sun-shade); }
 /* de rij staat nog open, maar het handje is aan: de laatste keuze is alleen omlijnd */
 .tool.open, .tool.last { outline: 3px solid var(--sun); outline-offset: -3px; }
-/* alarmbubbels links: vijf onder elkaar, scrollen als het er meer zijn */
+/* alarmbubbels onderin het midden, boven de knoppen: vijf naast elkaar, opzij schuiven als het er meer zijn */
 #needs {
-  position: absolute; left: 6px; top: 150px; display: flex; flex-direction: column; gap: 10px; padding: 6px 12px 10px 6px;
-  max-height: calc(5 * (min(62px, 12vw) + 10px) + 6px); overflow-y: auto; pointer-events: auto; touch-action: pan-y; scrollbar-width: thin;
+  display: flex; gap: 12px; padding: 6px 14px 10px 8px; align-self: center;
+  max-width: min(100vw, calc(5 * (min(62px, 12vw) + 12px) + 10px)); overflow-x: auto; pointer-events: auto; touch-action: pan-x; scrollbar-width: none;
 }
+#needs::-webkit-scrollbar { display: none; }
 #needs .tool { flex: none; width: min(62px, 12vw); height: min(62px, 12vw); background: #ffe1a8; box-shadow: 0 4px 0 #e0a84f; }
 #needs .what { position: absolute; right: -8px; bottom: -6px; width: 28px; height: 28px; border-radius: 50%; background: #fff; display: grid; place-items: center; font-size: 19px; font-style: normal; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18); }
 #needs .what .ic { font-size: 19px; width: 19px; height: 19px; }
