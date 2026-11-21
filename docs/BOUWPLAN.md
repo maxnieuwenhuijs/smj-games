@@ -21,7 +21,7 @@ Elke wereld heeft tien levels en tien dieren. De lucht, het land en de bomen ron
 | Wereld | Levels | Nieuw in deze wereld |
 |---|---|---|
 | Boerderij | 1 t/m 10 | Verblijf, voer, slaapplek, poep opruimen, pad, gasten, eetkraam, drinkkraam, jongen, wc, bankje, nest, water |
-| Savanne | 11 t/m 20 | Zand, stenen muur voor sterke dieren, ijskraam, verzorgers, bloemen, afval en afvalbakken, meer soorten tegelijk blij |
+| Savanne | 11 t/m 20 | Zand, stenen muur voor sterke dieren, ijskraam, voerders en schoonmakers, bloemen, afval en afvalbakken, meer soorten tegelijk blij |
 | Jungle | 21 t/m 30 | Bosgrond, hoog net voor klimmers en vliegers, klimboom, hol, bamboe, zieke dieren, ballonnen |
 | IJs en bergen | 31 t/m 40 | Sneeuw, vis, dieren die ontsnappen |
 | Verre landen | 41 t/m 50 | Alles door elkaar, en steeds meer tegelijk |
@@ -127,7 +127,7 @@ Gemeten met `tools/playtest/berichten.js` in een park met 80 dieren zonder verzo
 
 ## Gebeurtenissen
 
-- **Verzorger (vanaf level 13):** tik op een verblijf en neem voor 10 munten een verzorger aan. Die vult de voerbakken en ruimt de poep op in dat verblijf.
+- **Werkers (vanaf level 11):** tik op een verblijf en neem een voerder (vult de voerbakken) of een schoonmaker (veegt het hok) aan, of allebei. Ze kosten geen geld vooraf, maar elk 1 munt loon per uur. Een uur in het spel duurt twee minuten; naast de munten staat een klokje met het uur. Is er op het hele uur te weinig geld, dan wachten de werkers die niets kregen tot het volgende uur en zegt de kassier dat. Nog een tik op de knop stuurt een werker naar huis. Een verzorger uit een ouder opgeslagen spel wordt een voerder en een schoonmaker.
 - **Ziek (vanaf level 21):** af en toe wordt een dier ziek en gaat liggen. Tik erop en kies de dokter.
 - **Ontsnapt (vanaf level 31):** af en toe springt een dier uit zijn verblijf en loopt buiten rond. Tik erop om het op te pakken en tik dan in een verblijf om het terug te zetten.
 
@@ -156,7 +156,7 @@ Een gast koopt per bezoek hooguit vier dingen.
 
 ### Winkels
 
-Winkels zijn gebouwen van 2 bij 2 tegels met een open voorkant; achter de toonbank staat een verkoper die zwaait als hij iets verkoopt. Bankje, bloembak en afvalbak zijn 1 tegel. Elke winkel heeft een eigen vorm: friet op het dak van de eetkraam, een beker op de drinkkraam, een reuzenijsje op de ijskraam, een tros ballonnen, een strohoed, een beer op de knuffelkraam. Het wc-gebouw heeft twee deuren en de speeltuin een glijbaan.
+Winkels zijn gebouwen van 2 bij 2 tegels met een open voorkant; achter de toonbank staat een verkoper die zwaait als hij iets verkoopt. Bankje, bloembak en afvalbak staan op de rand van een tegel, net als een hek: ze nemen geen tegel in, staan langs de rand, een stukje van het pad af en met het gezicht naar het pad. Ze passen niet op een hek, niet tegen een verblijf of gebouw en niet twee op dezelfde rand. Uit een ouder opgeslagen spel verhuizen ze naar de rand van hun tegel die langs het pad ligt. Elke winkel heeft een eigen vorm: friet op het dak van de eetkraam, een beker op de drinkkraam, een reuzenijsje op de ijskraam, een tros ballonnen, een strohoed, een beer op de knuffelkraam. Het wc-gebouw heeft twee deuren en de speeltuin een glijbaan.
 
 ### De grote attracties
 
@@ -190,7 +190,7 @@ Wie iets gekocht heeft, loopt even met afval rond. Staat er een afvalbak in de b
 
 - De kas gaat nooit hoger dan 99 (twee cijfers). Je begint met 10. Kun je iets niet betalen, dan is het prijskaartje grijs; een kind hoeft dus niet te rekenen.
 - Bijna alles levert 1 munt op: een poepje of afval opruimen, een jong dat geboren wordt, een gast die iets koopt. Een gehaald level geeft 5.
-- Een voerbak of slaapplek kost 1; een bankje, bloembak of afvalbak 2. Een eetkraam of drinkkraam kost 4, een wc 5, een speeltuin 6, een ijskraam 8, een ballonnenkraam 12, een hoedjeskraam 14, een knuffelkraam 16, een verzorger 10, een fontein 30, een draaimolen 60. Hekken en ondergrond zijn gratis.
+- Een voerbak of slaapplek kost 1; een bankje, bloembak of afvalbak 2. Een eetkraam of drinkkraam kost 4, een wc 5, een speeltuin 6, een ijskraam 8, een ballonnenkraam 12, een hoedjeskraam 14, een knuffelkraam 16, een fontein 30, een draaimolen 60. Speelgoed of een plant in een verblijf kost 2. Een voerder of schoonmaker kost 1 munt loon per uur (twee minuten). Hekken en ondergrond zijn gratis.
 - Dieren worden per wereld duurder, zodat je moet sparen: boerderij 2 tot 6, savanne 8 tot 28, jungle 14 tot 40, ijs en bergen 15 tot 45, verre landen 16 tot 50. Laat in het spel komen er tientallen munten per minuut binnen; voor twee dure dieren spaar je dan een minuut of twee.
 - Weghalen geeft de helft terug (naar beneden afgerond): een kraam met de gum, een dier dat je laat verhuizen. Een jong dat in het park geboren is, levert 1 munt op.
 - Een blij paar krijgt om de anderhalve minuut een jong. Zijn er al twee jongen, dan verhuist de oudste naar een andere dierentuin en krijg je 2 munten.
@@ -225,7 +225,7 @@ Een hek teken je door te slepen. De eerste beweging (een derde tegel) bepaalt de
 | Dier | Aaien (je hoort het dier), uit de hand voeren, andere naam, laten slapen, verzetten, weg (het dier verhuist naar een andere dierentuin, na een ja of nee), dokter (als het ziek is); je ziet welke wensen vervuld zijn |
 | Gum op een dier | Dezelfde vraag: mag dit dier verhuizen? |
 | Ontsnapt dier | Eén tik pakt het op, een tweede tik zet het in een verblijf |
-| Verblijf | Je ziet de naam. Andere naam, verzorger aannemen, leegmaken (met bevestiging) |
+| Verblijf | Je ziet de naam. Andere naam, voerder en schoonmaker aannemen of naar huis sturen, leegmaken (met bevestiging) |
 | Voerbak | Vullen met een voersoort; het voer dat de dieren daar lusten staat vooraan; je ziet hoeveel erin zit |
 | Gast | Zien hoe het gaat, wat zijn lievelingsdier is en wat hij nu wil; zwaaien |
 | Poep en afval | Alleen met de veger; een tik met een andere knop wijst de veger aan |
@@ -248,7 +248,7 @@ Elk level speelt een dier vrij en vraagt om twee blije dieren van de soort die j
 | 10 | 2 blije eenden, 3 soorten blij, speeltuin | Konijn |
 | 11 | 2 blije konijnen, 2 jongen, 8 blije gasten | Zebra |
 | 12 | 2 blije zebra's, ijskraam, 18 munten | Giraf |
-| 13 | 2 blije giraffen, 1 verzorger, 9 blije gasten | Leeuw |
+| 13 | 2 blije giraffen, 1 werker, 9 blije gasten | Leeuw |
 | 14 | 2 blije leeuwen, 4 soorten blij, 3 keer schepijs verkopen | Kameel |
 | 15 | 2 blije kamelen, 3 bloembakken, 10 blije gasten | Neushoorn |
 | 16 | 2 blije neushoorns, fontein, 12 blije dieren | Nijlpaard |
@@ -259,11 +259,11 @@ Elk level speelt een dier vrij en vraagt om twee blije dieren van de soort die j
 | 21 | 2 blije gazellen, 1 ziek dier beter, 14 blije dieren | Aap |
 | 22 | 2 blije apen, ballonnenkraam, 14 blije gasten | Papegaai |
 | 23 | 2 blije papegaaien, 2 zieke dieren beter, hoedjeskraam | Tijger |
-| 24 | 2 blije tijgers, 3 verzorgers, 8 poepjes | Gorilla |
+| 24 | 2 blije tijgers, 3 werkers, 8 poepjes | Gorilla |
 | 25 | 2 blije gorilla's, 15 blije gasten, 4 hoedjes verkopen | Krokodil |
 | 26 | 2 blije krokodillen, draaimolen, 6 keer afval | Panda |
 | 27 | 2 blije panda's, 16 blije dieren, knuffelkraam | Pauw |
-| 28 | 2 blije pauwen, 4 verzorgers, 2 zieke dieren beter | Toekan |
+| 28 | 2 blije pauwen, 4 werkers, 2 zieke dieren beter | Toekan |
 | 29 | 2 blije toekans, 8 soorten blij, 4 knuffels verkopen | Luiaard |
 | 30 | 2 blije luiaards, 4 jongen, 18 blije dieren, 30 munten | Panter |
 | 31 | 2 blije panters, 1 dier gevangen, 16 blije gasten | Pinguïn |
@@ -271,7 +271,7 @@ Elk level speelt een dier vrij en vraagt om twee blije dieren van de soort die j
 | 33 | 2 blije zeehonden, 2 dieren gevangen, 30 munten | IJsbeer |
 | 34 | 2 blije ijsberen, 9 soorten blij, 17 blije gasten | Rendier |
 | 35 | 2 blije rendieren, 4 jongen, 8 keer afval | Wolf |
-| 36 | 2 blije wolven, 6 verzorgers, 20 blije dieren | Poolvos |
+| 36 | 2 blije wolven, 6 werkers, 20 blije dieren | Poolvos |
 | 37 | 2 blije poolvossen, 3 zieke dieren beter, 2 dieren gevangen, 18 blije gasten | Beer |
 | 38 | 2 blije beren, 10 soorten blij, 5 bekers melk verkopen | Jak |
 | 39 | 2 blije jakken, 5 jongen, 22 blije dieren | Sneeuwuil |
@@ -279,7 +279,7 @@ Elk level speelt een dier vrij en vraagt om twee blije dieren van de soort die j
 | 41 | 2 blije walrussen, 10 soorten blij, 20 blije gasten | Flamingo |
 | 42 | 2 blije flamingo's, 5 jongen, 3 dieren gevangen | Schildpad |
 | 43 | 2 blije schildpadden, 24 blije dieren, 10 keer precies verkopen wat een gast vraagt | Otter |
-| 44 | 2 blije otters, 8 verzorgers, 4 zieke dieren beter | Bever |
+| 44 | 2 blije otters, 8 werkers, 4 zieke dieren beter | Bever |
 | 45 | 2 blije bevers, 11 soorten blij, 21 blije gasten | Pelikaan |
 | 46 | 2 blije pelikanen, 6 jongen, 10 keer afval | Koala |
 | 47 | 2 blije koala's, 26 blije dieren, 3 dieren gevangen, 15 keer precies verkopen wat een gast vraagt | Rode panda |
@@ -362,7 +362,7 @@ De proefspeler bouwt zonder muis en zonder na te denken, dus de tijden zeggen ni
 | Als een trager kind: één handeling per 15 seconden, verder hetzelfde | Alle 50 levels gehaald, geen dier kwijt |
 | Als een kind dat alleen verzorgers aanneemt als een level erom vraagt | Goed tot en met level 24, daarna dieren kwijt en vast in level 26 |
 
-Op 17 november 2026 zijn de prijzen omhooggegaan (zie Munten). De proefspeler-als-kind (één handeling per 8 seconden, kas nooit bijgevuld) haalde daarna opnieuw alle 50 levels zonder een dier kwijt te raken. Tot en met level 19 houdt hij na een level 11 tot 40 munten over; daarna loopt de kas tijdens de meeste levels vol tot 99, omdat hij alleen koopt wat een level vraagt. Laat in het spel is geld dus nog steeds ruim. Daarna zijn de fontein en de draaimolen erbij gekomen; ook daarmee haalde hij alle 50 levels zonder een dier kwijt te raken (level 16 duurde door het sparen bijna twee keer zo lang).
+Op 17 november 2026 zijn de prijzen omhooggegaan (zie Munten). De proefspeler-als-kind (één handeling per 8 seconden, kas nooit bijgevuld) haalde daarna opnieuw alle 50 levels zonder een dier kwijt te raken. Tot en met level 19 houdt hij na een level 11 tot 40 munten over; daarna loopt de kas tijdens de meeste levels vol tot 99, omdat hij alleen koopt wat een level vraagt. Laat in het spel is geld dus nog steeds ruim. Sinds de werkers loon kosten (21 november 2026) gaat er in een vol park met 40 werkers 20 munten per minuut naar loon; de proefspeler haalde ook daarmee alle 50 levels en eindigde de levels met 27 tot 99 munten. Daarna zijn de fontein en de draaimolen erbij gekomen; ook daarmee haalde hij alle 50 levels zonder een dier kwijt te raken (level 16 duurde door het sparen bijna twee keer zo lang).
 
 De eerste versie van het zorgtempo was te zwaar: daarmee raakte de proefspeler-als-kind vanaf level 14 honderden dieren kwijt. Daarom eten en poepen dieren nu minder vaak en zijn verzorgers al vanaf level 13 te huur.
 

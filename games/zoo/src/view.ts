@@ -334,6 +334,12 @@ const SHOP_MOVING: Partial<Record<ShopKind, { y: number; parts: Part[] }>> = {
     ],
   },
 };
+/** Hoe iets op een rand staat: langs welke rand, en aan welke kant het pad ligt (1, -1 of 0 = geen van beide). */
+export interface EdgePose {
+  o: 'h' | 'v';
+  face: number;
+}
+
 /** Een winkel met alles erop en eraan; het bewegende deel staat in `userData.moving`. */
 function buildShop(kind: ShopKind, mat?: THREE.Material): THREE.Group {
   const group = build(SHOP_PARTS[kind], mat);
@@ -746,17 +752,37 @@ export class View {
   }
 
   /** Een winkel met zijn linkerbovenhoek op tegel (x, y); een gebouw beslaat 2 bij 2 tegels. */
-  makeShop(x: number, y: number, kind: ShopKind): THREE.Group {
+  makeShop(x: number, y: number, kind: ShopKind, edge?: EdgePose): THREE.Group {
     const group = buildShop(kind);
-    group.position.set(toWorldX(x + SHOP_SIZE[kind] / 2), 0, toWorldZ(y + SHOP_SIZE[kind] / 2));
+    this.poseShop(group, x, y, kind, edge);
     this.scene.add(group);
     return group;
   }
 
-  ghostShop(x: number, y: number, kind: ShopKind, ok: boolean): void {
+  /**
+   * Zet een winkel op zijn plek. Een bankje, bloembak of afvalbak staat op een rand: langs die rand, een
+   * stukje van het pad af en met het gezicht naar het pad (`face`: 1 = het pad ligt aan de zuid- of oostkant).
+   */
+  poseShop(group: THREE.Object3D, x: number, y: number, kind: ShopKind, edge?: EdgePose): void {
+    if (!edge) {
+      group.position.set(toWorldX(x + SHOP_SIZE[kind] / 2), 0, toWorldZ(y + SHOP_SIZE[kind] / 2));
+      group.rotation.y = 0;
+      return;
+    }
+    const off = -0.2 * edge.face;
+    if (edge.o === 'h') {
+      group.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + off));
+      group.rotation.y = edge.face < 0 ? Math.PI : 0;
+    } else {
+      group.position.set(toWorldX(x + off), 0, toWorldZ(y + 0.5));
+      group.rotation.y = edge.face < 0 ? -Math.PI / 2 : Math.PI / 2;
+    }
+  }
+
+  ghostShop(x: number, y: number, kind: ShopKind, ok: boolean, edge?: EdgePose): void {
     this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
     const ghost = this.ghostShops[kind];
-    ghost.position.set(toWorldX(x + SHOP_SIZE[kind] / 2), 0, toWorldZ(y + SHOP_SIZE[kind] / 2));
+    this.poseShop(ghost, x, y, kind, edge);
     ghost.visible = true;
   }
 

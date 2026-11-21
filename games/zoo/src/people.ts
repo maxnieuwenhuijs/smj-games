@@ -20,6 +20,21 @@ export interface ShopSpot {
   sells: string[];
   /** De stand van de draaimolen, in radialen: wie erin zit, draait mee. */
   spin?: number;
+  /**
+   * Een bankje, bloembak of afvalbak staat op de rand van tegel (x, y), net als een hek, en neemt geen
+   * tegel in: 'h' is de noordrand, 'v' de westrand.
+   */
+  edge?: 'h' | 'v';
+}
+
+/** Het midden van een winkel, in rastercoördinaten. */
+export const shopCenter = (shop: ShopSpot): [number, number] =>
+  shop.edge === 'h' ? [shop.x + 0.5, shop.y] : shop.edge === 'v' ? [shop.x, shop.y + 0.5] : [shop.x + shop.size / 2, shop.y + shop.size / 2];
+
+/** De twee tegels aan weerszijden van iets wat op een rand staat (alleen wat binnen het park ligt). */
+export function edgeSides(shop: { x: number; y: number; edge?: 'h' | 'v' }): number[] {
+  const sides: [number, number][] = shop.edge === 'h' ? [[shop.x, shop.y - 1], [shop.x, shop.y]] : [[shop.x - 1, shop.y], [shop.x, shop.y]];
+  return sides.filter(([x, y]) => x >= 0 && y >= 0 && x < W && y < H).map(([x, y]) => tileIndex(x, y));
 }
 
 /** Waar een gast voor naar een winkel gaat. */
@@ -320,6 +335,11 @@ export class Guest {
     const options: { shop: ShopSpot; tile: number }[] = [];
     for (const shop of w.shops) {
       if (shop.kind !== kind || (product && !shop.sells.includes(product))) continue;
+      if (shop.edge) {
+        // wat op een rand staat, gebruik je vanaf het pad ernaast
+        for (const n of edgeSides(shop)) if (reach.has(n)) options.push({ shop, tile: n });
+        continue;
+      }
       const own = footprint(shop);
       for (const t of own) for (const n of w.grid.neighbors(t)) if (reach.has(n) && !own.includes(n)) options.push({ shop, tile: n });
     }
@@ -433,7 +453,7 @@ export class Guest {
     if (this.leaving && this.tile === ENTRANCE) {
       this.gone = true;
     } else if (this.shop) {
-      this.face = [this.shop.x + this.shop.size / 2, this.shop.y + this.shop.size / 2];
+      this.face = shopCenter(this.shop);
       const kind = this.shop.kind;
       this.state = kind === 'bench' || kind === 'playground' || kind === 'fountain' || kind === 'carousel' ? 'sit' : 'buy';
       this.timer = kind === 'bench' ? 4.5 : kind === 'playground' ? 6 : kind === 'carousel' ? 8 : kind === 'fountain' ? 4 : kind === 'toilet' ? 3 : 1.8;
@@ -601,7 +621,7 @@ export class Guest {
     }
     // afval: in de bak als er een vlakbij staat, anders valt het na een poosje op het pad
     if (this.trash > 0) {
-      const near = w.shops.some(sh => sh.kind === 'bin' && Math.abs(sh.x + 0.5 - this.gx) < 1.6 && Math.abs(sh.y + 0.5 - this.gy) < 1.6);
+      const near = w.shops.some(sh => sh.kind === 'bin' && Math.abs(shopCenter(sh)[0] - this.gx) < 1.6 && Math.abs(shopCenter(sh)[1] - this.gy) < 1.6);
       if (near && !this.sloppy) this.trash = 0;
       else {
         this.trash -= dt;
@@ -755,8 +775,11 @@ export class Keeper {
   private working = 0;
   private heading = 0;
   private phase = 0;
+  /** Heeft de werker dit uur loon gekregen? Zo niet, dan wacht hij. */
+  paid = true;
 
-  constructor(tile: number) {
+  /** `role`: een voerder vult alleen de voerbakken, een schoonmaker veegt alleen het hok. */
+  constructor(tile: number, readonly role: 'feed' | 'clean' = 'feed') {
     const person = makePerson(true);
     this.mesh = person.group;
     this.limbs = person.limbs;
@@ -789,8 +812,7 @@ export class Keeper {
 
   private plan(w: KeeperWorld, regionId: number): void {
     const isTrough = (i: number): boolean => w.troughsOf(regionId).some(t => tileIndex(t.trough.x, t.trough.y) === i);
-    // eerst het voer: een dier met honger is erger dan een poepje
-    for (const { trough, food } of w.troughsOf(regionId)) {
+    for (const { trough, food } of this.role === 'feed' ? w.troughsOf(regionId) : []) {
       if (!food || (trough.food === food && trough.amount > 1)) continue;
       const spots = w.grid.neighbors(tileIndex(trough.x, trough.y)).filter(i => !isTrough(i));
       const route = spots.length ? w.grid.path(this.tile, spots[0], isTrough) : null;
@@ -800,7 +822,7 @@ export class Keeper {
         return;
       }
     }
-    const poop = w.poopsOf(regionId)[0];
+    const poop = this.role === 'clean' ? w.poopsOf(regionId)[0] : undefined;
     if (poop) {
       const route = w.grid.path(this.tile, tileIndex(Math.floor(poop.gx), Math.floor(poop.gy)), isTrough);
       if (route) {
@@ -816,6 +838,7 @@ export class Keeper {
   }
 
   update(dt: number, w: KeeperWorld, regionId: number): void {
+    if (!this.paid) return; // geen loon: even wachten
     const next = this.route[0];
     if (next !== undefined) {
       const [tx, ty] = tileXY(next);

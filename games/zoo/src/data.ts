@@ -85,7 +85,10 @@ export const WORLDS: WorldId[] = ['farm', 'savanna', 'jungle', 'ice', 'far'];
 export const COIN_CAP = 99;
 export const START_COINS = 10;
 export const LEVEL_BONUS = 5;
-export const PRICE = { trough: 1, bed: 1, keeper: 10, toy: 2 };
+export const PRICE = { trough: 1, bed: 1, toy: 2 };
+/** Werkers (voerder, schoonmaker) kosten loon: zoveel munten per uur. Een uur in het spel duurt twee minuten. */
+export const WAGE = 1;
+export const HOUR_SECONDS = 120;
 /** Wat je terugkrijgt als je iets weghaalt of een dier laat verhuizen: de helft, naar beneden afgerond. */
 export const refund = (price: number): number => Math.floor(price / 2);
 export const SHOP_PRICE: Record<ShopKind, number> = {
@@ -277,7 +280,7 @@ export const FEATURE = {
   sick: 20,
   balloon: 21,
   /** Vanaf hier kun je een verzorger aannemen: zodra het park te groot wordt om alles zelf te doen. */
-  keeper: 12,
+  keeper: 10,
   /** Vanaf hier kan er een dier ontsnappen. */
   escape: 30,
 };

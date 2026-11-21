@@ -14,6 +14,8 @@ export interface ToolOption {
   /** Prijs in munten, en of je die nu kunt betalen. */
   price?: number;
   cant?: boolean;
+  /** De prijs is loon per uur, niet eenmalig. */
+  per?: boolean;
   /** Munten die je ervoor terugkrijgt. */
   gain?: number;
   /** In een menu: deze keuze staat aan. */
@@ -40,7 +42,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = '
 }
 
 function button(opt: ToolOption, cls: string): HTMLButtonElement {
-  const price = opt.gain ? `<i class="price gain">+${opt.gain}</i>` : opt.price ? `<i class="price${opt.cant ? ' cant' : ''}">${opt.price}</i>` : '';
+  const price = opt.gain ? `<i class="price gain">+${opt.gain}</i>` : opt.price ? `<i class="price${opt.cant ? ' cant' : ''}">${opt.price}${opt.per ? t('per.hour') : ''}</i>` : '';
   const b = el('button', `tool ${cls} ${opt.tone ?? ''}`, `${opt.icon}<b>${opt.label}</b>${price}`);
   b.dataset.id = opt.id;
   if (opt.price) b.dataset.price = String(opt.price);
@@ -145,13 +147,14 @@ export class Hud {
   }
 
   /** De kas (munten) en het aantal gasten in het park. */
-  setWallet(coins: number, cap: number, guests: number | null): void {
-    const key = `${coins}/${guests}`;
+  setWallet(coins: number, cap: number, guests: number | null, hour: number | null = null): void {
+    const key = `${coins}/${guests}/${hour}`;
     if (key === this.walletKey) return;
     this.walletKey = key;
     this.wallet.innerHTML =
       `<span class="pill${coins >= cap ? ' full' : ''}" title="${t('wallet.coins')}">${icon('coin')}<b>${coins}</b></span>` +
-      (guests === null ? '' : `<span class="pill" title="${t('wallet.guests')}">${icon('guest')}<b>${guests}</b></span>`);
+      (guests === null ? '' : `<span class="pill" title="${t('wallet.guests')}">${icon('guest')}<b>${guests}</b></span>`) +
+      (hour === null ? '' : `<span class="pill" title="${t('wallet.hour')}">${icon('clock')}<b>${hour}</b></span>`);
   }
 
   // ------------------------------------------------------------ doelen

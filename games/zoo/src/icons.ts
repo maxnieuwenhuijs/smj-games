@@ -155,6 +155,8 @@ const ICONS = {
   empty:
     `<rect x="4" y="8" width="7" height="34" rx="2" fill="${WOOD_D}"/><rect x="11" y="13" width="6" height="26" rx="2" fill="${RED}"/>` +
     `<path d="M23 25 H41 M41 25 l-7 -7 M41 25 l-7 7" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  clock:
+    `<circle cx="24" cy="24" r="18" fill="#fff7e0" stroke="${INK}" stroke-width="3"/><path d="M24 13 V24 L32 29" fill="none" stroke="${INK}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`,
   trash:
     `<path d="M12 14 H36 L33 42 H15Z" fill="${GREY}"/><rect x="9" y="9" width="30" height="5" rx="2" fill="#6c7078"/><rect x="19" y="5" width="10" height="5" rx="2" fill="#6c7078"/>` +
     '<path d="M20 20 V36 M28 20 V36" stroke="#fff" stroke-width="3" stroke-linecap="round"/>',

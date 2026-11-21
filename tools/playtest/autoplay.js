@@ -13,6 +13,13 @@ const data = await import('/src/data.ts');
 const { goalProgress } = await import('/src/levels.ts');
 const models = await import('/src/models.ts');
 const { SPECIES, LEVELS, TERRAINS, FEATURE, SHOP_PRICE, SHOP_SIZE, PRODUCTS, PRICE } = data;
+/** Neem een werker aan via het menu van het verblijf, zoals een speler dat doet. */
+const hire = (pen, role) => {
+  if (role === 'feed' ? pen.feeder : pen.cleaner) return;
+  window.__zoo.penMenu(pen);
+  document.querySelector(`#menu [data-item="${role}"]`)?.click();
+};
+const staff = pen => (pen.feeder ? 1 : 0) + (pen.cleaner ? 1 : 0);
 
 const { W, H } = await import('/src/grid.ts');
 // De indeling is getekend op 20 bij 20 en ligt midden tegen de voorkant van het park, bij de ingang.
@@ -26,7 +33,8 @@ const SLOTS = [];
 for (const y0 of [1, 5, 9, 13]) for (const [x0, x1] of [[0, 2], [4, 6], [8, 9], [11, 13], [15, 17]]) SLOTS.push({ x0: x0 + OX, y0: y0 + OY, x1: x1 + OX, y1: y0 + 2 + OY });
 // Plekken voor winkels langs een zijpad bij de ingang (y = 17): gebouwen van 2 bij 2 eronder, losse dingen erboven.
 const BIG_SPOTS = [7, 11, 5, 13, 3, 15, 1, 17, 19, -1].map(x => [x + OX, 18 + OY]);
-const SMALL_SPOTS = [9, 11, 8, 12, 7, 13, 6, 14, 5, 15].map(x => [x + OX, 16 + OY]);
+// losse dingen staan op de noordrand van het zijpad
+const SMALL_SPOTS = [9, 11, 8, 12, 7, 13, 6, 14, 5, 15].map(x => [x + OX, 17 + OY]);
 
 export const T = {
   log: [],
@@ -142,9 +150,10 @@ export const T = {
   shop(kind, n = 1) {
     const game = z();
     while (game.shops.filter(s => s.kind === kind).length < n) {
-      const spot = (SHOP_SIZE[kind] > 1 ? BIG_SPOTS : SMALL_SPOTS).find(([x, y]) => !game.shops.some(s => s.x === x && s.y === y));
+      const big = SHOP_SIZE[kind] > 1;
+      const spot = (big ? BIG_SPOTS : SMALL_SPOTS).find(([x, y]) => !game.shops.some(s => s.x === x && s.y === y && !!s.edge === !big));
       if (!spot || !this.pay(SHOP_PRICE[kind])) return;
-      game.addShop(spot[0], spot[1], kind);
+      game.addShop(spot[0], spot[1], kind, undefined, big ? undefined : 'h');
     }
   },
 
@@ -224,12 +233,9 @@ export const T = {
     if (done === 0) this.pen('pig');
     for (const sp of this.order) this.furnish(sp);
     // een kind dat het druk krijgt, neemt hulp aan zodra dat kan en er munten over zijn
-    if (this.kid && !this.noHelp && done >= FEATURE.keeper && game.coins >= PRICE.keeper + 4 && game.pens.length >= 5) {
-      const busy = game.pens.filter(p => !p.keeper && game.animalsIn(p.region.id).length).sort((a, b) => game.poopsIn(b.region.id) - game.poopsIn(a.region.id))[0];
-      if (busy) {
-        game.penMenu(busy);
-        document.querySelector('#menu [data-item="keeper"]')?.click();
-      }
+    if (this.kid && !this.noHelp && done >= FEATURE.keeper && game.coins >= 12 && game.pens.length >= 5) {
+      const busy = game.pens.filter(p => staff(p) < 2 && game.animalsIn(p.region.id).length).sort((a, b) => game.poopsIn(b.region.id) - game.poopsIn(a.region.id))[0];
+      if (busy) hire(busy, busy.feeder ? 'clean' : 'feed');
     }
     for (const g of level.goals) if (g.species) await this.stock(g.species, Math.max(2, g.type === 'animals' ? g.n : 2));
     if (done >= FEATURE.paths) this.paths();
@@ -256,14 +262,9 @@ export const T = {
       }
       if (g.type === 'keeper') {
         for (const pen of game.pens) {
-          if (game.pens.filter(p => p.keeper).length >= g.n) break;
-          if (pen.keeper) continue;
-          if (game.coins < PRICE.keeper && !this.honest) {
-            this.topups++;
-            game.coins = 30;
-          }
-          game.penMenu(pen);
-          document.querySelector('#menu [data-item="keeper"]')?.click();
+          if (game.pens.reduce((n, p) => n + staff(p), 0) >= g.n) break;
+          if (staff(pen) === 2) continue;
+          hire(pen, pen.feeder ? 'clean' : 'feed');
         }
       }
     }

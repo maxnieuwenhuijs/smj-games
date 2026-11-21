@@ -102,7 +102,8 @@ export const say = {
   tipKeeper: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.tip.keeper' }),
   funNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.fun.new' }),
   host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
-  cash: (key: 'short' | 'full'): Line => ({ who: 'cashier', mood: key === 'full' ? 'happy' : 'worried', key: `cash.${key}` }),
+  cash: (key: 'short' | 'full' | 'wage'): Line => ({ who: 'cashier', mood: key === 'full' ? 'happy' : 'worried', key: `cash.${key}` }),
+  hiredAs: (role: 'feed' | 'clean'): Line => ({ who: 'keeper', mood: 'happy', key: `say.hired.${role}` }),
 };
 
 /** De tekst van een zin, zoals hij op het scherm komt en wordt uitgesproken. */
@@ -178,5 +179,8 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter', 'product', 'new', 'accident'] as const) add(say.host(key));
   add(say.cash('short'));
   add(say.cash('full'));
+  add(say.cash('wage'));
+  add(say.hiredAs('feed'));
+  add(say.hiredAs('clean'));
   return [...out.values()];
 }
