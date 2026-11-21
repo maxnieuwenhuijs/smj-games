@@ -1,23 +1,25 @@
 // Alle spelinhoud als gegevens: soorten, voer, ondergrond, slaapplekken, winkels, prijzen en levels.
 export type Terrain = 'grass' | 'mud' | 'sand' | 'water' | 'path' | 'snow' | 'forest' | 'stones' | 'ice' | 'swamp' | 'meadow' | 'steppe';
 export type FoodId = 'veg' | 'hay' | 'fruit' | 'grain' | 'meat' | 'leaves' | 'fish' | 'bamboo';
-export type BedKind = 'straw' | 'shed' | 'rock' | 'shade' | 'nest' | 'cave' | 'climb';
+export type BedKind = 'straw' | 'shed' | 'rock' | 'shade' | 'nest' | 'cave' | 'climb' | 'coral';
 export type ShopKind = 'foodstall' | 'drinkstall' | 'bench' | 'toilet' | 'icecream' | 'balloon' | 'flowers' | 'bin' | 'souvenir' | 'playground' | 'hats' | 'fountain' | 'carousel'
   | 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline';
-export type FenceOption = 'fence' | 'gate' | 'wall' | 'net';
+export type FenceOption = 'fence' | 'gate' | 'wall' | 'net' | 'glass';
 /** Wat voor hek een dier nodig heeft: sterke dieren een stenen muur, klimmers en vliegers een hoog net. */
-export type FenceNeed = 'wall' | 'net';
+export type FenceNeed = 'wall' | 'net' | 'glass';
 export type WorldId = 'farm' | 'savanna' | 'jungle' | 'ice' | 'far';
 export type SpeciesId =
   | 'pig' | 'cow' | 'sheep' | 'horse' | 'donkey' | 'goat' | 'alpaca' | 'chicken' | 'duck' | 'rabbit'
   | 'zebra' | 'giraffe' | 'lion' | 'camel' | 'rhino' | 'hippo' | 'elephant' | 'ostrich' | 'cheetah' | 'gazelle'
   | 'monkey' | 'parrot' | 'tiger' | 'gorilla' | 'crocodile' | 'panda' | 'peacock' | 'toucan' | 'sloth' | 'panther'
   | 'penguin' | 'seal' | 'polarbear' | 'reindeer' | 'wolf' | 'arcticfox' | 'bear' | 'yak' | 'owl' | 'walrus'
-  | 'flamingo' | 'turtle' | 'otter' | 'beaver' | 'pelican' | 'koala' | 'redpanda' | 'lemur' | 'bison' | 'kangaroo';
+  | 'flamingo' | 'turtle' | 'otter' | 'beaver' | 'pelican' | 'koala' | 'redpanda' | 'lemur' | 'bison' | 'kangaroo'
+  // het aquarium: geen beloning van een level, maar erbij vanaf een bepaald level (zie BONUS)
+  | 'dolphin' | 'orca';
 export type Variant = 'male' | 'female' | 'young_m' | 'young_f';
 export type WishId = 'health' | 'enclosure' | 'food' | 'bed' | 'terrain' | 'friend' | 'clean' | 'space' | 'fun';
 /** Iets leuks in een verblijf: speelgoed of groen. Elk dier is er blij mee. */
-export type ToyKind = 'ball' | 'bush' | 'log' | 'flowerbed';
+export type ToyKind = 'ball' | 'bush' | 'log' | 'flowerbed' | 'hoop';
 
 /** De volgorde is ook de waarde in het opslagbestand: nieuwe soorten komen achteraan. */
 export const TERRAINS: Terrain[] = ['grass', 'mud', 'sand', 'water', 'path', 'snow', 'forest', 'stones', 'ice', 'swamp', 'meadow', 'steppe'];
@@ -38,13 +40,14 @@ export const TERRAIN_INFO: Record<Terrain, { colors: [number, number] }> = {
 };
 
 export const FOODS: FoodId[] = ['veg', 'hay', 'fruit', 'grain', 'meat', 'leaves', 'fish', 'bamboo'];
-export const BEDS: BedKind[] = ['straw', 'shed', 'rock', 'shade', 'nest', 'cave', 'climb'];
-export const TOYS: ToyKind[] = ['ball', 'bush', 'log', 'flowerbed'];
+export const BEDS: BedKind[] = ['straw', 'shed', 'rock', 'shade', 'nest', 'cave', 'climb', 'coral'];
+export const TOYS: ToyKind[] = ['ball', 'bush', 'log', 'flowerbed', 'hoop'];
 /**
  * Grote dieren hebben ruimte nodig: het verblijf moet minstens zoveel tegels groot zijn. Wie hier niet staat,
  * past in elk verblijf.
  */
 export const SPACE: Partial<Record<SpeciesId, number>> = {
+  orca: 12, dolphin: 9,
   elephant: 9, giraffe: 9, rhino: 9, hippo: 9, polarbear: 9, bison: 9, walrus: 9,
   lion: 8, tiger: 8, bear: 8, gorilla: 8, camel: 8, panther: 8, cheetah: 8, wolf: 8, kangaroo: 8,
   horse: 6, cow: 6, zebra: 6, donkey: 6, reindeer: 6, yak: 6, crocodile: 6, seal: 6, panda: 6, ostrich: 6,
@@ -55,6 +58,7 @@ export const SPACE: Partial<Record<SpeciesId, number>> = {
  */
 export const HERD: Partial<Record<SpeciesId, number>> = {
   chicken: 5, penguin: 5, flamingo: 5,
+  dolphin: 3,
   duck: 4, rabbit: 4, gazelle: 4, monkey: 4, lemur: 4,
   sheep: 3, goat: 3, alpaca: 3, zebra: 3, ostrich: 3, parrot: 3, toucan: 3, reindeer: 3, wolf: 3, otter: 3, pelican: 3, bison: 3,
 };
@@ -92,6 +96,7 @@ export const TOY_OF: Partial<Record<SpeciesId, ToyKind>> = {
   pig: 'ball', cow: 'bush', sheep: 'bush', horse: 'ball', donkey: 'log', goat: 'log', alpaca: 'bush', 
   zebra: 'bush', giraffe: 'bush', lion: 'ball', camel: 'bush', rhino: 'log', hippo: 'ball', elephant: 'log', cheetah: 'ball', gazelle: 'flowerbed',
   monkey: 'ball', parrot: 'flowerbed', tiger: 'ball', gorilla: 'log', panda: 'bush', toucan: 'bush', sloth: 'log', panther: 'log',
+  dolphin: 'hoop', orca: 'ball',
   penguin: 'ball', seal: 'ball', polarbear: 'log', reindeer: 'bush', wolf: 'ball', arcticfox: 'flowerbed', bear: 'log', yak: 'bush', owl: 'log', walrus: 'ball',
   otter: 'ball', beaver: 'log', koala: 'bush', redpanda: 'log', lemur: 'bush', bison: 'log', kangaroo: 'ball',
 };
@@ -116,10 +121,12 @@ export const guestsAt = (level: number, quality = 2): number => Math.min([30, 45
  * Tien kleuren per soort hek (1 = hout, 3 = steen, 4 = net). De eerste is de gewone kleur. Je kiest de kleur
  * door op een verblijf te tikken.
  */
-export const FENCE_COLORS: Record<1 | 3 | 4, number[]> = {
+export const FENCE_COLORS: Record<1 | 3 | 4 | 5, number[]> = {
   1: [0xc58a4b, 0xf3ead6, 0xe0584f, 0x4a90e2, 0x6cc04a, 0xffd23f, 0xf48fb1, 0xa06ad9, 0xf08a24, 0x6b4a2a],
   3: [0xa9adb3, 0xe8dcc0, 0xc9553f, 0xf7f4ec, 0x5a6470, 0x8fae7a, 0x8fb4d9, 0xe6a9b8, 0xe5c66a, 0x8a6a4a],
   4: [0x3f7f6b, 0x2b2f36, 0xf3f3f3, 0x4a90e2, 0xe0584f, 0xffd23f, 0xf08a24, 0xa06ad9, 0xf48fb1, 0xb9c2c9],
+  // glas: de kleur van de lijst om de ruit
+  5: [0xd9e6ee, 0x2b2f36, 0xf7f4ec, 0x4a90e2, 0xe0584f, 0xffd23f, 0xf08a24, 0xa06ad9, 0xf48fb1, 0x3f7f6b],
 };
 
 /** Hoeveel tegels breed en diep een winkel is: gebouwen 2 bij 2, losse dingen 1 bij 1. */
@@ -273,6 +280,9 @@ export const SPECIES: Record<SpeciesId, SpeciesInfo> = {
   lemur: sp('forest', 'fruit', 'climb', 30, 'net'),
   bison: sp('grass', 'hay', 'shed', 42, 'wall'),
   kangaroo: sp('sand', 'hay', 'shade', 50, 'net'),
+  // aquarium: een bak van glas vol water, met koraal om bij te rusten
+  dolphin: sp('water', 'fish', 'coral', 45, 'glass'),
+  orca: sp('water', 'fish', 'coral', 60, 'glass'),
 };
 
 /**
@@ -391,6 +401,16 @@ export function worldOf(levelIndex: number): WorldId {
 export function unlockedSpecies(done: number): SpeciesId[] {
   return LEVELS.slice(0, done).map(l => l.reward);
 }
+
+/**
+ * De dieren van het aquarium zijn geen beloning van een level: je krijgt ze erbij zodra je zoveel levels
+ * gehaald hebt. Ze leven alleen in water, achter glas.
+ */
+export const BONUS: Partial<Record<SpeciesId, number>> = { dolphin: 20, orca: 35 };
+export const AQUATIC: SpeciesId[] = ['dolphin', 'orca'];
+export const bonusSpecies = (done: number): SpeciesId[] => (Object.keys(BONUS) as SpeciesId[]).filter(sp => BONUS[sp]! <= done);
+/** Zo hoog staat het water in een bak van glas. */
+export const TANK_WATER = 0.42;
 
 /** Vanaf hoeveel gehaalde levels iets meedoet. */
 export const FEATURE = {

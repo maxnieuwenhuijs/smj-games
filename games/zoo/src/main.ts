@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { askPersistence, saveDel, saveGet, saveSet, setStrings, t } from '@smj/shared';
 import { loadAudio, resumeAmbience, unlockAudio } from './audio';
-import { LEVELS, SPECIES, migrateLevel, unlockedSpecies } from './data';
+import { LEVELS, SPECIES, bonusSpecies, migrateLevel, unlockedSpecies } from './data';
 import en from './en.json';
 import { Game, slotKey, type SaveData } from './game';
 import { icon, type IconId } from './icons';
@@ -292,7 +292,7 @@ async function begin(slot: number, data: SaveData | undefined, player = ''): Pro
     await probeIcons(Object.keys(SPECIES));
     // alleen de soorten laden die al vrijgespeeld zijn of in het opgeslagen park staan
     const level = data ? levelOf(data) : 0;
-    const needed = new Set<string>([...unlockedSpecies(Math.min(level, LEVELS.length)), ...(data?.animals ?? []).map(a => a.species)]);
+    const needed = new Set<string>([...unlockedSpecies(Math.min(level, LEVELS.length)), ...bonusSpecies(level), ...(data?.animals ?? []).map(a => a.species)]);
     await Promise.all([loadModel('poop'), ...[...needed].filter(hasSpecies).map(loadSpecies)]);
   } catch (err) {
     $('loading').innerHTML = icon('cross');

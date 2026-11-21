@@ -175,7 +175,8 @@ describe('vijftig levels', () => {
 
   it('er zijn vijftig levels en vijftig dieren, elk dier één keer', () => {
     expect(LEVELS).toHaveLength(50);
-    expect(species).toHaveLength(50);
+    // vijftig beloningen en twee zeedieren voor het aquarium
+    expect(species).toHaveLength(52);
     expect(new Set(LEVELS.map(l => l.reward)).size).toBe(50);
     expect(worldOf(0)).toBe('farm');
     expect(worldOf(10)).toBe('savanna');

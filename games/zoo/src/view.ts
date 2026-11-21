@@ -49,6 +49,14 @@ const WALL_GEO = mergeGeometries([
   boxAt(0.2, 0.09, 0.16, 0.5, 0.345, 0),
   boxAt(0.2, 0.09, 0.16, 0.88, 0.345, 0),
 ])!;
+// Glazen wand van een aquarium: een lijst met een ruit erin. De ruit is een los, doorzichtig onderdeel.
+const GLASS_FRAME_GEO = mergeGeometries([
+  boxAt(0.08, 0.74, 0.08, 0, 0.37, 0),
+  boxAt(0.08, 0.74, 0.08, 1, 0.37, 0),
+  boxAt(1, 0.07, 0.08, 0.5, 0.035, 0),
+  boxAt(1, 0.06, 0.07, 0.5, 0.71, 0),
+])!;
+const GLASS_PANE_GEO = boxAt(0.92, 0.62, 0.025, 0.5, 0.38, 0);
 // Hoog net voor klimmers, vliegers en springers: hoge palen met gaas ertussen.
 const NET_GEO = mergeGeometries([
   boxAt(0.1, 0.92, 0.1, 0, 0.46, 0),
@@ -90,6 +98,10 @@ const LEAF_MAT = new THREE.MeshStandardMaterial({ color: 0x5fa544, roughness: 1 
 const WHITE_MAT = new THREE.MeshStandardMaterial({ color: 0xf7f4ec, roughness: 0.9 });
 
 const NET_MAT = new THREE.MeshStandardMaterial({ color: 0x3f7f6b, roughness: 0.7 });
+const GLASS_FRAME_MAT = new THREE.MeshStandardMaterial({ color: 0xd9e6ee, roughness: 0.5 });
+const GLASS_MAT = new THREE.MeshStandardMaterial({ color: 0xbfe6f7, roughness: 0.15, transparent: true, opacity: 0.32, depthWrite: false });
+/** Het water in een bak van glas: een doorzichtig blok per tegel. */
+const TANK_MAT = new THREE.MeshStandardMaterial({ color: 0x4fb4e6, roughness: 0.2, transparent: true, opacity: 0.42, depthWrite: false });
 const DARK_MAT = new THREE.MeshStandardMaterial({ color: 0x5a3d22, roughness: 1 });
 const std = (color: number, roughness = 0.9): THREE.MeshStandardMaterial => new THREE.MeshStandardMaterial({ color, roughness });
 
@@ -134,6 +146,13 @@ const BED_PARTS: Record<BedKind, Part[]> = {
   nest: [[NEST_GEO, std(0xb98a4a, 1)], [EGG_GEO, WHITE_MAT]],
   cave: [[CAVE_FLOOR_GEO, DARK_MAT, false], [CAVE_GEO, ROCK_MAT]],
   climb: [[CLIMB_GEO, WOOD_MAT], [CLIMB_LEAF_GEO, LEAF_MAT]],
+  // koraal: een platte steen met roze en oranje takken, laag genoeg om onder water te staan
+  coral: [
+    [boxAt(0.8, 0.08, 0.7, 0, 0.04, 0), ROCK_MAT],
+    [mergeGeometries([boxAt(0.07, 0.3, 0.07, -0.22, 0.2, -0.12), boxAt(0.18, 0.06, 0.06, -0.15, 0.3, -0.12), boxAt(0.06, 0.16, 0.06, -0.08, 0.36, -0.12), boxAt(0.07, 0.24, 0.07, 0.24, 0.17, 0.14), boxAt(0.06, 0.06, 0.16, 0.24, 0.26, 0.2)])!, std(0xf06aa6, 0.8)],
+    [mergeGeometries([boxAt(0.08, 0.26, 0.08, 0.08, 0.18, -0.18), boxAt(0.2, 0.06, 0.06, 0.16, 0.28, -0.18), boxAt(0.06, 0.14, 0.06, 0.24, 0.33, -0.18), boxAt(0.07, 0.18, 0.07, -0.2, 0.14, 0.2)])!, std(0xf08a24, 0.8)],
+    [mergeGeometries([boxAt(0.14, 0.1, 0.14, 0, 0.12, 0.08), boxAt(0.1, 0.08, 0.1, -0.02, 0.2, 0.1)])!, std(0xffd23f, 0.8)],
+  ],
 };
 
 // Winkels: gebouwen van 2 bij 2 tegels, en losse dingen als een bankje, bloemen en een afvalbak.
@@ -291,6 +310,12 @@ const TOY_PARTS: Record<ToyKind, Part[]> = {
     [new THREE.CylinderGeometry(0.15, 0.15, 0.82, 10).rotateZ(Math.PI / 2).rotateY(0.5).translate(0, 0.15, 0.08), WOOD_MAT],
     [tube(0.13, 0.15, 0.3, -0.22, 0.15, -0.28), WOOD_MAT],
     [tube(0.115, 0.115, 0.02, -0.22, 0.31, -0.28), std(0xe3c08a, 1)],
+  ],
+  // hoepel: een rode ring op een paal; een dolfijn springt erdoorheen
+  hoop: [
+    [mergeGeometries([tube(0.035, 0.045, 0.7, 0, 0.35, 0), tube(0.14, 0.16, 0.05, 0, 0.025, 0)])!, std(0x8a8f98, 0.6)],
+    [new THREE.TorusGeometry(0.4, 0.045, 8, 22).translate(0, 1.12, 0), std(0xe0584f, 0.5)],
+    [new THREE.TorusGeometry(0.4, 0.05, 6, 22, Math.PI / 5).translate(0, 1.12, 0), WHITE_MAT],
   ],
   flowerbed: [
     [boxAt(0.82, 0.05, 0.82, 0, 0.025, 0), DARK_MAT, false],
@@ -736,7 +761,10 @@ export class View {
   zoom = 11;
 
   private ground: THREE.InstancedMesh;
-  private fences = new Map<string, THREE.Mesh>();
+  private fences = new Map<string, THREE.Object3D>();
+  /** Het water in de bakken van glas. */
+  private tank: THREE.InstancedMesh | null = null;
+  private tankKey = '';
   private raycaster = new THREE.Raycaster();
   private plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private tmp = new THREE.Vector3();
@@ -748,6 +776,7 @@ export class View {
   private ghostTroughMesh = new THREE.Mesh(TROUGH_GEO, this.ghostMat);
   private ghostWallMesh = new THREE.Mesh(WALL_GEO, this.ghostMat);
   private ghostNetMesh = new THREE.Mesh(NET_GEO, this.ghostMat);
+  private ghostGlassMesh = new THREE.Mesh(GLASS_FRAME_GEO, this.ghostMat);
   private ghostBeds = Object.fromEntries(BEDS.map(k => [k, build(BED_PARTS[k], this.ghostMat)])) as Record<BedKind, THREE.Group>;
   private ghostToys = Object.fromEntries(TOYS.map(k => [k, build(TOY_PARTS[k], this.ghostMat)])) as Record<ToyKind, THREE.Group>;
   private ghostDecors = Object.fromEntries(DECORS.map(k => [k, buildDecor(k, this.ghostMat)])) as Record<DecorKind, THREE.Group>;
@@ -833,7 +862,7 @@ export class View {
 
     this.ghostTileMesh.position.y = 0.012;
     this.ghostRing.position.y = 0.014;
-    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostWallMesh, this.ghostNetMesh, this.ghostTroughMesh, ...Object.values(this.ghostBeds), ...Object.values(this.ghostToys), ...Object.values(this.ghostDecors), ...Object.values(this.ghostShops), this.ghostTileMesh, this.ghostRing];
+    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostWallMesh, this.ghostNetMesh, this.ghostGlassMesh, this.ghostTroughMesh, ...Object.values(this.ghostBeds), ...Object.values(this.ghostToys), ...Object.values(this.ghostDecors), ...Object.values(this.ghostShops), this.ghostTileMesh, this.ghostRing];
     for (const g of this.ghosts) {
       g.visible = false;
       g.traverse(o => { o.renderOrder = 5; });
@@ -1124,7 +1153,7 @@ export class View {
       ? [{ o: 'v', x: e.x, y: e.y - 1 }, { o: 'v', x: e.x, y: e.y }, { o: 'v', x: e.x + 1, y: e.y - 1 }, { o: 'v', x: e.x + 1, y: e.y }]
       : [{ o: 'h', x: e.x - 1, y: e.y }, { o: 'h', x: e.x, y: e.y }, { o: 'h', x: e.x - 1, y: e.y + 1 }, { o: 'h', x: e.x, y: e.y + 1 }];
     const kinds = [...beside, ...around].map(n => grid.getEdge(n));
-    return kinds.includes(3) ? 3 : kinds.includes(4) ? 4 : 1;
+    return kinds.includes(3) ? 3 : kinds.includes(4) ? 4 : kinds.includes(5) ? 5 : 1;
   }
 
   /** Een hek in een eigen kleur; versleten hout wordt per fase donkerder. */
@@ -1133,7 +1162,7 @@ export class View {
     const key = `${style}:${tint}:${worn}`;
     let mat = this.tintMats.get(key);
     if (!mat) {
-      const color = new THREE.Color(FENCE_COLORS[style as 1 | 3 | 4][tint]).multiplyScalar([1, 0.86, 0.7, 0.54][worn]);
+      const color = new THREE.Color(FENCE_COLORS[style as 1 | 3 | 4 | 5][tint]).multiplyScalar([1, 0.86, 0.7, 0.54][worn]);
       mat = new THREE.MeshStandardMaterial({ color, roughness: style === 4 ? 0.7 : 0.95 });
       this.tintMats.set(key, mat);
     }
@@ -1156,13 +1185,42 @@ export class View {
       }
     for (const [key, { e, kind, style, worn, tint }] of wanted) {
       if (this.fences.has(key)) continue;
-      const geo = kind === 4 ? NET_GEO : kind === 3 ? WALL_GEO : kind === 2 ? GATE_GEO : WORN_GEOS[worn];
-      const mesh = new THREE.Mesh(geo, tint ? this.tintMat(style, tint, worn) : style === 3 ? STONE_MAT : style === 4 ? NET_MAT : WORN_MATS[worn]);
+      const geo = kind === 5 ? GLASS_FRAME_GEO : kind === 4 ? NET_GEO : kind === 3 ? WALL_GEO : kind === 2 ? GATE_GEO : WORN_GEOS[worn];
+      const frame = new THREE.Mesh(geo, tint ? this.tintMat(style, tint, worn) : style === 5 ? GLASS_FRAME_MAT : style === 3 ? STONE_MAT : style === 4 ? NET_MAT : WORN_MATS[worn]);
+      frame.castShadow = true;
+      let mesh: THREE.Object3D = frame;
+      if (kind === 5) {
+        // glas: de lijst met een doorzichtige ruit erin
+        const pane = new THREE.Mesh(GLASS_PANE_GEO, GLASS_MAT);
+        pane.renderOrder = 3;
+        mesh = new THREE.Group().add(frame, pane);
+      }
       this.placeEdge(mesh, e);
-      mesh.castShadow = true;
       this.scene.add(mesh);
       this.fences.set(key, mesh);
     }
+  }
+
+  /**
+   * Het water in de bakken van glas: op elke watertegel in zo'n bak staat een doorzichtig blok water, zodat
+   * je de dieren erin ziet zwemmen. `tiles`: de tegels (x, y) waar water in een glazen bak ligt.
+   */
+  syncTanks(tiles: [number, number][], height: number): void {
+    const key = tiles.map(t => t.join(',')).join(';');
+    if (key === this.tankKey) return;
+    this.tankKey = key;
+    if (this.tank) {
+      this.scene.remove(this.tank);
+      this.tank.dispose();
+      this.tank = null;
+    }
+    if (!tiles.length) return;
+    this.tank = new THREE.InstancedMesh(new THREE.BoxGeometry(1, height, 1).translate(0, height / 2 + 0.005, 0), TANK_MAT, tiles.length);
+    const m = new THREE.Matrix4();
+    tiles.forEach(([x, y], i) => this.tank!.setMatrixAt(i, m.makeTranslation(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5))));
+    this.tank.renderOrder = 2;
+    this.tank.frustumCulled = false;
+    this.scene.add(this.tank);
   }
 
   // ------------------------------------------------------------ voerbak
@@ -1314,7 +1372,7 @@ export class View {
   }
 
   ghostFence(e: Edge, kind: number, ok: boolean): void {
-    const mesh = kind === 4 ? this.ghostNetMesh : kind === 3 ? this.ghostWallMesh : kind === 2 ? this.ghostGateMesh : this.ghostFenceMesh;
+    const mesh = kind === 5 ? this.ghostGlassMesh : kind === 4 ? this.ghostNetMesh : kind === 3 ? this.ghostWallMesh : kind === 2 ? this.ghostGateMesh : this.ghostFenceMesh;
     this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
     this.placeEdge(mesh, e);
     mesh.visible = true;

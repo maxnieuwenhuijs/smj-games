@@ -1,5 +1,5 @@
 // Eén dier: wat het wil, wat het doet en welke animatie daarbij hoort.
-import { ALSO, MIX_TILES, type Terrain, MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, type FenceNeed, type SpeciesId, type Variant, type WishId } from './data';
+import { ALSO, AQUATIC, TANK_WATER, MIX_TILES, type Terrain, MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, type FenceNeed, type SpeciesId, type Variant, type WishId } from './data';
 import { Grid, tileIndex, tileXY } from './grid';
 import { MODEL_SCALE, modelInfo, spawnModel, type ModelInfo, type Spawned } from './models';
 import { toWorldX, toWorldZ } from './view';
@@ -34,7 +34,7 @@ export interface AnimalWorld {
   /** Is het nacht? Dan slapen de meeste dieren. */
   isNight(): boolean;
   /** Een dier speelt zoveel seconden met dit ding: het ding beweegt mee. */
-  playWith(toy: Toy, seconds: number): void;
+  playWith(toy: Toy, seconds: number, facing?: number): void;
   animals: Animal[];
   poopsIn(regionId: number): number;
   dropPoop(gx: number, gy: number): void;
@@ -54,6 +54,8 @@ export interface AnimalWorld {
   poopRate(): number;
   /** Is er een hek van dit verblijf helemaal kapot? Dan voelen de dieren zich niet veilig. */
   brokenPen(regionId: number): boolean;
+  /** Staat deze tegel in een bak van glas vol water? Dan zwemt een dier hoger: in het water in de bak. */
+  inTank(tile: number): boolean;
 }
 
 type State = 'idle' | 'walk' | 'eat' | 'poop' | 'pee' | 'rest' | 'emote';
@@ -62,11 +64,11 @@ type State = 'idle' | 'walk' | 'eat' | 'poop' | 'pee' | 'rest' | 'emote';
 // nog een paar minuten voor ze echt honger hebben. Jongen eten mee zonder dat de bak er leger van wordt, en
 // poepen niet. Zo wordt het zorgen niet zwaarder als er jongen bij komen.
 const HUNGER_PER_SEC = 1 / 1200;
-const NEED_KIND: Record<FenceNeed, number> = { wall: 3, net: 4 };
+const NEED_KIND: Record<FenceNeed, number> = { wall: 3, net: 4, glass: 5 };
 /** Zo hoog ligt een dier dat op zijn slaapplek slaapt: boven op de rots of het stro, niet erin. */
 const BED_LIFT: Record<string, number> = { straw: 0.1, shed: 0.1, rock: 0.22, nest: 0.07, cave: 0.03 };
 const WATER_TILE = TERRAINS.indexOf('water');
-type Trick = 'hop' | 'spin' | 'roll' | 'shake' | 'wiggle' | 'stretch' | 'nuzzle' | 'greet' | 'dance';
+type Trick = 'hop' | 'spin' | 'roll' | 'shake' | 'wiggle' | 'stretch' | 'nuzzle' | 'greet' | 'dance' | 'leap';
 const SEEK_FOOD = 0.4;
 const HUNGRY = 0.6;
 
@@ -115,6 +117,10 @@ export class Animal {
   fenceBroken = false;
   /** Het speelgoed waar het dier naartoe loopt om mee te spelen. */
   private playAt: Toy | null = null;
+  /** De sprong door de hoepel: van waar naar waar. */
+  private leap: { fx: number; fy: number; tx: number; ty: number; top: number; seconds: number } | null = null;
+  /** Een zeedier: leeft alleen in water. */
+  readonly aquatic: boolean;
   /** Hoe hoog het dier nu ligt en moet liggen (boven op een slaapplek). */
   private lift = 0;
   private y = 0;
@@ -123,6 +129,7 @@ export class Animal {
   private oy = (Math.random() - 0.5) * 0.36;
 
   constructor(readonly species: SpeciesId, readonly variant: Variant, gx: number, gy: number) {
+    this.aquatic = AQUATIC.includes(species);
     const key = `${species}_${variant}`;
     this.model = spawnModel(key);
     this.info = modelInfo(key);
@@ -162,7 +169,7 @@ export class Animal {
     // in het water zakt het dier een stuk weg en dobbert het: zo zwemt het
     this.y += (this.lift - this.sink - this.y) * 0.18;
     const wave = this.sink ? Math.sin(this.bob * 3) * 0.02 : 0;
-    let y = this.y + wave, yaw = this.heading, roll = 0, sx = 1, sy = 1, sz = 1;
+    let y = this.y + wave, yaw = this.heading, roll = 0, pitch = 0, sx = 1, sy = 1, sz = 1;
     const k = this.trick;
     if (k) {
       const u = k.t, tall = this.info.height * MODEL_SCALE;
@@ -174,6 +181,13 @@ export class Animal {
         sx = sz = 1 - (h - 0.5) * 0.08;
         if (k.kind === 'dance') yaw += Math.sin(u * 5) * 0.6;
         if (k.kind === 'greet') yaw += Math.sin(u * 12) * 0.12;
+      } else if (k.kind === 'leap' && this.leap) {
+        // door de hoepel: een boog van de ene kant naar de andere, neus eerst omhoog en dan omlaag
+        const p = Math.min(1, u / this.leap.seconds);
+        this.gx = this.leap.fx + (this.leap.tx - this.leap.fx) * p;
+        this.gy = this.leap.fy + (this.leap.ty - this.leap.fy) * p;
+        y += Math.sin(p * Math.PI) * this.leap.top;
+        pitch = -Math.cos(p * Math.PI) * 0.95;
       } else if (k.kind === 'spin') yaw += u * 7.5;
       else if (k.kind === 'roll') roll = Math.sin(u * 2.4) * 1.25;
       else if (k.kind === 'shake') roll = Math.sin(u * 40) * 0.16;
@@ -189,7 +203,8 @@ export class Animal {
     } else if (this.anim === 'Sleep') sy = 1 + Math.sin(this.bob * 1.7) * 0.035; // ademen in de slaap
     const root = this.model.root;
     root.position.set(toWorldX(this.gx), y, toWorldZ(this.gy));
-    root.rotation.set(0, yaw, roll);
+    root.rotation.order = 'YXZ';
+    root.rotation.set(pitch, yaw, roll);
     root.scale.set(MODEL_SCALE * sx, MODEL_SCALE * sy, MODEL_SCALE * sz);
   }
 
@@ -345,9 +360,42 @@ export class Animal {
     this.playAt = null;
     if (!toy) return;
     this.heading = Math.atan2(toy.x + 0.5 - this.gx, toy.y + 0.5 - this.gy);
+    if (toy.kind === 'hoop') {
+      // de hoepel: erdoorheen springen naar de tegel aan de andere kant (als die vrij is)
+      const tx = toy.x + 0.5 + (toy.x + 0.5 - this.gx), ty = toy.y + 0.5 + (toy.y + 0.5 - this.gy);
+      const far = tileIndex(Math.floor(tx), Math.floor(ty));
+      const free = w.grid.inBounds(Math.floor(tx), Math.floor(ty)) && w.grid.regionOf[far] === w.grid.regionOf[this.tile] && !isTroughTile(w, far) && !this.dry(w, far);
+      this.leap = { fx: this.gx, fy: this.gy, tx: free ? tx : this.gx, ty: free ? ty : this.gy, top: 1.25 - this.top * 0.5, seconds: 1.5 };
+      w.playWith(toy, 1.7, this.heading);
+      w.splash(this.gx, this.gy);
+      return this.doTrick('leap', 1.5, 'Play');
+    }
     const seconds = 4 + Math.random() * 2;
     w.playWith(toy, seconds);
     this.emote('Play', seconds);
+  }
+
+  /** Een zeedier kan niet over het droge: die tegels telt het als versperd. */
+  private dry(w: AnimalWorld, tile: number): boolean {
+    return this.aquatic && w.grid.terrain[tile] !== WATER_TILE;
+  }
+
+  /** Iemand tikt op het speelgoed: het dier komt eraan en gaat ermee spelen. Lukt dat (is er een weg)? */
+  comePlay(w: AnimalWorld, toy: Toy): boolean {
+    if (this.sick || this.escaped || this.trick || this.anim === 'Sleep') return false;
+    const here = w.grid.regionOf[this.tile];
+    const blocked = (i: number): boolean => isTroughTile(w, i) || this.dry(w, i);
+    const spots = w.grid.neighbors(tileIndex(toy.x, toy.y)).filter(i => !blocked(i) && w.grid.regionOf[i] === here);
+    const routes = spots.map(i => w.grid.path(this.tile, i, blocked)).filter((r): r is number[] => !!r).sort((p, q) => p.length - q.length);
+    if (!routes.length) return false;
+    this.playAt = toy;
+    this.eatAt = null;
+    if (routes[0].length > 1) {
+      this.startWalk(routes[0]);
+      this.fast = true;
+      this.play('Run', this.young ? 2 : 1.5);
+    } else this.startPlay(w);
+    return true;
   }
 
   private choose(w: AnimalWorld): void {
@@ -387,7 +435,7 @@ export class Animal {
       this.play('Poop');
       return;
     }
-    const isTrough = (i: number) => w.troughs.some(t => tileIndex(t.x, t.y) === i);
+    const isTrough = (i: number): boolean => w.troughs.some(t => tileIndex(t.x, t.y) === i) || this.dry(w, i);
     if (this.hunger > SEEK_FOOD) {
       const food = SPECIES[this.species].food;
       for (const trough of w.troughs) {
@@ -516,8 +564,13 @@ export class Animal {
     this.model.mixer.update(dt);
     this.bob += dt;
     if (this.trick) this.trick.t += dt;
+    if (this.leap && this.trick?.kind !== 'leap') {
+      this.leap = null;
+      w.splash(this.gx, this.gy);
+    }
     const swims = w.grid.terrain[this.tile] === WATER_TILE && !this.lift;
-    this.sink = swims ? this.top * 0.34 : 0;
+    // in een bak van glas staat het water hoger: daar zwemt het dier in het water, met de rug net boven
+    this.sink = swims ? (w.inTank(this.tile) ? this.top * 0.62 - TANK_WATER : this.top * 0.34) : 0;
     if (swims) this.wet = true;
     // wie door het water loopt, spat af en toe
     if (swims && this.state === 'walk' && Math.random() < dt * 2.2) w.splash(this.gx, this.gy);

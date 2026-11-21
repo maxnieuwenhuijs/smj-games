@@ -73,6 +73,9 @@
   "animal.crocodile-2-5097c7.mp3",
   "animal.crocodile-3-5097c7.mp3"
  ],
+ "animal.dolphin": [
+  "animal.dolphin-1-7bc9d4.mp3"
+ ],
  "animal.donkey": [
   "animal.donkey-1-13e9d0.mp3",
   "animal.donkey-2-13e9d0.mp3",
@@ -147,6 +150,9 @@
   "animal.monkey-1-ac175d.mp3",
   "animal.monkey-2-ac175d.mp3",
   "animal.monkey-3-ac175d.mp3"
+ ],
+ "animal.orca": [
+  "animal.orca-1-077396.mp3"
  ],
  "animal.ostrich": [
   "animal.ostrich-1-4c4407.mp3",
@@ -463,6 +469,9 @@
   "young.crocodile-1-0a323f.mp3",
   "young.crocodile-2-0a323f.mp3"
  ],
+ "young.dolphin": [
+  "young.dolphin-1-0d3cb9.mp3"
+ ],
  "young.donkey": [
   "young.donkey-1-c5ecd2.mp3",
   "young.donkey-2-c5ecd2.mp3"
@@ -522,6 +531,9 @@
  "young.monkey": [
   "young.monkey-1-6a21a0.mp3",
   "young.monkey-2-6a21a0.mp3"
+ ],
+ "young.orca": [
+  "young.orca-1-d1e965.mp3"
  ],
  "young.ostrich": [
   "young.ostrich-1-a1a60e.mp3",

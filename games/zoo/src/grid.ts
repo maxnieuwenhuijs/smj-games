@@ -21,8 +21,8 @@ export const BASE_LAND: Land = { x0: PLOT, y0: PLOT, x1: PLOT + BASE_W, y1: H };
 export const FULL_LAND: Land = { x0: 0, y0: 0, x1: W, y1: H };
 export const MIN_ENCLOSURE = 4;
 
-/** 0 = niets, 1 = houten hek, 2 = poort, 3 = stenen muur, 4 = hoog net. */
-export type EdgeKind = 0 | 1 | 2 | 3 | 4;
+/** 0 = niets, 1 = houten hek, 2 = poort, 3 = stenen muur, 4 = hoog net, 5 = glas (aquarium). */
+export type EdgeKind = 0 | 1 | 2 | 3 | 4 | 5;
 
 /** 'h' ligt aan de noordkant van tegel (x,y); 'v' aan de westkant. */
 export interface Edge {

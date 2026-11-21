@@ -343,6 +343,18 @@ Vanaf level 8 slijt een houten hek (stenen muren en netten niet). Ongeveer eens 
 
 Kies bij de actieknop de hamer; een tik op het hek timmert het in elke fase weer vast. Bij een kapot hek voelen de dieren in dat verblijf zich niet veilig: ze zijn niet blij, het wolkje toont een hamertje en de bouwer zegt dat je het moet maken. Ze worden er niet voor opgehaald.
 
+## Het aquarium
+
+Na level 20 komt er een zesde afdeling bij de knop Dier: het aquarium, met de **dolfijn** (45 munten, na level 20) en de **orka** (60 munten, na level 35). Het zijn geen beloningen van een level; ze komen erbij, en staan op de kaart na het level naast het nieuwe dier. De directeur legt het uit: "Bouw een bak van glas, vul hem met water en zet er een dolfijn in."
+
+- **Glas:** een vijfde soort hek (bij Hek, zodra je een zeedier hebt). Het is een lijst met een doorzichtige ruit, zodat je de dieren ziet zwemmen. De lijst kun je net als elk hek een kleur geven (tien kleuren).
+- **Water in de bak:** in een verblijf dat rondom van glas is, staat het water op elke watertegel hoog (een doorzichtig blok). Dieren zwemmen daar in het water, met hun rug en rugvin er net boven. Dat geldt ook voor zeehonden, otters of pinguïns die je in een glazen bak zet.
+- **Zeedieren** leven alleen in water: ze zwemmen nooit over een droge tegel, ontsnappen niet en willen een bak van glas, vis, en koraal om bij te rusten (een nieuwe slaapplek). De dolfijn wil met zijn drieën zijn en negen tegels; de orka twaalf tegels.
+- **Hoepel:** nieuw speelgoed, het lievelingsding van de dolfijn. Hij springt er in een boog doorheen naar de andere kant, met spatters bij het opduiken en neerkomen. De orka speelt met de bal.
+- **Aantikken:** tik met het handje op speelgoed in een verblijf (ook de bal, de boomstam of de struik bij andere dieren) en een dier komt eraan en gaat ermee spelen; bij de hoepel springt het erdoor.
+
+De getallen staan in `games/zoo/src/data.ts` (`BONUS`, `AQUATIC`, `TANK_WATER`). De modellen komen uit `tools/animals/packs/50_sea.py`.
+
 ## Dag en nacht
 
 Vanaf level 15 wordt het ook nacht. Een dag duurt vier minuten, een nacht ruim anderhalve minuut, met twaalf tellen schemering ertussen. Elke keer dat je het spel opent, begint het overdag. Rechtsboven staat een zon of een maan met het uur (de dag loopt van 7 tot 21 uur).

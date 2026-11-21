@@ -294,6 +294,15 @@ const ICONS = {
     `<path d="M24 44 q-6 -3 0 -6 q6 -3 0 -6 q-6 -3 0 -5" fill="none" stroke="#8a857a" stroke-width="3" stroke-linecap="round"/><ellipse cx="22" cy="20" rx="14" ry="8" fill="${RED}"/><circle cx="37" cy="13" r="7" fill="${RED}"/><path d="M43 13 l5 2 l-5 2Z" fill="${SUN}"/><circle cx="38.5" cy="11.5" r="1.5" fill="#fff"/><path d="M8 18 l-5 -6 l8 2Z" fill="${SUN}"/><path d="M26 10 v-6" stroke="#3d4f5a" stroke-width="3" stroke-linecap="round"/><rect x="18" y="42" width="12" height="4" rx="2" fill="#3d4f5a"/>`,
   trampoline:
     `<ellipse cx="24" cy="30" rx="21" ry="9" fill="#4a90e2"/><ellipse cx="24" cy="29" rx="16" ry="6" fill="#3d4f5a"/><path d="M8 34 V44 M40 34 V44 M24 39 V46" stroke="#8a857a" stroke-width="3.5" stroke-linecap="round"/><circle cx="24" cy="10" r="5" fill="${SUN}"/><path d="M17 19 q7 -4 14 0" fill="none" stroke="${SUN}" stroke-width="3" stroke-linecap="round"/>`,
+  // het aquarium: een glazen wand, koraal, een hoepel en het plaatje van de afdeling
+  glass:
+    `<rect x="5" y="10" width="38" height="30" rx="2" fill="#bfe6f7" opacity=".75"/><path d="M5 10 H43 V40 H5Z" fill="none" stroke="#7fa6bb" stroke-width="4" stroke-linejoin="round"/><path d="M12 32 L22 17 M22 34 L28 25" stroke="#fff" stroke-width="3" stroke-linecap="round"/>`,
+  coral:
+    `<path d="M24 44 V30 M24 34 Q14 32 14 20 M24 30 Q34 28 34 16 M14 26 Q8 24 9 16 M34 24 Q40 22 40 14" fill="none" stroke="#f06aa6" stroke-width="5" stroke-linecap="round"/><ellipse cx="24" cy="44" rx="16" ry="3.5" fill="#8f949c"/><circle cx="14" cy="19" r="3.2" fill="#f7a8c8"/><circle cx="34" cy="15" r="3.2" fill="#f7a8c8"/><circle cx="9" cy="15" r="2.6" fill="#f7a8c8"/><circle cx="40" cy="13" r="2.6" fill="#f7a8c8"/>`,
+  hoop:
+    `<ellipse cx="24" cy="18" rx="14" ry="14" fill="none" stroke="${RED}" stroke-width="5"/><path d="M12 10 A14 14 0 0 1 36 10" fill="none" stroke="#fff7e0" stroke-width="5" stroke-dasharray="6 6"/><path d="M24 32 V44" stroke="#8a857a" stroke-width="4" stroke-linecap="round"/><ellipse cx="24" cy="44" rx="9" ry="2.5" fill="#6ec3e8"/>`,
+  world_aqua:
+    '<path d="M4 28 Q12 22 20 28 T36 28 T52 28 V46 H4Z" fill="#6ec3e8"/><path d="M8 26 Q16 4 34 16 Q42 12 44 8 Q45 16 40 20 Q34 34 14 30 Q10 30 8 26Z" fill="#7f8a96"/><path d="M14 27 Q24 30 36 22 Q32 31 16 30Z" fill="#e6ecef"/><circle cx="17" cy="20" r="1.6" fill="#1e1e22"/><path d="M26 11 L31 3 L34 14Z" fill="#6c7783"/>',
   // dag en nacht
   sun:
     `<g stroke="${SUN_D}" stroke-width="3.5" stroke-linecap="round"><path d="M24 4 v6 M24 38 v6 M4 24 h6 M38 24 h6 M10 10 l4 4 M34 34 l4 4 M38 10 l-4 4 M10 38 l4 -4"/></g><circle cx="24" cy="24" r="10" fill="${SUN}" stroke="${INK}" stroke-width="2.5"/>`,

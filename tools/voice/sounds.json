@@ -528,6 +528,30 @@
       "variants": 3
     },
     {
+      "id": "animal.dolphin",
+      "seconds": 1.5,
+      "influence": 0.5,
+      "prompt": "A dolphin making happy clicking and whistling sounds. Clean recording with no background noise."
+    },
+    {
+      "id": "young.dolphin",
+      "seconds": 1.2,
+      "influence": 0.5,
+      "prompt": "A baby dolphin making cute, high-pitched squeaks and clicks. Short, clean recording with no background noise."
+    },
+    {
+      "id": "animal.orca",
+      "seconds": 1.8,
+      "influence": 0.5,
+      "prompt": "An orca calling: a gentle, friendly whale song with a few whistles. Clean recording with no background noise."
+    },
+    {
+      "id": "young.orca",
+      "seconds": 1.4,
+      "influence": 0.5,
+      "prompt": "A baby orca making a cute, high-pitched whale squeak. Short, clean recording with no background noise."
+    },
+    {
       "id": "amb.night",
       "seconds": 22,
       "loop": true,

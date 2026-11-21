@@ -8,7 +8,7 @@ import {
   BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
-  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, LIGHT, SPACE, guestsAt, SERVES, } from './data';
+  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, LIGHT, SPACE, guestsAt, SERVES, } from './data';
 import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region, type Side } from './grid';
 import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
 import { cursor, icon, type IconId } from './icons';
@@ -66,9 +66,9 @@ const MAX_LITTER = 8;
 /** Zoveel stuks afval kun je tegelijk in je handen hebben. */
 const MAX_CARRY = 5;
 const SEX_COLOR: Record<Sex, number> = { male: 0x4a90e2, female: 0xf06aa6 };
-const FENCE_KIND: Record<string, EdgeKind> = { fence: 1, gate: 2, wall: 3, net: 4 };
-const FENCE_SOUND = ['', 'fence', 'fence', 'stone', 'net'];
-const NEED_ICON: Record<FenceNeed, IconId> = { wall: 'wall', net: 'net' };
+const FENCE_KIND: Record<string, EdgeKind> = { fence: 1, gate: 2, wall: 3, net: 4, glass: 5 };
+const FENCE_SOUND = ['', 'fence', 'fence', 'stone', 'net', 'stone'];
+const NEED_ICON: Record<FenceNeed, IconId> = { wall: 'wall', net: 'net', glass: 'glass' };
 const PATH = TERRAINS.indexOf('path');
 const WATER = TERRAINS.indexOf('water');
 /** In welke wereld hoort een soort thuis? Dat volgt uit het level waarin je hem krijgt. */
@@ -87,6 +87,7 @@ const CUR: Record<string, string> = {
   gate: cursor('gate'),
   wall: cursor('wall'),
   net: cursor('net'),
+  glass: cursor('glass'),
   trough: cursor('trough_empty'),
   animal: cursor('paw'),
   erase: cursor('erase', 6, 24),
@@ -171,6 +172,8 @@ interface ToyObj {
   mesh: THREE.Object3D;
   /** Tot dit moment speelt er een dier mee: het ding beweegt. */
   playUntil?: number;
+  /** Naar welke kant de hoepel gedraaid staat. */
+  facing?: number;
 }
 interface ShopObj extends ShopSpot {
   mesh: THREE.Object3D;
@@ -485,8 +488,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return this.level < this.maxLevel ? LEVELS[this.level] : undefined;
   }
 
+  /** De dieren die je kunt neerzetten: de beloningen van de levels en, als hun model er is, de zeedieren. */
   private species(): SpeciesId[] {
-    return unlockedSpecies(this.level);
+    return [...unlockedSpecies(this.level), ...bonusSpecies(this.level).filter(hasSpecies)];
   }
 
   private has(feature: keyof typeof FEATURE): boolean {
@@ -527,12 +531,14 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   private fenceOptions(): string[] {
     const needs = new Set(this.species().map(sp => SPECIES[sp].need));
-    return ['fence', ...(this.has('keeper') ? ['gate'] : []), ...(needs.has('wall') ? ['wall'] : []), ...(needs.has('net') ? ['net'] : [])];
+    return ['fence', ...(this.has('keeper') ? ['gate'] : []), ...(needs.has('wall') ? ['wall'] : []), ...(needs.has('net') ? ['net'] : []), ...(needs.has('glass') ? ['glass'] : [])];
   }
 
   /** De werelden waar je al een dier van hebt. */
-  private worldOptions(): WorldId[] {
-    return WORLDS.slice(0, Math.max(1, Math.ceil(this.species().length / LEVELS_PER_WORLD)));
+  private worldOptions(): string[] {
+    const worlds: string[] = WORLDS.slice(0, Math.max(1, Math.ceil(unlockedSpecies(this.level).length / LEVELS_PER_WORLD)));
+    // het aquarium is een eigen afdeling, zodra er een zeedier is
+    return this.species().some(sp => AQUATIC.includes(sp)) ? [...worlds, 'aqua'] : worlds;
   }
 
   // ------------------------------------------------------------ munten
@@ -744,7 +750,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!troughs.includes(this.option.trough as TroughKind)) this.option.trough = 'wood';
     if (!this.actionOptions().includes(this.option.action as ActionId)) this.option.action = 'broom';
     // eerst kies je de wereld (schuur, savanneboom, ...), daarboven staan de dieren van die wereld
-    const shown = species.filter(sp => HOME[sp] === this.option.world);
+    const shown = species.filter(sp => (HOME[sp] ?? 'aqua') === this.option.world);
     pickFrom('animal', shown);
     pickFrom('terrain', this.terrainOptions());
     pickFrom('bed', this.bedOptions());
@@ -994,6 +1000,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.lines.push(level ? say.level(this.level + 1) : this.maxLevel < LEVELS.length ? say.soon() : say.free());
     if (this.level === FEATURE.fun) this.lines.push(say.funNew());
     if (this.level === FEATURE.decor) this.lines.push(say.decorNew());
+    if (this.level === BONUS.dolphin && hasSpecies('dolphin')) this.lines.push(say.aquaNew());
     // vanaf nu kun je hulp aannemen: de verzorger vertelt hoe
     if (this.level === FEATURE.keeper) this.showStaffGuide();
     this.view.setWorld(this.world());
@@ -1254,6 +1261,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const tints = new Map<string, number>();
     for (const pen of this.pens) if (pen.color) for (const e of this.grid.borderEdges(pen.region)) tints.set(edgeKey(e), pen.color);
     this.view.syncFences(this.grid, this.wear, tints);
+    this.syncTanks();
     this.broken = new Set(this.grid.enclosures().filter(r => this.grid.borderEdges(r).some(e => this.wear.get(edgeKey(e)) === 3)).map(r => r.id));
   }
 
@@ -1352,7 +1360,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.hud.showMenu(s.x, s.y, pen.name, items, id => {
       if (id === 'color') {
         // tien kleuren die bij dit soort hek horen: hout, steen of net
-        const colors = FENCE_COLORS[this.grid.penKind(pen.region) as 1 | 3 | 4];
+        const colors = FENCE_COLORS[this.grid.penKind(pen.region) as 1 | 3 | 4 | 5];
         const swatches: ToolOption[] = colors.map((c, i) => ({ id: String(i), icon: `<span class="swatch" style="background:#${c.toString(16).padStart(6, '0')}"></span>`, label: '', on: i === pen.color }));
         this.hud.showMenu(s.x, s.y, t('pen.color.pick'), swatches, pick => {
           pen.color = Number(pick);
@@ -1517,9 +1525,37 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return toy;
   }
 
-  playWith(toy: { x: number; y: number }, seconds: number): void {
+  playWith(toy: { x: number; y: number }, seconds: number, facing?: number): void {
     const obj = this.toyAt(toy.x, toy.y);
-    if (obj) obj.playUntil = this.clock + seconds;
+    if (!obj) return;
+    obj.playUntil = this.clock + seconds;
+    // de hoepel draait naar het dier dat erdoor springt
+    if (facing !== undefined) obj.facing = facing;
+  }
+
+  inTank(tile: number): boolean {
+    return this.tankTiles.has(tile);
+  }
+
+  /** De watertegels in bakken van glas: daar staat het water hoog en zwemmen de dieren erin. */
+  private tankTiles = new Set<number>();
+  private syncTanks(): void {
+    const tiles: number[] = [];
+    for (const pen of this.pens)
+      if (this.grid.penKind(pen.region) === 5) for (const i of pen.region.tiles) if (this.grid.terrain[i] === WATER) tiles.push(i);
+    this.tankTiles = new Set(tiles);
+    this.view.syncTanks(tiles.map(i => tileXY(i)), TANK_WATER);
+  }
+
+  /** Een tik op speelgoed: het veert op en een dier uit het verblijf komt ermee spelen (het liefst een dier dat er dol op is). */
+  private pokeToy(toy: ToyObj): void {
+    const region = this.grid.enclosureAt(toy.x, toy.y);
+    this.pulse(toy.mesh, 0.18);
+    sfx('tap');
+    if (!region) return;
+    const here = this.animalsIn(region.id).sort((p, q) => Number(TOY_OF[q.species] === toy.kind) - Number(TOY_OF[p.species] === toy.kind) || Math.hypot(p.gx - toy.x, p.gy - toy.y) - Math.hypot(q.gx - toy.x, q.gy - toy.y));
+    const comer = here.find(a => a.comePlay(this, toy));
+    if (comer) this.floatAt(icon('heart'), toy.x + 0.5, toy.y + 0.5, 0.9);
   }
 
   /** Speelgoed waar een dier mee speelt, beweegt: de bal stuitert, de struik ritselt, de stam wiebelt, de bloemen wuiven. */
@@ -1530,12 +1566,16 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (this.clock > toy.playUntil) {
         toy.playUntil = undefined;
         m.position.y = 0;
-        m.rotation.set(0, 0, 0);
+        m.rotation.set(0, toy.kind === 'hoop' ? toy.facing ?? 0 : 0, 0);
         m.scale.set(1, 1, 1);
         continue;
       }
       const t = this.clock;
-      if (toy.kind === 'ball') {
+      if (toy.kind === 'hoop') {
+        // de hoepel staat dwars op de sprong en trilt even na
+        m.rotation.y = toy.facing ?? 0;
+        m.rotation.z = Math.sin(t * 22) * 0.03;
+      } else if (toy.kind === 'ball') {
         m.position.y = Math.abs(Math.sin(t * 6)) * 0.28;
         m.rotation.y = t * 3;
       } else if (toy.kind === 'bush') {
@@ -2059,7 +2099,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Een dier springt uit zijn verblijf en loopt buiten rond tot je het terugzet. */
   private letEscape(): void {
-    const options = this.animals.filter(a => !a.sick && !a.escaped && this.grid.enclosureAt(...tileXY(a.tile)));
+    // een zeedier springt nooit uit zijn bak
+    const options = this.animals.filter(a => !a.sick && !a.escaped && !a.aquatic && this.grid.enclosureAt(...tileXY(a.tile)));
     const sad = options.filter(a => !a.happy);
     const from = sad.length && Math.random() < 0.6 ? sad : options;
     const a = from[Math.floor(Math.random() * from.length)];
@@ -2657,6 +2698,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.tool === 'decor') return this.placeDecor(x, y);
     if (this.tool === 'staff') return this.placeStaff(x, y);
     if (this.tool === 'animal') return this.placeAnimal(x, y);
+    // een tik op speelgoed: een dier komt ermee spelen
+    const toy = this.toyAt(x, y);
+    if (toy && this.tool === 'hand') return this.pokeToy(toy);
     const pen = this.penAt(x, y);
     if (pen) this.penMenu(pen);
   }
@@ -2748,6 +2792,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   // ------------------------------------------------------------ elk beeldje
   private evaluate(): void {
+    this.syncTanks();
     const stats = emptyStats();
     const crowd = this.guests.stats();
     stats.enclosures = this.grid.enclosures().length;
@@ -2901,7 +2946,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // feest: de dieren dansen en de gasten juichen
       for (const a of this.animals) a.cheer();
       this.guests.cheer();
-      const ready = loadSpecies(level.reward);
+      // ook de zeedieren die er nu bij komen, worden alvast geladen
+      const extra = (Object.keys(BONUS) as SpeciesId[]).filter(sp => BONUS[sp] === this.level + 1 && hasSpecies(sp));
+      const ready = Promise.all([loadSpecies(level.reward), ...extra.map(loadSpecies)]);
       const done = this.praise();
       // wat er naast het dier nog vrijkomt: iets voor het park of een nieuw speeltoestel
       const soon: string[] = [...TROUGHS.filter(k => TROUGH[k].from === this.level + 1), ...DECORS.filter(k => DECOR[k].from === this.level + 1), ...SHOPS.filter(k => FEATURE[k] === this.level + 1)];
@@ -2931,7 +2978,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
           animalSound(level.reward, false);
           void this.save();
         });
-      }, done.who, soon.map(k => icon(k in TROUGH ? TROUGH_ICON[k as TroughKind] : (k as IconId))));
+      }, done.who, [...extra.map(sp => speciesIcon(sp)), ...soon.map(k => icon(k in TROUGH ? TROUGH_ICON[k as TroughKind] : (k as IconId)))]);
       playVoice(voiceId(done.who, textOf(t, done)));
       return;
     }
