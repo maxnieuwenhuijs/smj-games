@@ -24,6 +24,10 @@ type Verdict = 'good' | 'ok' | 'bad';
 type Sex = 'male' | 'female';
 
 const PAINT_TOOLS = new Set<ToolId>(['terrain', 'fence', 'erase']);
+/** Hek slepen (in tegels): na zoveel beweging ligt de richting vast, zoveel opzij is een hoek, en zo ver moet je een rand op zijn. */
+const AXIS_AFTER = 0.3;
+const TURN_AFTER = 0.75;
+const EDGE_REACH = 0.35;
 const TROUGH_PORTIONS = 4;
 /** Verwaarlozing in seconden: eerst waarschuwen, daarna haalt de verzorger het dier op. */
 const NEGLECT_WARN = 60;
@@ -214,6 +218,11 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   private drag: { id: number; sx: number; sy: number; moved: boolean; pan: boolean; paint: boolean } | null = null;
   private pinch: { dist: number; cx: number; cy: number } | null = null;
   private stroke = new Map<string, { lo: number; hi: number }>();
+  /**
+   * Het hek dat je nu sleept. Het volgt één lijn van het raster (`axis`, op `fixed`), vanaf `from`.
+   * Pas als je een flink stuk opzij gaat, slaat het de hoek om.
+   */
+  private line: { gx0: number; gy0: number; e0: Edge | null; axis: 'h' | 'v' | null; fixed: number; from: number } | null = null;
 
   constructor(private view: View, private slot: number, data: SaveData | undefined, onHome: () => void, private player = data?.player ?? '') {
     const missing = LEVELS.findIndex(l => !hasSpecies(l.reward));
@@ -1418,8 +1427,11 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       }
       case 'fence': {
         const kind = FENCE_KIND[this.option.fence];
-        const e = nearestEdge(g.gx, g.gy);
-        if (e) this.view.ghostFence(e, kind, kind === 1 ? this.grid.getEdge(e) === 0 : this.grid.getEdge(e) !== kind);
+        const L = dragging ? this.line : null;
+        const e = L?.axis
+          ? L.axis === 'h' ? { o: 'h' as const, x: Math.floor(g.gx), y: L.fixed } : { o: 'v' as const, x: L.fixed, y: Math.floor(g.gy) }
+          : nearestEdge(g.gx, g.gy);
+        if (e && this.grid.validEdge(e)) this.view.ghostFence(e, kind, kind === 1 ? this.grid.getEdge(e) === 0 : this.grid.getEdge(e) !== kind);
         return this.hud.setCursor(CUR[this.option.fence]);
       }
       case 'trough':
@@ -1511,6 +1523,62 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
         this.earn(refund(SHOP_PRICE[shop.kind]), shop.x + shop.size / 2, shop.y + shop.size / 2);
       }
     }
+  }
+
+  /**
+   * Een hek slepen. De eerste beweging bepaalt de richting; daarna blijft het hek op die ene lijn, ook als
+   * je vinger wat zwabbert. Ga je meer dan een halve tegel opzij, dan maakt het hek daar een hoek en
+   * loopt het in de nieuwe richting verder. Zo teken je een heel verblijf in één beweging.
+   */
+  private fenceDrag(cx: number, cy: number): void {
+    const g = this.view.groundPoint(cx, cy), L = this.line;
+    if (!g || !L) return;
+    if (!L.axis) {
+      const dx = g.gx - L.gx0, dy = g.gy - L.gy0;
+      if (Math.hypot(dx, dy) < AXIS_AFTER) return;
+      L.axis = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
+      // de lijn loopt door de rand waar je begon, of anders over de dichtstbijzijnde rasterlijn
+      if (L.axis === 'h') {
+        L.fixed = L.e0?.o === 'h' ? L.e0.y : Math.round(L.gy0);
+        L.from = L.gx0;
+      } else {
+        L.fixed = L.e0?.o === 'v' ? L.e0.x : Math.round(L.gx0);
+        L.from = L.gy0;
+      }
+    }
+    let at = L.axis === 'h' ? g.gx : g.gy;
+    const off = (L.axis === 'h' ? g.gy : g.gx) - L.fixed;
+    let changed = false;
+    if (Math.abs(off) > TURN_AFTER) {
+      // ver genoeg opzij: de hoek om, vanaf het dichtstbijzijnde kruispunt
+      const corner = Math.round(at);
+      changed = this.fenceRun(L.axis, L.fixed, L.from, corner, true);
+      const was = L.fixed;
+      L.axis = L.axis === 'h' ? 'v' : 'h';
+      L.fixed = corner;
+      L.from = was;
+      at = was + off;
+    }
+    changed = this.fenceRun(L.axis, L.fixed, L.from, at, false) || changed;
+    if (changed) {
+      sfx(FENCE_SOUND[FENCE_KIND[this.option.fence]], { every: 0.08 });
+      this.gridChanged();
+    }
+  }
+
+  /** Zet hek op de lijn van `from` tot `to`. `full`: helemaal tot het kruispunt, anders tot waar de vinger is. */
+  private fenceRun(axis: 'h' | 'v', fixed: number, from: number, to: number, full: boolean): boolean {
+    const kind = FENCE_KIND[this.option.fence];
+    const forward = to >= from;
+    const lo = forward ? Math.floor(from) : full ? to : Math.ceil(to - (1 - EDGE_REACH));
+    const hi = forward ? (full ? to - 1 : Math.floor(to - EDGE_REACH)) : Math.ceil(from) - 1;
+    let changed = false;
+    for (let i = lo; i <= hi; i++) {
+      const e: Edge = axis === 'h' ? { o: 'h', x: i, y: fixed } : { o: 'v', x: fixed, y: i };
+      if (kind === 1 && this.grid.getEdge(e) !== 0) continue;
+      if (this.grid.setEdge(e, kind)) changed = true;
+    }
+    return changed;
   }
 
   /**
@@ -1615,6 +1683,8 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       const paint = !pan && !this.moving && PAINT_TOOLS.has(this.tool);
       this.drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false, pan, paint };
       this.stroke.clear();
+      const start = paint && this.tool === 'fence' ? this.view.groundPoint(e.clientX, e.clientY) : null;
+      this.line = start ? { gx0: start.gx, gy0: start.gy, e0: nearestEdge(start.gx, start.gy), axis: null, fixed: 0, from: 0 } : null;
       // grond kleurt meteen; hek en weghalen wachten tot duidelijk is of het een tik of een veeg wordt
       if (paint && this.tool === 'terrain') this.paint(e.clientX, e.clientY);
       this.hover(e.clientX, e.clientY, true);
@@ -1635,7 +1705,8 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       const d = this.drag;
       if (!d || d.id !== e.pointerId) return;
       if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) > 8) d.moved = true;
-      if (d.paint) this.paintStroke(prev.x, prev.y, e.clientX, e.clientY);
+      if (d.paint && this.tool === 'fence') this.fenceDrag(e.clientX, e.clientY);
+      else if (d.paint) this.paintStroke(prev.x, prev.y, e.clientX, e.clientY);
       else if (d.pan || d.moved) this.view.pan(dx, dy);
       this.hover(e.clientX, e.clientY, d.moved);
     });
@@ -1646,9 +1717,12 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       const d = this.drag;
       if (!d || d.id !== e.pointerId) return;
       this.drag = null;
-      if (e.type === 'pointerup' && !d.moved && !d.pan) {
+      // een heel kort veegje met het hek telt als een tik op die rand
+      const flick = d.paint && this.tool === 'fence' && d.moved && !!this.line && !this.line.axis;
+      this.line = null;
+      if (e.type === 'pointerup' && (!d.moved || flick) && !d.pan) {
         if (!d.paint) this.tap(e.clientX, e.clientY);
-        else if (this.tool !== 'terrain') this.paint(e.clientX, e.clientY);
+        else if (this.tool !== 'terrain') this.paint(flick ? d.sx : e.clientX, flick ? d.sy : e.clientY);
       }
       if (e.pointerType === 'mouse') this.hover(e.clientX, e.clientY, false);
       else this.view.hideGhost();

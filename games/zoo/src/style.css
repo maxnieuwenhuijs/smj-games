@@ -210,6 +210,11 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
   position: absolute; right: -8px; top: -8px; width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer;
   background: #fff; box-shadow: 0 3px 0 var(--shade); font-size: 22px; display: flex; align-items: center; justify-content: center;
 }
+.slot-tip {
+  position: absolute; left: 50%; top: 100%; transform: translate(-50%, 8px); white-space: nowrap; padding: 6px 12px; border-radius: 12px;
+  background: #fff; color: #5a4200; font: 700 14px/1.2 system-ui, sans-serif; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15); z-index: 2;
+}
+.pbtn.warn { background: #e0584f; color: #fff; }
 .slot-del.holding { animation: hold var(--hold, 1.2s) linear forwards; }
 @keyframes hold { to { background: #ff8a80; transform: scale(1.25); } }
 #loading { font-size: 90px; }

@@ -80,7 +80,16 @@ async function showStart(): Promise<void> {
       del.innerHTML = icon('trash');
       del.setAttribute('aria-label', t('slot.delete'));
       holdButton(del, HOLD_MS, () => void saveDel(slotKey(i)).then(showStart));
-      wrap.append(del);
+      // een gewone tik wist niets, maar zegt wel hoe het moet
+      const tip = document.createElement('div');
+      tip.className = 'slot-tip';
+      tip.textContent = t('slot.delete.tip');
+      tip.hidden = true;
+      del.addEventListener('click', () => {
+        tip.hidden = false;
+        setTimeout(() => (tip.hidden = true), 3000);
+      });
+      wrap.append(del, tip);
     }
     slots.append(wrap);
   }
@@ -172,6 +181,23 @@ async function showParents(): Promise<void> {
       });
     });
     r.append(file, button('upload', t('parents.import'), () => file.click()));
+    if (data) {
+      // wissen vraagt eerst of je het zeker weet: de knop verandert, een tweede tik wist
+      let sure = false;
+      const del = button('trash', t('parents.delete'), () => {
+        if (!sure) {
+          sure = true;
+          del.classList.add('warn');
+          del.querySelector('b')!.textContent = t('parents.delete.sure');
+          return;
+        }
+        void saveDel(slotKey(i)).then(async () => {
+          await showStart();
+          await showParents();
+        });
+      });
+      r.append(del);
+    }
   }
 
   // eigen sleutel: daarmee kan het spel ook een naam inspreken die het nog niet kent

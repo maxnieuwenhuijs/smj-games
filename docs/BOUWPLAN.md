@@ -175,6 +175,10 @@ Wie iets gekocht heeft, loopt even met afval rond. Staat er een afvalbak in de b
 - Een blij paar krijgt om de anderhalve minuut een jong. Zijn er al twee jongen, dan verhuist de oudste naar een andere dierentuin en krijg je 2 munten.
 - Terugverdienen: heeft het park net veel uitgegeven, dan krijgen gasten wat sneller trek. Zo is een aankoop binnen een paar minuten terugverdiend, zolang de gasten tevreden zijn.
 
+## Hekken slepen
+
+Een hek teken je door te slepen. De eerste beweging (een derde tegel) bepaalt de richting; daarna blijft het hek op die ene lijn van het raster, ook als de vinger zwabbert. Pas als je driekwart tegel opzij gaat, maakt het hek op het dichtstbijzijnde kruispunt een hoek en loopt het haaks verder. Zo teken je een heel verblijf in één beweging. Een heel kort veegje telt als een tik op die rand. De getallen staan bovenaan `games/zoo/src/game.ts` (`AXIS_AFTER`, `TURN_AFTER`, `EDGE_REACH`).
+
 ## Wat je kunt aantikken
 
 | Onderdeel | Zit erin |
@@ -276,9 +280,13 @@ Complimenten bij een gehaald level wisselen: acht stuks, van vijf figuren, elk i
 - **Publiek:** zacht geroezemoes dat meegroeit met het aantal gasten. Er zijn van elk drie opnames, die om de één à anderhalve minuut wisselen. Daaroverheen af en toe een los geluidje: 24 soorten kinderstemmetjes (giechelen, 'wauw', neuriën) en 8 van volwassenen; kinderen hoor je het vaakst.
 - **Dieren en mensen:** elk dierengeluid heeft drie varianten en klinkt nooit twee keer hetzelfde achter elkaar; alles behalve de stemmen van de figuren staat zacht. Jonge dieren hebben een eigen geluid (twee opnames per soort: een big, een kuiken, een welp).
 
+## Een opgeslagen spel wissen
+
+Op het startscherm staat bij elk opgeslagen spel een prullenbakje. Een gewone tik wist niets en laat alleen de tip "Houd vast om te wissen" zien; ruim een tel vasthouden wist het spel. Wissen kan ook in het oudermenu.
+
 ## Voor ouders
 
-Op het startscherm staat rechtsonder een knop die je drie tellen vasthoudt. Daarachter: per opslagplek de naam van de speler, bewaren in een bestand en terugzetten uit een bestand; een eigen ElevenLabs-sleutel voor namen die het spel nog niet kent; en de taal (Nederlands of Engels).
+Op het startscherm staat rechtsonder een knop die je drie tellen vasthoudt. Daarachter: per opslagplek de naam van de speler, bewaren in een bestand, terugzetten uit een bestand en wissen (de knop wordt rood en vraagt "Echt wissen?"; een tweede tik wist); een eigen ElevenLabs-sleutel voor namen die het spel nog niet kent; en de taal (Nederlands of Engels).
 
 ## Fases
 
