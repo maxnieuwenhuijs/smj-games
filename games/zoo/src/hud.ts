@@ -69,7 +69,6 @@ export class Hud {
   private voice: Voice | null = null;
 
   private need = el('div', '');
-  private rowsOf = '';
   private carry = el('div', 'pill');
   private needKey = '';
 
@@ -157,9 +156,7 @@ export class Hud {
   setTools(defs: ToolDef[], active: string, hint: string | null, open: string | null = null): void {
     document.getElementById('ui')!.dataset.tool = active;
     // waar de rijen stonden (bij veel dieren scrol je opzij): dat blijft zo als de rij opnieuw wordt opgebouwd
-    const scrolled = [...this.options.children].map(row => row.scrollLeft);
-    const sameRows = this.rowsOf === (open ?? active);
-    this.rowsOf = open ?? active;
+    const scrolled = new Map([...this.options.children].map(row => [(row as HTMLElement).dataset.sig, row.scrollLeft]));
     this.toolbar.replaceChildren();
     this.options.replaceChildren();
     // hoe meer knoppen, hoe smaller ze worden, zodat alles naast elkaar past
@@ -184,6 +181,7 @@ export class Hud {
       if (def.id !== (open ?? active)) continue;
       for (const row of def.rows ?? []) {
         const line = el('div', 'row');
+        line.dataset.sig = `${def.id}/${row.key}/${row.options.map(o => o.id).join(',')}`;
         for (const opt of row.options) {
           if (opt.divider) {
             line.append(el('div', 'sep', `${opt.icon}<b>${opt.label}</b>`));
@@ -199,8 +197,9 @@ export class Hud {
       }
     }
     // dezelfde rij als net: weer op dezelfde plek; een nieuwe rij: de gekozen knop in beeld
-    [...this.options.children].forEach((row, i) => {
-      if (sameRows && scrolled[i] !== undefined) row.scrollLeft = scrolled[i];
+    [...this.options.children].forEach(row => {
+      const was = scrolled.get((row as HTMLElement).dataset.sig);
+      if (was !== undefined) row.scrollLeft = was;
       else (row.querySelector('.tool.on, .tool.last') as HTMLElement | null)?.scrollIntoView({ inline: 'center', block: 'nearest' });
     });
   }

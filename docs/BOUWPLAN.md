@@ -26,7 +26,7 @@ Elke wereld heeft tien levels en tien dieren. De lucht, het land en de bomen ron
 | IJs en bergen | 31 t/m 40 | Sneeuw, vis, dieren die ontsnappen |
 | Verre landen | 41 t/m 50 | Alles door elkaar, en steeds meer tegelijk |
 
-Bij de knop Dier staan alle dieren die je al hebt achter elkaar in één rij waar je opzij doorheen schuift. Voor elke groep staat een kopje met het plaatje van de wereld (schuur, savanneboom, junglepalm, besneeuwde berg, eiland). De rij blijft staan waar je was als je een dier kiest.
+Bij de knop Dier kies je eerst de wereld en dan het dier. Vlak boven de knop staat de rij met werelden, elk met een eigen plaatje (schuur, savanneboom, junglepalm, besneeuwde berg, eiland) en geen dierenkop. Daarboven staan de dieren van de gekozen wereld, en bovenaan jongen of meisje. De rij met werelden is er pas als je dieren uit meer dan één wereld hebt.
 
 ## Wensen van een dier
 

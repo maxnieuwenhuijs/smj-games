@@ -714,8 +714,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     };
     pickFrom('world', this.worldOptions());
     if (!this.actionOptions().includes(this.option.action as ActionId)) this.option.action = 'broom';
-    // alle dieren staan achter elkaar in één rij, per wereld met een kopje ervoor
-    const shown = species;
+    // eerst kies je de wereld (schuur, savanneboom, ...), daarboven staan de dieren van die wereld
+    const shown = species.filter(sp => HOME[sp] === this.option.world);
     pickFrom('animal', shown);
     pickFrom('terrain', this.terrainOptions());
     pickFrom('bed', this.bedOptions());
@@ -783,15 +783,14 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const rows: NonNullable<ToolDef['rows']> = [
         { key: 'sex', active: this.option.sex, options: [opt('male', 'boy', t('sex.male'), 0, 'boy'), opt('female', 'girl', t('sex.female'), 0, 'girl')] },
       ];
-      // bij veel dieren kies je eerst de wereld, zodat de rij met dieren kort blijft
       rows.push({
         key: 'animal',
         active: this.option.animal,
-        options: this.worldOptions().flatMap(w => [
-          ...(this.worldOptions().length > 1 ? [{ id: `@${w}`, icon: icon(`world_${w}` as IconId), label: t(`world.${w}`), divider: true }] : []),
-          ...shown.filter(k => HOME[k] === w).map(k => ({ id: k, icon: speciesIcon(k), label: t(`species.${k}`), price: SPECIES[k].cost, cant: SPECIES[k].cost > this.coins })),
-        ]),
+        options: shown.map(k => ({ id: k, icon: speciesIcon(k), label: t(`species.${k}`), price: SPECIES[k].cost, cant: SPECIES[k].cost > this.coins })),
       });
+      // de werelden staan onderaan, vlak boven de knop Dier, elk met een eigen plaatje (geen dierenkop)
+      if (this.worldOptions().length > 1)
+        rows.push({ key: 'world', active: this.option.world, options: this.worldOptions().map(w => ({ id: w, icon: icon(`world_${w}` as IconId), label: t(`world.${w}`) })) });
       defs.push({ ...opt('animal', 'paw', t('tool.animal')), rows });
     }
     if (this.has('keeper'))
