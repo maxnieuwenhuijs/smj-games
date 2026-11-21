@@ -177,9 +177,9 @@ Gasten vragen steeds vaker om iets bepaalds; hun wolkje laat zien wat. Tik op ee
 
 ### Hoge nood
 
-Moet een gast naar de wc en is er geen wc te bereiken, dan houdt hij het nog een halve minuut vol. Daarna hurkt hij en doet het op het pad: een plas droogt vanzelf op, poep blijft liggen tot je erop tikt. Gasten in de buurt vinden dat niet leuk en de gastvrouw vraagt om meer wc's. Met genoeg wc's gebeurt het niet.
+Moet een gast naar de wc en is er geen wc te bereiken, dan houdt hij het nog een halve minuut vol. Daarna hurkt hij en doet het op het pad: een plas droogt vanzelf op, poep blijft liggen tot je hem wegveegt. Gasten in de buurt vinden dat niet leuk en de gastvrouw vraagt om meer wc's. Met genoeg wc's gebeurt het niet.
 
-Wie iets gekocht heeft, loopt even met afval rond. Staat er een afvalbak in de buurt, dan gaat het daarin; anders valt het op het pad. Afval opruimen (erop tikken) levert 1 munt op. Bloembakken en schone verblijven met blije dieren maken gasten blijer; afval en poep maken ze minder blij. Gasten kopen alleen als ze het naar hun zin hebben.
+Wie iets gekocht heeft, loopt even met afval rond. Staat er een afvalbak in de buurt, dan gaat het daarin; anders valt het op het pad. Afval wegvegen levert 1 munt op. Bloembakken en schone verblijven met blije dieren maken gasten blijer; afval en poep maken ze minder blij. Gasten kopen alleen als ze het naar hun zin hebben.
 
 ## Munten
 
@@ -197,7 +197,9 @@ Na het neerzetten van een voerbak, slaapplek, winkel of dier staat het handje we
 
 ## De veger
 
-Poep en afval ruim je op door erop te tikken, met welk knopje ook. Daarnaast is er de knop Veger (vanaf level 2): dan krijgen alle poepjes en al het afval een gele ring, zodat je ze goed ziet, en veeg je alles weg waar je overheen sleept. Wat onder de muis ligt, krijgt een grotere oranje ring. Vraagt een level om opruimen, dan knippert de veger als tip.
+Poep en afval ruim je alleen op met de knop Veger (vanaf level 2). Tik je er met een andere knop op, dan gebeurt er niets, behalve dat er een bezempje boven verschijnt en de veger een paar tellen knippert. Met de veger aan krijgen alle poepjes en al het afval een gele ring, zodat je ze goed ziet, en veeg je alles weg waar je overheen sleept. Wat onder de muis ligt, krijgt een grotere oranje ring. Vraagt een level om opruimen, dan knippert de veger als tip.
+
+Een poepje valt nooit onder een slaapplek of voerbak: het komt op de vrije tegel ernaast terecht. Zet je een slaapplek of voerbak op een tegel waar al poep ligt, dan schuift die ernaast.
 
 ## Dier in nood
 
@@ -218,10 +220,10 @@ Een hek teken je door te slepen. De eerste beweging (een derde tegel) bepaalt de
 | Dier | Aaien (je hoort het dier), uit de hand voeren, andere naam, laten slapen, verzetten, weg (het dier verhuist naar een andere dierentuin, na een ja of nee), dokter (als het ziek is); je ziet welke wensen vervuld zijn |
 | Gum op een dier | Dezelfde vraag: mag dit dier verhuizen? |
 | Ontsnapt dier | Eén tik pakt het op, een tweede tik zet het in een verblijf |
-| Verblijf | Je ziet de naam. Schoonmaken, andere naam, verzorger aannemen, leegmaken (met bevestiging) |
+| Verblijf | Je ziet de naam. Andere naam, verzorger aannemen, leegmaken (met bevestiging) |
 | Voerbak | Vullen met een voersoort; het voer dat de dieren daar lusten staat vooraan; je ziet hoeveel erin zit |
 | Gast | Zien hoe het gaat, wat zijn lievelingsdier is en wat hij nu wil; zwaaien |
-| Poep en afval | Erop tikken ruimt het op |
+| Poep en afval | Alleen met de veger; een tik met een andere knop wijst de veger aan |
 
 ## Levels
 

@@ -207,6 +207,8 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   private escapeIn = between(ESCAPE_FOR_GOAL);
   private celebrating = false;
   private toolsKey = '';
+  /** Tot dit moment knippert de veger, omdat er net op een poepje is getikt. */
+  private nudge = 0;
   /** De knop waarvan de keuzerij nog open staat nadat er iets is neergezet (het handje is dan aan). */
   private linger: ToolId | null = null;
   /** Het poepje of afval onder de muis of vinger: dat licht op. */
@@ -598,7 +600,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     pickFrom('fence', this.fenceOptions());
     if ((this.tool === 'animal' && !species.length) || (this.tool === 'shop' && !this.shopOptions().length)) this.tool = 'hand';
 
-    const hint = this.hintTool();
+    const hint = this.clock < this.nudge && this.tool !== 'broom' ? 'broom' : this.hintTool();
     // de balk wordt alleen opnieuw opgebouwd als er echt iets anders in komt; bij een munt meer of minder
     // verandert alleen het prijskaartje, anders flikkeren de plaatjes van de dieren
     this.hud.setAfford(this.coins);
@@ -861,15 +863,12 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   private penMenu(pen: Pen): void {
     const s = this.view.toScreen(pen.cx, pen.cy, 0.5);
     const opt = (id: string, ic: IconId, key: string, price = 0): ToolOption => ({ id, icon: icon(ic), label: t(key), price: price || undefined, cant: price > this.coins });
-    const items = [opt('clean', 'broom', 'pen.clean'), opt('rename', 'dice', 'pen.rename')];
+    const items = [opt('rename', 'dice', 'pen.rename')];
     if (this.has('keeper') && !pen.keeper) items.push(opt('keeper', 'keeper', 'pen.keeper', PRICE.keeper));
     items.push(opt('empty', 'empty', 'pen.empty'));
     const header = pen.keeper ? icon('keeper') + icon('check', 'badge') : '';
     this.hud.showMenu(s.x, s.y, pen.name, items, id => {
-      if (id === 'clean') {
-        for (const p of this.poopsOf(pen.region.id)) this.cleanPoop(p);
-        this.floatAt(icon('sparkle'), pen.cx, pen.cy, 0.4);
-      } else if (id === 'rename') {
+      if (id === 'rename') {
         pen.name = this.pickName('names.pens', this.pens.map(p => p.name));
         this.floatAt(pen.name, pen.cx, pen.cy, 0.6, 'word');
       } else if (id === 'keeper') {
@@ -989,7 +988,38 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     this.floatAt(icon(food), tr.x + 0.5, tr.y + 0.5, 0.6);
   }
 
+  /**
+   * Een plek naast een slaapplek of voerbak: daaronder zou je een poepje niet zien. Geeft het punt zelf
+   * terug als de tegel vrij is, anders het dichtstbijzijnde punt op een vrije tegel ernaast.
+   */
+  private clearSpot(gx: number, gy: number): [number, number] {
+    const x = Math.floor(gx), y = Math.floor(gy);
+    if (!this.grid.inBounds(x, y) || !this.taken(x, y)) return [gx, gy];
+    let best: [number, number] | null = null, bestD = Infinity;
+    for (const [dx, dy] of [[0, 1], [1, 0], [0, -1], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+      const tx = x + dx, ty = y + dy;
+      if (!this.grid.inBounds(tx, ty) || this.taken(tx, ty) || this.grid.regionOf[tileIndex(tx, ty)] !== this.grid.regionOf[tileIndex(x, y)]) continue;
+      const px = Math.max(tx + 0.25, Math.min(tx + 0.75, gx)), py = Math.max(ty + 0.25, Math.min(ty + 0.75, gy));
+      const d = Math.hypot(px - gx, py - gy);
+      if (d < bestD) {
+        bestD = d;
+        best = [px, py];
+      }
+    }
+    return best ?? [gx, gy];
+  }
+
+  /** Er is iets neergezet op deze tegel: poepjes die daar lagen schuiven ernaast. */
+  private uncover(x: number, y: number): void {
+    for (const p of this.poops) {
+      if (Math.floor(p.gx) !== x || Math.floor(p.gy) !== y) continue;
+      [p.gx, p.gy] = this.clearSpot(p.gx, p.gy);
+      p.mesh.position.set(toWorldX(p.gx), 0, toWorldZ(p.gy));
+    }
+  }
+
   dropPoop(gx: number, gy: number): void {
+    [gx, gy] = this.clearSpot(gx, gy);
     const mesh = spawnStatic('poop');
     mesh.scale.setScalar(MODEL_SCALE * 0.9);
     mesh.position.set(toWorldX(gx), 0, toWorldZ(gy));
@@ -1042,6 +1072,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     if (!region) return this.nope(x + 0.5, y + 0.5);
     if (this.taken(x, y) || !this.pay(PRICE.trough, x + 0.5, y + 0.5)) return;
     this.addTrough(x, y, null, 0);
+    this.uncover(x, y);
     sfx('place');
     this.floatAt(icon('sparkle'), x + 0.5, y + 0.5);
     for (const a of this.animalsIn(region.id)) this.react(a, 'good');
@@ -1066,6 +1097,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     if (this.taken(x, y) || !this.pay(PRICE.bed, x + 0.5, y + 0.5)) return;
     const kind = this.option.bed as BedKind;
     this.addBed(x, y, kind);
+    this.uncover(x, y);
     sfx('place');
     this.floatAt(icon('sparkle'), x + 0.5, y + 0.5);
     for (const a of this.animalsIn(region.id)) this.react(a, SPECIES[a.species].bed === kind ? 'good' : 'ok');
@@ -1544,9 +1576,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
         return this.hud.setCursor(CUR.broom);
       default:
         if (dragging) return this.hud.setCursor(CUR.grabbing);
-        this.hoverPoop = this.pickPoop(cx, cy) ?? this.pickLitter(cx, cy) ?? null;
         if (this.pickLoose(cx, cy)) return this.hud.setCursor(CUR.catch);
-        if (this.pickPoop(cx, cy) || this.pickLitter(cx, cy)) return this.hud.setCursor(CUR.broom);
         if (this.pickAnimal(cx, cy)) return this.hud.setCursor(CUR.pet);
         if (this.pick(this.guests.guests, cx, cy, q => q.height * 0.6, 0.4)) return this.hud.setCursor(CUR.menu);
         if (inside && (this.troughAt(x, y) || this.shopAt(x, y)?.vendor)) return this.hud.setCursor(inside && this.troughAt(x, y) ? CUR.feed : CUR.menu);
@@ -1729,10 +1759,13 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       animalSound(loose.species, loose.young);
       return this.floatAt(icon('catch'), loose.gx, loose.gy, loose.top + 0.2);
     }
-    const poop = this.pickPoop(cx, cy);
-    if (poop) return this.cleanPoop(poop);
-    const litter = this.pickLitter(cx, cy);
-    if (litter) return this.cleanLitter(litter);
+    // opruimen kan alleen met de veger: een tik met een andere knop wijst die aan
+    const mess = this.pickPoop(cx, cy) ?? this.pickLitter(cx, cy);
+    if (mess && !this.pickAnimal(cx, cy, 0.35)) {
+      this.floatAt(icon('broom'), mess.gx, mess.gy, 0.5);
+      this.nudge = this.clock + 5;
+      return this.refreshTools(true);
+    }
     if (this.tool === 'hand') {
       const animal = this.pickAnimal(cx, cy);
       if (animal) return this.animalMenu(animal);
