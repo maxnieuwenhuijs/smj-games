@@ -8,7 +8,7 @@ import {
   BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
-  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, SPACE, guestsAt, SERVES, } from './data';
+  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, SPACE, guestsAt, SERVES, } from './data';
 import { Grid, H, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region } from './grid';
 import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
 import { cursor, icon, type IconId } from './icons';
@@ -34,6 +34,8 @@ const TOOL_GROUPS: [string, ToolId[]][] = [
   ['animal', ['animal', 'trough', 'bed', 'toy']],
   ['park', ['shop', 'decor', 'staff']],
 ];
+/** Hoe snel een speeltoestel heen en weer gaat. */
+const PLAY_SPEED: Partial<Record<ShopKind, number>> = { swing: 2.6, seesaw: 3, springer: 6, trampoline: 5 };
 const PAINT_TOOLS = new Set<ToolId>(['terrain', 'fence', 'erase', 'action']);
 /** Hek slepen (in tegels): na zoveel beweging ligt de richting vast, zoveel opzij is een hoek, en zo ver moet je een rand op zijn. */
 const AXIS_AFTER = 0.3;
@@ -256,6 +258,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private toolsKey = '';
   /** Tot dit moment knippert de veger, omdat er net op een poepje is getikt. */
   private nudge = 0;
+  /** Wat je dit level hebt vrijgespeeld voor het park en bij de winkels: daar staat een sterretje op. */
+  private fresh = new Set<string>();
   private fullAt = 0;
   /** De knop waarvan de keuzerij nog open staat nadat er iets is neergezet (het handje is dan aan). */
   private linger: ToolId | null = null;
@@ -628,7 +632,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Welk deel van de gasten bij dit soort kraam geen plek vindt: te weinig kramen voor zoveel gasten. */
   busy(kind: ShopKind): number {
     const serves = SERVES[kind];
-    const have = this.shops.filter(s => s.kind === kind).length;
+    // alle speeltoestellen tellen samen als plek om te spelen
+    const pool = kind === 'playground' ? PLAY : [kind];
+    const have = this.shops.filter(s => pool.includes(s.kind)).length;
     const guests = this.guests.guests.length;
     return serves && have && guests > have * serves ? 1 - (have * serves) / guests : 0;
   }
@@ -702,6 +708,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.linger = null;
     this.moving = null;
     if (row && option && row in this.option) this.option[row as keyof typeof this.option] = option;
+    if (option) this.fresh.delete(option);
     this.hud.hideMenu();
     this.view.hideGhost();
     this.refreshTools(true);
@@ -719,7 +726,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     pickFrom('animal', shown);
     pickFrom('terrain', this.terrainOptions());
     pickFrom('bed', this.bedOptions());
-    pickFrom('decor', DECORS.filter(k => DECOR[k].group === this.option.decorGroup));
+    // voor het park speel je bijna elk level iets vrij
+    const decors = DECORS.filter(k => DECOR[k].from <= this.level);
+    const decorGroups = DECOR_GROUPS.filter(g => decors.some(k => DECOR[k].group === g));
+    if (!decorGroups.includes(this.option.decorGroup as DecorGroup)) this.option.decorGroup = decorGroups[0] ?? 'green';
+    pickFrom('decor', decors.filter(k => DECOR[k].group === this.option.decorGroup));
     pickFrom('shop', this.shopOptions());
     pickFrom('fence', this.fenceOptions());
     if ((this.tool === 'animal' && !species.length) || (this.tool === 'shop' && !this.shopOptions().length)) this.tool = 'hand';
@@ -728,7 +739,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     // de balk wordt alleen opnieuw opgebouwd als er echt iets anders in komt; bij een munt meer of minder
     // verandert alleen het prijskaartje, anders flikkeren de plaatjes van de dieren
     this.hud.setAfford(this.coins);
-    const key = [this.tool, this.linger, hint, this.level, ...Object.values(this.option)].join('|');
+    const key = [this.tool, this.linger, hint, this.level, ...Object.values(this.option), ...this.fresh].join('|');
     if (!force && key === this.toolsKey) return;
     this.toolsKey = key;
 
@@ -742,7 +753,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // afval en versleten hekken bij, dan kies je in de rij erboven: veger, hamer of prikker
       ...(this.level >= 1
         ? [{
-            ...opt('action', this.option.action as IconId, acts.length > 1 ? t('tool.action') : t('action.broom')),
+            ...opt('action', acts.length > 1 ? 'action' : 'broom', acts.length > 1 ? t('tool.action') : t('action.broom')),
             rows: acts.length > 1 ? [{ key: 'action', active: this.option.action, options: acts.map(k => opt(k, k, t(`action.${k}`))) }] : [],
           }]
         : []),
@@ -767,17 +778,19 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       });
     if (this.has('decor'))
       defs.push({
-        ...opt('decor', 'roses', t('tool.decor')),
+        ...opt('decor', 'tree', t('tool.decor')),
+        fresh: decors.some(k => this.fresh.has(k)),
         rows: [
-          // eerst de groep (groen, water, sier), dan wat je neerzet
-          { key: 'decorGroup', active: this.option.decorGroup, options: DECOR_GROUPS.map(k => opt(k, k === 'green' ? 'tree' : k === 'water' ? 'pond' : 'statue', t(`decor.group.${k}`))) },
-          { key: 'decor', active: this.option.decor, options: DECORS.filter(k => DECOR[k].group === this.option.decorGroup).map(k => opt(k, k, t(`decor.${k}`), DECOR[k].price)) },
+          // eerst de groep (groen, water, sier), dan wat je neerzet; een sterretje bij wat je net hebt vrijgespeeld
+          { key: 'decorGroup', active: this.option.decorGroup, options: decorGroups.map(k => ({ ...opt(k, k === 'green' ? 'tree' : k === 'water' ? 'pond' : 'flag', t(`decor.group.${k}`)), fresh: decors.some(d => DECOR[d].group === k && this.fresh.has(d)) })) },
+          { key: 'decor', active: this.option.decor, options: decors.filter(k => DECOR[k].group === this.option.decorGroup).map(k => ({ ...opt(k, k, t(`decor.${k}`), DECOR[k].price), fresh: this.fresh.has(k) })) },
         ],
       });
     if (this.shopOptions().length)
       defs.push({
         ...opt('shop', 'foodstall', t('tool.shop')),
-        rows: [{ key: 'shop', active: this.option.shop, options: this.shopOptions().map(k => opt(k, k, t(`shop.${k}`), SHOP_PRICE[k])) }],
+        fresh: this.shopOptions().some(k => this.fresh.has(k)),
+        rows: [{ key: 'shop', active: this.option.shop, options: this.shopOptions().map(k => ({ ...opt(k, k, t(`shop.${k}`), SHOP_PRICE[k]), fresh: this.fresh.has(k) })) }],
       });
     if (species.length) {
       const rows: NonNullable<ToolDef['rows']> = [
@@ -1221,9 +1234,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     for (const d of this.decors) {
       const m = d.mesh;
       if (d.kind === 'flag') m.rotation.y = Math.sin(t * 1.8 + d.x) * 0.3;
-      else if (d.kind === 'tree' || d.kind === 'pine' || d.kind === 'palm' || d.kind === 'topiary') m.rotation.z = Math.sin(t * 1.2 + d.x * 2 + d.y) * 0.025;
+      else if (d.kind === 'tree' || d.kind === 'pine' || d.kind === 'palm' || d.kind === 'topiary' || d.kind === 'cherry' || d.kind === 'bamboogrove') m.rotation.z = Math.sin(t * 1.2 + d.x * 2 + d.y) * 0.025;
       else if (d.kind === 'roses' || d.kind === 'tulips') m.rotation.z = Math.sin(t * 2 + d.x) * 0.03;
-      else if (d.kind === 'waterfall' && m.children[1]) m.children[1].scale.y = 1 + Math.sin(t * 7) * 0.04;
+      else if (d.kind === 'windmill' && m.children[3]) m.children[3].rotation.z = t * 1.4 + d.x;
+      else if (d.kind === 'campfire' && m.children[3]) {
+        m.children[2].scale.y = 1 + Math.sin(t * 11 + d.x) * 0.18;
+        m.children[3].scale.y = 1 + Math.sin(t * 14 + d.y) * 0.25;
+      } else if (d.kind === 'waterfall' && m.children[1]) m.children[1].scale.y = 1 + Math.sin(t * 7) * 0.04;
       else if (d.kind === 'pond' && m.children[2]) m.children[2].position.y = Math.sin(t * 2 + d.x) * 0.012;
     }
   }
@@ -2696,10 +2713,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       this.guests.cheer();
       const ready = loadSpecies(level.reward);
       const done = this.praise();
+      // wat er naast het dier nog vrijkomt: iets voor het park of een nieuw speeltoestel
+      const soon: string[] = [...DECORS.filter(k => DECOR[k].from === this.level + 1), ...SHOPS.filter(k => FEATURE[k] === this.level + 1)];
       sfx('fanfare');
       this.hud.showLevelDone(this.level + 1, speciesIcon(level.reward), t(`species.${level.reward}`), textOf(t, done), () => {
         void ready.then(() => {
           this.level++;
+          this.fresh = new Set(soon);
           this.fed = 0;
           this.cleaned = 0;
           this.born = 0;
@@ -2721,7 +2741,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
           animalSound(level.reward, false);
           void this.save();
         });
-      }, done.who);
+      }, done.who, soon.map(k => icon(k as IconId)));
       playVoice(voiceId(done.who, textOf(t, done)));
       return;
     }
@@ -2800,6 +2820,17 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       shop.vendor?.update(dt);
       // de draaimolen draait, de waterstraal van de fontein gaat op en neer
       const moving = shop.mesh.userData.moving as THREE.Object3D | undefined;
+      const speed = PLAY_SPEED[shop.kind];
+      if (speed) {
+        // speeltoestellen wiegen zachtjes als er niemand op zit en gaan flink heen en weer met een kind erop
+        shop.spin = ((shop.spin ?? 0) + dt * speed) % (Math.PI * 2);
+        shop.amp = (shop.amp ?? 0.12) + ((shop.busyNow ? 1 : 0.12) - (shop.amp ?? 0.12)) * Math.min(1, dt * 2.5);
+        const swing = Math.sin(shop.spin) * shop.amp;
+        if (moving && shop.kind === 'swing') moving.rotation.x = swing * 0.55;
+        else if (moving && shop.kind === 'seesaw') moving.rotation.z = swing * 0.3;
+        else if (moving && shop.kind === 'springer') moving.rotation.x = swing * 0.3;
+        continue;
+      }
       if (!moving) continue;
       if (shop.kind === 'carousel') {
         shop.spin = ((shop.spin ?? 0) + dt * 1.1) % (Math.PI * 2);

@@ -2,7 +2,8 @@
 export type Terrain = 'grass' | 'mud' | 'sand' | 'water' | 'path' | 'snow' | 'forest';
 export type FoodId = 'veg' | 'hay' | 'fruit' | 'grain' | 'meat' | 'leaves' | 'fish' | 'bamboo';
 export type BedKind = 'straw' | 'shed' | 'rock' | 'shade' | 'nest' | 'cave' | 'climb';
-export type ShopKind = 'foodstall' | 'drinkstall' | 'bench' | 'toilet' | 'icecream' | 'balloon' | 'flowers' | 'bin' | 'souvenir' | 'playground' | 'hats' | 'fountain' | 'carousel';
+export type ShopKind = 'foodstall' | 'drinkstall' | 'bench' | 'toilet' | 'icecream' | 'balloon' | 'flowers' | 'bin' | 'souvenir' | 'playground' | 'hats' | 'fountain' | 'carousel'
+  | 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline';
 export type FenceOption = 'fence' | 'gate' | 'wall' | 'net';
 /** Wat voor hek een dier nodig heeft: sterke dieren een stenen muur, klimmers en vliegers een hoog net. */
 export type FenceNeed = 'wall' | 'net';
@@ -53,19 +54,28 @@ export const HERD: Partial<Record<SpeciesId, number>> = {
 };
 export const herdOf = (sp: SpeciesId): number => HERD[sp] ?? 2;
 
-/** Versieringen om het park mooi te maken: ze staan op een tegel buiten de verblijven en maken gasten in de buurt blijer. */
+/**
+ * Dingen voor in het park (de knop Park): ze staan op een tegel buiten de verblijven en maken gasten in de
+ * buurt blijer. `from`: na hoeveel gehaalde levels je het vrijspeelt; bijna elk level komt er iets bij.
+ */
 export type DecorKind =
-  | 'tree' | 'pine' | 'palm' | 'hedge' | 'roses' | 'tulips' | 'mushrooms'
-  | 'pond' | 'waterfall' | 'well'
-  | 'statue' | 'topiary' | 'lantern' | 'flag' | 'signpost' | 'boulder' | 'picnic';
+  | 'tree' | 'roses' | 'hedge' | 'tulips' | 'pine' | 'mushrooms' | 'cactus' | 'sunflowers' | 'palm' | 'pumpkins' | 'bamboogrove' | 'cherry'
+  | 'pond' | 'well' | 'birdbath' | 'waterfall' | 'pump'
+  | 'boulder' | 'signpost' | 'flag' | 'lantern' | 'picnic' | 'scarecrow' | 'topiary' | 'arch' | 'totem' | 'snowman' | 'campfire' | 'windmill' | 'statue' | 'clocktower';
 export type DecorGroup = 'green' | 'water' | 'art';
 export const DECOR_GROUPS: DecorGroup[] = ['green', 'water', 'art'];
-export const DECOR: Record<DecorKind, { group: DecorGroup; price: number }> = {
-  tree: { group: 'green', price: 4 }, pine: { group: 'green', price: 4 }, palm: { group: 'green', price: 6 }, hedge: { group: 'green', price: 3 },
-  roses: { group: 'green', price: 3 }, tulips: { group: 'green', price: 3 }, mushrooms: { group: 'green', price: 2 },
-  pond: { group: 'water', price: 10 }, waterfall: { group: 'water', price: 15 }, well: { group: 'water', price: 8 },
-  statue: { group: 'art', price: 20 }, topiary: { group: 'art', price: 12 }, lantern: { group: 'art', price: 5 }, flag: { group: 'art', price: 5 },
-  signpost: { group: 'art', price: 4 }, boulder: { group: 'art', price: 2 }, picnic: { group: 'art', price: 8 },
+export const DECOR: Record<DecorKind, { group: DecorGroup; price: number; from: number }> = {
+  tree: { group: 'green', price: 4, from: 5 }, roses: { group: 'green', price: 3, from: 5 }, hedge: { group: 'green', price: 3, from: 6 },
+  tulips: { group: 'green', price: 3, from: 7 }, pine: { group: 'green', price: 4, from: 8 }, mushrooms: { group: 'green', price: 2, from: 9 },
+  cactus: { group: 'green', price: 4, from: 12 }, sunflowers: { group: 'green', price: 3, from: 13 }, palm: { group: 'green', price: 6, from: 17 },
+  pumpkins: { group: 'green', price: 3, from: 19 }, bamboogrove: { group: 'green', price: 5, from: 21 }, cherry: { group: 'green', price: 8, from: 27 },
+  pond: { group: 'water', price: 10, from: 10 }, well: { group: 'water', price: 8, from: 16 }, birdbath: { group: 'water', price: 6, from: 22 },
+  waterfall: { group: 'water', price: 15, from: 26 }, pump: { group: 'water', price: 8, from: 34 },
+  boulder: { group: 'art', price: 2, from: 5 }, signpost: { group: 'art', price: 4, from: 7 }, flag: { group: 'art', price: 5, from: 11 },
+  lantern: { group: 'art', price: 5, from: 14 }, picnic: { group: 'art', price: 8, from: 15 }, scarecrow: { group: 'art', price: 6, from: 18 },
+  topiary: { group: 'art', price: 12, from: 23 }, arch: { group: 'art', price: 10, from: 24 }, totem: { group: 'art', price: 10, from: 29 },
+  snowman: { group: 'art', price: 6, from: 31 }, campfire: { group: 'art', price: 8, from: 33 }, windmill: { group: 'art', price: 18, from: 36 },
+  statue: { group: 'art', price: 20, from: 38 }, clocktower: { group: 'art', price: 25, from: 41 },
 };
 export const DECORS = Object.keys(DECOR) as DecorKind[];
 /**
@@ -79,9 +89,11 @@ export const TOY_OF: Partial<Record<SpeciesId, ToyKind>> = {
   penguin: 'ball', seal: 'ball', polarbear: 'log', reindeer: 'bush', wolf: 'ball', arcticfox: 'flowerbed', bear: 'log', yak: 'bush', owl: 'log', walrus: 'ball',
   otter: 'ball', beaver: 'log', koala: 'bush', redpanda: 'log', lemur: 'bush', bison: 'log', kangaroo: 'ball',
 };
-export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'playground', 'icecream', 'flowers', 'bin', 'balloon', 'hats', 'souvenir', 'fountain', 'carousel'];
+export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'playground', 'slide', 'swing', 'seesaw', 'springer', 'trampoline', 'icecream', 'flowers', 'bin', 'balloon', 'hats', 'souvenir', 'fountain', 'carousel'];
 /** Kramen waar een gast iets koopt voor één munt. */
 export const STALLS: ShopKind[] = ['foodstall', 'drinkstall', 'icecream', 'balloon', 'hats', 'souvenir'];
+/** Alles waar kinderen op spelen: de speeltuin en de losse toestellen. Een kind dat wil spelen kiest er zelf een. */
+export const PLAY: ShopKind[] = ['playground', 'slide', 'swing', 'seesaw', 'springer', 'trampoline'];
 /**
  * Hoeveel gasten één kraam, wc, speeltuin of bankje aankan. Zijn er meer gasten in het park, dan is het er
  * te druk en moet er een bij: zo groeit het park mee met het aantal gasten.
@@ -96,7 +108,7 @@ export const guestsAt = (level: number, quality = 2): number => Math.min([30, 45
 
 /** Hoeveel tegels breed en diep een winkel is: gebouwen 2 bij 2, losse dingen 1 bij 1. */
 export const SHOP_SIZE: Record<ShopKind, number> = {
-  foodstall: 2, drinkstall: 2, toilet: 2, playground: 2, icecream: 2, balloon: 2, hats: 2, souvenir: 2, bench: 1, flowers: 1, bin: 1, fountain: 2, carousel: 2,
+  foodstall: 2, drinkstall: 2, toilet: 2, playground: 2, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2, icecream: 2, balloon: 2, hats: 2, souvenir: 2, bench: 1, flowers: 1, bin: 1, fountain: 2, carousel: 2,
 };
 
 // ------------------------------------------------------------ wat een kraam verkoopt
@@ -150,7 +162,7 @@ export const HOUR_SECONDS = 120;
 /** Wat je terugkrijgt als je iets weghaalt of een dier laat verhuizen: de helft, naar beneden afgerond. */
 export const refund = (price: number): number => Math.floor(price / 2);
 export const SHOP_PRICE: Record<ShopKind, number> = {
-  foodstall: 4, drinkstall: 4, bench: 2, toilet: 5, icecream: 8, balloon: 12, flowers: 2, bin: 2, souvenir: 16, playground: 6, hats: 14,
+  foodstall: 4, drinkstall: 4, bench: 2, toilet: 5, icecream: 8, balloon: 12, flowers: 2, bin: 2, souvenir: 16, playground: 6, slide: 5, swing: 6, seesaw: 6, springer: 5, trampoline: 8, hats: 14,
   // de grote attracties: daar spaar je voor
   fountain: 30, carousel: 60,
 };
@@ -329,7 +341,7 @@ export function unlockedSpecies(done: number): SpeciesId[] {
 
 /** Vanaf hoeveel gehaalde levels iets meedoet. */
 export const FEATURE = {
-  paths: 3, foodstall: 4, drinkstall: 5, toilet: 7, bench: 8, playground: 9, icecream: 11, flowers: 14, bin: 5, hats: 22, souvenir: 26,
+  paths: 3, foodstall: 4, drinkstall: 5, toilet: 7, bench: 8, playground: 9, slide: 12, swing: 16, seesaw: 19, springer: 23, trampoline: 28, icecream: 11, flowers: 14, bin: 5, hats: 22, souvenir: 26,
   /** De grote attracties: een fontein om naar te kijken en een draaimolen om in te rijden. */
   fountain: 15, carousel: 25,
   /** Vanaf hier kun je het park mooi maken met bomen, bloemen, water en beelden. */

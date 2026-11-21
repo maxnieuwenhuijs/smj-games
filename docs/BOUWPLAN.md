@@ -295,17 +295,31 @@ Op de knop zelf staat het plaatje van wat je gekozen hebt. Vegen, timmeren en pr
 
 Een poepje valt nooit onder een slaapplek of voerbak: het komt op de vrije tegel ernaast terecht. Zet je een slaapplek of voerbak op een tegel waar al poep ligt, dan schuift die ernaast.
 
-## Versieringen
+## Het park (de knop Park)
 
-Vanaf level 6 is er de knop Mooi: versieringen op een vrije tegel buiten de verblijven, in drie groepen.
+Vanaf level 6 is er de knop Park (eerst heette die Mooi): dingen op een vrije tegel buiten de verblijven, in drie groepen. Je begint met een boom, rozen en een kei. Bijna elk level speel je er iets bij vrij; op de kaart na een gehaald level zie je het al staan naast het nieuwe dier, en in de balk staat er een sterretje op tot je het gekozen hebt.
 
-| Groep | Wat (prijs) |
+| Groep | Wat (prijs, vrij vanaf level) |
 |---|---|
-| Groen | Boom (4), den (4), palm (6), heg (3), rozen (3), tulpen (3), paddenstoelen (2) |
-| Water | Vijver (10), waterval (15), waterput (8) |
-| Sier | Beeld (20), snoeiboom (12), lantaarn (5), vlag (5), wegwijzer (4), kei (2), picknicktafel (8) |
+| Groen | Boom (4, 6), rozen (3, 6), heg (3, 7), tulpen (3, 8), den (4, 9), paddenstoelen (2, 10), cactus (4, 13), zonnebloemen (3, 14), palm (6, 18), pompoenen (3, 20), bamboe (5, 22), bloesemboom (8, 28) |
+| Water | Vijver (10, 11), waterput (8, 17), vogelbadje (6, 23), waterval (15, 27), waterpomp (8, 35) |
+| Sier | Kei (2, 6), wegwijzer (4, 8), vlag (5, 12), lantaarn (5, 15), picknicktafel (8, 16), vogelverschrikker (6, 19), snoeiboom (12, 24), bloemenboog (10, 25), totempaal (10, 30), sneeuwpop (6, 32), kampvuur (8, 34), molentje (18, 37), beeld (20, 39), klok (25, 42) |
 
-Gasten die binnen twee tegels van een versiering lopen, worden er een beetje blijer van (tot drie versieringen tellen mee). Weghalen met de gum geeft de helft terug.
+Gasten die binnen twee tegels lopen, worden er een beetje blijer van (tot drie dingen tellen mee). Weghalen met de gum geeft de helft terug. Het molentje draait, het kampvuur flakkert, bomen en bloemen wuiven. Wat al in een opgeslagen park staat, blijft staan, ook als het nu pas later vrijkomt. De lijst staat in `games/zoo/src/data.ts` (`DECOR`).
+
+## Speeltoestellen
+
+Naast de speeltuin (level 10) zijn er vijf losse toestellen van 2 bij 2 tegels. Ze staan bij de winkels en moeten aan het pad staan. Een kind dat wil spelen kiest zelf het toestel met de kortste rij.
+
+| Toestel | Prijs | Vanaf level | Tegelijk | Wat je ziet |
+|---|---|---|---|---|
+| Glijbaan | 5 | 13 | 2 | De trap op en naar beneden glijden, om de beurt |
+| Schommel | 6 | 17 | 2 | Twee zitjes die heen en weer gaan |
+| Wipwap | 6 | 20 | 2 | De plank wipt, aan elke kant een kind |
+| Wipkip | 5 | 24 | 2 | Twee kippen op een veer die hobbelen |
+| Trampoline | 8 | 29 | 2 | Springen met de armen omhoog |
+
+Zit er niemand op, dan wiegt het toestel zachtjes; met een kind erop gaat het flink heen en weer. Twee kinderen zitten nooit op hetzelfde zitje. Alle speeltoestellen tellen samen als plek om te spelen (de gastvrouw vraagt pas om meer als het bij allemaal te druk is).
 
 ## Afval prikken
 

@@ -49,6 +49,9 @@ button { font: inherit; color: inherit; }
 .tool b { font-size: clamp(7px, 1.9vw, 13px); font-weight: 700; line-height: 1.1; }
 .tool.small { width: min(70px, 13vw); height: min(70px, 13vw); border-radius: 18px; }
 .tool.small .ic { font-size: min(34px, 6.4vw); }
+/* net vrijgespeeld: een sterretje linksboven */
+.tool .new { position: absolute; left: -7px; top: -9px; animation: needy 1.4s ease-in-out infinite; pointer-events: none; }
+.tool .new .ic { font-size: 24px; width: 24px; height: 24px; }
 .tool.on { background: var(--sun); box-shadow: 0 5px 0 var(--sun-shade); }
 /* de rij staat nog open, maar het handje is aan: de laatste keuze is alleen omlijnd */
 .tool.open, .tool.last { outline: 3px solid var(--sun); outline-offset: -3px; }
@@ -225,6 +228,9 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 .card .sub { font-size: 17px; font-weight: 700; opacity: 0.7; }
 .card .reward { display: flex; flex-direction: column; align-items: center; font-size: 76px; margin: 6px 0; }
 .card .reward span { font-size: 15px; font-weight: 700; }
+/* wat er naast het dier nog vrijkomt */
+.card .also { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 40px; margin-bottom: 6px; }
+.card .also span { font-size: 26px; font-weight: 800; }
 .card .reward b { font-size: 24px; }
 .tool.go { width: 120px; height: 96px; background: #6cc04a; box-shadow: 0 6px 0 #4a9431; color: #fff; }
 .tool.go b { font-size: 16px; }

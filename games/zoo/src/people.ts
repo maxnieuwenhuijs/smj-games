@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { PLUSH, PRODUCTS, STALLS, TERRAINS, type FoodId, type ShopKind } from './data';
 import { Grid, H, W, tileIndex, tileXY } from './grid';
+import { PLAY } from './data';
 import { toWorldX, toWorldZ } from './view';
 
 const PATH = TERRAINS.indexOf('path');
@@ -20,6 +21,10 @@ export interface ShopSpot {
   sells: string[];
   /** De stand van de draaimolen, in radialen: wie erin zit, draait mee. */
   spin?: number;
+  /** Hoe hard een speeltoestel heen en weer gaat (0 tot 1): zachtjes als er niemand op zit. */
+  amp?: number;
+  /** Welke plekken bezet zijn (een bit per plek): zo zitten er geen twee gasten op hetzelfde zitje. */
+  used?: number;
   /**
    * Een bankje, bloembak of afvalbak staat op de rand van tegel (x, y), net als een hek, en neemt geen
    * tegel in: 'h' is de noordrand, 'v' de westrand.
@@ -184,9 +189,11 @@ function swing(limbs: THREE.Mesh[], amount: number): void {
 // ------------------------------------------------------------ gast
 type GuestState = 'idle' | 'walk' | 'watch' | 'buy' | 'sit' | 'accident' | 'queue';
 /** Zoveel gasten kan één kraam, wc, bankje of attractie tegelijk helpen; de rest staat in de rij. */
-const AT_ONCE: Partial<Record<ShopKind, number>> = { toilet: 2, bench: 2, playground: 3, carousel: 4, fountain: 6 };
+const AT_ONCE: Partial<Record<ShopKind, number>> = { toilet: 2, bench: 2, playground: 3, carousel: 4, fountain: 6, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2 };
 /** Zo lang duurt het voor een gast geholpen is. */
-const SERVE_TIME: Partial<Record<ShopKind, number>> = { foodstall: 6, drinkstall: 6, icecream: 6, balloon: 4, hats: 4, souvenir: 4, toilet: 9, bench: 7, playground: 6, carousel: 8, fountain: 4 };
+const SERVE_TIME: Partial<Record<ShopKind, number>> = { foodstall: 6, drinkstall: 6, icecream: 6, balloon: 4, hats: 4, souvenir: 4, toilet: 9, bench: 7, playground: 6, carousel: 8, fountain: 4, slide: 6, swing: 7, seesaw: 7, springer: 6, trampoline: 6 };
+/** Wie wil spelen, vindt elk speeltoestel goed. */
+const sameUse = (have: ShopKind, want: ShopKind): boolean => have === want || (want === 'playground' && PLAY.includes(have));
 /** Langer is de rij nooit; wie er dan bij wil, loopt mopperend door. Zo lang wacht een gast hooguit. */
 const MAX_QUEUE = 6;
 const PATIENCE = 32;
@@ -253,7 +260,7 @@ export class Guest {
   /** Zin in een rondje draaimolen (kinderen het meest). */
   rideWish = Math.random() * 0.5;
   /** Op welk paardje de gast zit. */
-  private seat = Math.floor(Math.random() * 4);
+  seat = Math.floor(Math.random() * 4);
   /** Plezier van 0 tot 1. Een gast koopt alleen iets als hij het naar zijn zin heeft. */
   fun = 0.5;
   /** Het dier dat deze gast het liefst wil zien. */
@@ -400,21 +407,55 @@ export class Guest {
       this.limbs[0].rotation.x = this.limbs[1].rotation.x = (-Math.PI / 2) * k;
       return;
     }
-    if (kind === 'playground' && this.shop) {
-      // de trap op, van de glijbaan af en weer terug: twee keer per bezoek
-      const u = ((6 - this.timer) % 3) / 3;
+    if (kind && PLAY.includes(kind) && this.shop) {
       const cx = this.shop.x + 1, cy = this.shop.y + 1;
-      // de glijbaan draait mee met het gebouw
+      // het toestel draait mee met het gebouw
       const turn = ((this.shop.rot ?? 0) * Math.PI) / 2, cos = Math.cos(turn), sin = Math.sin(turn);
       const at = (lx: number, h: number, lz: number): [number, number, number] => [cx + lx * cos + lz * sin, h, cy - lx * sin + lz * cos];
-      const top = at(-0.39, 1.0, 0.1), low = at(-0.39, 0.1, 1.1);
       const here: [number, number, number] = [this.gx, 0, this.gy];
       const mix = (a: number[], b: number[], t: number): number[] => a.map((v, i) => v + (b[i] - v) * t);
-      const sliding = u >= 0.45 && u < 0.8;
-      const p = u < 0.45 ? mix(here, top, u / 0.45) : sliding ? mix(top, low, (u - 0.45) / 0.35) : mix(low, here, (u - 0.8) / 0.2);
-      this.mesh.position.set(toWorldX(p[0]), p[1], toWorldZ(p[2]));
-      this.mesh.rotation.y = sliding ? turn : this.heading;
-      if (sliding) this.limbs[0].rotation.x = this.limbs[1].rotation.x = -1.3;
+      const put = (p: number[], facing: number): void => {
+        this.mesh.position.set(toWorldX(p[0]), p[1], toWorldZ(p[2]));
+        this.mesh.rotation.y = facing;
+      };
+      if (kind === 'playground' || kind === 'slide') {
+        // de trap op, van de glijbaan af en weer terug: twee keer per bezoek (op de losse glijbaan om de beurt)
+        const u = ((6 - this.timer + (kind === 'slide' ? this.seat * 1.5 : 0)) % 3) / 3;
+        const top = kind === 'slide' ? at(0, 1.18, -0.5) : at(-0.39, 1.0, 0.1), low = kind === 'slide' ? at(0, 0.12, 0.95) : at(-0.39, 0.1, 1.1);
+        const sliding = u >= 0.45 && u < 0.8;
+        put(u < 0.45 ? mix(here, top, u / 0.45) : sliding ? mix(top, low, (u - 0.45) / 0.35) : mix(low, here, (u - 0.8) / 0.2), sliding ? turn : this.heading);
+        if (sliding) this.limbs[0].rotation.x = this.limbs[1].rotation.x = -1.3;
+        return;
+      }
+      // schommel, wipwap, wipkip en trampoline bewegen mee met het toestel (dezelfde stand en uitslag)
+      const k = this.settle(SERVE_TIME[kind] ?? 6), phase = this.shop.spin ?? 0, amp = this.shop.amp ?? 1, side = this.seat % 2 ? 1 : -1;
+      const sit = this.mesh.scale.y * 0.2;
+      let seat: [number, number, number], facing = turn, legs = -1.2, arms = -1.2;
+      if (kind === 'swing') {
+        const a = Math.sin(phase) * 0.55 * amp;
+        seat = at(side * 0.36, 1.54 - 1.15 * Math.cos(a) - sit, -1.15 * Math.sin(a));
+        legs = -1.2 + a * 0.9;
+        arms = -1.5;
+      } else if (kind === 'seesaw') {
+        const b = Math.sin(phase) * 0.3 * amp;
+        seat = at(side * 0.67, 0.5 + side * 0.67 * Math.sin(b) - sit, 0);
+        facing = turn - side * (Math.PI / 2);
+        arms = -1.0;
+      } else if (kind === 'springer') {
+        const c = Math.sin(phase) * 0.3 * amp;
+        seat = at(side * 0.42, 0.36 + 0.2 * Math.cos(c) - sit, 0.2 * Math.sin(c));
+        arms = -1.1;
+      } else {
+        // trampoline: springen met de armen omhoog
+        const jump = Math.abs(Math.sin(phase + this.seat * 1.3));
+        seat = at(side * 0.28, 0.41 + jump * 0.55, side * 0.1);
+        facing = this.heading + phase * 0.5;
+        legs = 0.5 * (1 - jump);
+        arms = -2.7 * jump;
+      }
+      put(mix(here, seat, k), k > 0.5 ? facing : this.heading);
+      this.limbs[0].rotation.x = this.limbs[1].rotation.x = legs * k;
+      this.limbs[2].rotation.x = this.limbs[3].rotation.x = arms * k;
       return;
     }
     // in de draaimolen zit de gast op een paardje en draait mee
@@ -449,7 +490,7 @@ export class Guest {
   private spotBeside(w: GuestWorld, reach: Set<number>, kind: ShopKind, product?: string): { shop: ShopSpot; tile: number } | null {
     const options: { shop: ShopSpot; tile: number }[] = [];
     for (const shop of w.shops) {
-      if (shop.kind !== kind || (product && !shop.sells.includes(product))) continue;
+      if (!sameUse(shop.kind, kind) || (product && !shop.sells.includes(product))) continue;
       if (shop.edge) {
         // wat op een rand staat, gebruik je vanaf het pad ernaast
         for (const n of edgeSides(shop)) if (reach.has(n)) options.push({ shop, tile: n });
@@ -533,7 +574,7 @@ export class Guest {
       // het is er niet: de gast laat zien wat hij mist en heeft het wat minder naar zijn zin
       this.wish = { kind: want, lacking: true, product, busy: full || undefined };
       if (full) this.grumble(w);
-      else if (product && w.shops.some(sh => sh.kind === kind)) {
+      else if (product && w.shops.some(sh => sameUse(sh.kind, kind))) {
         this.settled.add(want);
         this.fun = Math.max(0, this.fun - 0.03);
       } else {
@@ -613,7 +654,13 @@ export class Guest {
   serve(w: GuestWorld): void {
     if (!this.shop) return;
     const kind = this.shop.kind;
-    this.state = kind === 'bench' || kind === 'playground' || kind === 'fountain' || kind === 'carousel' ? 'sit' : 'buy';
+    this.state = kind === 'bench' || PLAY.includes(kind) || kind === 'fountain' || kind === 'carousel' ? 'sit' : 'buy';
+    // de eerste vrije plek: zo zitten er geen twee op hetzelfde zitje
+    const places = AT_ONCE[kind] ?? 1, used = this.shop.used ?? 0;
+    let seat = 0;
+    while (seat < places - 1 && used & (1 << seat)) seat++;
+    this.seat = seat;
+    this.shop.used = used | (1 << seat);
     this.timer = SERVE_TIME[kind] ?? 3;
     this.shop.busyNow = (this.shop.busyNow ?? 0) + 1;
     this.slot = null;
@@ -639,7 +686,7 @@ export class Guest {
         w.cheer(this);
         this.joy = 1.6;
       }
-    } else if (this.state === 'sit' && this.shop?.kind === 'playground') {
+    } else if (this.state === 'sit' && this.shop && PLAY.includes(this.shop.kind)) {
       w.guestSound('guest.laugh');
       this.playful = 0;
       this.fun = Math.min(1, this.fun + 0.25);
@@ -984,12 +1031,16 @@ export class GuestManager {
     for (const shop of this.world.shops) {
       shop.busyNow = 0;
       shop.line = 0;
+      shop.used = 0;
     }
     for (const g of this.guests) {
       const shop = g.using;
       if (!shop) continue;
       if (g.queueing) waiting.set(shop, [...(waiting.get(shop) ?? []), g]);
-      else shop.busyNow = (shop.busyNow ?? 0) + 1;
+      else {
+        shop.busyNow = (shop.busyNow ?? 0) + 1;
+        shop.used = (shop.used ?? 0) | (1 << g.seat);
+      }
     }
     for (const [shop, line] of waiting) {
       line.sort((p, q) => p.joined - q.joined);

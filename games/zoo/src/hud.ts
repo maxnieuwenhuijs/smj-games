@@ -16,6 +16,8 @@ export interface ToolOption {
   cant?: boolean;
   /** De prijs is loon per uur, niet eenmalig. */
   per?: boolean;
+  /** Net vrijgespeeld: er staat een sterretje op tot je het gekozen hebt. */
+  fresh?: boolean;
   /** Geen knop maar een kopje in de rij (bijvoorbeeld de wereld waar de dieren erna bij horen). */
   divider?: boolean;
   /** Munten die je ervoor terugkrijgt. */
@@ -47,7 +49,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = '
 
 function button(opt: ToolOption, cls: string): HTMLButtonElement {
   const price = opt.gain ? `<i class="price gain">+${opt.gain}</i>` : opt.price ? `<i class="price${opt.cant ? ' cant' : ''}">${opt.price}${opt.per ? t('per.hour') : ''}</i>` : '';
-  const b = el('button', `tool ${cls} ${opt.tone ?? ''}`, `${opt.icon}<b>${opt.label}</b>${price}`);
+  const b = el('button', `tool ${cls} ${opt.tone ?? ''}`, `${opt.icon}<b>${opt.label}</b>${price}${opt.fresh ? `<i class="new">${icon('star')}</i>` : ''}`);
   b.dataset.id = opt.id;
   if (opt.price) b.dataset.price = String(opt.price);
   return b;
@@ -380,7 +382,8 @@ export class Hud {
   }
 
   // ------------------------------------------------------------ level gehaald
-  showLevelDone(levelNumber: number, rewardIcon: string, rewardName: string, text: string, next: () => void, who: FigureId = 'director'): void {
+  /** `extras`: plaatjes van wat er naast het dier nog vrijkomt (iets voor het park, een speeltoestel). */
+  showLevelDone(levelNumber: number, rewardIcon: string, rewardName: string, text: string, next: () => void, who: FigureId = 'director', extras: string[] = []): void {
     this.hush();
     this.overlay.replaceChildren();
     const card = el('div', 'card');
@@ -391,6 +394,7 @@ export class Hud {
       el('div', 'reward', `${rewardIcon}<span>${t('level.new')}</span><b>${rewardName}</b>`),
     );
     card.querySelector('.big')!.textContent = text;
+    if (extras.length) card.append(el('div', 'also', `<span>+</span>${extras.join('')}`));
     const go = el('button', 'tool go', `${icon('next')}<b>${t('level.next')}</b>`);
     go.addEventListener('click', () => {
       this.overlay.hidden = true;

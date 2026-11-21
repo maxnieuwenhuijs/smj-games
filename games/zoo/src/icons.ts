@@ -254,6 +254,51 @@ const ICONS = {
     '<path d="M24 31 Q23 22 27 14" fill="none" stroke="#8a5a2c" stroke-width="3.5" stroke-linecap="round"/><path d="M27 14 Q18 8 13 15 M27 14 Q36 8 41 16 M27 14 Q24 6 30 4" fill="none" stroke="#5bab4c" stroke-width="4" stroke-linecap="round"/>',
   turn:
     `<path d="M38 24 A14 14 0 1 1 30 11" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><path d="M28 3 L40 10 L29 18Z" fill="${INK}"/>`,
+  // meer voor in het park
+  cactus:
+    '<rect x="19" y="8" width="10" height="36" rx="5" fill="#4f9e45"/><path d="M19 28 H12 V18" fill="none" stroke="#4f9e45" stroke-width="6" stroke-linecap="round"/><path d="M29 24 H37 V14" fill="none" stroke="#468f3e" stroke-width="6" stroke-linecap="round"/><circle cx="24" cy="8" r="4" fill="#f06aa6"/>',
+  bamboogrove:
+    '<path d="M14 46 V6 M24 46 V10 M34 46 V4" stroke="#8cc152" stroke-width="5" stroke-linecap="round"/><path d="M11.5 18 h5 M11.5 32 h5 M21.5 22 h5 M21.5 36 h5 M31.5 16 h5 M31.5 30 h5" stroke="#5f9a2f" stroke-width="2"/><path d="M16 12 q8 -6 12 0 q-8 2 -12 0Z M36 10 q8 -4 10 2 q-7 2 -10 -2Z" fill="#5bab4c"/>',
+  sunflowers:
+    '<path d="M15 46 V24 M33 46 V20" stroke="#5bab4c" stroke-width="4" stroke-linecap="round"/><circle cx="15" cy="18" r="10" fill="#ffd23f"/><circle cx="15" cy="18" r="4.5" fill="#8a5a2c"/><circle cx="33" cy="14" r="10" fill="#ffd23f"/><circle cx="33" cy="14" r="4.5" fill="#8a5a2c"/><path d="M15 36 q8 -4 9 3 q-6 2 -9 -3Z" fill="#5bab4c"/>',
+  cherry:
+    '<rect x="21" y="26" width="6" height="18" rx="2" fill="#8a5a2c"/><circle cx="24" cy="18" r="14" fill="#f7b6cf"/><circle cx="15" cy="24" r="8" fill="#f48fb1"/><circle cx="33" cy="23" r="8" fill="#fbd3e2"/><circle cx="22" cy="12" r="2" fill="#fff"/><circle cx="30" cy="18" r="2" fill="#fff"/>',
+  pumpkins:
+    '<ellipse cx="18" cy="30" rx="14" ry="12" fill="#f08a24"/><path d="M18 18 V42 M10 20 Q6 30 10 40 M26 20 Q30 30 26 40" fill="none" stroke="#c96a12" stroke-width="2"/><rect x="16" y="13" width="4" height="7" rx="1.5" fill="#5f9a2f"/><ellipse cx="36" cy="36" rx="9" ry="8" fill="#f5a03c"/><rect x="34.5" y="25" width="3" height="5" rx="1" fill="#5f9a2f"/>',
+  birdbath:
+    '<rect x="20" y="22" width="8" height="18" fill="#b9c2c9"/><rect x="13" y="40" width="22" height="5" rx="2" fill="#b9c2c9"/><path d="M6 16 H42 Q40 26 24 26 Q8 26 6 16Z" fill="#cfd6dc"/><ellipse cx="24" cy="16" rx="16" ry="3.5" fill="#6ec3e8"/><path d="M27 9 q5 -5 9 0 q-1 5 -6 5 q-3 0 -3 -5Z" fill="#4a90e2"/><path d="M36 9 l4 1 l-4 2Z" fill="#ffd23f"/>',
+  pump:
+    '<rect x="19" y="14" width="9" height="28" rx="2" fill="#2f6e4f"/><rect x="12" y="40" width="24" height="5" rx="2" fill="#b9c2c9"/><path d="M28 22 H38 V27" fill="none" stroke="#2f6e4f" stroke-width="5" stroke-linecap="round"/><path d="M23 14 V8 L10 16" fill="none" stroke="#3d4f5a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M38 30 q-3 5 0 8 q3 -3 0 -8Z" fill="#6ec3e8"/>',
+  arch:
+    '<path d="M9 46 V20 Q9 6 24 6 Q39 6 39 20 V46" fill="none" stroke="#fff7e0" stroke-width="5" stroke-linecap="round"/><path d="M9 30 Q8 8 24 6 Q40 8 39 30" fill="none" stroke="#5bab4c" stroke-width="7" stroke-linecap="round"/><circle cx="10" cy="24" r="3.5" fill="#f06aa6"/><circle cx="16" cy="11" r="3.5" fill="#e0584f"/><circle cx="27" cy="6" r="3.5" fill="#ffd23f"/><circle cx="36" cy="14" r="3.5" fill="#f06aa6"/><circle cx="39" cy="26" r="3.5" fill="#e0584f"/>',
+  windmill:
+    '<path d="M17 46 L20 20 H28 L31 46Z" fill="#fff7e0" stroke="#8a857a" stroke-width="1.5"/><path d="M18 22 L24 13 L30 22Z" fill="#e0584f"/><rect x="21" y="36" width="6" height="10" rx="1" fill="#a8743f"/><g stroke="#a8743f" stroke-width="4" stroke-linecap="round"><path d="M24 20 L8 6 M24 20 L40 6 M24 20 L10 34 M24 20 L38 34"/></g><circle cx="24" cy="20" r="3" fill="#8a5a2c"/>',
+  scarecrow:
+    '<path d="M24 46 V14 M6 24 H42" stroke="#a8743f" stroke-width="4" stroke-linecap="round"/><rect x="16" y="20" width="16" height="14" rx="2" fill="#c9553f"/><circle cx="24" cy="13" r="7" fill="#e8c66a"/><path d="M13 9 H35 L30 2 H18Z" fill="#8a5a2c"/><circle cx="21.5" cy="13" r="1.2" fill="#3a2a1a"/><circle cx="26.5" cy="13" r="1.2" fill="#3a2a1a"/>',
+  snowman:
+    '<circle cx="24" cy="35" r="11" fill="#fff" stroke="#b9c2c9" stroke-width="1.5"/><circle cx="24" cy="18" r="8" fill="#fff" stroke="#b9c2c9" stroke-width="1.5"/><rect x="17" y="3" width="14" height="8" rx="1" fill="#3d4f5a"/><rect x="13" y="10" width="22" height="3" rx="1.5" fill="#3d4f5a"/><path d="M24 19 l8 2 l-8 1.5Z" fill="#f08a24"/><circle cx="21" cy="16" r="1.2" fill="#3a2a1a"/><circle cx="27" cy="16" r="1.2" fill="#3a2a1a"/><path d="M17 25 H31" stroke="#e0584f" stroke-width="4" stroke-linecap="round"/>',
+  totem:
+    '<rect x="15" y="32" width="18" height="13" rx="2" fill="#e0584f"/><rect x="15" y="19" width="18" height="13" rx="2" fill="#ffd23f"/><rect x="15" y="6" width="18" height="13" rx="2" fill="#4a90e2"/><path d="M4 9 H44 V15 H4Z" fill="#a8743f"/><g fill="#fff"><circle cx="20" cy="12" r="2.2"/><circle cx="28" cy="12" r="2.2"/><circle cx="20" cy="25" r="2.2"/><circle cx="28" cy="25" r="2.2"/><circle cx="20" cy="38" r="2.2"/><circle cx="28" cy="38" r="2.2"/></g>',
+  campfire:
+    '<path d="M8 42 L40 34 M8 34 L40 42" stroke="#8a5a2c" stroke-width="6" stroke-linecap="round"/><path d="M24 6 Q36 20 31 31 Q28 38 24 38 Q20 38 17 31 Q12 20 24 6Z" fill="#f08a24"/><path d="M24 18 Q30 26 27.5 32 Q26 36 24 36 Q22 36 20.5 32 Q18 26 24 18Z" fill="#ffd23f"/>',
+  clocktower:
+    '<rect x="21" y="26" width="6" height="18" fill="#3d4f5a"/><rect x="14" y="42" width="20" height="4" rx="2" fill="#3d4f5a"/><circle cx="24" cy="16" r="13" fill="#2f6e4f"/><circle cx="24" cy="16" r="9.5" fill="#fff"/><path d="M24 16 V9 M24 16 L29 19" stroke="#3a2a1a" stroke-width="2.2" stroke-linecap="round"/>',
+  // losse speeltoestellen
+  slide:
+    `<path d="M8 44 V10 M18 44 V10 M8 20 H18 M8 30 H18 M8 40 H18" fill="none" stroke="${WOOD_D}" stroke-width="3.5" stroke-linecap="round"/><path d="M18 12 Q34 14 44 42" fill="none" stroke="${RED}" stroke-width="8" stroke-linecap="round"/><rect x="5" y="6" width="16" height="5" rx="2" fill="#4a90e2"/>`,
+  swing:
+    `<path d="M6 44 L14 6 H34 L42 44" fill="none" stroke="${RED}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6 L16 32 M27 6 L24 32" stroke="#8a857a" stroke-width="2"/><rect x="12" y="31" width="16" height="5" rx="2" fill="#4a90e2"/><path d="M31 6 V26 M37 6 V26" stroke="#8a857a" stroke-width="2"/><rect x="29" y="25" width="10" height="4" rx="2" fill="${SUN}"/>`,
+  seesaw:
+    `<path d="M5 34 L43 16" stroke="${SUN}" stroke-width="6" stroke-linecap="round"/><path d="M17 44 L24 26 L31 44Z" fill="${RED}"/><path d="M11 31 v-8 M37 19 v-8" stroke="#4a90e2" stroke-width="3.5" stroke-linecap="round"/>`,
+  springer:
+    `<path d="M24 44 q-6 -3 0 -6 q6 -3 0 -6 q-6 -3 0 -5" fill="none" stroke="#8a857a" stroke-width="3" stroke-linecap="round"/><ellipse cx="22" cy="20" rx="14" ry="8" fill="${RED}"/><circle cx="37" cy="13" r="7" fill="${RED}"/><path d="M43 13 l5 2 l-5 2Z" fill="${SUN}"/><circle cx="38.5" cy="11.5" r="1.5" fill="#fff"/><path d="M8 18 l-5 -6 l8 2Z" fill="${SUN}"/><path d="M26 10 v-6" stroke="#3d4f5a" stroke-width="3" stroke-linecap="round"/><rect x="18" y="42" width="12" height="4" rx="2" fill="#3d4f5a"/>`,
+  trampoline:
+    `<ellipse cx="24" cy="30" rx="21" ry="9" fill="#4a90e2"/><ellipse cx="24" cy="29" rx="16" ry="6" fill="#3d4f5a"/><path d="M8 34 V44 M40 34 V44 M24 39 V46" stroke="#8a857a" stroke-width="3.5" stroke-linecap="round"/><circle cx="24" cy="10" r="5" fill="${SUN}"/><path d="M17 19 q7 -4 14 0" fill="none" stroke="${SUN}" stroke-width="3" stroke-linecap="round"/>`,
+  // de actieknop: veger, hamer en prikker naast elkaar
+  action:
+    `<path d="M13 4 L10 25" stroke="${WOOD_D}" stroke-width="3.5" stroke-linecap="round"/><path d="M3 26 H17 L19 41 H1Z" fill="${SUN}"/><path d="M6 31 V40 M10 31 V40 M14 31 V40" stroke="${SUN_D}" stroke-width="1.5"/><path d="M3 26 H17" stroke="${RED}" stroke-width="4" stroke-linecap="round"/>` +
+    `<path d="M24 44 V17" stroke="${WOOD_D}" stroke-width="4.5" stroke-linecap="round"/><rect x="16" y="6" width="17" height="11" rx="2.5" fill="#8a857a" stroke="${INK}" stroke-width="1.8"/>` +
+    `<path d="M33 31 L44 33 L43 42 L34 40Z" fill="#fff" stroke="${GREY}" stroke-width="1.8" stroke-linejoin="round"/><path d="M39 36 V46" stroke="#8a857a" stroke-width="2.5" stroke-linecap="round"/><path d="M39 5 V36" stroke="${WOOD_D}" stroke-width="3.5" stroke-linecap="round"/><path d="M39 5 V12" stroke="${RED}" stroke-width="5.5" stroke-linecap="round"/>`,
   // de prikker: een stok met een punt, met een propje papier eraan geprikt
   picker:
     `<path d="M9 27 L24 29 L23 42 L10 40Z" fill="#fff" stroke="${GREY}" stroke-width="2" stroke-linejoin="round"/><path d="M15 37 L8 45" stroke="#8a857a" stroke-width="3" stroke-linecap="round"/>` +
