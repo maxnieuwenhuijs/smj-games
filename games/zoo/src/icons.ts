@@ -239,9 +239,12 @@ const ICONS = {
     `<path d="M38 24 A14 14 0 1 1 30 11" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><path d="M28 3 L40 10 L29 18Z" fill="${INK}"/>`,
   hammer:
     `<path d="M12 40 L28 20" stroke="${WOOD_D}" stroke-width="6" stroke-linecap="round"/><path d="M20 12 L34 6 L42 16 L36 22 L30 16 L24 22Z" fill="#8a857a" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`,
+  // het hok is te klein: een klein verblijf met een dier dat er bijna niet in past, en groene pijlen naar de grootte die het moet worden
   grow:
-    `<rect x="15" y="15" width="18" height="18" rx="3" fill="#bfe3a8" stroke="${INK}" stroke-width="2.5" stroke-dasharray="4 3"/>` +
-    `<path d="M24 12 V3 M24 3 l-5 5 M24 3 l5 5 M24 36 V45 M24 45 l-5 -5 M24 45 l5 -5 M12 24 H3 M3 24 l5 -5 M3 24 l5 5 M36 24 H45 M45 24 l-5 -5 M45 24 l-5 5" fill="none" stroke="${INK}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+    `<rect x="4" y="4" width="40" height="40" rx="5" fill="#dff2d0" stroke="#5bab4c" stroke-width="3" stroke-dasharray="5 4"/>` +
+    `<rect x="14" y="14" width="20" height="20" rx="2" fill="#f1e2c0" stroke="${WOOD_D}" stroke-width="4"/>` +
+    `<ellipse cx="24" cy="25" rx="8" ry="6.5" fill="#9aa0a6"/><circle cx="31" cy="21" r="4" fill="#9aa0a6"/><circle cx="32.5" cy="20" r="1" fill="${INK}"/>` +
+    `<path d="M12 12 L5 5 M5 5 h6 M5 5 v6 M36 36 L43 43 M43 43 h-6 M43 43 v-6 M36 12 L43 5 M43 5 h-6 M43 5 v6 M12 36 L5 43 M5 43 h6 M5 43 v-6" fill="none" stroke="#2f8f3a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>`,
   tree:
     '<rect x="21" y="26" width="6" height="18" rx="2" fill="#a8743f"/><circle cx="24" cy="18" r="14" fill="#5bab4c"/><circle cx="16" cy="24" r="8" fill="#4f9e45"/><circle cx="33" cy="23" r="8" fill="#468f3e"/>',
   pine:

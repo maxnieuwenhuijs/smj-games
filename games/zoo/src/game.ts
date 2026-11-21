@@ -296,7 +296,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       tool: (id, row, option) => this.selectTool(id as ToolId, row, option),
       home: () => void this.save().then(onHome),
       goal: i => this.explainGoal(i),
-      need: () => this.gotoNeed(),
+      need: i => this.gotoNeed(i),
     });
     this.guests = new GuestManager(this.view.scene, this);
     if (data) this.load(data);
@@ -562,7 +562,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     sfx('cheer', { volume: 0.3, every: 5 });
   }
 
-  guestSound(kind: 'flush' | 'guest.laugh' | 'toilet.pee' | 'toilet.poop'): void {
+  guestSound(kind: 'flush' | 'guest.laugh' | 'toilet.pee' | 'toilet.poop' | 'guest.grumble'): void {
     sfx(kind, { volume: 0.25, every: 5 });
   }
 
@@ -1674,6 +1674,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const a = this.addAnimal(species, this.option.sex as Sex, x + 0.5, y + 0.5);
     animalSound(a.species, a.young);
     this.floatAt(a.name, a.gx, a.gy, a.top + 0.2, `word ${sexOf(a) === 'male' ? 'boy' : 'girl'}`);
+    // past het dier wel, maar is het verblijf te klein? Dat zie en hoor je meteen
+    if ((SPACE[species] ?? 0) > region.tiles.length) {
+      this.floatAt(icon('grow'), a.gx, a.gy, a.top + 0.8);
+      this.sayNow(wishLine(t, 'space', species, null, false));
+    }
     this.backToHand();
   }
 
@@ -1963,11 +1968,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   /** De knop 'dier in nood': het beeld schuift naar het dier dat het hardst hulp nodig heeft en dat licht op. */
-  private gotoNeed(): void {
-    if (!this.needy.length) return;
-    // nog een tik: het volgende dier
-    const at = this.marked ? this.needy.indexOf(this.marked.a) : -1;
-    const a = this.needy[(at + 1) % this.needy.length];
+  private gotoNeed(index: number): void {
+    const a = this.needy[index];
+    if (!a) return;
     this.marked = { a, until: this.clock + 8 };
     this.view.flyTo(a.gx, a.gy);
     animalSound(a.species, a.young, 0.8);
@@ -2511,12 +2514,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         return care && this.clock - (this.unmet.get(a)?.since ?? this.clock) > 20;
       })
       .sort((p, q) => rank(q) - rank(p) || q.neglect - p.neglect);
-    const first = this.needy[0];
-    this.hud.setNeed(first ? {
-      icon: speciesIcon(first.species),
-      badge: first.escaped ? icon('catch') : first.unmet ? this.wishIcon(first, first.unmet) : icon('sick'),
-      count: this.needy.length,
-    } : null);
+    this.hud.setNeeds(this.needy.slice(0, 20).map(a => ({
+      icon: speciesIcon(a.species),
+      badge: a.escaped ? icon('catch') : a.unmet ? this.wishIcon(a, a.unmet) : icon('sick'),
+    })));
     stats.kinds = Object.values(stats.happy).filter(n => n >= 2).length;
     this.stats = stats;
     if (taken.length) {

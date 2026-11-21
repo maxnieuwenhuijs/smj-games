@@ -41,11 +41,16 @@ button { font: inherit; color: inherit; }
 .tool.on { background: var(--sun); box-shadow: 0 5px 0 var(--sun-shade); }
 /* de rij staat nog open, maar het handje is aan: de laatste keuze is alleen omlijnd */
 .tool.open, .tool.last { outline: 3px solid var(--sun); outline-offset: -3px; }
-#need { position: absolute; left: 12px; top: 46%; background: #ffe1a8; box-shadow: 0 5px 0 #e0a84f; animation: needy 2.6s ease-in-out infinite; }
-#need .what { position: absolute; right: -8px; bottom: -8px; width: 32px; height: 32px; border-radius: 50%; background: #fff; display: grid; place-items: center; font-size: 22px; font-style: normal; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18); }
-#need .what .ic { font-size: 22px; width: 22px; height: 22px; }
+/* alarmbubbels links: vijf onder elkaar, scrollen als het er meer zijn */
+#needs {
+  position: absolute; left: 6px; top: 150px; display: flex; flex-direction: column; gap: 10px; padding: 6px 12px 10px 6px;
+  max-height: calc(5 * (min(62px, 12vw) + 10px) + 6px); overflow-y: auto; pointer-events: auto; touch-action: pan-y; scrollbar-width: thin;
+}
+#needs .tool { flex: none; width: min(62px, 12vw); height: min(62px, 12vw); background: #ffe1a8; box-shadow: 0 4px 0 #e0a84f; }
+#needs .what { position: absolute; right: -8px; bottom: -6px; width: 28px; height: 28px; border-radius: 50%; background: #fff; display: grid; place-items: center; font-size: 19px; font-style: normal; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18); }
+#needs .what .ic { font-size: 19px; width: 19px; height: 19px; }
 @keyframes needy { 50% { transform: scale(1.07); } }
-#carry { position: absolute; left: 12px; top: calc(46% + min(84px, 15vw)); gap: 6px; animation: needy 2.6s ease-in-out infinite; }
+#carry { position: absolute; right: 12px; top: calc(190px + min(70px, 13vw)); gap: 6px; animation: needy 2.6s ease-in-out infinite; }
 .tool.boy { box-shadow: 0 5px 0 var(--boy); outline: 3px solid var(--boy); outline-offset: -3px; }
 .tool.girl { box-shadow: 0 5px 0 var(--girl); outline: 3px solid var(--girl); outline-offset: -3px; }
 .tool.boy.on { background: #cfe3fb; }

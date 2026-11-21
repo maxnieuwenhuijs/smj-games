@@ -97,7 +97,7 @@ Vanaf level 10 willen de meeste dieren iets leuks in hun verblijf, en elk dier h
 
 ### Ruimte en groepen
 
-- **Ruimte:** grote dieren willen een groot verblijf. Minstens 9 tegels: olifant, giraf, neushoorn, nijlpaard, ijsbeer, bizon, walrus. Minstens 8: leeuw, tijger, beer, gorilla, kameel, panter, cheeta, wolf, kangoeroe. Minstens 6: paard, koe, zebra, ezel, rendier, jak, krokodil, zeehond, panda, struisvogel. De rest past overal. Is het te klein, dan zegt de bouwer dat het verblijf groter moet; het dier wordt er niet voor opgehaald.
+- **Ruimte:** grote dieren willen een groot verblijf. Minstens 9 tegels: olifant, giraf, neushoorn, nijlpaard, ijsbeer, bizon, walrus. Minstens 8: leeuw, tijger, beer, gorilla, kameel, panter, cheeta, wolf, kangoeroe. Minstens 6: paard, koe, zebra, ezel, rendier, jak, krokodil, zeehond, panda, struisvogel. De rest past overal. Is het te klein, dan zie je een eigen plaatje (een klein hok met een dier erin en groene pijlen naar buiten) in het wolkje, en zegt de bouwer dat het verblijf groter moet. Zet je een dier in een te klein verblijf, dan zie en hoor je dat meteen. Het dier wordt er niet voor opgehaald.
 - **Groepen:** groepsdieren willen met meer bij elkaar zijn (jongen tellen mee). Vijf: kip, pinguïn, flamingo. Vier: eend, konijn, gazelle, aap, maki. Drie: schaap, geit, alpaca, zebra, struisvogel, papegaai, toekan, rendier, wolf, otter, pelikaan, bizon. Alle andere dieren zijn tevreden met z'n tweeën. In het wolkje staat hoeveel er nog bij moeten (+3).
 
 ### Kunstjes en gebaren
@@ -242,7 +242,14 @@ Wie iets gekocht heeft, loopt even met afval rond. Staat er een afvalbak in de b
 
 Het aantal gasten groeit mee met het park en het level: hooguit 14 plus het level (dus 18 in level 4 en 60 vanaf level 46), en nooit meer dan het aantal volwassen dieren maal 1,3 plus 2. Op een apparaat dat het niet bijhoudt blijft het bij 45 of 30.
 
-Eén kraam kan maar een beperkt aantal gasten aan: een eetkraam of drinkkraam 10, een wc 8, een ijskraam 12, een speeltuin 14, een bankje 6. Zijn er meer gasten, dan is het er te druk: een deel van de gasten vindt geen plek, laat een oranje wolkje zien en wordt wat minder blij, en de gastvrouw zegt waar er een bij moet ("Er staat een rij voor de wc. Zet er nog een wc bij!"). Bij 60 gasten heb je dus 6 eetkramen, 6 drinkkramen, 8 wc's, 5 ijskramen, 5 speeltuinen en 10 bankjes nodig. Te weinig wc's geeft vanzelf meer ongelukjes.
+Je ziet de drukte echt:
+
+- **Rijen:** een kraam helpt één gast tegelijk (dat duurt zes tellen), een wc twee (negen tellen), een speeltuin drie, een draaimolen vier. Wie niet meteen aan de beurt is, sluit achteraan aan: de gasten staan achter elkaar langs het pad en schuiven op. Een gast kiest de kraam met de kortste rij.
+- **Wachten:** na een kwart minuut wordt het wolkje van een wachtende oranje. Na een halve minuut loopt hij mopperend weg: handen in de zij, een zucht (zonder woorden) en wat minder blij. Staat er al een rij van zes, dan sluit een nieuwe gast niet eens aan.
+- **Bankjes:** op een bankje passen er twee. Zijn alle bankjes vol, dan gaat een moe gastje niet in de rij staan maar moppert het meteen en loopt door.
+- **De gastvrouw** zegt waar er een bij moet ("Er staat een rij voor de wc. Zet er nog een wc bij!", "Alle bankjes zijn bezet.").
+
+Als vuistregel heb je per 10 gasten een eetkraam en een drinkkraam nodig, per 8 een wc, per 12 een ijskraam, per 14 een speeltuin en per 6 een bankje. Bij 60 gasten zijn dat 6 eetkramen, 6 drinkkramen, 8 wc's, 5 ijskramen, 5 speeltuinen en 10 bankjes. Te weinig wc's geeft vanzelf meer ongelukjes.
 
 ## Munten
 
@@ -282,7 +289,7 @@ Vanaf level 6, zodra er een eetkraam is, laten gasten afval vallen als er geen a
 
 ## Dier in nood
 
-Is er een dier ontsnapt, ziek, of heeft het al twintig tellen honger, een vies hok of een open hek, dan verschijnt links een knop met dat dier en wat het mist (en hoeveel dieren er wachten). Een tik schuift het beeld naar het dier en zet er acht tellen een oranje ring omheen; nog een tik gaat naar het volgende dier. De dringendste eerst: ontsnapt, dan ziek, dan wie het langst wacht.
+Is er een dier ontsnapt, ziek, of heeft het al twintig tellen honger, een vies hok of een open hek, dan verschijnt links een alarmbubbel met dat dier en wat het mist. Er staan er tot vijf onder elkaar; zijn het er meer, dan kun je in het lijstje scrollen. Een tik op een bubbel schuift het beeld naar dat dier en zet er acht tellen een oranje ring omheen. De dringendste staat bovenaan: ontsnapt, dan ziek, dan wie het langst wacht.
 
 ## Cursor
 

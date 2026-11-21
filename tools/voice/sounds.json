@@ -953,6 +953,17 @@
       "seconds": 1.2,
       "variants": 2,
       "prompt": "A short trickle of water splashing onto dry ground. Soft and brief, no background noise."
+    },
+    {
+      "id": "guest.grumble",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "prompts": [
+        "A child's short grumpy 'hmpf' sigh. No words, no speech. Short, soft, clean recording with no background noise.",
+        "An adult's short impatient sigh. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A woman's short annoyed 'tsk' and sigh. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A man's short grumpy 'hmm' groan. No words, no speech. Short, soft, clean recording with no background noise."
+      ]
     }
   ]
 }

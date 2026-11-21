@@ -33,6 +33,9 @@ export interface ShopSpot {
   rot?: number;
   /** De speler heeft het gebouw zelf gedraaid: dan draait het niet meer vanzelf naar het pad. */
   manual?: boolean;
+  /** Hoeveel gasten er nu geholpen worden en hoeveel er in de rij staan (het spel houdt dit elk beeldje bij). */
+  busyNow?: number;
+  line?: number;
 }
 
 /** Waar een bankje op een rand precies staat en hoe het gedraaid is: [x, y, draaiing]. Zelfde regels als in het beeld. */
@@ -102,7 +105,7 @@ export interface GuestWorld {
   /** Ligt er afval op deze tegel? */
   litterOn(tile: number): boolean;
   /** Geluidje bij iets wat een gast doet. */
-  guestSound(kind: 'flush' | 'guest.laugh' | 'toilet.pee' | 'toilet.poop'): void;
+  guestSound(kind: 'flush' | 'guest.laugh' | 'toilet.pee' | 'toilet.poop' | 'guest.grumble'): void;
   /** Vraagt het level om afval op te ruimen? Dan laten gasten ook naast een afvalbak weleens iets vallen. */
   messy(): boolean;
   /** Welk deel van de gasten bij dit soort kraam geen plek vindt, omdat er te weinig van zijn (0 = genoeg). */
@@ -179,13 +182,43 @@ function swing(limbs: THREE.Mesh[], amount: number): void {
 }
 
 // ------------------------------------------------------------ gast
-type GuestState = 'idle' | 'walk' | 'watch' | 'buy' | 'sit' | 'accident';
+type GuestState = 'idle' | 'walk' | 'watch' | 'buy' | 'sit' | 'accident' | 'queue';
+/** Zoveel gasten kan één kraam, wc, bankje of attractie tegelijk helpen; de rest staat in de rij. */
+const AT_ONCE: Partial<Record<ShopKind, number>> = { toilet: 2, bench: 2, playground: 3, carousel: 4, fountain: 6 };
+/** Zo lang duurt het voor een gast geholpen is. */
+const SERVE_TIME: Partial<Record<ShopKind, number>> = { foodstall: 6, drinkstall: 6, icecream: 6, balloon: 4, hats: 4, souvenir: 4, toilet: 9, bench: 7, playground: 6, carousel: 8, fountain: 4 };
+/** Langer is de rij nooit; wie er dan bij wil, loopt mopperend door. Zo lang wacht een gast hooguit. */
+const MAX_QUEUE = 6;
+const PATIENCE = 32;
 const MAX_PURCHASES = 4;
 const NEED_SHOP: Record<Need, ShopKind> = {
   food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', hat: 'hats', souvenir: 'souvenir', play: 'playground', sit: 'bench', look: 'fountain', ride: 'carousel',
 };
 const COLOR_OF = Object.fromEntries(PRODUCTS.filter(p => p.color !== undefined).map(p => [p.id, p.color as number]));
 const SNACK_GEO = new THREE.BoxGeometry(0.06, 0.08, 0.06).translate(0, -0.2, 0.04);
+/**
+ * De tegel op het pad waar je bij een gebouw geholpen wordt: de bereikbare tegel het dichtst bij de voorkant.
+ * Alle gasten gaan naar dezelfde plek, zodat er één rij ontstaat.
+ */
+function doorOf(w: GuestWorld, reach: Set<number>, shop: ShopSpot): number | null {
+  const turn = ((shop.rot ?? 0) * Math.PI) / 2;
+  const [cx, cy] = shopCenter(shop);
+  const fx = cx + Math.sin(turn) * (shop.size / 2 + 0.5), fy = cy + Math.cos(turn) * (shop.size / 2 + 0.5);
+  let best: number | null = null, bestD = Infinity;
+  const own = footprint(shop);
+  for (const t of own)
+    for (const n of w.grid.neighbors(t)) {
+      if (!reach.has(n) || own.includes(n)) continue;
+      const [x, y] = tileXY(n);
+      const d = Math.hypot(x + 0.5 - fx, y + 0.5 - fy);
+      if (d < bestD) {
+        bestD = d;
+        best = n;
+      }
+    }
+  return best;
+}
+
 const footprint = (shop: ShopSpot): number[] => {
   const tiles: number[] = [];
   for (let y = shop.y; y < shop.y + shop.size; y++) for (let x = shop.x; x < shop.x + shop.size; x++) tiles.push(tileIndex(x, y));
@@ -270,7 +303,13 @@ export class Guest {
   private snack: THREE.Mesh | null = null;
   /** Zoveel tellen springt de gast nog van blijdschap. */
   joy = 0;
+  /** Zoveel tellen moppert de gast nog: armen in de zij en hoofdschudden. */
+  private moan = 0;
   private hop = 0;
+  /** In de rij: hoe lang de gast al wacht, wanneer hij aansloot en waar zijn plek in de rij is. */
+  waited = 0;
+  joined = 0;
+  slot: [number, number] | null = null;
   /** Wat de gast draagt, om te kunnen bewaren. */
   private wornHat: string | null = null;
   private wornBalloon: string | null = null;
@@ -329,6 +368,15 @@ export class Guest {
       this.balloon = 0;
     }
     this.place();
+  }
+
+  /** De kraam waar de gast nu geholpen wordt of voor in de rij staat. */
+  get using(): ShopSpot | null {
+    return this.state === 'buy' || this.state === 'sit' || this.state === 'queue' ? this.shop : null;
+  }
+
+  get queueing(): boolean {
+    return this.state === 'queue';
   }
 
   get happy(): boolean {
@@ -407,10 +455,13 @@ export class Guest {
         for (const n of edgeSides(shop)) if (reach.has(n)) options.push({ shop, tile: n });
         continue;
       }
-      const own = footprint(shop);
-      for (const t of own) for (const n of w.grid.neighbors(t)) if (reach.has(n) && !own.includes(n)) options.push({ shop, tile: n });
+      const door = doorOf(w, reach, shop);
+      if (door !== null) options.push({ shop, tile: door });
     }
-    return options.length ? pick(options) : null;
+    if (!options.length) return null;
+    // de kortste rij is het aantrekkelijkst
+    const load = (o: { shop: ShopSpot }): number => (o.shop.busyNow ?? 0) + (o.shop.line ?? 0) + Math.random() * 0.6;
+    return options.reduce((best, o) => (load(o) < load(best) ? o : best));
   }
 
   /** Wat wil de gast nu het liefst? Het dringendste eerst. */
@@ -470,8 +521,8 @@ export class Guest {
       let spot = this.spotBeside(w, reach, kind, product);
       // nergens te koop: de tweede keer neemt de gast ook iets anders van dezelfde kraam
       if (!spot && product && this.settled.has(want)) spot = this.spotBeside(w, reach, kind);
-      // te veel gasten voor zo weinig kramen: dan is het er vol en moet de gast later terugkomen
-      const full = !!spot && Math.random() < w.busy(kind);
+      // de rij is al te lang: dan loopt de gast mopperend door en komt hij later terug
+      const full = !!spot && (spot.shop.line ?? 0) >= MAX_QUEUE;
       if (spot && !full && (spot.tile === this.tile || this.go(w, reach, spot.tile))) {
         this.shop = spot.shop;
         this.errand = want;
@@ -481,7 +532,7 @@ export class Guest {
       }
       // het is er niet: de gast laat zien wat hij mist en heeft het wat minder naar zijn zin
       this.wish = { kind: want, lacking: true, product, busy: full || undefined };
-      if (full) this.fun = Math.max(0, this.fun - 0.03);
+      if (full) this.grumble(w);
       else if (product && w.shops.some(sh => sh.kind === kind)) {
         this.settled.add(want);
         this.fun = Math.max(0, this.fun - 0.03);
@@ -525,12 +576,26 @@ export class Guest {
       this.gone = true;
     } else if (this.shop) {
       this.face = shopCenter(this.shop);
-      const kind = this.shop.kind;
-      this.state = kind === 'bench' || kind === 'playground' || kind === 'fountain' || kind === 'carousel' ? 'sit' : 'buy';
-      this.timer = kind === 'bench' ? 4.5 : kind === 'playground' ? 6 : kind === 'carousel' ? 8 : kind === 'fountain' ? 4 : kind === 'toilet' ? 3 : 1.8;
-      // op de wc hoor je af en toe wat er achter de deur gebeurt
-      if (kind === 'toilet' && Math.random() < 0.6) w.guestSound(Math.random() < 0.55 ? 'toilet.pee' : 'toilet.poop');
-      if (!w.shops.includes(this.shop)) this.timer = 0.2; // de kraam is intussen weggehaald
+      if (!w.shops.includes(this.shop)) {
+        this.state = 'idle'; // de kraam is intussen weggehaald
+        this.timer = 0.2;
+      } else if ((this.shop.busyNow ?? 0) < (AT_ONCE[this.shop.kind] ?? 1)) this.serve(w);
+      else if (this.shop.kind === 'bench') {
+        // het bankje is vol: voor een bankje ga je niet in de rij staan, je moppert en loopt door
+        this.wish = { kind: 'sit', lacking: true, busy: true };
+        this.grumble(w);
+        this.tired = 0.6;
+        this.state = 'idle';
+        this.timer = 1.6;
+        this.shop = null;
+        this.errand = null;
+      } else {
+        // bezet: achteraan aansluiten
+        this.state = 'queue';
+        this.waited = 0;
+        this.joined = this.age;
+        this.slot = null;
+      }
     } else if (this.face) {
       this.state = 'watch';
       this.timer = 4 + Math.random() * 3;
@@ -542,6 +607,27 @@ export class Guest {
       this.state = 'idle';
       this.timer = 0.6 + Math.random();
     }
+  }
+
+  /** Aan de beurt: bestellen, naar de wc, gaan zitten of instappen. */
+  serve(w: GuestWorld): void {
+    if (!this.shop) return;
+    const kind = this.shop.kind;
+    this.state = kind === 'bench' || kind === 'playground' || kind === 'fountain' || kind === 'carousel' ? 'sit' : 'buy';
+    this.timer = SERVE_TIME[kind] ?? 3;
+    this.shop.busyNow = (this.shop.busyNow ?? 0) + 1;
+    this.slot = null;
+    if (this.wish) this.wish = { ...this.wish, lacking: false, busy: undefined };
+    // op de wc hoor je af en toe wat er achter de deur gebeurt
+    if (kind === 'toilet' && Math.random() < 0.6) w.guestSound(Math.random() < 0.55 ? 'toilet.pee' : 'toilet.poop');
+  }
+
+  /** Te lang gewacht of nergens plek: de gast moppert, wordt minder blij en laat zien waar het te druk is. */
+  private grumble(w: GuestWorld): void {
+    this.fun = Math.max(0, this.fun - 0.06);
+    if (this.wish) this.wish = { ...this.wish, lacking: true, busy: true };
+    this.moan = 1.4;
+    w.guestSound('guest.grumble');
   }
 
   private finish(w: GuestWorld): void {
@@ -728,6 +814,29 @@ export class Guest {
           this.turnTo(dx, dy, dt);
         }
       }
+    } else if (this.state === 'queue') {
+      // in de rij: opschuiven naar je plek en wachten; wie te lang wacht, loopt mopperend weg
+      this.waited += dt;
+      this.fun = Math.max(0, this.fun - dt / 150);
+      if (this.slot) {
+        const dx = this.slot[0] - this.gx, dy = this.slot[1] - this.gy, dist = Math.hypot(dx, dy), step = 0.8 * dt;
+        const tile = tileIndex(Math.floor(this.slot[0]), Math.floor(this.slot[1]));
+        if (dist > 0.03 && reach.has(tile)) {
+          this.gx += (dx / dist) * Math.min(step, dist);
+          this.gy += (dy / dist) * Math.min(step, dist);
+          this.turnTo(dx, dy, dt);
+        } else if (this.face) this.turnTo(this.face[0] - this.gx, this.face[1] - this.gy, dt);
+      }
+      if (this.waited > PATIENCE / 2 && this.wish && !this.wish.busy) this.wish = { ...this.wish, lacking: true, busy: true };
+      if (this.waited > PATIENCE || !this.shop || !w.shops.includes(this.shop)) {
+        if (this.shop && w.shops.includes(this.shop)) this.grumble(w);
+        if (this.errand) this.postpone(this.errand);
+        this.state = 'idle';
+        this.shop = null;
+        this.errand = null;
+        this.slot = null;
+        this.timer = 1.2;
+      }
     } else {
       if (this.face) this.turnTo(this.face[0] - this.gx, this.face[1] - this.gy, dt);
       this.timer -= dt;
@@ -773,6 +882,14 @@ export class Guest {
         this.snack = null;
       }
     }
+    if (this.moan > 0) {
+      // mopperen: handen in de zij en heen en weer draaien
+      this.moan -= dt;
+      right.rotation.x = left.rotation.x = -0.5;
+      right.rotation.z = -0.5;
+      left.rotation.z = 0.5;
+      this.mesh.rotation.z = Math.sin(this.moan * 14) * 0.08;
+    } else this.mesh.rotation.z = 0;
     if (this.joy > 0) {
       // juichen: armen omhoog en springen
       this.joy -= dt;
@@ -850,11 +967,51 @@ export class GuestManager {
         this.guests.push(guest);
       }
     }
+    this.lines();
     for (const g of this.guests) {
       g.update(dt, this.world, this.list, this.reach);
       if (g.gone) this.scene.remove(g.mesh);
     }
     if (this.guests.some(g => g.gone)) this.guests = this.guests.filter(g => !g.gone);
+  }
+
+  /**
+   * De rijen: per kraam tellen wie er geholpen wordt en wie er wacht, de wachtenden een plek in de rij
+   * geven (achter elkaar langs het pad) en de voorste laten doorlopen zodra er plek is.
+   */
+  private lines(): void {
+    const waiting = new Map<ShopSpot, Guest[]>();
+    for (const shop of this.world.shops) {
+      shop.busyNow = 0;
+      shop.line = 0;
+    }
+    for (const g of this.guests) {
+      const shop = g.using;
+      if (!shop) continue;
+      if (g.queueing) waiting.set(shop, [...(waiting.get(shop) ?? []), g]);
+      else shop.busyNow = (shop.busyNow ?? 0) + 1;
+    }
+    for (const [shop, line] of waiting) {
+      line.sort((p, q) => p.joined - q.joined);
+      while (line.length && (shop.busyNow ?? 0) < (AT_ONCE[shop.kind] ?? 1)) line.shift()!.serve(this.world);
+      shop.line = line.length;
+      if (!line.length) continue;
+      // de rij loopt langs het pad: de kant op waar het meeste pad ligt
+      const head = line[0].tile;
+      const [hx, hy] = tileXY(head);
+      const [cx, cy] = shopCenter(shop);
+      const away: [number, number] = Math.abs(hx + 0.5 - cx) > Math.abs(hy + 0.5 - cy) ? [Math.sign(hx + 0.5 - cx), 0] : [0, Math.sign(hy + 0.5 - cy)];
+      const sides: [number, number][] = [[away[1], away[0]], [-away[1], -away[0]], away];
+      const run = (d: [number, number]): number => {
+        let n = 0;
+        while (n < 4 && this.reach.has(tileIndex(hx + d[0] * (n + 1), hy + d[1] * (n + 1))) && hx + d[0] * (n + 1) >= 0 && hx + d[0] * (n + 1) < W) n++;
+        return n;
+      };
+      const dir = sides.reduce((best, d) => (run(d) > run(best) ? d : best));
+      line.forEach((g, i) => {
+        g.slot = [hx + 0.5 + dir[0] * 0.5 * (i + 1), hy + 0.5 + dir[1] * 0.5 * (i + 1)];
+      });
+    }
   }
 
   /** Feest: alle gasten juichen even (als een level gehaald is). */

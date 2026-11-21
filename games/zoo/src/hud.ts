@@ -64,15 +64,14 @@ export class Hud {
   private mouthTimer = 0;
   private voice: Voice | null = null;
 
-  private need = el('button', 'tool small');
+  private need = el('div', '');
   private carry = el('div', 'pill');
   private needKey = '';
 
-  constructor(private on: { tool(id: string, row?: string, option?: string): void; home(): void; goal(index: number): void; need(): void }) {
-    this.need.id = 'need';
+  constructor(private on: { tool(id: string, row?: string, option?: string): void; home(): void; goal(index: number): void; need(index: number): void }) {
+    this.need.id = 'needs';
     this.need.hidden = true;
     this.need.setAttribute('aria-label', t('need'));
-    this.need.addEventListener('click', () => this.on.need());
     document.getElementById('ui')!.append(this.need);
     this.carry.id = 'carry';
     this.carry.hidden = true;
@@ -101,15 +100,23 @@ export class Hud {
 
   // ------------------------------------------------------------ knoppen
   /**
-   * Een dier heeft hulp nodig: een knop met dat dier en wat het mist. Een tik brengt je erheen.
-   * `count`: hoeveel dieren er wachten.
+   * Dieren die hulp nodig hebben: voor elk een knop met dat dier en wat het mist, onder elkaar aan de
+   * linkerkant. Er passen er vijf in beeld; zijn het er meer, dan kun je in het lijstje scrollen. Een tik
+   * brengt je naar dat dier.
    */
-  setNeed(need: { icon: string; badge: string; count: number } | null): void {
-    const key = need ? `${need.icon}|${need.badge}|${need.count}` : '';
+  setNeeds(needs: { icon: string; badge: string }[]): void {
+    const key = needs.map(n => `${n.icon}|${n.badge}`).join('/');
     if (key === this.needKey) return;
     this.needKey = key;
-    this.need.hidden = !need;
-    if (need) this.need.innerHTML = `${need.icon}<i class="what">${need.badge}</i>${need.count > 1 ? `<i class="price">${need.count}</i>` : ''}`;
+    this.need.hidden = !needs.length;
+    const top = this.need.scrollTop;
+    this.need.replaceChildren();
+    needs.forEach((n, i) => {
+      const b = el('button', 'tool small', `${n.icon}<i class="what">${n.badge}</i>`);
+      b.addEventListener('click', () => this.on.need(i));
+      this.need.append(b);
+    });
+    this.need.scrollTop = top;
   }
 
   /** Een kaart met uitleg in stappen (plaatje en zin per stap) en een knop om verder te gaan. */
