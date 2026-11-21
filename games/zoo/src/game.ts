@@ -14,9 +14,9 @@ import { Grid, H, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Ed
 import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
 import { cursor, icon, type IconId } from './icons';
 import { emptyStats, goalProgress, levelDone, type Stats } from './levels';
-import { NAMED, PRAISE, callText, goalLine, say, textOf, voiceId, wishLine, type Line } from './lines';
+import { CHEERS, NAMED, PRAISE, callText, goalLine, say, textOf, voiceId, wishLine, type Line } from './lines';
 import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStatic, speciesIcon } from './models';
-import { ENTRANCE, GuestManager, Keeper, Vendor, edgeSides, shopCenter, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type KeeperWorld, type ShopSpot } from './people';
+import { ENTRANCE, GuestManager, Keeper, Vendor, edgePose, edgeSides, shopCenter, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type KeeperWorld, type ShopSpot } from './people';
 import { View, toWorldX, toWorldZ, type TroughMesh } from './view';
 
 export type ToolId = 'hand' | 'broom' | 'terrain' | 'fence' | 'trough' | 'bed' | 'toy' | 'shop' | 'animal' | 'erase';
@@ -99,7 +99,7 @@ export interface SaveData {
   pens?: { tile: number; name: string; keeper?: boolean; feeder?: boolean; cleaner?: boolean }[];
   beds?: { x: number; y: number; kind: BedKind }[];
   toys?: { x: number; y: number; kind: ToyKind }[];
-  shops?: { x: number; y: number; kind: ShopKind; sells?: string[]; edge?: 'h' | 'v' }[];
+  shops?: { x: number; y: number; kind: ShopKind; sells?: string[]; edge?: 'h' | 'v'; turned?: boolean }[];
   sold?: Record<string, number>;
   soldAt?: Record<string, number>;
   soldAll?: number;
@@ -241,6 +241,8 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   private quietUntil = 0;
   /** Tot dit moment komt er uit zichzelf geen nieuwe melding. */
   private calmUntil = 0;
+  /** Vanaf dit moment mag er weer een complimentje tussendoor komen. */
+  private cheerAt = 90;
   private goalIdx = -2;
   private unmet = new Map<Animal, { wish: WishId | null; since: number }>();
   private reacted = new Map<Animal, number>();
@@ -328,7 +330,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       if (size === 1) {
         // een bankje, bloembak of afvalbak staat op een rand; uit een ouder spel stond het nog op een tegel
         const spot = sh.edge ? { o: sh.edge, x, y } : this.edgeNear(x, y);
-        if (spot && this.edgeFits(spot)) this.addShop(spot.x, spot.y, sh.kind, sh.sells, spot.o);
+        if (spot && this.edgeFits(spot)) this.addShop(spot.x, spot.y, sh.kind, sh.sells, spot.o, sh.turned);
         else this.coins = Math.min(COIN_CAP, this.coins + SHOP_PRICE[sh.kind]);
         continue;
       }
@@ -390,7 +392,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       pens: this.pens.map(p => ({ tile: p.region.tiles[0], name: p.name, feeder: p.feeder ? true : undefined, cleaner: p.cleaner ? true : undefined })),
       beds: this.beds.map(({ x, y, kind }) => ({ x, y, kind })),
       toys: this.toys.map(({ x, y, kind }) => ({ x, y, kind })),
-      shops: this.shops.map(({ x, y, kind, sells, edge }) => ({ x, y, kind, sells, edge })),
+      shops: this.shops.map(({ x, y, kind, sells, edge, turned }) => ({ x, y, kind, sells, edge, turned })),
       gw: W,
       gh: H,
     };
@@ -994,9 +996,28 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     return fits.find(e => this.edgeFace(e) !== 0) ?? fits[0] ?? null;
   }
 
+  /** Naar welke kant iets op een rand kijkt: naar het pad, of juist andersom als de speler het heeft omgedraaid. */
+  private faceOf(s: { x: number; y: number; edge?: 'h' | 'v'; turned?: boolean }): number {
+    const auto = this.edgeFace({ o: s.edge!, x: s.x, y: s.y }) || 1;
+    return s.turned ? -auto : auto;
+  }
+
   /** Het pad is veranderd: bankjes en bakken draaien hun gezicht naar het pad. */
   private faceEdgeItems(): void {
-    for (const s of this.shops) if (s.edge) this.view.poseShop(s.mesh, s.x, s.y, s.kind, { o: s.edge, face: this.edgeFace({ o: s.edge, x: s.x, y: s.y }) });
+    for (const s of this.shops) {
+      if (!s.edge) continue;
+      s.face = this.faceOf(s);
+      this.view.poseShop(s.mesh, s.x, s.y, s.kind, { o: s.edge, face: s.face });
+    }
+  }
+
+  /** Een tik met het handje draait een bankje, bloembak of afvalbak om. */
+  private turnItem(item: ShopObj): void {
+    item.turned = !item.turned || undefined;
+    this.faceEdgeItems();
+    sfx('place');
+    const [x, y] = edgePose(item);
+    this.floatAt(icon('sparkle'), x, y, 0.5);
   }
 
   private taken(x: number, y: number): boolean {
@@ -1031,10 +1052,11 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     return bed;
   }
 
-  private addShop(x: number, y: number, kind: ShopKind, sells?: string[], edge?: 'h' | 'v'): ShopObj {
+  private addShop(x: number, y: number, kind: ShopKind, sells?: string[], edge?: 'h' | 'v', turned?: boolean): ShopObj {
+    const face = edge ? this.faceOf({ x, y, edge, turned }) : undefined;
     const shop: ShopObj = {
       x, y, kind, size: SHOP_SIZE[kind], sells: sells?.length ? [...sells] : this.products(kind).slice(0, slotsOf(kind)),
-      mesh: this.view.makeShop(x, y, kind, edge && { o: edge, face: this.edgeFace({ o: edge, x, y }) }), vendor: Vendor.of(kind), edge,
+      mesh: this.view.makeShop(x, y, kind, edge && { o: edge, face: face! }), vendor: Vendor.of(kind), edge, face, turned: turned || undefined,
     };
     if (shop.vendor) shop.mesh.add(shop.vendor.mesh);
     this.shops.push(shop);
@@ -1704,7 +1726,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
         const kind = this.option.shop as ShopKind;
         if (SHOP_SIZE[kind] === 1) {
           const e = nearestEdge(g.gx, g.gy);
-          if (e) this.view.ghostShop(e.x, e.y, kind, this.edgeFits(e), { o: e.o, face: this.edgeFace(e) });
+          if (e) this.view.ghostShop(e.x, e.y, kind, this.edgeFits(e), { o: e.o, face: this.edgeFace(e) || 1 });
           return this.hud.setCursor(CUR[this.option.shop]);
         }
         const [ax, ay] = this.shopAnchor(g, kind);
@@ -1720,7 +1742,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
         const e = nearestEdge(g.gx, g.gy, 0.3);
         const item = e && this.edgeItemAt(e);
         if (e && this.grid.getEdge(e) !== 0) this.view.ghostFence(e, this.grid.getEdge(e), false);
-        else if (item) this.view.ghostShop(item.x, item.y, item.kind, false, { o: item.edge!, face: this.edgeFace(e!) });
+        else if (item) this.view.ghostShop(item.x, item.y, item.kind, false, { o: item.edge!, face: item.face ?? 1 });
         else if (inside && this.troughAt(x, y)) this.view.ghostTrough(x, y, false);
         else if (inside && this.bedAt(x, y)) this.view.ghostBed(x, y, this.bedAt(x, y)!.kind, false);
         else if (inside && this.toyAt(x, y)) this.view.ghostToy(x, y, this.toyAt(x, y)!.kind, false);
@@ -1928,6 +1950,11 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       this.floatAt(icon('broom'), mess.gx, mess.gy, 0.5);
       this.nudge = this.clock + 5;
       return this.refreshTools(true);
+    }
+    if (this.tool === 'hand' && g) {
+      // een tik op een bankje, bloembak of afvalbak draait het om (ook als er iemand op zit)
+      const item = this.shops.find(sh => sh.edge && Math.hypot(edgePose(sh)[0] - g.gx, edgePose(sh)[1] - g.gy) < 0.38);
+      if (item && !this.pickAnimal(cx, cy, 0.3)) return this.turnItem(item);
     }
     if (this.tool === 'hand') {
       const animal = this.pickAnimal(cx, cy);
@@ -2140,6 +2167,22 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     else if (picky) this.alert(say.host('product'), 300);
     else if (this.litter.length >= 6) this.alert(say.host('litter'), 240);
     else if (crowd.total >= 3 && crowd.happy * 3 < crowd.total) this.alert(say.host('sad'), 300);
+    // gaat het goed, dan komt er af en toe een complimentje: over de dieren, de gasten, het park of de kas
+    // alleen als er niets ernstigs speelt: geen dier dat al lang op hulp wacht
+    if (this.clock > this.cheerAt && !this.needy.some(a => a.neglect > NEGLECT_WARN) && this.animals.length >= 2) {
+      const fits = CHEERS.map((c, i) => ({ c, i })).filter(({ c }) =>
+        c.about === 'animals' ? stats.happyAll * 5 >= this.animals.length * 4
+        : c.about === 'guests' ? crowd.total >= 3 && crowd.happy * 3 >= crowd.total * 2
+        : c.about === 'coins' ? this.coins >= 20
+        : this.pens.length >= 2);
+      const pick = fits[Math.floor(Math.random() * fits.length)];
+      if (pick) {
+        const line = say.cheer(pick.i);
+        this.alert(line, 600);
+        // gezegd? Dan duurt het weer een paar minuten tot het volgende
+        if (this.said.get(line.key) === this.clock) this.cheerAt = this.clock + 150 + Math.random() * 90;
+      }
+    }
 
     this.refreshTools();
     const level = this.levelDef();

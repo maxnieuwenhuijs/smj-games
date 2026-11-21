@@ -25,6 +25,18 @@ export interface ShopSpot {
    * tegel in: 'h' is de noordrand, 'v' de westrand.
    */
   edge?: 'h' | 'v';
+  /** Naar welke kant het kijkt: 1 = zuid of oost, -1 = noord of west. Het spel houdt dit bij. */
+  face?: number;
+  /** De speler heeft het omgedraaid: het kijkt van het pad af. */
+  turned?: boolean;
+}
+
+/** Waar een bankje op een rand precies staat en hoe het gedraaid is: [x, y, draaiing]. Zelfde regels als in het beeld. */
+export function edgePose(shop: ShopSpot): [number, number, number] {
+  const face = shop.face ?? 1;
+  return shop.edge === 'h'
+    ? [shop.x + 0.5, shop.y - 0.2 * face, face < 0 ? Math.PI : 0]
+    : [shop.x - 0.2 * face, shop.y + 0.5, face < 0 ? -Math.PI / 2 : Math.PI / 2];
 }
 
 /** Het midden van een winkel, in rastercoördinaten. */
@@ -304,12 +316,43 @@ export class Guest {
     return this.fun >= 0.55 && this.hunger < 0.9 && this.thirst < 0.9 && this.bladder < 0.9;
   }
 
+  /** Hoe ver de gast is met gaan zitten (0 = staat nog op het pad, 1 = zit); aan het eind staat hij weer op. */
+  private settle(total: number): number {
+    return Math.max(0, Math.min(1, (total - this.timer) / 0.45, this.timer / 0.35));
+  }
+
   private place(): void {
+    const kind = this.state === 'sit' ? this.shop?.kind : undefined;
+    if (kind === 'bench' && this.shop?.edge) {
+      // op het bankje: naast elkaar, met het gezicht dezelfde kant op als het bankje
+      const [bx, by, rot] = edgePose(this.shop);
+      const k = this.settle(4.5), lx = this.seat % 2 ? 0.2 : -0.2, lz = -0.02;
+      const sx = bx + lx * Math.cos(rot) + lz * Math.sin(rot), sy = by - lx * Math.sin(rot) + lz * Math.cos(rot);
+      this.mesh.position.set(toWorldX(this.gx + (sx - this.gx) * k), (0.3 - 0.2 * this.mesh.scale.y) * k, toWorldZ(this.gy + (sy - this.gy) * k));
+      this.mesh.rotation.y = this.heading + Math.atan2(Math.sin(rot - this.heading), Math.cos(rot - this.heading)) * k;
+      this.limbs[0].rotation.x = this.limbs[1].rotation.x = (-Math.PI / 2) * k;
+      return;
+    }
+    if (kind === 'playground' && this.shop) {
+      // de trap op, van de glijbaan af en weer terug: twee keer per bezoek
+      const u = ((6 - this.timer) % 3) / 3;
+      const cx = this.shop.x + 1, cy = this.shop.y + 1;
+      const top: [number, number, number] = [cx - 0.39, 1.0, cy + 0.1], low: [number, number, number] = [cx - 0.39, 0.1, cy + 1.1];
+      const here: [number, number, number] = [this.gx, 0, this.gy];
+      const mix = (a: number[], b: number[], t: number): number[] => a.map((v, i) => v + (b[i] - v) * t);
+      const sliding = u >= 0.45 && u < 0.8;
+      const p = u < 0.45 ? mix(here, top, u / 0.45) : sliding ? mix(top, low, (u - 0.45) / 0.35) : mix(low, here, (u - 0.8) / 0.2);
+      this.mesh.position.set(toWorldX(p[0]), p[1], toWorldZ(p[2]));
+      this.mesh.rotation.y = sliding ? 0 : this.heading;
+      if (sliding) this.limbs[0].rotation.x = this.limbs[1].rotation.x = -1.3;
+      return;
+    }
     // in de draaimolen zit de gast op een paardje en draait mee
     if (this.state === 'sit' && this.shop?.kind === 'carousel') {
       const a = (this.shop.spin ?? 0) + (this.seat * Math.PI) / 2;
       this.mesh.position.set(toWorldX(this.shop.x + 1) + Math.sin(a) * 0.56, 0.3, toWorldZ(this.shop.y + 1) + Math.cos(a) * 0.56);
       this.mesh.rotation.y = a + Math.PI / 2;
+      this.limbs[0].rotation.x = this.limbs[1].rotation.x = -1.1;
       return;
     }
     this.mesh.position.set(toWorldX(this.gx), this.state === 'accident' ? -0.07 : 0, toWorldZ(this.gy));

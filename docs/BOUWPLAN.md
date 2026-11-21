@@ -109,6 +109,10 @@ Ziek zijn, ontsnapt zijn, een open hek, honger en een vies hok tellen zwaar. Het
 
 Hoe vaak je moet zorgen: een volle voerbak houdt twee volwassen dieren ongeveer twaalf minuten zoet (een dier eet eens in de zes minuten en heeft pas na negen minuten zonder eten echt honger; vraagt een level om voeren, dan gaat dat tweeënhalf keer zo snel), en een verblijf met twee dieren is pas na ongeveer een kwartier vies: een volwassen dier poept eens in de zes tot negen minuten, en de dieren vinden het vies vanaf vier poepjes. Vraagt een level om opruimen, dan poepen ze vier keer zo vaak, zodat dat doel niet lang duurt. Jongen eten mee zonder dat de bak leger wordt en poepen niet. Zo is een boerderij met tien verblijven met de hand bij te houden. Wordt het park groter, dan zijn er verzorgers. Wordt er een dier opgehaald uit een verblijf zonder verzorger, dan geeft de verzorger de tip om hulp aan te nemen.
 
+## Complimentjes tussendoor
+
+Gaat het goed, dan zegt een figuur om de drie à vier minuten iets aardigs: de verzorger over de dieren (als vier van de vijf blij zijn), de gastvrouw over de gasten (als twee van de drie blij zijn), de directeur en de bouwer over het park, de kassier over de kas. Acht zinnen, bijvoorbeeld "Wat zien je dieren er blij uit!" en "Ik ben trots op jouw dierentuin." Een complimentje komt alleen als het stil is en er geen dier al lang op hulp wacht.
+
 ## Rust: hoe vaak de figuren praten
 
 Een kind mag zich niet opgejaagd voelen. Daarom:
@@ -156,7 +160,9 @@ Een gast koopt per bezoek hooguit vier dingen.
 
 ### Winkels
 
-Winkels zijn gebouwen van 2 bij 2 tegels met een open voorkant; achter de toonbank staat een verkoper die zwaait als hij iets verkoopt. Bankje, bloembak en afvalbak staan op de rand van een tegel, net als een hek: ze nemen geen tegel in, staan langs de rand, een stukje van het pad af en met het gezicht naar het pad. Ze passen niet op een hek, niet tegen een verblijf of gebouw en niet twee op dezelfde rand. Uit een ouder opgeslagen spel verhuizen ze naar de rand van hun tegel die langs het pad ligt. Elke winkel heeft een eigen vorm: friet op het dak van de eetkraam, een beker op de drinkkraam, een reuzenijsje op de ijskraam, een tros ballonnen, een strohoed, een beer op de knuffelkraam. Het wc-gebouw heeft twee deuren en de speeltuin een glijbaan.
+Winkels zijn gebouwen van 2 bij 2 tegels met een open voorkant; achter de toonbank staat een verkoper die zwaait als hij iets verkoopt. Bankje, bloembak en afvalbak staan op de rand van een tegel, net als een hek: ze nemen geen tegel in, staan langs de rand, een stukje van het pad af en met het gezicht naar het pad. Ze passen niet op een hek, niet tegen een verblijf of gebouw en niet twee op dezelfde rand. Uit een ouder opgeslagen spel verhuizen ze naar de rand van hun tegel die langs het pad ligt. Een tik met het handje draait zo'n ding om (het kijkt dan van het pad af); voor de andere richting zet je het op een andere rand.
+
+Gasten gaan echt op een bankje zitten: twee naast elkaar, benen naar voren, en ze staan weer op als ze uitgerust zijn. Kinderen klimmen in de speeltuin de trap op en glijden twee keer van de glijbaan. In de draaimolen zitten ze op een paardje. Elke winkel heeft een eigen vorm: friet op het dak van de eetkraam, een beker op de drinkkraam, een reuzenijsje op de ijskraam, een tros ballonnen, een strohoed, een beer op de knuffelkraam. Het wc-gebouw heeft twee deuren en de speeltuin een glijbaan.
 
 ### De grote attracties
 
@@ -304,7 +310,7 @@ Bij een nieuw spel vraagt het spel: hoe heet je? Een ouder typt de naam (oversla
 
 De opname van de naam komt uit een van deze drie bronnen:
 
-1. De naam staat in het lijstje van ruim 140 veelvoorkomende namen (ook Senna en Maxime) die al zijn ingesproken (`tools/voice/names.json`). Een naam toevoegen: `node tools/voice/build.mjs names --add Sepp`, daarna committen.
+1. De naam staat in het lijstje van ruim 140 veelvoorkomende namen (ook Senna, Maxime, Loua, Faas en Joep) die al zijn ingesproken (`tools/voice/names.json`). Een naam toevoegen: `node tools/voice/build.mjs names --add Sepp`, daarna committen.
 2. De naam is eerder op dit apparaat ingesproken en bewaard.
 3. In het oudermenu staat een eigen ElevenLabs-sleutel: dan spreekt het spel elke nieuwe naam ter plekke in en bewaart die op het apparaat. De sleutel blijft in de browser van dat apparaat en zit nooit in het spel of in de repo.
 

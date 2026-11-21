@@ -100,6 +100,7 @@ export const say = {
   caught: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.caught' }),
   hired: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.hired' }),
   tipKeeper: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.tip.keeper' }),
+  cheer: (i: number): Line => ({ who: CHEERS[i].who, mood: 'happy', key: `cheer.${i + 1}` }),
   funNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.fun.new' }),
   host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
   cash: (key: 'short' | 'full' | 'wage'): Line => ({ who: 'cashier', mood: key === 'full' ? 'happy' : 'worried', key: `cash.${key}` }),
@@ -138,6 +139,21 @@ export function namedLines(tr: Tr, name: string): { who: FigureId; text: string 
 export const callText = (tr: Tr, name: string): string => tr('name.call', { name });
 
 /** Elke zin die in het spel kan klinken, één keer. */
+/**
+ * Complimentjes tussendoor, als het goed gaat. `about`: waar het over gaat, zodat het klopt met wat je ziet
+ * (blije dieren, blije gasten, een mooi park, een goed gevulde kas).
+ */
+export const CHEERS: { who: FigureId; about: 'animals' | 'guests' | 'park' | 'coins' }[] = [
+  { who: 'keeper', about: 'animals' },
+  { who: 'keeper', about: 'animals' },
+  { who: 'host', about: 'guests' },
+  { who: 'host', about: 'guests' },
+  { who: 'director', about: 'park' },
+  { who: 'director', about: 'park' },
+  { who: 'builder', about: 'park' },
+  { who: 'cashier', about: 'coins' },
+];
+
 export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   const out = new Map<string, { who: FigureId; text: string }>();
   const add = (line: Line): void => {
@@ -175,6 +191,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.caught());
   add(say.hired());
   add(say.funNew());
+  CHEERS.forEach((_, i) => add(say.cheer(i)));
   add(say.tipKeeper());
   for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter', 'product', 'new', 'accident'] as const) add(say.host(key));
   add(say.cash('short'));
