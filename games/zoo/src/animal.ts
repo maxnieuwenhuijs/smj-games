@@ -70,7 +70,7 @@ export class Animal {
   private eatAt: Trough | null = null;
   private anim = '';
   private heading = Math.random() * Math.PI * 2;
-  private poopIn = 90 + Math.random() * 120;
+  private poopIn = 160 + Math.random() * 160;
   private dropped = false;
   /** Zoveel seconden slapen zodra het dier op zijn slaapplek aankomt. */
   private napFor = 0;
@@ -243,7 +243,7 @@ export class Animal {
       return;
     }
     if (this.poopIn <= 0 && !this.young) {
-      this.poopIn = 200 + Math.random() * 160;
+      this.poopIn = 340 + Math.random() * 220;
       this.state = 'poop';
       this.timeLeft = 2.6;
       this.dropped = false;

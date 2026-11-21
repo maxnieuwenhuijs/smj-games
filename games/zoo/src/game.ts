@@ -5,7 +5,7 @@ import { saveSet, t } from '@smj/shared';
 import { Animal, type AnimalWorld, type Trough } from './animal';
 import { ambience, animalSound, hasVoice, layer, music, playVoice, reshuffle, sfx } from './audio';
 import {
-  BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
+  BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
   type WishId, type WorldId,
@@ -521,7 +521,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       if (!region) continue;
       const here = this.animalsIn(region.id);
       if (!here.length) continue;
-      const score = 0.12 + 0.06 * here.filter(a => a.happy).length - (this.poopsIn(region.id) > 2 ? 0.1 : 0) - (this.litterOn(tile) ? 0.05 : 0);
+      const score = 0.12 + 0.06 * here.filter(a => a.happy).length - (this.poopsIn(region.id) > MAX_POOPS_CLEAN ? 0.1 : 0) - (this.litterOn(tile) ? 0.05 : 0);
       if (!best || score > best.score) best = { score, x: x + dx + 0.5, y: y + dy + 0.5, species: [...new Set(here.map(a => a.species))] };
     }
     return best;
@@ -949,7 +949,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   }
 
   poopRate(): number {
-    return this.goalOpen('cleaned') ? 2.5 : 1;
+    return this.goalOpen('cleaned') ? 4 : 1;
   }
 
   dropPuddle(gx: number, gy: number): void {
@@ -996,6 +996,15 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     sfx('place');
     this.floatAt(icon('sparkle'), x + 0.5, y + 0.5);
     for (const a of this.animalsIn(region.id)) this.react(a, 'good');
+    this.backToHand();
+  }
+
+  /**
+   * Na het neerzetten van een voerbak, slaapplek, winkel of dier staat het handje weer aan, zodat een
+   * volgende tik niet per ongeluk nog iets koopt. Hek, ondergrond en de gum blijven aan: daar veeg je mee.
+   */
+  private backToHand(): void {
+    this.selectTool('hand');
   }
 
   private placeBed(x: number, y: number): void {
@@ -1007,6 +1016,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     sfx('place');
     this.floatAt(icon('sparkle'), x + 0.5, y + 0.5);
     for (const a of this.animalsIn(region.id)) this.react(a, SPECIES[a.species].bed === kind ? 'good' : 'ok');
+    this.backToHand();
   }
 
   /** Een winkel mag overal buiten de verblijven staan, behalve op het pad of in het water. Een gebouw heeft 2 bij 2 tegels nodig. */
@@ -1040,6 +1050,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     this.addShop(x, y, kind);
     sfx('place');
     this.floatAt(icon('sparkle'), cx, cy, 0.8);
+    this.backToHand();
   }
 
   /** Tik op een kraam: kies wat hij verkoopt. Er passen maar een paar dingen tegelijk in; een keuze te veel vervangt de oudste. */
@@ -1067,6 +1078,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     const a = this.addAnimal(species, this.option.sex as Sex, x + 0.5, y + 0.5);
     animalSound(a.species, a.young);
     this.floatAt(a.name, a.gx, a.gy, a.top + 0.2, `word ${sexOf(a) === 'male' ? 'boy' : 'girl'}`);
+    this.backToHand();
   }
 
   /** Voer in de bak doen. Lust geen enkel dier in het verblijf het, dan gaat het er niet in. */

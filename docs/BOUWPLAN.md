@@ -102,7 +102,7 @@ Een dier dat gaat slapen, loopt naar zijn slaapplek en gaat er midden bovenop li
 
 Ziek zijn, ontsnapt zijn, een open hek, honger en een vies hok tellen zwaar. Het soort hek, ondergrond, slaapplek en een vriendje tellen licht. De tijden staan bovenaan `games/zoo/src/game.ts`.
 
-Hoe vaak je moet zorgen: een volle voerbak houdt twee volwassen dieren ruim vijf minuten zoet, en een verblijf met twee dieren is na een minuut of zeven vies. Jongen eten mee zonder dat de bak leger wordt en poepen niet. Zo is een boerderij met tien verblijven met de hand bij te houden. Wordt het park groter, dan zijn er verzorgers. Wordt er een dier opgehaald uit een verblijf zonder verzorger, dan geeft de verzorger de tip om hulp aan te nemen.
+Hoe vaak je moet zorgen: een volle voerbak houdt twee volwassen dieren ruim vijf minuten zoet, en een verblijf met twee dieren is pas na ongeveer een kwartier vies: een volwassen dier poept eens in de zes tot negen minuten, en de dieren vinden het vies vanaf vier poepjes. Vraagt een level om opruimen, dan poepen ze vier keer zo vaak, zodat dat doel niet lang duurt. Jongen eten mee zonder dat de bak leger wordt en poepen niet. Zo is een boerderij met tien verblijven met de hand bij te houden. Wordt het park groter, dan zijn er verzorgers. Wordt er een dier opgehaald uit een verblijf zonder verzorger, dan geeft de verzorger de tip om hulp aan te nemen.
 
 ## Gebeurtenissen
 
@@ -174,6 +174,10 @@ Wie iets gekocht heeft, loopt even met afval rond. Staat er een afvalbak in de b
 - Weghalen geeft de helft terug (naar beneden afgerond): een kraam met de gum, een dier dat je laat verhuizen. Een jong dat in het park geboren is, levert 1 munt op.
 - Een blij paar krijgt om de anderhalve minuut een jong. Zijn er al twee jongen, dan verhuist de oudste naar een andere dierentuin en krijg je 2 munten.
 - Terugverdienen: heeft het park net veel uitgegeven, dan krijgen gasten wat sneller trek. Zo is een aankoop binnen een paar minuten terugverdiend, zolang de gasten tevreden zijn.
+
+## Terug naar het handje
+
+Na het neerzetten van een voerbak, slaapplek, winkel of dier staat het handje weer aan. Zo koopt een volgende tik niet per ongeluk nog iets. Hek, ondergrond (ook pad) en de gum blijven aan staan: daar veeg je mee. Lukt het neerzetten niet (verkeerde plek, te weinig munten), dan blijft de knop aan.
 
 ## Hekken slepen
 

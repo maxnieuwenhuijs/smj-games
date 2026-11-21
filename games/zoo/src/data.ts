@@ -301,7 +301,8 @@ export const GOAL_OWNER: Record<GoalType, 'builder' | 'keeper' | 'host' | 'cashi
 };
 
 export const WISH_ORDER: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean'];
-export const MAX_POOPS_CLEAN = 2;
+/** Zoveel poepjes mogen er in een verblijf liggen voordat de dieren het vies vinden. */
+export const MAX_POOPS_CLEAN = 3;
 
 /**
  * Oudere opgeslagen spellen kenden veertien levels in een andere volgorde. Wie toen verder was dan de
