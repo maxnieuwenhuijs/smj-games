@@ -625,6 +625,18 @@ Alles hieronder staat in `games/zoo/src`; de vaste getallen in `data.ts`. De vol
 ### Hulp
 - **Hulphandje:** na 25 tellen niets doen wijst een handje zeven tellen lang aan waar je kunt tikken, daarna minstens 80 tellen niet.
 
+### Bediening, bijgewerkt op 21 november 2026 (avond)
+- **Hok slepen:** met Hek sleep je een rechthoek van de tegel waar je begint tot de tegel onder je vinger. Je ziet het hok als doorzichtig voorbeeld; de hekken komen pas bij loslaten. Een tik zet nog steeds één hekdeel; poort, kijkruit en poortje voor gasten gaan alleen met een tik.
+- **Beeld draaien:** twee pijlen rechtsboven draaien het beeld een kwartslag (`View.rotate`). Op een smal scherm staan ze rechts onder elkaar.
+- **Meldingen van dieren in nood:** links in het midden van het scherm, onder elkaar.
+- **Op de tegelrand:** lantaarn, lichtjes, vlag, vlaggetjes, wegwijzer en plattegrond zet je op de rand van een tegel, net als een hek, bankje of afvalbak (`EDGE_DECOR`). Wat in een ouder spel nog op een tegel stond, blijft daar staan.
+- **Niet aan het pad:** het wolkje met het pad en het rode kruisje staat stil vlak boven het ding. (Het zweefde eerst naar de hoek van het scherm: de animatie overschreef de plek.)
+- **Verblijf kiezen:** het verblijf dat je aanwijst of waarvan het menu open is, licht heel zacht op.
+- **Poep** heeft een bruine ring; met de veger in de hand een gele.
+- **Afvalbak:** aan de voorkant een gleuf, een wit plaatje en een pedaal.
+- **Opgeslagen spellen:** de naam van de speler staat onder het plaatje.
+- Het zwevende ballonnetje van de prikker (afval, getal, bak) is weg.
+
 ## Bekende zwakke punten van de modellen
 
 De modellen zijn op stilstaande beelden bekeken en doorgemeten (niets zakt meer dan een centimeter door de grond), maar geen enkele animatie is in beweging beoordeeld. Wat de modelbouwers zelf als zwak aanmerkten:

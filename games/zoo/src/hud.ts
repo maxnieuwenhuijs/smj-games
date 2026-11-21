@@ -77,12 +77,12 @@ export class Hud {
   /** Wat er gebeurt als je naast de kaart tikt (alleen bij de dierenarts). */
   private overlayTap: (() => void) | null = null;
 
-  constructor(private on: { tool(id: string, row?: string, option?: string): void; home(): void; goal(index: number): void; need(index: number): void }) {
+  constructor(private on: { tool(id: string, row?: string, option?: string): void; home(): void; goal(index: number): void; need(index: number): void; turn(dir: 1 | -1): void }) {
     this.need.id = 'needs';
     this.need.hidden = true;
     this.need.setAttribute('aria-label', t('need'));
-    // onderin het midden, boven de keuzerijen en de knoppenbalk
-    document.getElementById('bottom')!.prepend(this.need);
+    // links in het midden van het scherm, los van de knoppenbalk
+    document.getElementById('ui')!.append(this.need);
     // het handje ligt boven de knoppen, maar onder een kaart
     this.hand.id = 'pointer';
     this.hand.hidden = true;
@@ -95,6 +95,14 @@ export class Hud {
     home.setAttribute('aria-label', t('home'));
     home.addEventListener('click', () => this.on.home());
     this.speech.addEventListener('click', () => this.hush());
+    // twee pijlen rechtsboven: het beeld een kwartslag naar links of naar rechts draaien
+    for (const dir of [-1, 1] as const) {
+      const b = el('button', 'tool small', icon('turn'));
+      b.id = dir < 0 ? 'turnL' : 'turnR';
+      b.setAttribute('aria-label', t(dir < 0 ? 'turn.left' : 'turn.right'));
+      b.addEventListener('click', () => this.on.turn(dir));
+      document.getElementById('ui')!.append(b);
+    }
     const sound = $('sound');
     const showSound = (): void => {
       sound.innerHTML = icon(isMuted() ? 'sound_off' : 'sound_on');
@@ -114,8 +122,8 @@ export class Hud {
 
   // ------------------------------------------------------------ knoppen
   /**
-   * Dieren die hulp nodig hebben: per diersoort één knop met dat dier en wat het mist, naast elkaar onderin het
-   * midden, boven de knoppen. Er passen er vijf in beeld; zijn het er meer, dan kun je in het lijstje scrollen. Een tik
+   * Dieren die hulp nodig hebben: per diersoort één knop met dat dier en wat het mist, onder elkaar links in het
+   * midden van het scherm. Er passen er vijf in beeld; zijn het er meer, dan kun je in het lijstje scrollen. Een tik
    * brengt je naar dat dier.
    */
   setNeeds(needs: { icon: string; badge: string }[]): void {
@@ -123,14 +131,14 @@ export class Hud {
     if (key === this.needKey) return;
     this.needKey = key;
     this.need.hidden = !needs.length;
-    const left = this.need.scrollLeft;
+    const top = this.need.scrollTop;
     this.need.replaceChildren();
     needs.forEach((n, i) => {
       const b = el('button', 'tool small', `${n.icon}<i class="what">${n.badge}</i>`);
       b.addEventListener('click', () => this.on.need(i));
       this.need.append(b);
     });
-    this.need.scrollLeft = left;
+    this.need.scrollTop = top;
   }
 
   /** Een kaart met uitleg in stappen (plaatje en zin per stap) en een knop om verder te gaan. */

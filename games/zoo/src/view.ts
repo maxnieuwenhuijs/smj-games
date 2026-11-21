@@ -321,6 +321,10 @@ const SHOP_PARTS: Record<ShopKind, Part[]> = {
   bin: [
     [boxAt(0.32, 0.42, 0.32, 0, 0.21, 0), std(0x3d8b5a)],
     [boxAt(0.38, 0.06, 0.38, 0, 0.03, 0.19), std(0x2c6a43)],
+    // de voorkant: een donkere inwerpgleuf, een wit plaatje en een voetpedaal, zodat je ziet welke kant hij op staat
+    [boxAt(0.24, 0.08, 0.03, 0, 0.31, 0.16), std(0x1f3d2b)],
+    [boxAt(0.17, 0.14, 0.02, 0, 0.15, 0.162), WHITE_MAT],
+    [boxAt(0.16, 0.03, 0.1, 0, 0.015, 0.21), std(0x8a8f98, 0.6)],
   ],
   // de grote attracties staan verderop, bij hun bewegende delen
   fountain: [],
@@ -1434,6 +1438,9 @@ export class View {
   private dropMat = new THREE.MeshBasicMaterial({ color: 0xe6f6ff });
   /** Waar het beeld rustig naartoe schuift (de knop 'dier in nood'). */
   private fly: { x: number; z: number } | null = null;
+  /** Het beeld draaien: zoveel kwartslagen is het gedraaid, en de hoek waar de camera nu staat (die loopt er rustig heen). */
+  private turn = 0;
+  private angle = 0;
   private flashGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   private sun = new THREE.DirectionalLight(0xfff4dd, 2.2);
   /** 2 = alles aan, 1 = minder scherp, 0 = ook zonder schaduwen. */
@@ -1764,14 +1771,19 @@ export class View {
     this.camera.right = (this.zoom * a) / 2;
     this.camera.top = this.zoom / 2;
     this.camera.bottom = -this.zoom / 2;
-    this.camera.position.copy(this.target).add(this.tmp.set(30, 30, 30));
+    // de camera staat schuin boven het park; bij elke kwartslag een hoek verder
+    const phi = this.angle + Math.PI / 4, far = 30 * SQRT2;
+    this.camera.position.copy(this.target).add(this.tmp.set(Math.sin(phi) * far, 30, Math.cos(phi) * far));
     this.camera.lookAt(this.target);
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
   }
 
   /** Laat ringen zien op deze plekken; `hot` is feller en `r` maakt de ring groter. `pulse` laat ze ademen. */
-  showMarks(spots: { gx: number; gy: number; r?: number; hot?: boolean }[], pulse: number): void {
+  private brownMat = new THREE.MeshBasicMaterial({ color: 0x8a5a2e, transparent: true, opacity: 0.8, depthWrite: false });
+
+  /** `brown`: een bruine ring (om een poepje, zodat je het goed ziet liggen). */
+  showMarks(spots: { gx: number; gy: number; r?: number; hot?: boolean; brown?: boolean }[], pulse: number): void {
     while (this.marks.length < spots.length) {
       const m = new THREE.Mesh(this.markGeo, this.markMat);
       m.renderOrder = 2;
@@ -1782,7 +1794,7 @@ export class View {
       const s = spots[i];
       m.visible = !!s;
       if (!s) return;
-      m.material = s.hot ? this.hotMat : this.markMat;
+      m.material = s.hot ? this.hotMat : s.brown ? this.brownMat : this.markMat;
       m.position.set(toWorldX(s.gx), 0.03, toWorldZ(s.gy));
       const k = (s.r ?? 1) * (1 + 0.12 * Math.sin(pulse + i));
       m.scale.set(k, 1, k);
@@ -1942,7 +1954,10 @@ export class View {
     // op een smal scherm kleiner, zodat de hele boog erop past
     const k = (this.zoom / 11) * Math.min(1, (innerWidth / innerHeight) * 0.75);
     bow.scale.setScalar(k);
-    bow.position.set(this.target.x - 1.2 * k, -0.4 * k, this.target.z - 1.2 * k);
+    // altijd achter het midden van het beeld, ook als het gedraaid is
+    const phi = this.angle + Math.PI / 4, back = 1.2 * SQRT2 * k;
+    bow.rotation.y = phi;
+    bow.position.set(this.target.x - Math.sin(phi) * back, -0.4 * k, this.target.z - Math.cos(phi) * back);
   }
 
   /** Schuif het beeld rustig naar deze plek op het raster. */
@@ -1954,12 +1969,19 @@ export class View {
   pan(dxPx: number, dyPx: number): void {
     this.fly = null;
     const upp = this.zoom / innerHeight;
-    this.target.x += (-dxPx * upp) / SQRT2 - (dyPx * upp * SQRT3) / SQRT2;
-    this.target.z += (dxPx * upp) / SQRT2 - (dyPx * upp * SQRT3) / SQRT2;
+    // naar rechts en naar beneden op het scherm, omgerekend naar de grond (het beeld kan gedraaid zijn)
+    const phi = this.angle + Math.PI / 4, sin = Math.sin(phi), cos = Math.cos(phi);
+    this.target.x += -dxPx * upp * cos - dyPx * upp * SQRT3 * sin;
+    this.target.z += dxPx * upp * sin - dyPx * upp * SQRT3 * cos;
     const lim = W / 2 + 2;
     this.target.x = Math.max(-lim, Math.min(lim, this.target.x));
     this.target.z = Math.max(-lim, Math.min(lim, this.target.z));
     this.resize();
+  }
+
+  /** Draai het beeld een kwartslag: 1 = naar rechts, -1 = naar links. */
+  rotate(dir: 1 | -1): void {
+    this.turn += dir;
   }
 
   zoomBy(factor: number): void {
@@ -2217,8 +2239,14 @@ export class View {
     this.at(this.ghostBeds[kind], x, y).visible = true;
   }
 
-  makeDecor(x: number, y: number, kind: DecorKind): THREE.Group {
-    const group = this.at(buildDecor(kind), x, y);
+  /** Op een rand ('h' = de noordrand van tegel (x, y), 'v' = de westrand) staat het ding midden op die rand. */
+  private atSpot<T extends THREE.Object3D>(obj: T, x: number, y: number, edge?: 'h' | 'v'): T {
+    obj.position.set(toWorldX(x + (edge === 'v' ? 0 : 0.5)), 0, toWorldZ(y + (edge === 'h' ? 0 : 0.5)));
+    return obj;
+  }
+
+  makeDecor(x: number, y: number, kind: DecorKind, edge?: 'h' | 'v'): THREE.Group {
+    const group = this.atSpot(buildDecor(kind), x, y, edge);
     this.varyTree(group, x, y, kind);
     this.scene.add(group);
     return group;
@@ -2252,9 +2280,35 @@ export class View {
     }
   }
 
-  ghostDecor(x: number, y: number, kind: DecorKind, ok: boolean): void {
+  ghostDecor(x: number, y: number, kind: DecorKind, ok: boolean, edge?: 'h' | 'v'): void {
     this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
-    this.at(this.ghostDecors[kind], x, y).visible = true;
+    this.atSpot(this.ghostDecors[kind], x, y, edge).visible = true;
+  }
+
+  private runPool: THREE.Object3D[] = [];
+  private runKind = -1;
+
+  /**
+   * Het voorbeeld van een heel stuk hek tegelijk (het hok dat je sleept): op elke rand een doorzichtig hekdeel.
+   * Een lege lijst haalt het voorbeeld weg.
+   */
+  ghostRun(edges: Edge[], kind: number, ok: boolean): void {
+    if (kind !== this.runKind) {
+      for (const old of this.runPool) this.scene.remove(old);
+      this.runPool = [];
+      this.runKind = kind;
+    }
+    const model = kind === 8 ? this.ghostPetgateMesh : kind === 7 ? this.ghostPicketMesh : kind === 6 ? this.ghostWindowMesh : kind === 5 ? this.ghostGlassMesh : kind === 4 ? this.ghostNetMesh : kind === 3 ? this.ghostWallMesh : kind === 2 ? this.ghostGateMesh : this.ghostFenceMesh;
+    while (this.runPool.length < edges.length) {
+      const piece = model.clone();
+      this.scene.add(piece);
+      this.runPool.push(piece);
+    }
+    if (edges.length) this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
+    this.runPool.forEach((piece, i) => {
+      piece.visible = i < edges.length;
+      if (piece.visible) this.placeEdge(piece, edges[i]);
+    });
   }
 
   makeToy(x: number, y: number, kind: ToyKind): THREE.Group {
@@ -2735,6 +2789,12 @@ export class View {
   }
 
   update(dt: number): void {
+    const want = (this.turn * Math.PI) / 2;
+    if (this.angle !== want) {
+      const d = want - this.angle;
+      this.angle = Math.abs(d) < 0.004 ? want : this.angle + d * Math.min(1, dt * 7);
+      this.resize();
+    }
     this.stepWeather(dt);
     this.placeRainbow();
     for (const d of this.drops) {

@@ -9,6 +9,8 @@
   "yes": "Ja",
   "no": "Nee",
   "sound": "Geluid",
+  "turn.left": "Draai het beeld naar links",
+  "turn.right": "Draai het beeld naar rechts",
   "level": "Level {n}",
   "level.new": "Nieuw dier:",
   "level.next": "Verder",
