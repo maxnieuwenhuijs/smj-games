@@ -428,6 +428,13 @@
   "alert.bed": "{The} wants {bed} to sleep.",
   "alert.terrain": "{The} wants {terrain} in the pen.",
   "alert.friend": "{The} wants a friend.",
+  "tool.toy": "Toys",
+  "toy.ball": "Ball",
+  "toy.bush": "Bush",
+  "toy.log": "Log",
+  "toy.flowerbed": "Flowers",
+  "alert.fun": "{The} is bored. Put something fun in the pen!",
+  "say.fun.new": "New: toys and plants! The animals want something fun in their pen.",
   "alert.clean": "The pen is dirty. Grab the broom and sweep up the poops!",
   "alert.wrongfood": "{The} does not like that.",
 

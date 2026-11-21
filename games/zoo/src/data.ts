@@ -14,7 +14,9 @@ export type SpeciesId =
   | 'penguin' | 'seal' | 'polarbear' | 'reindeer' | 'wolf' | 'arcticfox' | 'bear' | 'yak' | 'owl' | 'walrus'
   | 'flamingo' | 'turtle' | 'otter' | 'beaver' | 'pelican' | 'koala' | 'redpanda' | 'lemur' | 'bison' | 'kangaroo';
 export type Variant = 'male' | 'female' | 'young_m' | 'young_f';
-export type WishId = 'health' | 'enclosure' | 'food' | 'bed' | 'terrain' | 'friend' | 'clean';
+export type WishId = 'health' | 'enclosure' | 'food' | 'bed' | 'terrain' | 'friend' | 'clean' | 'fun';
+/** Iets leuks in een verblijf: speelgoed of groen. Elk dier is er blij mee. */
+export type ToyKind = 'ball' | 'bush' | 'log' | 'flowerbed';
 
 /** De volgorde is ook de waarde in het opslagbestand: nieuwe soorten komen achteraan. */
 export const TERRAINS: Terrain[] = ['grass', 'mud', 'sand', 'water', 'path', 'snow', 'forest'];
@@ -30,6 +32,7 @@ export const TERRAIN_INFO: Record<Terrain, { colors: [number, number] }> = {
 
 export const FOODS: FoodId[] = ['veg', 'hay', 'fruit', 'grain', 'meat', 'leaves', 'fish', 'bamboo'];
 export const BEDS: BedKind[] = ['straw', 'shed', 'rock', 'shade', 'nest', 'cave', 'climb'];
+export const TOYS: ToyKind[] = ['ball', 'bush', 'log', 'flowerbed'];
 export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'playground', 'icecream', 'flowers', 'bin', 'balloon', 'hats', 'souvenir', 'fountain', 'carousel'];
 /** Kramen waar een gast iets koopt voor één munt. */
 export const STALLS: ShopKind[] = ['foodstall', 'drinkstall', 'icecream', 'balloon', 'hats', 'souvenir'];
@@ -82,7 +85,7 @@ export const WORLDS: WorldId[] = ['farm', 'savanna', 'jungle', 'ice', 'far'];
 export const COIN_CAP = 99;
 export const START_COINS = 10;
 export const LEVEL_BONUS = 5;
-export const PRICE = { trough: 1, bed: 1, keeper: 10 };
+export const PRICE = { trough: 1, bed: 1, keeper: 10, toy: 2 };
 /** Wat je terugkrijgt als je iets weghaalt of een dier laat verhuizen: de helft, naar beneden afgerond. */
 export const refund = (price: number): number => Math.floor(price / 2);
 export const SHOP_PRICE: Record<ShopKind, number> = {
@@ -268,6 +271,8 @@ export const FEATURE = {
   paths: 3, foodstall: 4, drinkstall: 5, toilet: 7, bench: 8, playground: 9, icecream: 11, flowers: 14, bin: 17, hats: 22, souvenir: 26,
   /** De grote attracties: een fontein om naar te kijken en een draaimolen om in te rijden. */
   fountain: 15, carousel: 25,
+  /** Vanaf hier willen dieren iets leuks in hun verblijf: speelgoed of een plant. */
+  fun: 9,
   /** Vanaf hier kunnen dieren ziek worden. */
   sick: 20,
   balloon: 21,
@@ -300,7 +305,7 @@ export const GOAL_OWNER: Record<GoalType, 'builder' | 'keeper' | 'host' | 'cashi
   coins: 'cashier',
 };
 
-export const WISH_ORDER: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean'];
+export const WISH_ORDER: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean', 'fun'];
 /** Zoveel poepjes mogen er in een verblijf liggen voordat de dieren het vies vinden. */
 export const MAX_POOPS_CLEAN = 3;
 

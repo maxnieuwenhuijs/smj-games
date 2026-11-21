@@ -96,7 +96,7 @@
     {
       "id": "cheer",
       "seconds": 1.5,
-      "prompt": "A small group of young children cheering 'yay' happily. Short.",
+      "prompt": "A small group of young children cheering and clapping happily, wordless cheers only, no speech. Short.",
       "variants": 3
     },
     {
@@ -495,28 +495,28 @@
       "seconds": 1.5,
       "influence": 0.5,
       "variants": 6,
-      "prompt": "A young child laughing with joy while playing on a slide. Short, clean recording with no background noise."
+      "prompt": "A young child laughing with joy while playing on a slide. No words, no speech. Short, soft, clean recording with no background noise."
     },
     {
       "id": "guest.yum",
       "seconds": 1.0,
       "influence": 0.5,
       "variants": 4,
-      "prompt": "A child saying 'mmm' happily while eating something tasty. Short, soft, clean recording with no background noise."
+      "prompt": "A child humming 'mmm' happily while eating something tasty. No words, no speech. Short, soft, clean recording with no background noise."
     },
     {
       "id": "guest.uhoh",
       "seconds": 1.0,
       "influence": 0.5,
       "variants": 2,
-      "prompt": "A small child saying 'uh-oh'. Short, soft, clean recording with no background noise."
+      "prompt": "A small child's short surprised 'oh!' gasp. No words, no speech. Short, soft, clean recording with no background noise."
     },
     {
       "id": "crowd.small",
       "seconds": 22,
       "loop": true,
       "influence": 0.3,
-      "prompt": "Soft distant ambience of a few families talking and children playing in a park. Cheerful, gentle, no music, no loud voices.",
+      "prompt": "Soft distant ambience of a few families and children playing in a park: indistinct murmur and laughter, no recognisable words. Cheerful, gentle, no music, no loud voices.",
       "variants": 3
     },
     {
@@ -524,7 +524,7 @@
       "seconds": 22,
       "loop": true,
       "influence": 0.3,
-      "prompt": "Gentle crowd ambience of many happy children and families at a zoo: soft chatter and distant laughter. No music, no shouting.",
+      "prompt": "Gentle crowd ambience of many happy children and families at a zoo: indistinct murmur and distant laughter, no recognisable words. No music, no shouting.",
       "variants": 3
     },
     {
@@ -539,30 +539,30 @@
       "seconds": 1.0,
       "influence": 0.5,
       "prompts": [
-        "A small child giggling happily. Short, soft, clean recording with no background noise.",
-        "A child gasping 'wow' in amazement. Short, soft, clean recording with no background noise.",
-        "A happy toddler laughing briefly. Short, soft, clean recording with no background noise.",
-        "A child saying 'ooh' excitedly. Short, soft, clean recording with no background noise.",
-        "A child saying 'look!' with delight. Short, soft, clean recording with no background noise.",
-        "A little girl laughing brightly. Short, soft, clean recording with no background noise.",
-        "A little boy chuckling. Short, soft, clean recording with no background noise.",
-        "A toddler squealing with joy. Short, soft, clean recording with no background noise.",
-        "A child saying 'yay!' happily. Short, soft, clean recording with no background noise.",
-        "A child humming a little tune. Short, soft, clean recording with no background noise.",
-        "Two small children giggling together. Short, soft, clean recording with no background noise.",
-        "A child saying 'whee!' while sliding. Short, soft, clean recording with no background noise.",
-        "A child saying 'hello!' in a friendly voice. Short, soft, clean recording with no background noise.",
-        "A child gasping in surprise, then laughing. Short, soft, clean recording with no background noise.",
-        "A small child saying 'aww' at something cute. Short, soft, clean recording with no background noise.",
-        "A child clapping and cheering briefly. Short, soft, clean recording with no background noise.",
-        "A toddler babbling happily. Short, soft, clean recording with no background noise.",
-        "A child saying 'again, again!' excitedly. Short, soft, clean recording with no background noise.",
-        "A little girl saying 'so cute!' softly. Short, soft, clean recording with no background noise.",
-        "A little boy saying 'cool!' in awe. Short, soft, clean recording with no background noise.",
-        "A child imitating an animal sound and laughing. Short, soft, clean recording with no background noise.",
-        "A shy child's soft giggle. Short, soft, clean recording with no background noise.",
-        "A child whispering excitedly. Short, soft, clean recording with no background noise.",
-        "A child singing 'la la la' quietly. Short, soft, clean recording with no background noise."
+        "A small child giggling happily. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A child's wordless gasp of amazement, a soft 'ooh'. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A happy toddler laughing briefly. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A child making an excited rising 'ooh' sound. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A child's delighted little squeal. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A little girl laughing brightly. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A little boy chuckling. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A toddler squealing with joy. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A child's short wordless happy cheer. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A child humming a little tune. No words, no speech. Short, soft, clean recording with no background noise.",
+        "Two small children giggling together. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A child's gleeful rising squeal while going down a slide. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A child laughing and clapping hands. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A child gasping in surprise, then laughing. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A small child's soft 'aah' at something cute. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A child clapping and laughing briefly. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A happy baby babbling nonsense sounds. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A child's excited breathless giggle. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A little girl's soft delighted 'ooh'. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A little boy's wordless amazed gasp. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A child imitating an animal sound and laughing. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A shy child's soft giggle. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A child's excited little squeak. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A child singing 'la la la' quietly. No words, no speech. Short, soft, clean recording with no background noise."
       ]
     },
     {
@@ -570,14 +570,14 @@
       "seconds": 1.0,
       "influence": 0.5,
       "prompts": [
-        "A mother chuckling warmly. Short, soft, clean recording with no background noise.",
-        "A father laughing softly. Short, soft, clean recording with no background noise.",
-        "A woman saying 'oh, lovely' quietly. Short, soft, clean recording with no background noise.",
-        "A man saying 'look at that' softly. Short, soft, clean recording with no background noise.",
-        "A grandmother's gentle laugh. Short, soft, clean recording with no background noise.",
-        "A woman saying 'aww' softly. Short, soft, clean recording with no background noise.",
-        "A man humming in approval, 'mm-hm'. Short, soft, clean recording with no background noise.",
-        "A couple laughing quietly together. Short, soft, clean recording with no background noise."
+        "A mother chuckling warmly. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A father laughing softly. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A woman's soft delighted 'ooh'. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A man's amused short chuckle. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A grandmother's gentle laugh. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A woman's soft 'aah' at something cute. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A man humming in approval, 'mm-hm'. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A couple laughing quietly together. No words, no speech. Short, soft, clean recording with no background noise."
       ]
     },
     {

@@ -233,6 +233,17 @@ const ICONS = {
     '<circle cx="14" cy="11" r="6" fill="#b07a4a"/><circle cx="34" cy="11" r="6" fill="#b07a4a"/><ellipse cx="24" cy="39" rx="11" ry="8" fill="#b07a4a"/>' +
     '<circle cx="24" cy="20" r="13" fill="#b07a4a"/><ellipse cx="24" cy="25" rx="6.5" ry="5" fill="#e3bf94"/><ellipse cx="24" cy="40" rx="6" ry="4.5" fill="#e3bf94"/>' +
     `<g fill="${INK}"><circle cx="19" cy="17" r="2"/><circle cx="29" cy="17" r="2"/><circle cx="24" cy="23" r="1.9"/></g>`,
+  ball:
+    '<circle cx="24" cy="26" r="17" fill="#e0584f"/><path d="M8 22 Q24 32 40 22 L41 29 Q24 39 7 29Z" fill="#fff7e0"/><circle cx="17" cy="17" r="4" fill="#fff" opacity=".6"/>',
+  bush:
+    '<circle cx="15" cy="30" r="11" fill="#4f9e45"/><circle cx="33" cy="30" r="11" fill="#468f3e"/><circle cx="24" cy="21" r="13" fill="#5bab4c"/><rect x="6" y="36" width="36" height="6" rx="3" fill="#468f3e"/>' +
+    '<g fill="#e0584f"><circle cx="18" cy="22" r="2.6"/><circle cx="29" cy="17" r="2.6"/><circle cx="33" cy="29" r="2.6"/><circle cx="14" cy="33" r="2.6"/></g>',
+  log:
+    '<rect x="4" y="18" width="36" height="18" rx="9" fill="#a8743f"/><ellipse cx="38" cy="27" rx="6" ry="9" fill="#e3c08a"/><ellipse cx="38" cy="27" rx="3" ry="5" fill="none" stroke="#a8743f" stroke-width="1.6"/>' +
+    '<path d="M10 23 H24 M12 30 H28" stroke="#8a5a2c" stroke-width="2" stroke-linecap="round"/>',
+  flowerbed:
+    '<rect x="4" y="34" width="40" height="9" rx="4" fill="#7a5636"/><path d="M12 35 V20 M24 35 V14 M36 35 V22" stroke="#4f9e45" stroke-width="3" stroke-linecap="round"/>' +
+    '<circle cx="12" cy="17" r="6" fill="#e0584f"/><circle cx="24" cy="11" r="6.5" fill="#ffd23f"/><circle cx="36" cy="19" r="6" fill="#f06aa6"/><g fill="#fff7e0"><circle cx="12" cy="17" r="2"/><circle cx="24" cy="11" r="2.2"/><circle cx="36" cy="19" r="2"/></g>',
   fountain:
     '<ellipse cx="24" cy="38" rx="20" ry="7" fill="#b9c2c9"/><ellipse cx="24" cy="36.5" rx="16" ry="4.5" fill="#6ec3e8"/>' +
     '<rect x="21" y="21" width="6" height="15" fill="#b9c2c9"/><ellipse cx="24" cy="22" rx="11" ry="4" fill="#b9c2c9"/><ellipse cx="24" cy="21" rx="8" ry="2.4" fill="#6ec3e8"/>' +

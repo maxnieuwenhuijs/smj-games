@@ -35,6 +35,7 @@ Elke wereld heeft tien levels en tien dieren. De lucht, het land en de bomen ron
 5. De juiste ondergrond.
 6. Een vriendje van dezelfde soort.
 7. Een schoon hok.
+8. Iets leuks in het verblijf (vanaf level 10): speelgoed of een plant.
 
 | Dier | Ondergrond | Voer | Slaapplek | Prijs | Hek |
 |---|---|---|---|---|---|
@@ -88,6 +89,10 @@ Elke wereld heeft tien levels en tien dieren. De lucht, het land en de bomen ron
 | Maki | bos | fruit | klimboom | 30 | net |
 | Bizon | gras | hooi | stal | 42 | muur |
 | Kangoeroe | zand | hooi | boom | 50 | net |
+
+### Iets leuks in het verblijf
+
+Vanaf level 10 willen alle dieren iets leuks in hun verblijf. Met de knop Speelgoed zet je er een bal, een struik met bessen, een boomstam of een bloemperk in; elk kost 2 munten en één ding is genoeg voor het hele verblijf. Blije dieren lopen er af en toe naartoe en spelen erbij. Een dier dat zich verveelt is niet blij (het telt dus niet mee voor een level), maar wordt er nooit voor opgehaald. De verzorger vertelt het één keer als het begint, ook in een ouder opgeslagen spel dat al verder is.
 
 ### Slapen
 
@@ -197,7 +202,7 @@ Na het neerzetten van een voerbak, slaapplek, winkel of dier staat het handje we
 
 ## De veger
 
-Poep en afval ruim je alleen op met de knop Veger (vanaf level 2). Tik je er met een andere knop op, dan gebeurt er niets, behalve dat er een bezempje boven verschijnt en de veger een paar tellen knippert. Met de veger aan krijgen alle poepjes en al het afval een gele ring, zodat je ze goed ziet, en veeg je alles weg waar je overheen sleept. Wat onder de muis ligt, krijgt een grotere oranje ring. Vraagt een level om opruimen, dan knippert de veger als tip.
+Poep en afval ruim je alleen op met de knop Veger (vanaf level 2). Tik je er met een andere knop op, dan gebeurt er niets, behalve dat er een bezempje boven verschijnt en de veger een paar tellen knippert. Met de veger sleep je het veld net als met het handje; begin je op een poepje, dan veeg je. Met de veger aan krijgen alle poepjes en al het afval een gele ring, zodat je ze goed ziet, en veeg je alles weg waar je overheen sleept. Wat onder de muis ligt, krijgt een grotere oranje ring. Vraagt een level om opruimen, dan knippert de veger als tip.
 
 Een poepje valt nooit onder een slaapplek of voerbak: het komt op de vrije tegel ernaast terecht. Zet je een slaapplek of voerbak op een tegel waar al poep ligt, dan schuift die ernaast.
 
@@ -311,6 +316,7 @@ Complimenten bij een gehaald level wisselen: acht stuks, van vijf figuren, elk i
 
 - **Muziek:** vijf rustige nummers in dezelfde stijl (marimba, gitaar, klokkenspel), één per wereld, zacht onder alles door.
 - **Natuur:** per wereld een eigen achtergrond, met daaronder altijd een zacht briesje.
+- **Geen woorden:** alle geluiden van gasten zijn woordloos (lachen, giechelen, 'ooh', neuriën), zodat er in het Nederlandse spel geen Engels te horen is. Alleen de vijf figuren praten.
 - **Publiek:** zacht geroezemoes dat meegroeit met het aantal gasten. Er zijn van elk drie opnames, die om de één à anderhalve minuut wisselen. Daaroverheen af en toe een los geluidje: 24 soorten kinderstemmetjes (giechelen, 'wauw', neuriën) en 8 van volwassenen; kinderen hoor je het vaakst.
 - **Wc en poep:** bij de wc hoor je af en toe iemand plassen of poepen achter de deur, en daarna het doortrekken (drie opnames van elk). Bij de dieren hoor je af en toe een plofje of een straaltje: bij de helft van de poepjes en een kwart van de plasjes, en nooit vlak achter elkaar.
 - **Dieren en mensen:** elk dierengeluid heeft drie varianten en klinkt nooit twee keer hetzelfde achter elkaar; alles behalve de stemmen van de figuren staat zacht. Jonge dieren hebben een eigen geluid (twee opnames per soort: een big, een kuiken, een welp).

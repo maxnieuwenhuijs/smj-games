@@ -110,6 +110,8 @@ export const T = {
     const slot = SLOTS[this.home[sp]];
     if (!game.troughs.some(t => t.x === slot.x0 && t.y === slot.y0) && this.pay(PRICE.trough)) game.addTrough(slot.x0, slot.y0, null, 0);
     if (!game.beds.some(b => b.x === slot.x1 && b.y === slot.y0) && this.pay(PRICE.bed)) game.addBed(slot.x1, slot.y0, SPECIES[sp].bed);
+    // vanaf level 10 willen dieren iets leuks in hun verblijf
+    if (game.level >= FEATURE.fun && !game.toys.some(b => b.x === slot.x1 && b.y === slot.y0 + 1) && this.pay(PRICE.toy)) game.addToy(slot.x1, slot.y0 + 1, ['ball', 'bush', 'log', 'flowerbed'][this.home[sp] % 4]);
   },
 
   /** Zorgt dat er minstens `n` volwassen dieren van de soort zijn (om en om jongen en meisje). */

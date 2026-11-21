@@ -100,6 +100,7 @@ export const say = {
   caught: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.caught' }),
   hired: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.hired' }),
   tipKeeper: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.tip.keeper' }),
+  funNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.fun.new' }),
   host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
   cash: (key: 'short' | 'full'): Line => ({ who: 'cashier', mood: key === 'full' ? 'happy' : 'worried', key: `cash.${key}` }),
 };
@@ -160,7 +161,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
     add(say.grown(name));
     add(say.moved(name));
   }
-  const wishes: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean'];
+  const wishes: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean', 'fun'];
   for (const sp of Object.keys(SPECIES) as SpeciesId[]) {
     for (const wish of wishes) add(wishLine(tr, wish, sp, null, false));
     const need = SPECIES[sp].need;
@@ -172,6 +173,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.healed());
   add(say.caught());
   add(say.hired());
+  add(say.funNew());
   add(say.tipKeeper());
   for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter', 'product', 'new', 'accident'] as const) add(say.host(key));
   add(say.cash('short'));

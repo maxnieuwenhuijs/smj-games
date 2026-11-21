@@ -1,7 +1,7 @@
 // Het beeld: isometrische camera, tegels, hekken, voerbakken en het voorbeeld van wat je gaat plaatsen.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { BEDS, SHOPS, SHOP_SIZE, TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind, type WorldId } from './data';
+import { BEDS, SHOPS, SHOP_SIZE, TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind } from './data';
 import { Grid, H, W, edgeKey, tileXY, type Edge } from './grid';
 
 const SQRT2 = Math.SQRT2;
@@ -260,6 +260,31 @@ const SHOP_PARTS: Record<ShopKind, Part[]> = {
   fountain: [],
   carousel: [],
 };
+// Iets leuks in een verblijf: een bal, een struik met bessen, een boomstam en een bloemperk.
+const TOY_PARTS: Record<ToyKind, Part[]> = {
+  ball: [
+    [ball(0.2, -0.08, 0.2, 0), std(0xe0584f, 0.5)],
+    [tube(0.203, 0.203, 0.07, -0.08, 0.2, 0), WHITE_MAT],
+    [ball(0.12, 0.24, 0.12, 0.18), std(0x4a90e2, 0.5)],
+  ],
+  bush: [
+    [mergeGeometries([ball(0.3, 0, 0.27, 0), ball(0.22, 0.24, 0.2, 0.1), ball(0.2, -0.22, 0.19, -0.12)])!, LEAF_MAT],
+    [mergeGeometries([ball(0.05, 0.12, 0.42, 0.2), ball(0.05, -0.16, 0.36, 0.14), ball(0.05, 0.02, 0.5, -0.12), ball(0.05, 0.3, 0.3, -0.02)])!, std(0xe0584f, 0.5)],
+  ],
+  log: [
+    [new THREE.CylinderGeometry(0.15, 0.15, 0.82, 10).rotateZ(Math.PI / 2).rotateY(0.5).translate(0, 0.15, 0.08), WOOD_MAT],
+    [tube(0.13, 0.15, 0.3, -0.22, 0.15, -0.28), WOOD_MAT],
+    [tube(0.115, 0.115, 0.02, -0.22, 0.31, -0.28), std(0xe3c08a, 1)],
+  ],
+  flowerbed: [
+    [boxAt(0.82, 0.05, 0.82, 0, 0.025, 0), DARK_MAT, false],
+    [mergeGeometries([boxAt(0.03, 0.2, 0.03, -0.24, 0.15, -0.2), boxAt(0.03, 0.26, 0.03, 0.2, 0.18, -0.16), boxAt(0.03, 0.18, 0.03, -0.1, 0.14, 0.22), boxAt(0.03, 0.24, 0.03, 0.24, 0.17, 0.22), boxAt(0.03, 0.2, 0.03, 0, 0.15, 0)])!, LEAF_MAT],
+    [mergeGeometries([boxAt(0.14, 0.1, 0.14, -0.24, 0.3, -0.2), boxAt(0.14, 0.1, 0.14, 0.24, 0.34, 0.22)])!, std(0xe0584f)],
+    [mergeGeometries([boxAt(0.14, 0.1, 0.14, 0.2, 0.36, -0.16), boxAt(0.14, 0.1, 0.14, 0, 0.3, 0)])!, std(0xffd23f)],
+    [boxAt(0.14, 0.1, 0.14, -0.1, 0.28, 0.22), std(0xf06aa6)],
+  ],
+};
+
 // De grote attracties. Wat stilstaat zit in SHOP_PARTS; wat beweegt staat hier los, zodat het kan draaien
 // (de draaimolen) of op en neer kan gaan (de waterstraal van de fontein). `y`: vanaf welke hoogte.
 const STONE = std(0xb9c2c9, 0.9);
@@ -422,6 +447,7 @@ export class View {
   private ghostWallMesh = new THREE.Mesh(WALL_GEO, this.ghostMat);
   private ghostNetMesh = new THREE.Mesh(NET_GEO, this.ghostMat);
   private ghostBeds = Object.fromEntries(BEDS.map(k => [k, build(BED_PARTS[k], this.ghostMat)])) as Record<BedKind, THREE.Group>;
+  private ghostToys = Object.fromEntries(TOYS.map(k => [k, build(TOY_PARTS[k], this.ghostMat)])) as Record<ToyKind, THREE.Group>;
   private ghostShops = Object.fromEntries(SHOPS.map(k => [k, buildShop(k, this.ghostMat)])) as Record<ShopKind, THREE.Group>;
   private ghostTileMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.75, depthWrite: false });
   private ghostTileMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.94, 0.94).rotateX(-Math.PI / 2), this.ghostTileMat);
@@ -485,7 +511,7 @@ export class View {
 
     this.ghostTileMesh.position.y = 0.012;
     this.ghostRing.position.y = 0.014;
-    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostWallMesh, this.ghostNetMesh, this.ghostTroughMesh, ...Object.values(this.ghostBeds), ...Object.values(this.ghostShops), this.ghostTileMesh, this.ghostRing];
+    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostWallMesh, this.ghostNetMesh, this.ghostTroughMesh, ...Object.values(this.ghostBeds), ...Object.values(this.ghostToys), ...Object.values(this.ghostShops), this.ghostTileMesh, this.ghostRing];
     for (const g of this.ghosts) {
       g.visible = false;
       g.traverse(o => { o.renderOrder = 5; });
@@ -706,6 +732,17 @@ export class View {
   ghostBed(x: number, y: number, kind: BedKind, ok: boolean): void {
     this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
     this.at(this.ghostBeds[kind], x, y).visible = true;
+  }
+
+  makeToy(x: number, y: number, kind: ToyKind): THREE.Group {
+    const group = this.at(build(TOY_PARTS[kind]), x, y);
+    this.scene.add(group);
+    return group;
+  }
+
+  ghostToy(x: number, y: number, kind: ToyKind, ok: boolean): void {
+    this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
+    this.at(this.ghostToys[kind], x, y).visible = true;
   }
 
   /** Een winkel met zijn linkerbovenhoek op tegel (x, y); een gebouw beslaat 2 bij 2 tegels. */

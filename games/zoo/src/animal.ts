@@ -17,11 +17,20 @@ export interface Trough {
   amount: number;
 }
 
+export interface Toy {
+  x: number;
+  y: number;
+  kind: string;
+}
+
 /** Wat een dier van het park moet weten en kunnen. */
 export interface AnimalWorld {
   grid: Grid;
   troughs: Trough[];
   beds: Bed[];
+  toys: Toy[];
+  /** Willen dieren al iets leuks in hun verblijf (vanaf level 10)? */
+  wantsFun(): boolean;
   animals: Animal[];
   poopsIn(regionId: number): number;
   dropPoop(gx: number, gy: number): void;
@@ -80,6 +89,8 @@ export class Animal {
   private napFor = 0;
   /** De slaapplek waar het dier naartoe loopt. */
   private napBed: Bed | null = null;
+  /** Het speelgoed waar het dier naartoe loopt om mee te spelen. */
+  private playAt: Toy | null = null;
   /** Hoe hoog het dier nu ligt en moet liggen (boven op een slaapplek). */
   private lift = 0;
   private y = 0;
@@ -145,6 +156,7 @@ export class Animal {
   private stop(): void {
     this.lift = 0;
     this.napBed = null;
+    this.playAt = null;
     this.route = [];
     this.eatAt = null;
     this.napFor = 0;
@@ -208,7 +220,7 @@ export class Animal {
     const info = SPECIES[this.species];
     this.needsFence = region && info.need && w.grid.penKind(region) !== NEED_KIND[info.need] ? info.need : null;
     const result: Record<WishId, boolean> = {
-      health: !this.sick, enclosure: !!region && !this.needsFence, food: this.hunger < HUNGRY, bed: false, terrain: false, friend: false, clean: false,
+      health: !this.sick, enclosure: !!region && !this.needsFence, food: this.hunger < HUNGRY, bed: false, terrain: false, friend: false, clean: false, fun: true,
     };
     if (region) {
       const want = TERRAINS.indexOf(info.terrain);
@@ -216,6 +228,7 @@ export class Animal {
       result.friend = w.animals.some(a => a !== this && a.species === this.species && w.grid.regionOf[a.tile] === region.id);
       result.clean = w.poopsIn(region.id) <= MAX_POOPS_CLEAN;
       result.bed = w.beds.some(b => b.kind === info.bed && w.grid.regionOf[tileIndex(b.x, b.y)] === region.id);
+      result.fun = !w.wantsFun() || w.toys.some(t => w.grid.regionOf[tileIndex(t.x, t.y)] === region.id);
     }
     this.unmet = WISH_ORDER.find(k => !result[k]) ?? null;
     this.happy = this.unmet === null;
@@ -292,7 +305,21 @@ export class Animal {
       }
       if (r < 0.82 && this.happy) return this.rest('Sleep', 8 + Math.random() * 4);
     }
-    if (r < 0.92) return this.emote(this.happy ? 'Play' : 'Sad', 3);
+    if (r < 0.92) {
+      // een blij dier loopt graag naar het speelgoed of de struik en speelt daar
+      const toys = this.happy ? w.toys.filter(t => w.grid.regionOf[tileIndex(t.x, t.y)] === region.id) : [];
+      const toy = toys[Math.floor(Math.random() * toys.length)];
+      if (toy) {
+        const spots = w.grid.neighbors(tileIndex(toy.x, toy.y)).filter(i => !isTrough(i) && w.grid.regionOf[i] === region.id);
+        const spot = spots[Math.floor(Math.random() * spots.length)];
+        const route = spot === undefined ? null : w.grid.path(this.tile, spot, isTrough);
+        if (route) {
+          this.playAt = toy;
+          return route.length > 1 ? this.startWalk(route) : this.emote('Play', 4);
+        }
+      }
+      return this.emote(this.happy ? 'Play' : 'Sad', 3);
+    }
     if (r < 0.96) {
       this.state = 'pee';
       this.timeLeft = 2.6;
@@ -336,7 +363,10 @@ export class Animal {
     if (this.state === 'walk') {
       const next = this.route[0];
       if (next === undefined) {
-        if (this.napFor) {
+        if (this.playAt) {
+          this.playAt = null;
+          this.emote('Play', 4);
+        } else if (this.napFor) {
           const seconds = this.napFor;
           this.napFor = 0;
           if (this.napBed) {

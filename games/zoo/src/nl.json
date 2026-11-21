@@ -428,6 +428,13 @@
   "alert.bed": "{The} wil {bed} om te slapen.",
   "alert.terrain": "{The} wil {terrain} in het verblijf.",
   "alert.friend": "{The} wil een vriendje.",
+  "tool.toy": "Speelgoed",
+  "toy.ball": "Bal",
+  "toy.bush": "Struik",
+  "toy.log": "Boomstam",
+  "toy.flowerbed": "Bloemen",
+  "alert.fun": "{The} verveelt zich. Zet iets leuks in het verblijf!",
+  "say.fun.new": "Nieuw: speelgoed en planten! De dieren willen iets leuks in hun verblijf.",
   "alert.clean": "Het hok is vies. Pak de veger en veeg de poepjes weg!",
   "alert.wrongfood": "Dat lust {the} niet.",
 

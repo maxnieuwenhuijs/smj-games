@@ -274,9 +274,9 @@
   "born-1-9d7146.mp3"
  ],
  "cheer": [
-  "cheer-1-ccb9b4.mp3",
-  "cheer-2-ccb9b4.mp3",
-  "cheer-3-ccb9b4.mp3"
+  "cheer-1-300011.mp3",
+  "cheer-2-300011.mp3",
+  "cheer-3-300011.mp3"
  ],
  "chime": [
   "chime-1-638856.mp3"
@@ -285,14 +285,14 @@
   "coin-1-3a7e62.mp3"
  ],
  "crowd.big": [
-  "crowd.big-1-51767c.mp3",
-  "crowd.big-2-51767c.mp3",
-  "crowd.big-3-51767c.mp3"
+  "crowd.big-1-6fca6c.mp3",
+  "crowd.big-2-6fca6c.mp3",
+  "crowd.big-3-6fca6c.mp3"
  ],
  "crowd.small": [
-  "crowd.small-1-f66591.mp3",
-  "crowd.small-2-f66591.mp3",
-  "crowd.small-3-f66591.mp3"
+  "crowd.small-1-0af23e.mp3",
+  "crowd.small-2-0af23e.mp3",
+  "crowd.small-3-0af23e.mp3"
  ],
  "erase": [
   "erase-1-4ec770.mp3"
@@ -309,58 +309,58 @@
   "flush-3-5c0550.mp3"
  ],
  "guest.chat": [
-  "guest.chat-1-6d2a38.mp3",
-  "guest.chat-2-29605e.mp3",
-  "guest.chat-3-4a4d48.mp3",
-  "guest.chat-4-292f1a.mp3",
-  "guest.chat-5-497060.mp3",
-  "guest.chat-6-e6c9ed.mp3",
-  "guest.chat-7-75c49a.mp3",
-  "guest.chat-8-e22c3a.mp3"
+  "guest.chat-1-4d618e.mp3",
+  "guest.chat-2-c829ac.mp3",
+  "guest.chat-3-cd06f7.mp3",
+  "guest.chat-4-e6d986.mp3",
+  "guest.chat-5-5a03fe.mp3",
+  "guest.chat-6-a5b626.mp3",
+  "guest.chat-7-e25a82.mp3",
+  "guest.chat-8-bfc4a1.mp3"
  ],
  "guest.kid": [
-  "guest.kid-1-3ffe56.mp3",
-  "guest.kid-10-131411.mp3",
-  "guest.kid-11-cc0467.mp3",
-  "guest.kid-12-781404.mp3",
-  "guest.kid-13-802f90.mp3",
-  "guest.kid-14-236e1c.mp3",
-  "guest.kid-15-2f094f.mp3",
-  "guest.kid-16-bcc33f.mp3",
-  "guest.kid-17-6c5e68.mp3",
-  "guest.kid-18-2a4897.mp3",
-  "guest.kid-19-81790b.mp3",
-  "guest.kid-2-4782c0.mp3",
-  "guest.kid-20-7d4502.mp3",
-  "guest.kid-21-b7d302.mp3",
-  "guest.kid-22-9c4189.mp3",
-  "guest.kid-23-17fc16.mp3",
-  "guest.kid-24-8dc4b2.mp3",
-  "guest.kid-3-940d47.mp3",
-  "guest.kid-4-4c782e.mp3",
-  "guest.kid-5-2e41d7.mp3",
-  "guest.kid-6-a0ce8a.mp3",
-  "guest.kid-7-74f584.mp3",
-  "guest.kid-8-8f3d9a.mp3",
-  "guest.kid-9-e26d41.mp3"
+  "guest.kid-1-4c88d3.mp3",
+  "guest.kid-10-db8556.mp3",
+  "guest.kid-11-7ff6da.mp3",
+  "guest.kid-12-cf05a5.mp3",
+  "guest.kid-13-e73b92.mp3",
+  "guest.kid-14-cd3b04.mp3",
+  "guest.kid-15-484d7d.mp3",
+  "guest.kid-16-569f95.mp3",
+  "guest.kid-17-538743.mp3",
+  "guest.kid-18-160911.mp3",
+  "guest.kid-19-594416.mp3",
+  "guest.kid-2-ba6d45.mp3",
+  "guest.kid-20-1b73f8.mp3",
+  "guest.kid-21-4544d8.mp3",
+  "guest.kid-22-111c47.mp3",
+  "guest.kid-23-3d0d26.mp3",
+  "guest.kid-24-3590ea.mp3",
+  "guest.kid-3-5e5b09.mp3",
+  "guest.kid-4-b6c95a.mp3",
+  "guest.kid-5-5afb19.mp3",
+  "guest.kid-6-c3ad38.mp3",
+  "guest.kid-7-16ee06.mp3",
+  "guest.kid-8-637d32.mp3",
+  "guest.kid-9-a9f45b.mp3"
  ],
  "guest.laugh": [
-  "guest.laugh-1-ac9ce2.mp3",
-  "guest.laugh-2-ac9ce2.mp3",
-  "guest.laugh-3-ac9ce2.mp3",
-  "guest.laugh-4-ac9ce2.mp3",
-  "guest.laugh-5-ac9ce2.mp3",
-  "guest.laugh-6-ac9ce2.mp3"
+  "guest.laugh-1-f90c31.mp3",
+  "guest.laugh-2-f90c31.mp3",
+  "guest.laugh-3-f90c31.mp3",
+  "guest.laugh-4-f90c31.mp3",
+  "guest.laugh-5-f90c31.mp3",
+  "guest.laugh-6-f90c31.mp3"
  ],
  "guest.uhoh": [
-  "guest.uhoh-1-2654bb.mp3",
-  "guest.uhoh-2-2654bb.mp3"
+  "guest.uhoh-1-9fd16b.mp3",
+  "guest.uhoh-2-9fd16b.mp3"
  ],
  "guest.yum": [
-  "guest.yum-1-425313.mp3",
-  "guest.yum-2-425313.mp3",
-  "guest.yum-3-425313.mp3",
-  "guest.yum-4-425313.mp3"
+  "guest.yum-1-dcfd9a.mp3",
+  "guest.yum-2-dcfd9a.mp3",
+  "guest.yum-3-dcfd9a.mp3",
+  "guest.yum-4-dcfd9a.mp3"
  ],
  "heal": [
   "heal-1-5a4c40.mp3"
