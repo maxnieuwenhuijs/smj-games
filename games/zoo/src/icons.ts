@@ -235,6 +235,8 @@ const ICONS = {
     '<circle cx="14" cy="11" r="6" fill="#b07a4a"/><circle cx="34" cy="11" r="6" fill="#b07a4a"/><ellipse cx="24" cy="39" rx="11" ry="8" fill="#b07a4a"/>' +
     '<circle cx="24" cy="20" r="13" fill="#b07a4a"/><ellipse cx="24" cy="25" rx="6.5" ry="5" fill="#e3bf94"/><ellipse cx="24" cy="40" rx="6" ry="4.5" fill="#e3bf94"/>' +
     `<g fill="${INK}"><circle cx="19" cy="17" r="2"/><circle cx="29" cy="17" r="2"/><circle cx="24" cy="23" r="1.9"/></g>`,
+  hammer:
+    `<path d="M12 40 L28 20" stroke="${WOOD_D}" stroke-width="6" stroke-linecap="round"/><path d="M20 12 L34 6 L42 16 L36 22 L30 16 L24 22Z" fill="#8a857a" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`,
   grow:
     `<rect x="15" y="15" width="18" height="18" rx="3" fill="#bfe3a8" stroke="${INK}" stroke-width="2.5" stroke-dasharray="4 3"/>` +
     `<path d="M24 12 V3 M24 3 l-5 5 M24 3 l5 5 M24 36 V45 M24 45 l-5 -5 M24 45 l5 -5 M12 24 H3 M3 24 l5 -5 M3 24 l5 5 M36 24 H45 M45 24 l-5 -5 M45 24 l-5 5" fill="none" stroke="${INK}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`,

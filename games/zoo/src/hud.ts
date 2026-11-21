@@ -65,6 +65,7 @@ export class Hud {
   private voice: Voice | null = null;
 
   private need = el('button', 'tool small');
+  private carry = el('div', 'pill');
   private needKey = '';
 
   constructor(private on: { tool(id: string, row?: string, option?: string): void; home(): void; goal(index: number): void; need(): void }) {
@@ -73,6 +74,9 @@ export class Hud {
     this.need.setAttribute('aria-label', t('need'));
     this.need.addEventListener('click', () => this.on.need());
     document.getElementById('ui')!.append(this.need);
+    this.carry.id = 'carry';
+    this.carry.hidden = true;
+    document.getElementById('ui')!.append(this.carry);
     const home = $('home');
     home.innerHTML = icon('home');
     home.setAttribute('aria-label', t('home'));
@@ -106,6 +110,34 @@ export class Hud {
     this.needKey = key;
     this.need.hidden = !need;
     if (need) this.need.innerHTML = `${need.icon}<i class="what">${need.badge}</i>${need.count > 1 ? `<i class="price">${need.count}</i>` : ''}`;
+  }
+
+  /** Een kaart met uitleg in stappen (plaatje en zin per stap) en een knop om verder te gaan. */
+  showGuide(title: string, steps: { icon: string; text: string }[], ok: string): void {
+    this.overlay.replaceChildren();
+    const card = el('div', 'card guide');
+    const head = el('div', 'big');
+    head.textContent = title;
+    card.append(head);
+    steps.forEach((step, i) => {
+      const row = el('div', 'step', `<i class="nr">${i + 1}</i>${step.icon}<span></span>`);
+      row.querySelector('span')!.textContent = step.text;
+      card.append(row);
+    });
+    const go = el('button', 'tool go', `${icon('check')}<b></b>`);
+    go.querySelector('b')!.textContent = ok;
+    go.addEventListener('click', () => {
+      this.overlay.hidden = true;
+    });
+    card.append(go);
+    this.overlay.append(card);
+    this.overlay.hidden = false;
+  }
+
+  /** Het afval dat je in je handen hebt: zoveel stuks, op weg naar een afvalbak. */
+  setCarry(n: number): void {
+    this.carry.hidden = !n;
+    if (n) this.carry.innerHTML = `${icon('litter')}<b>${n}</b>${icon('bin')}`;
   }
 
   /** `open`: de knop waarvan de keuzerij open blijft staan terwijl het handje aan staat (net iets neergezet). */

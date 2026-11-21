@@ -22,6 +22,15 @@ const FENCE_GEO = mergeGeometries([
   boxAt(1, 0.08, 0.06, 0.5, 0.17, 0),
   boxAt(1, 0.08, 0.06, 0.5, 0.37, 0),
 ])!;
+// Een houten hek slijt in drie fases: de bovenste plank zakt scheef, dan hangt hij los, dan ligt het hek half plat.
+// Bij elke fase is het hout donkerder.
+const plank = (len: number, x: number, y: number, tilt: number): THREE.BufferGeometry => new THREE.BoxGeometry(len, 0.08, 0.06).rotateZ(tilt).translate(x, y, 0);
+const WORN_GEOS = [
+  FENCE_GEO,
+  mergeGeometries([boxAt(0.13, 0.5, 0.13, 0, 0.25, 0), boxAt(0.13, 0.5, 0.13, 1, 0.25, 0), plank(1, 0.5, 0.17, 0), plank(1, 0.5, 0.35, 0.08)])!,
+  mergeGeometries([boxAt(0.13, 0.5, 0.13, 0, 0.25, 0), boxAt(0.13, 0.46, 0.13, 1, 0.23, 0), plank(1, 0.5, 0.17, -0.04), plank(0.72, 0.33, 0.25, -0.36)])!,
+  mergeGeometries([boxAt(0.13, 0.5, 0.13, 0, 0.25, 0), boxAt(0.13, 0.26, 0.13, 1, 0.13, 0), plank(0.95, 0.52, 0.05, 0.03), plank(0.6, 0.3, 0.17, -0.5)])!,
+];
 // De poort is van hetzelfde hout, maar hoger en met een deurtje.
 const GATE_GEO = mergeGeometries([
   boxAt(0.15, 0.72, 0.15, 0, 0.36, 0),
@@ -74,6 +83,7 @@ const STRAW_MAT = new THREE.MeshStandardMaterial({ color: 0xe9d05a, roughness: 1
 const ROOF_MAT = new THREE.MeshStandardMaterial({ color: 0xc0523f, roughness: 0.9 });
 const FENCE_MAT = new THREE.MeshStandardMaterial({ color: 0xc58a4b, roughness: 0.9 });
 const WOOD_MAT = new THREE.MeshStandardMaterial({ color: 0xa8743f, roughness: 0.9 });
+const WORN_MATS = [FENCE_MAT, ...[0xa9743d, 0x8a5a2e, 0x694120].map(color => new THREE.MeshStandardMaterial({ color, roughness: 1 }))];
 const STONE_MAT = new THREE.MeshStandardMaterial({ color: 0xa9adb3, roughness: 1 });
 const ROCK_MAT = new THREE.MeshStandardMaterial({ color: 0x8f949c, roughness: 1 });
 const LEAF_MAT = new THREE.MeshStandardMaterial({ color: 0x5fa544, roughness: 1 });
@@ -791,21 +801,23 @@ export class View {
     return kinds.includes(3) ? 3 : kinds.includes(4) ? 4 : 1;
   }
 
-  syncFences(grid: Grid): void {
-    const wanted = new Map<string, { e: Edge; kind: number; style: number }>();
+  /** `wear`: per rand hoe versleten het houten hek is (1, 2 of 3). */
+  syncFences(grid: Grid, wear?: Map<string, number>): void {
+    const wanted = new Map<string, { e: Edge; kind: number; style: number; worn: number }>();
     for (const item of grid.edges()) {
       const style = item.kind === 2 ? this.gateStyle(grid, item.e) : item.kind;
-      wanted.set(`${edgeKey(item.e)}:${item.kind}:${style}`, { ...item, style });
+      const worn = item.kind === 1 ? wear?.get(edgeKey(item.e)) ?? 0 : 0;
+      wanted.set(`${edgeKey(item.e)}:${item.kind}:${style}:${worn}`, { ...item, style, worn });
     }
     for (const [key, mesh] of this.fences)
       if (!wanted.has(key)) {
         this.scene.remove(mesh);
         this.fences.delete(key);
       }
-    for (const [key, { e, kind, style }] of wanted) {
+    for (const [key, { e, kind, style, worn }] of wanted) {
       if (this.fences.has(key)) continue;
-      const geo = kind === 4 ? NET_GEO : kind === 3 ? WALL_GEO : kind === 2 ? GATE_GEO : FENCE_GEO;
-      const mesh = new THREE.Mesh(geo, style === 3 ? STONE_MAT : style === 4 ? NET_MAT : FENCE_MAT);
+      const geo = kind === 4 ? NET_GEO : kind === 3 ? WALL_GEO : kind === 2 ? GATE_GEO : WORN_GEOS[worn];
+      const mesh = new THREE.Mesh(geo, style === 3 ? STONE_MAT : style === 4 ? NET_MAT : WORN_MATS[worn]);
       this.placeEdge(mesh, e);
       mesh.castShadow = true;
       this.scene.add(mesh);

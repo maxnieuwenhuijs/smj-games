@@ -46,6 +46,8 @@ export interface AnimalWorld {
   ate(trough: Trough): void;
   /** Hoe snel dieren moeten poepen; sneller als het level om opruimen vraagt. */
   poopRate(): number;
+  /** Is er een hek van dit verblijf helemaal kapot? Dan voelen de dieren zich niet veilig. */
+  brokenPen(regionId: number): boolean;
 }
 
 type State = 'idle' | 'walk' | 'eat' | 'poop' | 'pee' | 'rest' | 'emote';
@@ -96,6 +98,8 @@ export class Animal {
   private napBed: Bed | null = null;
   /** Hoeveel soortgenoten er nog bij moeten voor het dier zich thuis voelt. */
   lonely = 0;
+  /** Het hek van het verblijf is kapot (en niet gewoon open). */
+  fenceBroken = false;
   /** Het speelgoed waar het dier naartoe loopt om mee te spelen. */
   private playAt: Toy | null = null;
   /** Hoe hoog het dier nu ligt en moet liggen (boven op een slaapplek). */
@@ -232,8 +236,9 @@ export class Animal {
     const region = w.grid.enclosureAt(x, y);
     const info = SPECIES[this.species];
     this.needsFence = region && info.need && w.grid.penKind(region) !== NEED_KIND[info.need] ? info.need : null;
+    this.fenceBroken = !!region && w.brokenPen(region.id);
     const result: Record<WishId, boolean> = {
-      health: !this.sick, enclosure: !!region && !this.needsFence, food: this.hunger < HUNGRY, bed: false, terrain: false, friend: false, clean: false, space: true, fun: true,
+      health: !this.sick, enclosure: !!region && !this.needsFence && !this.fenceBroken, food: this.hunger < HUNGRY, bed: false, terrain: false, friend: false, clean: false, space: true, fun: true,
     };
     if (region) {
       const want = TERRAINS.indexOf(info.terrain);

@@ -15,10 +15,10 @@ import { cursor, icon, type IconId } from './icons';
 import { emptyStats, goalProgress, levelDone, type Stats } from './levels';
 import { CHEERS, NAMED, PRAISE, callText, goalLine, say, textOf, voiceId, wishLine, type Line } from './lines';
 import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStatic, speciesIcon } from './models';
-import { ENTRANCE, GuestManager, Keeper, Vendor, edgePose, edgeSides, shopCenter, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type KeeperWorld, type ShopSpot } from './people';
+import { ENTRANCE, GuestManager, Vendor, Worker, edgePose, edgeSides, shopCenter, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type ShopSpot, type WorkerRole, type WorkerWorld } from './people';
 import { View, toWorldX, toWorldZ, type TroughMesh } from './view';
 
-export type ToolId = 'hand' | 'broom' | 'terrain' | 'fence' | 'trough' | 'bed' | 'toy' | 'shop' | 'decor' | 'animal' | 'erase';
+export type ToolId = 'hand' | 'broom' | 'terrain' | 'fence' | 'trough' | 'bed' | 'toy' | 'shop' | 'decor' | 'animal' | 'staff' | 'erase';
 type Verdict = 'good' | 'ok' | 'bad';
 type Sex = 'male' | 'female';
 
@@ -47,7 +47,9 @@ const SICK_EVERY: [number, number] = [200, 320];
 const SICK_FOR_GOAL: [number, number] = [35, 55];
 const ESCAPE_EVERY: [number, number] = [280, 420];
 const ESCAPE_FOR_GOAL: [number, number] = [45, 70];
-const MAX_LITTER = 12;
+const MAX_LITTER = 8;
+/** Zoveel stuks afval kun je tegelijk in je handen hebben. */
+const MAX_CARRY = 5;
 const SEX_COLOR: Record<Sex, number> = { male: 0x4a90e2, female: 0xf06aa6 };
 const FENCE_KIND: Record<string, EdgeKind> = { fence: 1, gate: 2, wall: 3, net: 4 };
 const FENCE_SOUND = ['', 'fence', 'fence', 'stone', 'net'];
@@ -80,6 +82,8 @@ const CUR: Record<string, string> = {
   menu: cursor('hand', 14, 5),
   move: cursor('move'),
   catch: cursor('catch', 20, 12),
+  hammer: cursor('hammer', 8, 26),
+  staff: cursor('keeper'),
 };
 for (const id of [...TERRAINS, ...BEDS, ...SHOPS, ...TOYS, ...DECORS]) CUR[id] = cursor(id);
 
@@ -95,7 +99,10 @@ export interface SaveData {
   troughs: { x: number; y: number; food: FoodId | null; amount: number }[];
   animals: { species: SpeciesId; variant: Variant; gx: number; gy: number; hunger: number; name?: string; sick?: boolean; escaped?: boolean }[];
   poops: { gx: number; gy: number }[];
+  /** `keeper`, `feeder` en `cleaner` komen uit oudere spellen, toen een werker bij één verblijf hoorde. */
   pens?: { tile: number; name: string; keeper?: boolean; feeder?: boolean; cleaner?: boolean }[];
+  /** Het personeel dat door het park loopt. */
+  staff?: { role: WorkerRole; gx: number; gy: number }[];
   beds?: { x: number; y: number; kind: BedKind }[];
   toys?: { x: number; y: number; kind: ToyKind }[];
   decor?: { x: number; y: number; kind: DecorKind }[];
@@ -106,6 +113,8 @@ export interface SaveData {
   litter?: { gx: number; gy: number }[];
   /** De gasten die in het park liepen toen het spel werd bewaard. */
   guests?: GuestSave[];
+  /** Versleten houten hekken: per rand de fase (1, 2 of 3). */
+  wear?: Record<string, number>;
   coins?: number;
   debt?: number;
   born?: number;
@@ -169,15 +178,12 @@ interface Pen {
   closedUntil: number;
   /** Per soort: hoe lang een jongen en een meisje al samen blij zijn. */
   love: Record<string, number>;
-  /** De werkers die hier helpen, als je ze hebt aangenomen: een voerder en een schoonmaker. */
-  feeder: Keeper | null;
-  cleaner: Keeper | null;
 }
 
 const sexOf = (a: Animal): Sex => (a.variant === 'male' || a.variant === 'young_m' ? 'male' : 'female');
 const penCap = (region: Region): number => Math.max(2, Math.floor(region.tiles.length / 2));
 
-export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
+export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   readonly grid = new Grid();
   troughs: TroughObj[] = [];
   animals: Animal[] = [];
@@ -205,7 +211,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   stats: Stats = emptyStats();
   tool: ToolId = 'hand';
 
-  private option = { terrain: 'mud', fence: 'fence', bed: 'straw', toy: 'ball', decor: 'tree', decorGroup: 'green', shop: 'foodstall', animal: '', sex: 'male', world: 'farm' };
+  private option = { terrain: 'mud', fence: 'fence', bed: 'straw', toy: 'ball', staff: 'feed', decor: 'tree', decorGroup: 'green', shop: 'foodstall', animal: '', sex: 'male', world: 'farm' };
   private puddles: { mesh: THREE.Mesh; life: number }[] = [];
   private bubbles = new Map<Animal, HTMLElement>();
   private guestBubbles = new Map<Guest, HTMLElement>();
@@ -216,6 +222,14 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   private saveIn = 5;
   private zzzIn = 1.5;
   private chatterIn = 6;
+  /** Versleten houten hekken (rand -> fase 1, 2 of 3) en de verblijven waar er een helemaal kapot is. */
+  private wear = new Map<string, number>();
+  private broken = new Set<number>();
+  private wearIn = 70;
+  /** Afval dat je hebt opgeraapt en nog naar een afvalbak moet. */
+  private carry = 0;
+  /** Dingen die even opveren omdat ze gebruikt worden. */
+  private pulses: { mesh: THREE.Object3D; from: number; until: number; amp: number }[] = [];
   private babbleIn = 8;
   private calledAt = -999;
   /** Wanneer de speler voor het laatst bij zijn naam is genoemd vóór een melding. */
@@ -234,7 +248,12 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   /** Dieren die hulp nodig hebben, de dringendste eerst; en het dier waar de knop je net heen bracht. */
   private needy: Animal[] = [];
   private marked: { a: Animal; until: number } | null = null;
-  private savedPens: { tile: number; name: string; feeder?: boolean; cleaner?: boolean }[] = [];
+  private savedPens: { tile: number; name: string }[] = [];
+  /** Het personeel, en de klussen die al iemand doet. */
+  workers: Worker[] = [];
+  private claimed = new Set<object>();
+  private gateHintAt = -99;
+  private guideShown = false;
   /** Het uur van de dag (telt door); elk uur krijgen de werkers loon. */
   private hour = 0;
   /** Tot welk level er modellen zijn; daarna is het vrij spelen. */
@@ -282,7 +301,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     if (data && this.has('fun') && !this.toys.length) this.lines.push(say.funNew());
     this.startPath();
     this.view.paintTerrain(this.grid);
-    this.view.syncFences(this.grid);
+    this.syncWear();
     this.syncPens(false);
     this.refreshGoals();
     this.refreshTools();
@@ -325,8 +344,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     this.soldAll = d.soldAll ?? 0;
     this.coins = d.coins ?? START_COINS;
     this.debt = d.debt ?? 0;
-    // een verzorger uit een ouder spel deed allebei: die wordt een voerder en een schoonmaker
-    this.savedPens = (d.pens ?? []).map(p => ({ name: p.name, feeder: p.feeder || p.keeper, cleaner: p.cleaner || p.keeper, tile: tileIndex((p.tile % ow) + ox, Math.floor(p.tile / ow) + oy) }));
+    this.savedPens = (d.pens ?? []).map(p => ({ name: p.name, tile: tileIndex((p.tile % ow) + ox, Math.floor(p.tile / ow) + oy) }));
     for (const tr of d.troughs) this.addTrough(tr.x + ox, tr.y + oy, tr.food, tr.amount);
     for (const b of d.beds ?? []) this.addBed(b.x + ox, b.y + oy, b.kind);
     for (const b of d.toys ?? []) this.addToy(b.x + ox, b.y + oy, b.kind);
@@ -370,6 +388,14 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     for (const p of d.poops) this.dropPoop(p.gx + ox, p.gy + oy);
     for (const p of d.litter ?? []) this.dropLitter(p.gx + ox, p.gy + oy);
     this.guests.restore(d.guests ?? [], ox, oy);
+    for (const w of d.staff ?? []) this.addWorker(w.role, w.gx + ox, w.gy + oy);
+    if (!d.staff) {
+      // een ouder spel: werkers hoorden toen bij één verblijf. Eén werker per vijf van die verblijven loopt nu rond.
+      const [ex, ey] = tileXY(ENTRANCE);
+      const old = (role: WorkerRole): number => Math.ceil((d.pens ?? []).filter(p => p.keeper || (role === 'feed' ? p.feeder : p.cleaner)).length / 5);
+      for (const role of ['feed', 'clean'] as const) for (let i = 0; i < old(role); i++) this.addWorker(role, ex + 0.5, ey + 0.5 - i * 0.4);
+    }
+    if (!ox && !oy) for (const [key, phase] of Object.entries(d.wear ?? {})) this.wear.set(key, phase);
   }
 
   serialize(): SaveData {
@@ -399,7 +425,9 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       poops: this.poops.map(({ gx, gy }) => ({ gx, gy })),
       litter: this.litter.map(({ gx, gy }) => ({ gx, gy })),
       guests: this.guests.snapshot(),
-      pens: this.pens.map(p => ({ tile: p.region.tiles[0], name: p.name, feeder: p.feeder ? true : undefined, cleaner: p.cleaner ? true : undefined })),
+      wear: Object.fromEntries(this.wear),
+      pens: this.pens.map(p => ({ tile: p.region.tiles[0], name: p.name })),
+      staff: this.workers.map(w => ({ role: w.role, gx: w.gx, gy: w.gy })),
       beds: this.beds.map(({ x, y, kind }) => ({ x, y, kind })),
       toys: this.toys.map(({ x, y, kind }) => ({ x, y, kind })),
       decor: this.decors.map(({ x, y, kind }) => ({ x, y, kind })),
@@ -456,7 +484,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
 
   private fenceOptions(): string[] {
     const needs = new Set(this.species().map(sp => SPECIES[sp].need));
-    return ['fence', 'gate', ...(needs.has('wall') ? ['wall'] : []), ...(needs.has('net') ? ['net'] : [])];
+    return ['fence', ...(this.has('keeper') ? ['gate'] : []), ...(needs.has('wall') ? ['wall'] : []), ...(needs.has('net') ? ['net'] : [])];
   }
 
   /** De werelden waar je al een dier van hebt. */
@@ -513,6 +541,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   buy(shop: ShopSpot, guest: Guest, product: string | undefined, exact: boolean): boolean {
     if (guest.fun < 0.35) return false;
     (shop as ShopObj).vendor?.sold();
+    this.pulse((shop as ShopObj).mesh, 0.04);
     this.soldAt[shop.kind] = (this.soldAt[shop.kind] ?? 0) + 1;
     if (exact && product) {
       this.sold[product] = (this.sold[product] ?? 0) + 1;
@@ -631,6 +660,8 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
 
   // ------------------------------------------------------------ knoppen
   private selectTool(id: ToolId, row?: string, option?: string): void {
+    // wie voor het eerst personeel kiest, krijgt de uitleg
+    if (id === 'staff' && !this.workers.length && !this.guideShown) this.showStaffGuide();
     this.tool = id;
     this.linger = null;
     this.moving = null;
@@ -717,6 +748,11 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       });
       defs.push({ ...opt('animal', 'paw', t('tool.animal')), rows });
     }
+    if (this.has('keeper'))
+      defs.push({
+        ...opt('staff', 'keeper', t('tool.staff')),
+        rows: [{ key: 'staff', active: this.option.staff, options: (['feed', 'clean'] as const).map(r => ({ id: r, icon: icon(r === 'feed' ? 'feed' : 'broom'), label: t(`staff.${r}`), price: WAGE, per: true })) }],
+      });
     defs.push(opt('erase', 'erase', t('tool.erase')));
     this.hud.setTools(defs, this.tool, hint, this.linger);
   }
@@ -745,7 +781,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       case 'fed':
       case 'healed':
       case 'caught':
-      case 'keeper':
+      case 'keeper': return 'staff';
       case 'sold':
       case 'coins': return 'hand';
       default: return null;
@@ -843,7 +879,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     if (this.level === FEATURE.fun) this.lines.push(say.funNew());
     if (this.level === FEATURE.decor) this.lines.push(say.decorNew());
     // vanaf nu kun je hulp aannemen: de verzorger vertelt hoe
-    if (this.level === FEATURE.keeper) this.lines.push(say.tipKeeper());
+    if (this.level === FEATURE.keeper) this.showStaffGuide();
     this.view.setWorld(this.world());
     ambience(`amb.${this.world()}`);
     music(this.world());
@@ -873,29 +909,102 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     }
   }
 
-  private addKeeper(pen: Pen, role: 'feed' | 'clean'): void {
-    const free = pen.region.tiles.filter(i => !this.troughs.some(tr => tileIndex(tr.x, tr.y) === i));
-    const worker = new Keeper(free[role === 'feed' ? 0 : free.length - 1] ?? pen.region.tiles[0], role);
-    if (role === 'feed') pen.feeder = worker;
-    else pen.cleaner = worker;
+  private addWorker(role: WorkerRole, gx: number, gy: number): Worker {
+    const worker = new Worker(gx, gy, role);
     this.view.scene.add(worker.mesh);
+    this.workers.push(worker);
+    return worker;
   }
 
-  private staffOf(pen: Pen): Keeper[] {
-    return [pen.feeder, pen.cleaner].filter((k): k is Keeper => !!k);
+  private removeWorker(worker: Worker): void {
+    worker.drop(this.claimed);
+    this.view.scene.remove(worker.mesh);
+    this.workers = this.workers.filter(w => w !== worker);
+  }
+
+  /** Personeel zet je neer in het park, buiten de verblijven: daar begint de werker te lopen. */
+  private placeStaff(x: number, y: number): void {
+    if (!this.grid.inBounds(x, y) || this.grid.enclosureAt(x, y) || this.taken(x, y)) return this.nope(x + 0.5, y + 0.5);
+    const role = this.option.staff as WorkerRole;
+    this.addWorker(role, x + 0.5, y + 0.5);
+    sfx('place');
+    this.floatAt(icon(role === 'feed' ? 'feed' : 'broom'), x + 0.5, y + 0.5, 0.9);
+    this.sayNow(say.hiredAs(role));
+    this.backToHand();
+  }
+
+  /** Tik op een werker: je ziet wat hij doet en kunt hem naar huis sturen. */
+  private workerMenu(worker: Worker): void {
+    const s = this.view.toScreen(worker.gx, worker.gy, worker.height);
+    const header = icon(worker.role === 'feed' ? 'feed' : 'broom') + `<i class="price">${WAGE}${t('per.hour')}</i>`;
+    this.hud.showMenu(s.x, s.y, t(`staff.${worker.role}`), [{ id: 'bye', icon: icon('empty'), label: t('staff.bye') }], () => {
+      this.removeWorker(worker);
+      sfx('erase');
+    }, header);
+  }
+
+  /** De uitleg in stappen, de eerste keer dat het personeel erbij komt of je de knop kiest zonder dat je al iemand hebt. */
+  private showStaffGuide(): void {
+    this.guideShown = true;
+    this.hud.showGuide(t('guide.staff.title'), [
+      { icon: icon('keeper'), text: t('guide.staff.1') },
+      { icon: icon('feed'), text: t('guide.staff.2') },
+      { icon: icon('gate'), text: t('guide.staff.3') },
+      { icon: icon('coin'), text: t('guide.staff.4') },
+    ], t('guide.ok'));
+    this.sayNow(say.staffHow());
+  }
+
+  // --- wat het personeel van het park moet weten
+  feedJobs(): { trough: TroughObj; food: FoodId }[] {
+    const jobs: { trough: TroughObj; food: FoodId }[] = [];
+    for (const pen of this.pens)
+      for (const { trough, food } of this.troughsOf(pen.region.id)) if (food && !(trough.food === food && trough.amount > 1)) jobs.push({ trough, food });
+    return jobs;
+  }
+
+  cleanJobs(): PoopObj[] {
+    return [...this.poops, ...this.litter];
+  }
+
+  walkable(tile: number): boolean {
+    const [x, y] = tileXY(tile);
+    return !this.taken(x, y);
+  }
+
+  workerFill(trough: KeeperTrough, food: FoodId): void {
+    if (this.troughs.includes(trough as TroughObj)) this.keeperFill(trough, food);
+  }
+
+  workerClean(mess: KeeperPoop): void {
+    const p = mess as PoopObj;
+    if (this.poops.includes(p)) this.keeperClean(p);
+    else if (this.litter.includes(p)) {
+      this.view.scene.remove(p.mesh);
+      this.litter = this.litter.filter(x => x !== p);
+      this.tidied++;
+      this.floatAt(icon('sparkle'), p.gx, p.gy, 0.2);
+    }
+  }
+
+  /** Een werker kan niet bij zijn klus: er zit geen poort in het hek. De bouwer zegt het en je ziet waar. */
+  noGate(gx: number, gy: number): void {
+    if (this.clock - this.gateHintAt > 12) {
+      this.gateHintAt = this.clock;
+      this.floatAt(icon('gate'), gx, gy, 0.9);
+    }
+    this.alert(say.noGate());
   }
 
   /** Een nieuw uur: elke werker krijgt loon. Is het geld op, dan wachten de werkers die niets kregen. */
   private payWages(): void {
-    let workers = 0, short = false;
-    for (const pen of this.pens)
-      for (const worker of this.staffOf(pen)) {
-        workers++;
-        worker.paid = this.coins >= WAGE;
-        if (worker.paid) this.coins -= WAGE;
-        else short = true;
-      }
-    if (workers) sfx('coin', { volume: 0.35, every: 1 });
+    let short = false;
+    for (const worker of this.workers) {
+      worker.paid = this.coins >= WAGE;
+      if (worker.paid) this.coins -= WAGE;
+      else short = true;
+    }
+    if (this.workers.length) sfx('coin', { volume: 0.35, every: 1 });
     if (short) this.alert(say.cash('wage'), 300);
   }
 
@@ -911,22 +1020,18 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       else {
         const saved = this.savedPens.find(s => tiles.has(s.tile));
         const name = saved?.name ?? this.pickName('names.pens', [...old, ...next].map(p => p.name));
-        pen = { name, region, cx: 0, cy: 0, ax: 0, ay: 0, sign: this.hud.makeSign(t('pen.closed')), closedUntil: 0, love: {}, feeder: null, cleaner: null };
-        if (saved?.feeder) this.addKeeper(pen, 'feed');
-        if (saved?.cleaner) this.addKeeper(pen, 'clean');
+        pen = { name, region, cx: 0, cy: 0, ax: 0, ay: 0, sign: this.hud.makeSign(t('pen.closed')), closedUntil: 0, love: {} };
         if (announce) this.celebratePen(pen);
       }
       pen.region = region;
       pen.cx = region.tiles.reduce((s, i) => s + tileXY(i)[0] + 0.5, 0) / region.tiles.length;
       pen.cy = region.tiles.reduce((s, i) => s + tileXY(i)[1] + 0.5, 0) / region.tiles.length;
       [pen.ax, pen.ay] = tileXY(region.tiles.reduce((best, i) => (tileXY(i)[0] + tileXY(i)[1] < tileXY(best)[0] + tileXY(best)[1] ? i : best)));
-      for (const worker of this.staffOf(pen)) if (!tiles.has(worker.tile)) worker.reset(region.tiles[0]);
       next.push(pen);
     }
     for (const p of old) {
       if (kept.has(p)) continue;
       p.sign.remove();
-      for (const worker of this.staffOf(p)) this.view.scene.remove(worker.mesh);
       const gone = new Set(p.region.tiles);
       for (const a of this.animals) if (gone.has(a.tile)) this.react(a, 'bad');
     }
@@ -951,39 +1056,107 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   }
 
   private gridChanged(): void {
-    this.view.syncFences(this.grid);
+    this.syncWear();
     this.syncPens(true);
+  }
+
+  /** Tekent de hekken opnieuw met hun slijtage en houdt bij welke verblijven een kapot hek hebben. */
+  private syncWear(): void {
+    const wood = new Set(this.grid.edges().filter(x => x.kind === 1).map(x => edgeKey(x.e)));
+    for (const key of [...this.wear.keys()]) if (!wood.has(key)) this.wear.delete(key);
+    this.view.syncFences(this.grid, this.wear);
+    this.broken = new Set(this.grid.enclosures().filter(r => this.grid.borderEdges(r).some(e => this.wear.get(edgeKey(e)) === 3)).map(r => r.id));
+  }
+
+  brokenPen(regionId: number): boolean {
+    return this.broken.has(regionId);
+  }
+
+  /** Een houten hek slijt een stapje: meestal een hek dat al versleten is, soms een nieuw. Hooguit vier tegelijk. */
+  private wearFence(): void {
+    const worn = [...this.wear.entries()].filter(([, phase]) => phase < 3).map(([key]) => key);
+    if (worn.length && (this.wear.size >= 4 || Math.random() < 0.6)) {
+      const key = worn[Math.floor(Math.random() * worn.length)];
+      this.wear.set(key, this.wear.get(key)! + 1);
+    } else if (this.wear.size < 4) {
+      const edges = this.pens.filter(p => this.animalsIn(p.region.id).length).flatMap(p => this.grid.borderEdges(p.region)).filter(e => this.grid.getEdge(e) === 1 && !this.wear.has(edgeKey(e)));
+      if (!edges.length) return;
+      this.wear.set(edgeKey(edges[Math.floor(Math.random() * edges.length)]), 1);
+    } else return;
+    this.syncWear();
+  }
+
+  /** Een tik met het handje timmert een versleten hek weer vast. */
+  private repair(e: Edge): void {
+    this.wear.delete(edgeKey(e));
+    this.syncWear();
+    sfx('fence');
+    const [x, y] = e.o === 'h' ? [e.x + 0.5, e.y] : [e.x, e.y + 0.5];
+    this.floatAt(icon('hammer'), x, y, 0.6);
+    this.floatAt(icon('sparkle'), x, y, 0.3);
+  }
+
+  /** Afval oprapen: het gaat mee in je handen tot je op een afvalbak tikt. */
+  private pickUp(p: PoopObj): void {
+    if (this.carry >= MAX_CARRY) {
+      this.floatAt(icon('bin'), p.gx, p.gy, 0.5);
+      this.floatAt(t('carry.full'), p.gx, p.gy, 0.9, 'word');
+      return;
+    }
+    this.view.scene.remove(p.mesh);
+    this.litter = this.litter.filter(x => x !== p);
+    this.carry++;
+    this.hud.setCarry(this.carry);
+    sfx('tap', { every: 0.1 });
+    this.floatAt(icon('litter'), p.gx, p.gy, 0.4);
+  }
+
+  /** Alles wat je in je handen hebt gaat in de afvalbak: een munt per stuk. */
+  private dump(bin: ShopObj): void {
+    const [x, y] = edgePose(bin);
+    this.tidied += this.carry;
+    this.earn(this.carry, x, y);
+    this.carry = 0;
+    this.hud.setCarry(0);
+    sfx('place');
+    this.floatAt(icon('sparkle'), x, y, 0.6);
+    this.pulse(bin.mesh, 0.25);
+  }
+
+  /** Laat iets even opveren, omdat het gebruikt wordt. */
+  private pulse(mesh: THREE.Object3D, amp = 0.08, seconds = 0.4): void {
+    if (!this.pulses.some(p => p.mesh === mesh)) this.pulses.push({ mesh, from: this.clock, until: this.clock + seconds, amp });
+  }
+
+  /** Alles wat uit zichzelf beweegt: opverende kramen en bakken, wuivende vlaggen en bomen, stromend water. */
+  private animateProps(): void {
+    for (const p of this.pulses) {
+      const k = (this.clock - p.from) / (p.until - p.from);
+      const s = k >= 1 ? 1 : 1 + p.amp * Math.sin(k * Math.PI);
+      p.mesh.scale.set(s, s, s);
+    }
+    if (this.pulses.length) this.pulses = this.pulses.filter(p => this.clock < p.until + 0.05);
+    const t = this.clock;
+    for (const d of this.decors) {
+      const m = d.mesh;
+      if (d.kind === 'flag') m.rotation.y = Math.sin(t * 1.8 + d.x) * 0.3;
+      else if (d.kind === 'tree' || d.kind === 'pine' || d.kind === 'palm' || d.kind === 'topiary') m.rotation.z = Math.sin(t * 1.2 + d.x * 2 + d.y) * 0.025;
+      else if (d.kind === 'roses' || d.kind === 'tulips') m.rotation.z = Math.sin(t * 2 + d.x) * 0.03;
+      else if (d.kind === 'waterfall' && m.children[1]) m.children[1].scale.y = 1 + Math.sin(t * 7) * 0.04;
+      else if (d.kind === 'pond' && m.children[2]) m.children[2].position.y = Math.sin(t * 2 + d.x) * 0.012;
+    }
   }
 
   private penMenu(pen: Pen): void {
     const s = this.view.toScreen(pen.cx, pen.cy, 0.5);
     const opt = (id: string, ic: IconId, key: string, price = 0): ToolOption => ({ id, icon: icon(ic), label: t(key), price: price || undefined, cant: price > this.coins });
     const items = [opt('rename', 'dice', 'pen.rename')];
-    if (this.has('keeper')) {
-      // een voerder en een schoonmaker, elk voor loon per uur; nog een tik stuurt ze naar huis
-      items.push({ id: 'feed', icon: icon('feed'), label: t('pen.feeder'), price: WAGE, per: true, on: !!pen.feeder });
-      items.push({ id: 'clean', icon: icon('broom'), label: t('pen.cleaner'), price: WAGE, per: true, on: !!pen.cleaner });
-    }
     items.push(opt('empty', 'empty', 'pen.empty'));
-    const header = this.staffOf(pen).length ? icon('keeper') + icon('check', 'badge') : '';
+    const header = '';
     this.hud.showMenu(s.x, s.y, pen.name, items, id => {
       if (id === 'rename') {
         pen.name = this.pickName('names.pens', this.pens.map(p => p.name));
         this.floatAt(pen.name, pen.cx, pen.cy, 0.6, 'word');
-      } else if (id === 'feed' || id === 'clean') {
-        const have = id === 'feed' ? pen.feeder : pen.cleaner;
-        if (have) {
-          // naar huis
-          this.view.scene.remove(have.mesh);
-          if (id === 'feed') pen.feeder = null;
-          else pen.cleaner = null;
-          sfx('erase');
-          return;
-        }
-        this.addKeeper(pen, id);
-        sfx('place');
-        this.floatAt(icon(id === 'feed' ? 'feed' : 'broom'), pen.cx, pen.cy, 0.8);
-        this.sayNow(say.hiredAs(id));
       } else if (this.animalsIn(pen.region.id).length) {
         // leegmaken kan je niet terugdraaien, dus eerst nog even vragen
         this.hud.showMenu(s.x, s.y, t('pen.empty.sure'), [opt('yes', 'check', 'yes'), opt('no', 'cross', 'no')], answer => {
@@ -1286,6 +1459,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     const tr = trough as TroughObj;
     tr.amount = Math.max(0, tr.amount - 1);
     this.view.fillTrough(tr.mesh, tr.food, tr.amount);
+    this.pulse(tr.mesh.group, 0.12, 0.5);
   }
 
   private floatAt(html: string, gx: number, gy: number, height = 0.4, cls = ''): void {
@@ -1483,7 +1657,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     for (const a of this.animalsIn(region)) this.react(a, 'good');
   }
 
-  private cleanLitter(p: PoopObj): void {
+  cleanLitter(p: PoopObj): void {
     this.view.scene.remove(p.mesh);
     this.litter = this.litter.filter(x => x !== p);
     this.tidied++;
@@ -1504,7 +1678,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     sfx('sad');
     this.sayNow(say.taken(t, species));
     // wie het niet meer bijhoudt, krijgt de tip om hulp aan te nemen
-    if (this.has('keeper') && pen && !this.staffOf(pen).length) this.lines.push(say.tipKeeper());
+    if (this.has('keeper') && !this.workers.length) this.lines.push(say.tipKeeper());
   }
 
   /**
@@ -1625,6 +1799,13 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     const crowd = this.guests.guests.length;
     layer('crowd.small', crowd ? Math.min(1, crowd / 8) * (crowd > 14 ? 0.3 : 0.55) : 0);
     layer('crowd.big', crowd > 10 ? Math.min(1, (crowd - 10) / 14) * 0.55 : 0);
+    if (this.has('wear')) {
+      this.wearIn -= dt;
+      if (this.wearIn <= 0) {
+        this.wearIn = 50 + Math.random() * 40;
+        this.wearFence();
+      }
+    }
     this.shuffleIn -= dt;
     if (this.shuffleIn <= 0) {
       this.shuffleIn = 60 + Math.random() * 40;
@@ -1642,7 +1823,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     const info = SPECIES[a.species];
     switch (wish) {
       case 'health': return icon('sick');
-      case 'enclosure': return icon(a.needsFence ? NEED_ICON[a.needsFence] : 'fence');
+      case 'enclosure': return icon(a.needsFence ? NEED_ICON[a.needsFence] : a.fenceBroken ? 'hammer' : 'fence');
       case 'food': return icon(info.food);
       case 'bed': return icon(info.bed);
       case 'fun': return icon(TOY_OF[a.species] ?? 'ball');
@@ -1840,6 +2021,9 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       case 'decor':
         if (inside) this.view.ghostDecor(x, y, this.option.decor as DecorKind, this.decorFits(x, y));
         return this.hud.setCursor(CUR[this.option.decor]);
+      case 'staff':
+        if (inside) this.view.ghostTile(x, y, this.grid.enclosureAt(x, y) || this.taken(x, y) ? 0xe0584f : 0x8fd16a);
+        return this.hud.setCursor(CUR.staff);
       case 'shop': {
         const kind = this.option.shop as ShopKind;
         if (SHOP_SIZE[kind] === 1) {
@@ -1869,11 +2053,12 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
         return this.hud.setCursor(CUR.erase);
       }
       case 'broom':
-        this.hoverPoop = this.pickPoop(cx, cy) ?? this.pickLitter(cx, cy) ?? null;
+        this.hoverPoop = this.pickPoop(cx, cy) ?? null;
         return this.hud.setCursor(CUR.broom);
       default:
         if (dragging) return this.hud.setCursor(CUR.grabbing);
         if (this.pickLoose(cx, cy)) return this.hud.setCursor(CUR.catch);
+        if (this.wear.has(edgeKey(nearestEdge(g.gx, g.gy, 0.3) ?? { o: 'h', x: -1, y: -1 }))) return this.hud.setCursor(CUR.hammer);
         if (this.pickAnimal(cx, cy)) return this.hud.setCursor(CUR.pet);
         if (this.pick(this.guests.guests, cx, cy, q => q.height * 0.6, 0.4)) return this.hud.setCursor(CUR.menu);
         if (inside && (this.troughAt(x, y) || this.shopAt(x, y)?.vendor)) return this.hud.setCursor(inside && this.troughAt(x, y) ? CUR.feed : CUR.menu);
@@ -1891,9 +2076,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     if (this.tool === 'broom') {
       // vegen: alles waar je overheen gaat is weg
       const poop = this.pickPoop(cx, cy);
-      if (poop) return this.cleanPoop(poop);
-      const litter = this.pickLitter(cx, cy);
-      if (litter) this.cleanLitter(litter);
+      if (poop) this.cleanPoop(poop);
       return;
     }
     if (this.tool === 'terrain') {
@@ -2070,7 +2253,10 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       return this.floatAt(icon('catch'), loose.gx, loose.gy, loose.top + 0.2);
     }
     // opruimen kan alleen met de veger: een tik met een andere knop wijst die aan
-    const mess = this.pickPoop(cx, cy) ?? this.pickLitter(cx, cy);
+    // afval raap je op met het handje; daarna tik je op een afvalbak
+    const litter = this.tool === 'hand' ? this.pickLitter(cx, cy) : undefined;
+    if (litter && !this.pickAnimal(cx, cy, 0.35)) return this.pickUp(litter);
+    const mess = this.pickPoop(cx, cy);
     if (this.tool === 'broom') return;
     if (mess && !this.pickAnimal(cx, cy, 0.35)) {
       this.floatAt(icon('broom'), mess.gx, mess.gy, 0.5);
@@ -2080,11 +2266,16 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     if (this.tool === 'hand' && g) {
       // een tik op een bankje, bloembak of afvalbak draait het om (ook als er iemand op zit)
       const item = this.shops.find(sh => sh.edge && Math.hypot(edgePose(sh)[0] - g.gx, edgePose(sh)[1] - g.gy) < 0.38);
-      if (item && !this.pickAnimal(cx, cy, 0.3)) return this.turnItem(item);
+      if (item && !this.pickAnimal(cx, cy, 0.3)) return item.kind === 'bin' && this.carry ? this.dump(item) : this.turnItem(item);
+      // een versleten hek timmer je met een tik weer vast
+      const worn = nearestEdge(g.gx, g.gy, 0.3);
+      if (worn && this.wear.has(edgeKey(worn))) return this.repair(worn);
     }
     if (this.tool === 'hand') {
       const animal = this.pickAnimal(cx, cy);
       if (animal) return this.animalMenu(animal);
+      const worker = this.pick(this.workers, cx, cy, w => w.height * 0.6, 0.4);
+      if (worker) return this.workerMenu(worker);
       const guest = this.pick(this.guests.guests, cx, cy, q => q.height * 0.6, 0.4);
       if (guest) return this.guestMenu(guest);
     }
@@ -2101,6 +2292,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     if (this.tool === 'bed') return this.placeBed(x, y);
     if (this.tool === 'toy') return this.placeToy(x, y);
     if (this.tool === 'decor') return this.placeDecor(x, y);
+    if (this.tool === 'staff') return this.placeStaff(x, y);
     if (this.tool === 'animal') return this.placeAnimal(x, y);
     const pen = this.penAt(x, y);
     if (pen) this.penMenu(pen);
@@ -2203,7 +2395,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     stats.sold = this.sold;
     stats.soldAt = this.soldAt;
     stats.soldAll = this.soldAll;
-    stats.keepers = this.pens.reduce((n, p) => n + this.staffOf(p).length, 0);
+    stats.keepers = this.workers.length;
     // een kraam telt pas als hij aan het pad staat, anders kan er niemand bij
     for (const s of this.shops) {
       const atPath = s.edge ? edgeSides(s).some(i => this.grid.terrain[i] === PATH) : this.touchesPath(s.x, s.y, s.size);
@@ -2229,7 +2421,9 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       }
       // zorgwensen (ziek, verblijf, voer, schoon) tellen zwaarder dan het soort hek, ondergrond, slaapplek en een vriendje
       const care = a.unmet === 'health' || (a.unmet === 'enclosure' && !a.needsFence) || a.unmet === 'food' || a.unmet === 'clean';
-      const rate = a.unmet === null ? -2 : care ? 1 : a.unmet === 'fun' || a.unmet === 'space' ? 0 : 0.4;
+      // verveling, te weinig ruimte en een kapot hek maken een dier ongelukkig, maar het wordt er nooit voor opgehaald
+      const calm = a.unmet === 'fun' || a.unmet === 'space' || (a.unmet === 'enclosure' && a.fenceBroken && !a.escaped);
+      const rate = a.unmet === null ? -2 : calm ? 0 : care ? 1 : 0.4;
       a.neglect = Math.max(0, a.neglect + rate * 0.4);
       if (a.neglect > NEGLECT_GONE) taken.push(a);
       const bubble = this.bubbles.get(a)!;
@@ -2275,7 +2469,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     const light = worst && (worst.wish === 'bed' || worst.wish === 'terrain' || worst.wish === 'friend' || worst.wish === 'fun' || worst.wish === 'space' || (worst.wish === 'enclosure' && !!worst.a.needsFence));
     if (worst && worst.age > (light ? ALERT_AFTER * 2 : ALERT_AFTER)) {
       const { a, wish } = worst;
-      this.alert(a.escaped ? say.escaped(t, a.species) : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN));
+      this.alert(a.escaped ? say.escaped(t, a.species) : wish === 'enclosure' && a.fenceBroken ? say.broken() : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN));
       if (a.neglect > NEGLECT_WARN * 1.5 && !this.hud.speaking) this.callForHelp('name.help.1');
     }
     // de gastvrouw let op de gasten
@@ -2403,7 +2597,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     // wat er oplicht: met de veger alle poepjes en afval, anders alleen wat onder de muis ligt; en het dier in nood
     const spots: { gx: number; gy: number; r?: number; hot?: boolean }[] = [];
     const hot = this.hoverPoop && (this.poops.includes(this.hoverPoop) || this.litter.includes(this.hoverPoop)) ? this.hoverPoop : null;
-    if (this.tool === 'broom') for (const p of [...this.poops, ...this.litter]) spots.push({ gx: p.gx, gy: p.gy, hot: p === hot, r: p === hot ? 1.5 : 1 });
+    if (this.tool === 'broom') for (const p of this.poops) spots.push({ gx: p.gx, gy: p.gy, hot: p === hot, r: p === hot ? 1.5 : 1 });
     else if (hot) spots.push({ gx: hot.gx, gy: hot.gy, hot: true, r: 1.4 });
     if (this.marked && (this.clock > this.marked.until || !this.animals.includes(this.marked.a))) this.marked = null;
     if (this.marked) spots.push({ gx: this.marked.a.gx, gy: this.marked.a.gy, hot: true, r: 2.6 });
@@ -2411,7 +2605,8 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     for (const a of this.animals) a.update(dt, this);
     this.guests.update(dt);
     this.animateToys();
-    for (const pen of this.pens) for (const worker of this.staffOf(pen)) worker.update(dt, this, pen.region.id);
+    this.animateProps();
+    for (const worker of this.workers) worker.update(dt, this, this.claimed);
     const hour = Math.floor(this.clock / HOUR_SECONDS);
     if (hour !== this.hour) {
       this.hour = hour;

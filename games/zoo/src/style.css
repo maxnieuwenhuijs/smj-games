@@ -33,6 +33,7 @@ button { font: inherit; color: inherit; }
 .tool .ic { font-size: min(42px, 6vw); }
 /* veel knoppen in de balk: iets smaller, zodat ze naast elkaar passen */
 #toolbar:has(.tool:nth-child(10)) .tool { width: min(80px, 8vw); }
+#toolbar:has(.tool:nth-child(12)) .tool { width: min(72px, 7.2vw); }
 #toolbar:has(.tool:nth-child(10)) .tool b { font-size: clamp(7px, 1.5vw, 12px); }
 .tool b { font-size: clamp(7px, 1.9vw, 13px); font-weight: 700; line-height: 1.1; }
 .tool.small { width: min(70px, 13vw); height: min(70px, 13vw); border-radius: 18px; }
@@ -44,6 +45,7 @@ button { font: inherit; color: inherit; }
 #need .what { position: absolute; right: -8px; bottom: -8px; width: 32px; height: 32px; border-radius: 50%; background: #fff; display: grid; place-items: center; font-size: 22px; font-style: normal; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18); }
 #need .what .ic { font-size: 22px; width: 22px; height: 22px; }
 @keyframes needy { 50% { transform: scale(1.07); } }
+#carry { position: absolute; left: 12px; top: calc(46% + min(84px, 15vw)); gap: 6px; animation: needy 2.6s ease-in-out infinite; }
 .tool.boy { box-shadow: 0 5px 0 var(--boy); outline: 3px solid var(--boy); outline-offset: -3px; }
 .tool.girl { box-shadow: 0 5px 0 var(--girl); outline: 3px solid var(--girl); outline-offset: -3px; }
 .tool.boy.on { background: #cfe3fb; }
@@ -193,6 +195,10 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 .card .boss { display: flex; align-items: center; gap: 12px; }
 .card .boss .portrait { width: 70px; height: 70px; }
 .card .big { font-size: 28px; font-weight: 800; }
+.card.guide { gap: 12px; max-width: min(560px, 92vw); }
+.card.guide .step { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; font-size: 18px; font-weight: 700; line-height: 1.25; }
+.card.guide .step .ic { font-size: 40px; width: 40px; height: 40px; flex: none; }
+.card.guide .step .nr { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--sun); display: grid; place-items: center; font: 800 16px/1 system-ui, sans-serif; font-style: normal; }
 .card .sub { font-size: 17px; font-weight: 700; opacity: 0.7; }
 .card .reward { display: flex; flex-direction: column; align-items: center; font-size: 76px; margin: 6px 0; }
 .card .reward span { font-size: 15px; font-weight: 700; }

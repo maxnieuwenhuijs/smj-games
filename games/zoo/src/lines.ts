@@ -104,6 +104,9 @@ export const say = {
   tipKeeper: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.tip.keeper' }),
   cheer: (i: number): Line => ({ who: CHEERS[i].who, mood: 'happy', key: `cheer.${i + 1}` }),
   decorNew: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.decor.new' }),
+  noGate: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.nogate' }),
+  staffHow: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.staff.how' }),
+  broken: (): Line => ({ who: 'builder', mood: 'worried', key: 'alert.broken' }),
   funNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.fun.new' }),
   host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
   busy: (kind: string): Line => ({ who: 'host', mood: 'worried', key: `host.busy.${kind}` }),
@@ -199,6 +202,9 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.caught());
   add(say.hired());
   add(say.funNew());
+  add(say.broken());
+  add(say.noGate());
+  add(say.staffHow());
   add(say.decorNew());
   CHEERS.forEach((_, i) => add(say.cheer(i)));
   add(say.tipKeeper());

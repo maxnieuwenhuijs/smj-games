@@ -141,7 +141,15 @@ Gemeten met `tools/playtest/berichten.js` in een park met 80 dieren zonder verzo
 
 ## Gebeurtenissen
 
-- **Werkers (vanaf level 11):** tik op een verblijf en neem een voerder (vult de voerbakken) of een schoonmaker (veegt het hok) aan, of allebei. Ze kosten geen geld vooraf, maar elk 1 munt loon per uur. Een uur in het spel duurt twee minuten; naast de munten staat een klokje met het uur. Is er op het hele uur te weinig geld, dan wachten de werkers die niets kregen tot het volgende uur en zegt de kassier dat. Nog een tik op de knop stuurt een werker naar huis. Een verzorger uit een ouder opgeslagen spel wordt een voerder en een schoonmaker.
+- **Personeel (vanaf level 12):** met de knop Personeel zet je een voerder of een schoonmaker neer in het park, buiten de verblijven, net zoals je een dier plaatst. Ze lopen echt door het hele park:
+  - de voerder vult voerbakken die bijna leeg zijn;
+  - de schoonmaker veegt poep (in de verblijven en op het pad) en raapt afval op.
+  - Ze gaan een verblijf alleen in door een **poort**. Poorten kun je vanaf level 12 bouwen (knop Hek, keuze Poort). Kan een werker ergens niet in, dan verschijnt er een poortje boven die plek en zegt de bouwer dat er een poort moet komen.
+  - Al het personeel draagt hetzelfde groene pak. De rol zie je aan de pet en de streep (oranje voor de voerder, blauw voor de schoonmaker) en aan wat ze dragen: een voerzak of een bezem.
+  - Loon: 2 munten per uur per werker. Een uur in het spel duurt twee minuten; rechtsboven staat een klokje met het uur. Is er op het hele uur te weinig geld, dan wachten de werkers die niets kregen tot het volgende uur en zegt de kassier dat.
+  - Een tik op een werker met het handje laat zien wat hij doet en stuurt hem naar huis.
+  - **Uitleg:** zodra het personeel erbij komt (en de eerste keer dat je de knop kiest zonder personeel) verschijnt een kaart met vier stappen en plaatjes, en de verzorger zegt hoe het werkt.
+  - Uit een ouder opgeslagen spel, waarin werkers nog bij één verblijf hoorden, loopt nu één werker per vijf van die verblijven rond.
 - **Ziek (vanaf level 21):** af en toe wordt een dier ziek en gaat liggen. Tik erop en kies de dokter.
 - **Ontsnapt (vanaf level 31):** af en toe springt een dier uit zijn verblijf en loopt buiten rond. Tik erop om het op te pakken en tik dan in een verblijf om het terug te zetten.
 
@@ -180,6 +188,8 @@ Twee dure dingen om voor te sparen. Ze leveren zelf geen munten op; gasten worde
 
 - **Fontein (30 munten, vanaf level 16):** een bassin met een waterstraal die op en neer gaat. Gasten komen ernaast staan kijken.
 - **Draaimolen (60 munten, vanaf level 26):** draait altijd. Gasten stappen op een paardje en draaien een rondje mee.
+
+Dingen die gebruikt worden bewegen: een kraam veert op als er iets verkocht wordt, de voerbak als een dier eet, de afvalbak als je er iets in gooit. Vlaggen wapperen, bomen en bloemen wuiven, de waterval stroomt en de plompenbladen in de vijver dobberen.
 
 Staat de attractie er nog niet, dan laten gasten in hun wolkje zien dat ze hem willen; ze worden er niet minder blij van. Level 16 en level 26 vragen erom, zodat je moet sparen.
 
@@ -224,7 +234,7 @@ Na het neerzetten van een voerbak, slaapplek, winkel of dier staat het handje we
 
 ## De veger
 
-Poep en afval ruim je alleen op met de knop Veger (vanaf level 2). Tik je er met een andere knop op, dan gebeurt er niets, behalve dat er een bezempje boven verschijnt en de veger een paar tellen knippert. Met de veger sleep je het veld net als met het handje; begin je op een poepje, dan veeg je. Met de veger aan krijgen alle poepjes en al het afval een gele ring, zodat je ze goed ziet, en veeg je alles weg waar je overheen sleept. Wat onder de muis ligt, krijgt een grotere oranje ring. Vraagt een level om opruimen, dan knippert de veger als tip.
+Poep ruim je alleen op met de knop Veger (vanaf level 2); afval raap je op (zie hieronder). Tik je er met een andere knop op, dan gebeurt er niets, behalve dat er een bezempje boven verschijnt en de veger een paar tellen knippert. Met de veger sleep je het veld net als met het handje; begin je op een poepje, dan veeg je. Met de veger aan krijgen alle poepjes en al het afval een gele ring, zodat je ze goed ziet, en veeg je alles weg waar je overheen sleept. Wat onder de muis ligt, krijgt een grotere oranje ring. Vraagt een level om opruimen, dan knippert de veger als tip.
 
 Een poepje valt nooit onder een slaapplek of voerbak: het komt op de vrije tegel ernaast terecht. Zet je een slaapplek of voerbak op een tegel waar al poep ligt, dan schuift die ernaast.
 
@@ -240,6 +250,10 @@ Vanaf level 6 is er de knop Mooi: versieringen op een vrije tegel buiten de verb
 
 Gasten die binnen twee tegels van een versiering lopen, worden er een beetje blijer van (tot drie versieringen tellen mee). Weghalen met de gum geeft de helft terug.
 
+## Afval oprapen
+
+Gasten laten soms afval vallen als er geen afvalbak in de buurt staat (hooguit acht stuks tegelijk in het park). Tik er met het handje op om het op te rapen: je hebt het dan in je handen (links in beeld zie je hoeveel, hooguit vijf). Tik daarna op een afvalbak om het weg te gooien; dat levert een munt per stuk op en telt voor de opdrachten. Een schoonmaker raapt het ook op.
+
 ## Dier in nood
 
 Is er een dier ontsnapt, ziek, of heeft het al twintig tellen honger, een vies hok of een open hek, dan verschijnt links een knop met dat dier en wat het mist (en hoeveel dieren er wachten). Een tik schuift het beeld naar het dier en zet er acht tellen een oranje ring omheen; nog een tik gaat naar het volgende dier. De dringendste eerst: ontsnapt, dan ziek, dan wie het langst wacht.
@@ -247,6 +261,16 @@ Is er een dier ontsnapt, ziek, of heeft het al twintig tellen honger, een vies h
 ## Cursor
 
 Elke handeling heeft een eigen cursorplaatje; die zijn anderhalf keer zo groot als een gewone cursor (48 beeldpunten).
+
+## Hekken slijten
+
+Vanaf level 8 slijt een houten hek (stenen muren en netten niet). Ongeveer eens per minuut gaat er één hek een fase verder, meestal een hek dat al versleten is, en er zijn er nooit meer dan vier tegelijk:
+
+1. De bovenste plank zakt scheef en het hout wordt donkerder.
+2. De plank hangt aan één kant los; nog donkerder.
+3. Het hek ligt half plat en is bijna zwartbruin: het is kapot.
+
+Een tik met het handje timmert het in elke fase weer vast (de cursor wordt een hamertje). Bij een kapot hek voelen de dieren in dat verblijf zich niet veilig: ze zijn niet blij, het wolkje toont een hamertje en de bouwer zegt dat je het moet maken. Ze worden er niet voor opgehaald.
 
 ## Hekken slepen
 
@@ -396,7 +420,7 @@ De proefspeler bouwt zonder muis en zonder na te denken, dus de tijden zeggen ni
 | Als een trager kind: één handeling per 15 seconden, verder hetzelfde | Alle 50 levels gehaald, geen dier kwijt |
 | Als een kind dat alleen verzorgers aanneemt als een level erom vraagt | Goed tot en met level 24, daarna dieren kwijt en vast in level 26 |
 
-Op 17 november 2026 zijn de prijzen omhooggegaan (zie Munten). De proefspeler-als-kind (één handeling per 8 seconden, kas nooit bijgevuld) haalde daarna opnieuw alle 50 levels zonder een dier kwijt te raken. Tot en met level 19 houdt hij na een level 11 tot 40 munten over; daarna loopt de kas tijdens de meeste levels vol tot 99, omdat hij alleen koopt wat een level vraagt. Laat in het spel is geld dus nog steeds ruim. Met de regels voor ruimte, groepen, lievelingsdingen en drukte (21 november 2026) haalde de proefspeler opnieuw alle 50 levels zonder een dier kwijt te raken; aan het eind stonden er 50 gasten, 6 eetkramen, 6 drinkkramen, 8 wc's, 5 ijskramen, 5 speeltuinen en 10 bankjes. Sinds de werkers loon kosten (21 november 2026) gaat er in een vol park met 40 werkers 20 munten per minuut naar loon; de proefspeler haalde ook daarmee alle 50 levels en eindigde de levels met 27 tot 99 munten. Daarna zijn de fontein en de draaimolen erbij gekomen; ook daarmee haalde hij alle 50 levels zonder een dier kwijt te raken (level 16 duurde door het sparen bijna twee keer zo lang).
+Op 17 november 2026 zijn de prijzen omhooggegaan (zie Munten). De proefspeler-als-kind (één handeling per 8 seconden, kas nooit bijgevuld) haalde daarna opnieuw alle 50 levels zonder een dier kwijt te raken. Tot en met level 19 houdt hij na een level 11 tot 40 munten over; daarna loopt de kas tijdens de meeste levels vol tot 99, omdat hij alleen koopt wat een level vraagt. Laat in het spel is geld dus nog steeds ruim. Met de regels voor ruimte, groepen, lievelingsdingen en drukte (21 november 2026) haalde de proefspeler opnieuw alle 50 levels zonder een dier kwijt te raken; aan het eind stonden er 50 gasten, 6 eetkramen, 6 drinkkramen, 8 wc's, 5 ijskramen, 5 speeltuinen en 10 bankjes. Met personeel dat rondloopt, poorten en slijtende hekken (de proefspeler timmert een hek vast vanaf fase 2) lukte het ook: alle 50 levels, geen dier kwijt, 10 werkers en 24 poorten. Sinds de werkers loon kosten (21 november 2026) gaat er in een vol park met 40 werkers 20 munten per minuut naar loon; de proefspeler haalde ook daarmee alle 50 levels en eindigde de levels met 27 tot 99 munten. Daarna zijn de fontein en de draaimolen erbij gekomen; ook daarmee haalde hij alle 50 levels zonder een dier kwijt te raken (level 16 duurde door het sparen bijna twee keer zo lang).
 
 De eerste versie van het zorgtempo was te zwaar: daarmee raakte de proefspeler-als-kind vanaf level 14 honderden dieren kwijt. Daarom eten en poepen dieren nu minder vaak en zijn verzorgers al vanaf level 13 te huur.
 

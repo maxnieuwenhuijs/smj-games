@@ -13,13 +13,18 @@ const data = await import('/src/data.ts');
 const { goalProgress } = await import('/src/levels.ts');
 const models = await import('/src/models.ts');
 const { SPECIES, LEVELS, TERRAINS, FEATURE, SHOP_PRICE, SHOP_SIZE, PRODUCTS, PRICE } = data;
-/** Neem een werker aan via het menu van het verblijf, zoals een speler dat doet. */
-const hire = (pen, role) => {
-  if (role === 'feed' ? pen.feeder : pen.cleaner) return;
-  window.__zoo.penMenu(pen);
-  document.querySelector(`#menu [data-item="${role}"]`)?.click();
+/** Personeel loopt door het park: zet een werker op het pad bij de ingang. */
+const hire = role => {
+  const game = window.__zoo;
+  const n = game.workers.length;
+  game.addWorker(role, 10.5 + OX, 15.5 + OY - (n % 8));
 };
-const staff = pen => (pen.feeder ? 1 : 0) + (pen.cleaner ? 1 : 0);
+/** Elk verblijf krijgt een poort aan de kant van het pad, zodat het personeel naar binnen kan. */
+const gate = n => {
+  const game = window.__zoo, slot = SLOTS[n], south = Math.floor(n / 6) % 2 === 0;
+  const e = { o: 'h', x: slot.x0 + 1, y: south ? slot.y1 + 1 : slot.y0 };
+  if (game.grid.getEdge(e) !== 2 && game.grid.setEdge(e, 2)) game.gridChanged();
+};
 
 const { W, H } = await import('/src/grid.ts');
 // De indeling is getekend op 20 bij 20 en ligt midden tegen de voorkant van het park, bij de ingang.
@@ -238,9 +243,13 @@ export const T = {
     if (done === 0) this.pen('pig');
     for (const sp of this.order) this.furnish(sp);
     // een kind dat het druk krijgt, neemt hulp aan zodra dat kan en er munten over zijn
+    // een hek dat flink versleten is, timmert de proefspeler weer vast
+    for (const [key, phase] of [...game.wear]) if (phase >= 2) game.repair({ o: key[0], x: Number(key.slice(1).split(',')[0]), y: Number(key.split(',')[1]) });
+    if (done >= FEATURE.keeper) for (const sp of this.order) gate(this.home[sp]);
+    // een kind dat het druk krijgt, neemt personeel aan: van elk soort één per vijf verblijven
     if (this.kid && !this.noHelp && done >= FEATURE.keeper && game.coins >= 12 && game.pens.length >= 5) {
-      const busy = game.pens.filter(p => staff(p) < 2 && game.animalsIn(p.region.id).length).sort((a, b) => game.poopsIn(b.region.id) - game.poopsIn(a.region.id))[0];
-      if (busy) hire(busy, busy.feeder ? 'clean' : 'feed');
+      const want = Math.ceil(game.pens.length / 5);
+      for (const role of ['feed', 'clean']) if (game.workers.filter(w => w.role === role).length < want) hire(role);
     }
     // groepsdieren willen met meer zijn: vul elke soort aan tot zijn groep
     for (const sp of this.order) if (this.animalsOf(sp).length) await this.stock(sp, data.HERD[sp] ?? 2);
@@ -269,9 +278,8 @@ export const T = {
       }
       if (g.type === 'keeper') {
         for (const pen of game.pens) {
-          if (game.pens.reduce((n, p) => n + staff(p), 0) >= g.n) break;
-          if (staff(pen) === 2) continue;
-          hire(pen, pen.feeder ? 'clean' : 'feed');
+          if (game.workers.length >= g.n) break;
+          hire(game.workers.length % 2 ? 'clean' : 'feed');
         }
       }
     }

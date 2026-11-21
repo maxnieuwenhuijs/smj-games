@@ -67,12 +67,11 @@ export class Grid {
   }
 
   /** Kun je van tegel (x,y) een stap (dx,dy) zetten zonder door een hek te gaan? */
-  canStep(x: number, y: number, dx: number, dy: number): boolean {
+  /** `gates`: personeel kan door een poort (hekje 2); dieren en gasten niet. */
+  canStep(x: number, y: number, dx: number, dy: number, gates = false): boolean {
     if (!this.inBounds(x + dx, y + dy)) return false;
-    if (dy === -1) return this.h[x + y * W] === 0;
-    if (dy === 1) return this.h[x + (y + 1) * W] === 0;
-    if (dx === -1) return this.v[x + y * (W + 1)] === 0;
-    return this.v[x + 1 + y * (W + 1)] === 0;
+    const edge = dy === -1 ? this.h[x + y * W] : dy === 1 ? this.h[x + (y + 1) * W] : dx === -1 ? this.v[x + y * (W + 1)] : this.v[x + 1 + y * (W + 1)];
+    return edge === 0 || (gates && edge === 2);
   }
 
   /** Ligt de tegel aan de rand van de kaart zonder hek ertussen? */
@@ -165,10 +164,10 @@ export class Grid {
     return out;
   }
 
-  neighbors(i: number): number[] {
+  neighbors(i: number, gates = false): number[] {
     const [x, y] = tileXY(i);
     const out: number[] = [];
-    for (const [dx, dy] of DIRS) if (this.canStep(x, y, dx, dy)) out.push(tileIndex(x + dx, y + dy));
+    for (const [dx, dy] of DIRS) if (this.canStep(x, y, dx, dy, gates)) out.push(tileIndex(x + dx, y + dy));
     return out;
   }
 

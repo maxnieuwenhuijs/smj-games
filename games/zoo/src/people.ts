@@ -793,7 +793,7 @@ export class GuestManager {
 /** Kramen waar een gast iets koopt (voor de kas). */
 export const sellsForCoin = (kind: ShopKind): boolean => STALLS.includes(kind);
 
-// ------------------------------------------------------------ verzorger
+// ------------------------------------------------------------ personeel
 export interface KeeperPoop {
   gx: number;
   gy: number;
@@ -804,41 +804,64 @@ export interface KeeperTrough {
   food: string | null;
   amount: number;
 }
-export interface KeeperWorld {
+export type WorkerRole = 'feed' | 'clean';
+export interface WorkerWorld {
   grid: Grid;
-  /** De poepjes in dit verblijf. */
-  poopsOf(regionId: number): KeeperPoop[];
-  /** De voerbakken in dit verblijf, met het voer dat de dieren daar nodig hebben (null als er geen dieren zijn). */
-  troughsOf(regionId: number): { trough: KeeperTrough; food: FoodId | null }[];
-  keeperClean(poop: KeeperPoop): void;
-  keeperFill(trough: KeeperTrough, food: FoodId): void;
+  /** Voerbakken die bijgevuld moeten worden, met het voer dat erin hoort. */
+  feedJobs(): { trough: KeeperTrough; food: FoodId }[];
+  /** Poep (in de verblijven en op het pad) en afval dat opgeruimd moet worden. */
+  cleanJobs(): KeeperPoop[];
+  /** Mag een werker over deze tegel lopen? Niet door een gebouw, voerbak of versiering. */
+  walkable(tile: number): boolean;
+  workerFill(trough: KeeperTrough, food: FoodId): void;
+  workerClean(mess: KeeperPoop): void;
+  /** Deze klus is niet te bereiken: er zit geen poort in het hek. */
+  noGate(gx: number, gy: number): void;
 }
 
-/** Een verzorger hoort bij één verblijf: hij vult lege voerbakken en ruimt poep op. */
-export class Keeper {
+// Al het personeel draagt hetzelfde groene pak; de rol zie je aan de streep, de pet en wat ze dragen.
+const ROLE_COLOR: Record<WorkerRole, number> = { feed: 0xf5a623, clean: 0x4a90e2 };
+const STRIPE_GEO = new THREE.BoxGeometry(0.21, 0.05, 0.14);
+const BROOM_GEO = new THREE.BoxGeometry(0.025, 0.46, 0.025).translate(0, -0.1, 0.06);
+const BRISTLE_GEO = new THREE.BoxGeometry(0.13, 0.07, 0.05).translate(0, -0.34, 0.06);
+const SACK_GEO = new THREE.BoxGeometry(0.13, 0.16, 0.1).translate(0, -0.2, 0.05);
+const PATCH_GEO = new THREE.BoxGeometry(0.07, 0.07, 0.01).translate(0, -0.2, 0.105);
+
+/**
+ * Een werker loopt door het hele park. Een voerder vult lege voerbakken, een schoonmaker veegt poep en raapt
+ * afval op. Naar binnen kan hij alleen door een poort.
+ */
+export class Worker {
   readonly mesh: THREE.Group;
   readonly height: number;
   gx: number;
   gy: number;
+  /** Heeft de werker dit uur loon gekregen? Zo niet, dan wacht hij. */
+  paid = true;
   private limbs: THREE.Mesh[];
   private route: number[] = [];
-  private job: { poop?: KeeperPoop; trough?: KeeperTrough; food?: FoodId } | null = null;
-  private timer = 1;
+  private job: { key: object; trough?: KeeperTrough; food?: FoodId; mess?: KeeperPoop } | null = null;
+  private timer = 0.5;
   private working = 0;
   private heading = 0;
   private phase = 0;
-  /** Heeft de werker dit uur loon gekregen? Zo niet, dan wacht hij. */
-  paid = true;
 
-  /** `role`: een voerder vult alleen de voerbakken, een schoonmaker veegt alleen het hok. */
-  constructor(tile: number, readonly role: 'feed' | 'clean' = 'feed') {
-    const person = makePerson(true);
+  constructor(gx: number, gy: number, readonly role: WorkerRole) {
+    const person = makePerson(true, { shirt: 0x4fa35a, hat: ROLE_COLOR[role] });
     this.mesh = person.group;
     this.limbs = person.limbs;
     this.height = person.height;
-    const [x, y] = tileXY(tile);
-    this.gx = x + 0.5;
-    this.gy = y + 0.5;
+    // het schort van een verkoper hoort hier niet bij: dat laatste onderdeel gaat eraf
+    this.mesh.remove(this.mesh.children[this.mesh.children.length - 1]);
+    const accent = mat(ROLE_COLOR[role]);
+    const stripe = new THREE.Mesh(STRIPE_GEO, accent);
+    stripe.position.set(0, 0.33, 0);
+    this.mesh.add(stripe);
+    // wat hij draagt, zit aan zijn arm en beweegt dus mee
+    if (role === 'clean') this.limbs[2].add(new THREE.Mesh(BROOM_GEO, mat(0xa8743f)), new THREE.Mesh(BRISTLE_GEO, mat(0xffd23f)));
+    else this.limbs[2].add(new THREE.Mesh(SACK_GEO, mat(0xb88a52)), new THREE.Mesh(PATCH_GEO, accent));
+    this.gx = gx;
+    this.gy = gy;
     this.place();
   }
 
@@ -851,56 +874,103 @@ export class Keeper {
     this.mesh.rotation.y = this.heading;
   }
 
-  /** Het verblijf is veranderd: opnieuw beginnen op deze tegel. */
-  reset(tile: number): void {
-    const [x, y] = tileXY(tile);
-    this.gx = x + 0.5;
-    this.gy = y + 0.5;
-    this.route = [];
+  /** Laat de klus los (als de werker weggaat of de klus er niet meer is). */
+  drop(claimed: Set<object>): void {
+    if (this.job) claimed.delete(this.job.key);
     this.job = null;
-    this.timer = 1;
-    this.place();
+    this.route = [];
+    this.working = 0;
   }
 
-  private plan(w: KeeperWorld, regionId: number): void {
-    const isTrough = (i: number): boolean => w.troughsOf(regionId).some(t => tileIndex(t.trough.x, t.trough.y) === i);
-    for (const { trough, food } of this.role === 'feed' ? w.troughsOf(regionId) : []) {
-      if (!food || (trough.food === food && trough.amount > 1)) continue;
-      const spots = w.grid.neighbors(tileIndex(trough.x, trough.y)).filter(i => !isTrough(i));
-      const route = spots.length ? w.grid.path(this.tile, spots[0], isTrough) : null;
-      if (route) {
-        this.job = { trough, food };
+  /** De kortste weg naar een van deze tegels: over vrije tegels en door poorten. */
+  private routeTo(w: WorkerWorld, goals: Set<number>): number[] | null {
+    if (goals.has(this.tile)) return [this.tile];
+    const prev = new Map<number, number>([[this.tile, -1]]);
+    const queue = [this.tile];
+    for (let head = 0; head < queue.length; head++) {
+      const i = queue[head];
+      for (const j of w.grid.neighbors(i, true)) {
+        if (prev.has(j) || !(goals.has(j) || w.walkable(j))) continue;
+        prev.set(j, i);
+        if (goals.has(j)) {
+          const route = [j];
+          for (let k = i; k !== -1; k = prev.get(k)!) route.push(k);
+          return route.reverse();
+        }
+        queue.push(j);
+      }
+    }
+    return null;
+  }
+
+  /** Zoekt de dichtstbijzijnde klus die nog niemand doet en waar hij bij kan. */
+  private plan(w: WorkerWorld, claimed: Set<object>): void {
+    const near = <T extends { at: [number, number] }>(list: T[]): T[] =>
+      list.sort((p, q) => Math.hypot(p.at[0] - this.gx, p.at[1] - this.gy) - Math.hypot(q.at[0] - this.gx, q.at[1] - this.gy)).slice(0, 6);
+    if (this.role === 'feed') {
+      const jobs = w.feedJobs().filter(j => !claimed.has(j.trough)).map(j => ({ ...j, at: [j.trough.x + 0.5, j.trough.y + 0.5] as [number, number] }));
+      for (const j of near(jobs)) {
+        // naast de voerbak gaan staan, in het verblijf
+        const beside = new Set(w.grid.neighbors(tileIndex(j.trough.x, j.trough.y)).filter(i => w.walkable(i)));
+        const route = beside.size ? this.routeTo(w, beside) : null;
+        if (!route) {
+          w.noGate(j.at[0], j.at[1]);
+          continue;
+        }
+        this.job = { key: j.trough, trough: j.trough, food: j.food };
+        claimed.add(j.trough);
         this.route = route.slice(1);
         return;
       }
-    }
-    const poop = this.role === 'clean' ? w.poopsOf(regionId)[0] : undefined;
-    if (poop) {
-      const route = w.grid.path(this.tile, tileIndex(Math.floor(poop.gx), Math.floor(poop.gy)), isTrough);
-      if (route) {
-        this.job = { poop };
+    } else {
+      const jobs = w.cleanJobs().filter(p => !claimed.has(p)).map(p => ({ mess: p, at: [p.gx, p.gy] as [number, number] }));
+      for (const j of near(jobs)) {
+        const route = this.routeTo(w, new Set([tileIndex(Math.floor(j.mess.gx), Math.floor(j.mess.gy))]));
+        if (!route) {
+          w.noGate(j.at[0], j.at[1]);
+          continue;
+        }
+        this.job = { key: j.mess, mess: j.mess };
+        claimed.add(j.mess);
         this.route = route.slice(1);
         return;
       }
     }
     // niets te doen: een stapje wandelen
-    const options = w.grid.neighbors(this.tile).filter(i => !isTrough(i));
+    const options = w.grid.neighbors(this.tile).filter(i => w.walkable(i));
     if (options.length && Math.random() < 0.5) this.route = [pick(options)];
     this.timer = 2 + Math.random() * 2;
   }
 
-  update(dt: number, w: KeeperWorld, regionId: number): void {
-    if (!this.paid) return; // geen loon: even wachten
+  update(dt: number, w: WorkerWorld, claimed: Set<object>): void {
+    if (!this.paid) {
+      // geen loon: even wachten
+      swing(this.limbs, 0);
+      return this.place();
+    }
+    this.phase += dt * 11;
+    if (this.working > 0) {
+      // aan het werk: vegen of voer in de bak scheppen
+      this.working -= dt;
+      swing(this.limbs, Math.sin(this.phase) * 0.3);
+      this.limbs[2].rotation.x = -0.9 + Math.sin(this.phase * 1.3) * 0.5;
+      if (this.working <= 0 && this.job) {
+        if (this.job.trough && this.job.food) w.workerFill(this.job.trough, this.job.food);
+        if (this.job.mess) w.workerClean(this.job.mess);
+        this.drop(claimed);
+        this.timer = 0.4;
+      }
+      return this.place();
+    }
     const next = this.route[0];
     if (next !== undefined) {
       const [tx, ty] = tileXY(next);
       const dx = tx + 0.5 - this.gx, dy = ty + 0.5 - this.gy;
-      const dist = Math.hypot(dx, dy), step = 0.9 * dt;
+      const dist = Math.hypot(dx, dy), step = 1.05 * dt;
       if (dist <= step) {
         this.gx += dx;
         this.gy += dy;
         this.route.shift();
-        if (!this.route.length && this.job) this.working = 1.6;
       } else {
         this.gx += (dx / dist) * step;
         this.gy += (dy / dist) * step;
@@ -908,21 +978,19 @@ export class Keeper {
         d = Math.atan2(Math.sin(d), Math.cos(d));
         this.heading += d * Math.min(1, dt * 10);
       }
-    } else if (this.job) {
-      if (this.working <= 0) this.working = 1.6; // de verzorger stond er al
-      this.working -= dt;
-      if (this.working <= 0) {
-        if (this.job.poop && w.poopsOf(regionId).includes(this.job.poop)) w.keeperClean(this.job.poop);
-        if (this.job.trough && this.job.food) w.keeperFill(this.job.trough, this.job.food);
-        this.job = null;
-        this.timer = 1.5;
-      }
+      swing(this.limbs, Math.sin(this.phase) * 0.7);
+      return this.place();
+    }
+    swing(this.limbs, 0);
+    if (this.job) {
+      // aangekomen: naar het werk kijken en beginnen
+      const [ax, ay] = this.job.trough ? [this.job.trough.x + 0.5, this.job.trough.y + 0.5] : [this.job.mess!.gx, this.job.mess!.gy];
+      if (Math.hypot(ax - this.gx, ay - this.gy) > 0.05) this.heading = Math.atan2(ax - this.gx, ay - this.gy);
+      this.working = 1.4;
     } else {
       this.timer -= dt;
-      if (this.timer <= 0) this.plan(w, regionId);
+      if (this.timer <= 0) this.plan(w, claimed);
     }
-    this.phase += dt * 11;
-    swing(this.limbs, this.route.length ? Math.sin(this.phase) * 0.7 : this.job ? Math.sin(this.phase) * 0.25 : 0);
     this.place();
   }
 }
