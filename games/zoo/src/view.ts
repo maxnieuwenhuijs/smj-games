@@ -431,6 +431,13 @@ export class View {
   private ghosts: THREE.Object3D[] = [];
 
   private flashes: { meshes: THREE.Mesh[]; mat: THREE.MeshBasicMaterial; life: number }[] = [];
+  /** Ringen op de grond die iets laten oplichten: de poepjes onder de veger, het dier dat hulp nodig heeft. */
+  private marks: THREE.Mesh[] = [];
+  private markGeo = new THREE.RingGeometry(0.2, 0.3, 28).rotateX(-Math.PI / 2);
+  private markMat = new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0.9, depthWrite: false });
+  private hotMat = new THREE.MeshBasicMaterial({ color: 0xff7a3d, transparent: true, opacity: 0.95, depthWrite: false, depthTest: false });
+  /** Waar het beeld rustig naartoe schuift (de knop 'dier in nood'). */
+  private fly: { x: number; z: number } | null = null;
   private flashGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   private sun = new THREE.DirectionalLight(0xfff4dd, 2.2);
   /** 2 = alles aan, 1 = minder scherp, 0 = ook zonder schaduwen. */
@@ -556,8 +563,33 @@ export class View {
     this.renderer.setSize(w, h);
   }
 
+  /** Laat ringen zien op deze plekken; `hot` is feller en `r` maakt de ring groter. `pulse` laat ze ademen. */
+  showMarks(spots: { gx: number; gy: number; r?: number; hot?: boolean }[], pulse: number): void {
+    while (this.marks.length < spots.length) {
+      const m = new THREE.Mesh(this.markGeo, this.markMat);
+      m.renderOrder = 2;
+      this.scene.add(m);
+      this.marks.push(m);
+    }
+    this.marks.forEach((m, i) => {
+      const s = spots[i];
+      m.visible = !!s;
+      if (!s) return;
+      m.material = s.hot ? this.hotMat : this.markMat;
+      m.position.set(toWorldX(s.gx), 0.03, toWorldZ(s.gy));
+      const k = (s.r ?? 1) * (1 + 0.12 * Math.sin(pulse + i));
+      m.scale.set(k, 1, k);
+    });
+  }
+
+  /** Schuif het beeld rustig naar deze plek op het raster. */
+  flyTo(gx: number, gy: number): void {
+    this.fly = { x: toWorldX(gx), z: toWorldZ(gy) };
+  }
+
   /** Schuif het beeld: de grond volgt de vinger. */
   pan(dxPx: number, dyPx: number): void {
+    this.fly = null;
     const upp = this.zoom / innerHeight;
     this.target.x += (-dxPx * upp) / SQRT2 - (dyPx * upp * SQRT3) / SQRT2;
     this.target.z += (dxPx * upp) / SQRT2 - (dyPx * upp * SQRT3) / SQRT2;
@@ -780,6 +812,13 @@ export class View {
   }
 
   update(dt: number): void {
+    if (this.fly) {
+      const k = Math.min(1, dt * 5);
+      this.target.x += (this.fly.x - this.target.x) * k;
+      this.target.z += (this.fly.z - this.target.z) * k;
+      if (Math.hypot(this.fly.x - this.target.x, this.fly.z - this.target.z) < 0.03) this.fly = null;
+      this.resize();
+    }
     for (const f of this.flashes) {
       f.life -= dt / 1.1;
       f.mat.opacity = Math.max(0, f.life) * 0.85;

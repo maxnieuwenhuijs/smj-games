@@ -102,7 +102,7 @@ Een dier dat gaat slapen, loopt naar zijn slaapplek en gaat er midden bovenop li
 
 Ziek zijn, ontsnapt zijn, een open hek, honger en een vies hok tellen zwaar. Het soort hek, ondergrond, slaapplek en een vriendje tellen licht. De tijden staan bovenaan `games/zoo/src/game.ts`.
 
-Hoe vaak je moet zorgen: een volle voerbak houdt twee volwassen dieren ruim vijf minuten zoet, en een verblijf met twee dieren is pas na ongeveer een kwartier vies: een volwassen dier poept eens in de zes tot negen minuten, en de dieren vinden het vies vanaf vier poepjes. Vraagt een level om opruimen, dan poepen ze vier keer zo vaak, zodat dat doel niet lang duurt. Jongen eten mee zonder dat de bak leger wordt en poepen niet. Zo is een boerderij met tien verblijven met de hand bij te houden. Wordt het park groter, dan zijn er verzorgers. Wordt er een dier opgehaald uit een verblijf zonder verzorger, dan geeft de verzorger de tip om hulp aan te nemen.
+Hoe vaak je moet zorgen: een volle voerbak houdt twee volwassen dieren ongeveer twaalf minuten zoet (een dier eet eens in de zes minuten en heeft pas na negen minuten zonder eten echt honger; vraagt een level om voeren, dan gaat dat tweeënhalf keer zo snel), en een verblijf met twee dieren is pas na ongeveer een kwartier vies: een volwassen dier poept eens in de zes tot negen minuten, en de dieren vinden het vies vanaf vier poepjes. Vraagt een level om opruimen, dan poepen ze vier keer zo vaak, zodat dat doel niet lang duurt. Jongen eten mee zonder dat de bak leger wordt en poepen niet. Zo is een boerderij met tien verblijven met de hand bij te houden. Wordt het park groter, dan zijn er verzorgers. Wordt er een dier opgehaald uit een verblijf zonder verzorger, dan geeft de verzorger de tip om hulp aan te nemen.
 
 ## Rust: hoe vaak de figuren praten
 
@@ -193,7 +193,19 @@ Wie iets gekocht heeft, loopt even met afval rond. Staat er een afvalbak in de b
 
 ## Terug naar het handje
 
-Na het neerzetten van een voerbak, slaapplek, winkel of dier staat het handje weer aan. Zo koopt een volgende tik niet per ongeluk nog iets. Hek, ondergrond (ook pad) en de gum blijven aan staan: daar veeg je mee. Lukt het neerzetten niet (verkeerde plek, te weinig munten), dan blijft de knop aan.
+Na het neerzetten van een voerbak, slaapplek, winkel of dier staat het handje weer aan. Zo koopt een volgende tik niet per ongeluk nog iets. De rij met dieren, winkels of slaapplekken blijft wel open staan, met de laatste keuze omlijnd: een tik op een dier in die rij zet de knop weer aan, een tik op het handje sluit de rij. Hek, ondergrond (ook pad) en de gum blijven aan staan: daar veeg je mee. Lukt het neerzetten niet (verkeerde plek, te weinig munten), dan blijft de knop aan.
+
+## De veger
+
+Poep en afval ruim je op door erop te tikken, met welk knopje ook. Daarnaast is er de knop Veger (vanaf level 2): dan krijgen alle poepjes en al het afval een gele ring, zodat je ze goed ziet, en veeg je alles weg waar je overheen sleept. Wat onder de muis ligt, krijgt een grotere oranje ring. Vraagt een level om opruimen, dan knippert de veger als tip.
+
+## Dier in nood
+
+Is er een dier ontsnapt, ziek, of heeft het al twintig tellen honger, een vies hok of een open hek, dan verschijnt links een knop met dat dier en wat het mist (en hoeveel dieren er wachten). Een tik schuift het beeld naar het dier en zet er acht tellen een oranje ring omheen; nog een tik gaat naar het volgende dier. De dringendste eerst: ontsnapt, dan ziek, dan wie het langst wacht.
+
+## Cursor
+
+Elke handeling heeft een eigen cursorplaatje; die zijn anderhalf keer zo groot als een gewone cursor (48 beeldpunten).
 
 ## Hekken slepen
 
@@ -285,7 +297,7 @@ Bij een nieuw spel vraagt het spel: hoe heet je? Een ouder typt de naam (oversla
 
 De opname van de naam komt uit een van deze drie bronnen:
 
-1. De naam staat in het lijstje van ruim 140 veelvoorkomende namen die al zijn ingesproken (`tools/voice/names.json`). Een naam toevoegen: `node tools/voice/build.mjs names --add Sepp`, daarna committen.
+1. De naam staat in het lijstje van ruim 140 veelvoorkomende namen (ook Senna en Maxime) die al zijn ingesproken (`tools/voice/names.json`). Een naam toevoegen: `node tools/voice/build.mjs names --add Sepp`, daarna committen.
 2. De naam is eerder op dit apparaat ingesproken en bewaard.
 3. In het oudermenu staat een eigen ElevenLabs-sleutel: dan spreekt het spel elke nieuwe naam ter plekke in en bewaart die op het apparaat. De sleutel blijft in de browser van dat apparaat en zit nooit in het spel of in de repo.
 
@@ -298,6 +310,7 @@ Complimenten bij een gehaald level wisselen: acht stuks, van vijf figuren, elk i
 - **Muziek:** vijf rustige nummers in dezelfde stijl (marimba, gitaar, klokkenspel), één per wereld, zacht onder alles door.
 - **Natuur:** per wereld een eigen achtergrond, met daaronder altijd een zacht briesje.
 - **Publiek:** zacht geroezemoes dat meegroeit met het aantal gasten. Er zijn van elk drie opnames, die om de één à anderhalve minuut wisselen. Daaroverheen af en toe een los geluidje: 24 soorten kinderstemmetjes (giechelen, 'wauw', neuriën) en 8 van volwassenen; kinderen hoor je het vaakst.
+- **Wc en poep:** bij de wc hoor je af en toe iemand plassen of poepen achter de deur, en daarna het doortrekken (drie opnames van elk). Bij de dieren hoor je af en toe een plofje of een straaltje: bij de helft van de poepjes en een kwart van de plasjes, en nooit vlak achter elkaar.
 - **Dieren en mensen:** elk dierengeluid heeft drie varianten en klinkt nooit twee keer hetzelfde achter elkaar; alles behalve de stemmen van de figuren staat zacht. Jonge dieren hebben een eigen geluid (twee opnames per soort: een big, een kuiken, een welp).
 
 ## Een opgeslagen spel wissen

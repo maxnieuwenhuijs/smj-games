@@ -62,7 +62,15 @@ export class Hud {
   private mouthTimer = 0;
   private voice: Voice | null = null;
 
-  constructor(private on: { tool(id: string, row?: string, option?: string): void; home(): void; goal(index: number): void }) {
+  private need = el('button', 'tool small');
+  private needKey = '';
+
+  constructor(private on: { tool(id: string, row?: string, option?: string): void; home(): void; goal(index: number): void; need(): void }) {
+    this.need.id = 'need';
+    this.need.hidden = true;
+    this.need.setAttribute('aria-label', t('need'));
+    this.need.addEventListener('click', () => this.on.need());
+    document.getElementById('ui')!.append(this.need);
     const home = $('home');
     home.innerHTML = icon('home');
     home.setAttribute('aria-label', t('home'));
@@ -86,7 +94,20 @@ export class Hud {
   }
 
   // ------------------------------------------------------------ knoppen
-  setTools(defs: ToolDef[], active: string, hint: string | null): void {
+  /**
+   * Een dier heeft hulp nodig: een knop met dat dier en wat het mist. Een tik brengt je erheen.
+   * `count`: hoeveel dieren er wachten.
+   */
+  setNeed(need: { icon: string; badge: string; count: number } | null): void {
+    const key = need ? `${need.icon}|${need.badge}|${need.count}` : '';
+    if (key === this.needKey) return;
+    this.needKey = key;
+    this.need.hidden = !need;
+    if (need) this.need.innerHTML = `${need.icon}<i class="what">${need.badge}</i>${need.count > 1 ? `<i class="price">${need.count}</i>` : ''}`;
+  }
+
+  /** `open`: de knop waarvan de keuzerij open blijft staan terwijl het handje aan staat (net iets neergezet). */
+  setTools(defs: ToolDef[], active: string, hint: string | null, open: string | null = null): void {
     document.getElementById('ui')!.dataset.tool = active;
     this.toolbar.replaceChildren();
     this.options.replaceChildren();
@@ -94,16 +115,17 @@ export class Hud {
       const b = button(def, '');
       b.dataset.tool = def.id;
       b.classList.toggle('on', def.id === active);
+      b.classList.toggle('open', def.id === open);
       b.classList.toggle('hint', def.id === hint && def.id !== active);
       b.addEventListener('click', () => this.on.tool(def.id));
       this.toolbar.append(b);
-      if (def.id !== active) continue;
+      if (def.id !== (open ?? active)) continue;
       for (const row of def.rows ?? []) {
         const line = el('div', 'row');
         for (const opt of row.options) {
           const o = button(opt, 'small');
           o.dataset.option = opt.id;
-          o.classList.toggle('on', opt.id === row.active);
+          o.classList.toggle(def.id === active ? 'on' : 'last', opt.id === row.active);
           o.addEventListener('click', () => this.on.tool(def.id, row.key, opt.id));
           line.append(o);
         }

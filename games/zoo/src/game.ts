@@ -19,11 +19,11 @@ import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStat
 import { ENTRANCE, GuestManager, Keeper, Vendor, type Guest, type GuestWorld, type KeeperPoop, type KeeperTrough, type KeeperWorld, type ShopSpot } from './people';
 import { View, toWorldX, toWorldZ, type TroughMesh } from './view';
 
-export type ToolId = 'hand' | 'terrain' | 'fence' | 'trough' | 'bed' | 'shop' | 'animal' | 'erase';
+export type ToolId = 'hand' | 'broom' | 'terrain' | 'fence' | 'trough' | 'bed' | 'shop' | 'animal' | 'erase';
 type Verdict = 'good' | 'ok' | 'bad';
 type Sex = 'male' | 'female';
 
-const PAINT_TOOLS = new Set<ToolId>(['terrain', 'fence', 'erase']);
+const PAINT_TOOLS = new Set<ToolId>(['terrain', 'fence', 'erase', 'broom']);
 /** Hek slepen (in tegels): na zoveel beweging ligt de richting vast, zoveel opzij is een hoek, en zo ver moet je een rand op zijn. */
 const AXIS_AFTER = 0.3;
 const TURN_AFTER = 0.75;
@@ -205,6 +205,13 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   private escapeIn = between(ESCAPE_FOR_GOAL);
   private celebrating = false;
   private toolsKey = '';
+  /** De knop waarvan de keuzerij nog open staat nadat er iets is neergezet (het handje is dan aan). */
+  private linger: ToolId | null = null;
+  /** Het poepje of afval onder de muis of vinger: dat licht op. */
+  private hoverPoop: PoopObj | null = null;
+  /** Dieren die hulp nodig hebben, de dringendste eerst; en het dier waar de knop je net heen bracht. */
+  private needy: Animal[] = [];
+  private marked: { a: Animal; until: number } | null = null;
   private savedPens: { tile: number; name: string; keeper?: boolean }[] = [];
   /** Tot welk level er modellen zijn; daarna is het vrij spelen. */
   private maxLevel: number;
@@ -241,6 +248,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       tool: (id, row, option) => this.selectTool(id as ToolId, row, option),
       home: () => void this.save().then(onHome),
       goal: i => this.explainGoal(i),
+      need: () => this.gotoNeed(),
     });
     this.guests = new GuestManager(this.view.scene, this);
     if (data) this.load(data);
@@ -480,8 +488,18 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     sfx('cheer', { volume: 0.3, every: 5 });
   }
 
-  guestSound(kind: 'flush' | 'guest.laugh'): void {
+  guestSound(kind: 'flush' | 'guest.laugh' | 'toilet.pee' | 'toilet.poop'): void {
     sfx(kind, { volume: 0.25, every: 5 });
+  }
+
+  messSound(kind: 'poop' | 'pee'): void {
+    // af en toe, niet elke keer: dieren plassen vaak
+    if (kind === 'poop' ? Math.random() < 0.5 : Math.random() < 0.25) sfx(kind === 'poop' ? 'poop.plop' : 'pee.trickle', { volume: 0.3, every: kind === 'poop' ? 8 : 15 });
+  }
+
+  /** Vraagt een level om voeren, dan krijgen dieren sneller trek: zo hoef je daar niet lang op te wachten. */
+  hungerRate(): number {
+    return this.goalOpen('fed') ? 2.5 : 1;
   }
 
   /** Vraagt het level om iets te verkopen, dan krijgen gasten daar drie keer zo snel zin in: zo wacht je niet eindeloos. */
@@ -554,6 +572,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   // ------------------------------------------------------------ knoppen
   private selectTool(id: ToolId, row?: string, option?: string): void {
     this.tool = id;
+    this.linger = null;
     this.moving = null;
     if (row && option && row in this.option) this.option[row as keyof typeof this.option] = option;
     this.hud.hideMenu();
@@ -579,7 +598,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     // de balk wordt alleen opnieuw opgebouwd als er echt iets anders in komt; bij een munt meer of minder
     // verandert alleen het prijskaartje, anders flikkeren de plaatjes van de dieren
     this.hud.setAfford(this.coins);
-    const key = [this.tool, hint, this.level, ...Object.values(this.option)].join('|');
+    const key = [this.tool, this.linger, hint, this.level, ...Object.values(this.option)].join('|');
     if (!force && key === this.toolsKey) return;
     this.toolsKey = key;
 
@@ -588,6 +607,8 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     });
     const defs: ToolDef[] = [
       opt('hand', 'hand', t('tool.hand')),
+      // de veger komt erbij zodra er dieren zijn die kunnen poepen
+      ...(this.level >= 1 ? [opt('broom', 'broom', t('tool.broom'))] : []),
       {
         ...opt('terrain', 'terrain', t('tool.terrain')),
         rows: [{ key: 'terrain', active: this.option.terrain, options: this.terrainOptions().map(k => opt(k, k, t(`terrain.${k}`))) }],
@@ -622,7 +643,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       defs.push({ ...opt('animal', 'paw', t('tool.animal')), rows });
     }
     defs.push(opt('erase', 'erase', t('tool.erase')));
-    this.hud.setTools(defs, this.tool, hint);
+    this.hud.setTools(defs, this.tool, hint, this.linger);
   }
 
   private firstOpenGoal(): number {
@@ -644,12 +665,12 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       case 'path': return 'terrain';
       case 'shop': return 'shop';
       case 'animals': return 'animal';
-      case 'fed':
       case 'cleaned':
+      case 'tidy': return 'broom';
+      case 'fed':
       case 'healed':
       case 'caught':
       case 'keeper':
-      case 'tidy':
       case 'sold':
       case 'coins': return 'hand';
       default: return null;
@@ -1028,7 +1049,11 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
    * volgende tik niet per ongeluk nog iets koopt. Hek, ondergrond en de gum blijven aan: daar veeg je mee.
    */
   private backToHand(): void {
+    const from = this.tool;
     this.selectTool('hand');
+    // de rij met dieren of winkels blijft open staan, zodat je er zo nog een kiest
+    this.linger = from;
+    this.refreshTools(true);
   }
 
   private placeBed(x: number, y: number): void {
@@ -1379,6 +1404,17 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     });
   }
 
+  /** De knop 'dier in nood': het beeld schuift naar het dier dat het hardst hulp nodig heeft en dat licht op. */
+  private gotoNeed(): void {
+    if (!this.needy.length) return;
+    // nog een tik: het volgende dier
+    const at = this.marked ? this.needy.indexOf(this.marked.a) : -1;
+    const a = this.needy[(at + 1) % this.needy.length];
+    this.marked = { a, until: this.clock + 8 };
+    this.view.flyTo(a.gx, a.gy);
+    animalSound(a.species, a.young, 0.8);
+  }
+
   /** Bij een gast zie je hoe het gaat, wat zijn lievelingsdier is en wat hij nu wil. */
   private guestMenu(guest: Guest): void {
     const s = this.view.toScreen(guest.gx, guest.gy, guest.height);
@@ -1445,6 +1481,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   /** Onder de muis: het voorbeeld van wat je gaat plaatsen en de cursor die bij de handeling hoort. */
   private hover(cx: number, cy: number, dragging: boolean): void {
     this.view.hideGhost();
+    this.hoverPoop = null;
     const g = this.view.groundPoint(cx, cy);
     if (!g) return;
     const x = Math.floor(g.gx), y = Math.floor(g.gy);
@@ -1498,8 +1535,12 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
         else if (inside && this.shopAt(x, y)) this.view.ghostShop(this.shopAt(x, y)!.x, this.shopAt(x, y)!.y, this.shopAt(x, y)!.kind, false);
         return this.hud.setCursor(CUR.erase);
       }
+      case 'broom':
+        this.hoverPoop = this.pickPoop(cx, cy) ?? this.pickLitter(cx, cy) ?? null;
+        return this.hud.setCursor(CUR.broom);
       default:
         if (dragging) return this.hud.setCursor(CUR.grabbing);
+        this.hoverPoop = this.pickPoop(cx, cy) ?? this.pickLitter(cx, cy) ?? null;
         if (this.pickLoose(cx, cy)) return this.hud.setCursor(CUR.catch);
         if (this.pickPoop(cx, cy) || this.pickLitter(cx, cy)) return this.hud.setCursor(CUR.broom);
         if (this.pickAnimal(cx, cy)) return this.hud.setCursor(CUR.pet);
@@ -1516,6 +1557,14 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     if (!g) return;
     const first = !along;
     const x = Math.floor(g.gx), y = Math.floor(g.gy);
+    if (this.tool === 'broom') {
+      // vegen: alles waar je overheen gaat is weg
+      const poop = this.pickPoop(cx, cy);
+      if (poop) return this.cleanPoop(poop);
+      const litter = this.pickLitter(cx, cy);
+      if (litter) this.cleanLitter(litter);
+      return;
+    }
     if (this.tool === 'terrain') {
       const terrain = this.option.terrain as Terrain;
       // geen pad door een kraam heen
@@ -1835,6 +1884,21 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       if (!rec || rec.wish !== a.unmet) this.unmet.set(a, { wish: a.unmet, since: this.clock });
       else if (rec.wish && (!worst || this.clock - rec.since > worst.age)) worst = { a, wish: rec.wish, age: this.clock - rec.since };
     }
+    // dieren in nood: ontsnapt, ziek, of al een poosje honger, een vies hok of een open hek
+    const rank = (a: Animal): number => (a.escaped ? 3 : a.sick ? 2 : 1);
+    this.needy = this.animals
+      .filter(a => {
+        if (a.escaped || a.sick) return true;
+        const care = a.unmet === 'health' || (a.unmet === 'enclosure' && !a.needsFence) || a.unmet === 'food' || a.unmet === 'clean';
+        return care && this.clock - (this.unmet.get(a)?.since ?? this.clock) > 20;
+      })
+      .sort((p, q) => rank(q) - rank(p) || q.neglect - p.neglect);
+    const first = this.needy[0];
+    this.hud.setNeed(first ? {
+      icon: speciesIcon(first.species),
+      badge: first.escaped ? icon('catch') : first.unmet ? this.wishIcon(first, first.unmet) : icon('sick'),
+      count: this.needy.length,
+    } : null);
     stats.kinds = Object.values(stats.happy).filter(n => n >= 2).length;
     this.stats = stats;
     if (taken.length) {
@@ -1950,6 +2014,14 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   update(dt: number): void {
     this.clock += dt;
     this.view.update(dt);
+    // wat er oplicht: met de veger alle poepjes en afval, anders alleen wat onder de muis ligt; en het dier in nood
+    const spots: { gx: number; gy: number; r?: number; hot?: boolean }[] = [];
+    const hot = this.hoverPoop && (this.poops.includes(this.hoverPoop) || this.litter.includes(this.hoverPoop)) ? this.hoverPoop : null;
+    if (this.tool === 'broom') for (const p of [...this.poops, ...this.litter]) spots.push({ gx: p.gx, gy: p.gy, hot: p === hot, r: p === hot ? 1.5 : 1 });
+    else if (hot) spots.push({ gx: hot.gx, gy: hot.gy, hot: true, r: 1.4 });
+    if (this.marked && (this.clock > this.marked.until || !this.animals.includes(this.marked.a))) this.marked = null;
+    if (this.marked) spots.push({ gx: this.marked.a.gx, gy: this.marked.a.gy, hot: true, r: 2.6 });
+    this.view.showMarks(spots, this.clock * 5);
     for (const a of this.animals) a.update(dt, this);
     this.guests.update(dt);
     for (const pen of this.pens) pen.keeper?.update(dt, this, pen.region.id);

@@ -54,7 +54,7 @@ export interface GuestWorld {
   /** Ligt er afval op deze tegel? */
   litterOn(tile: number): boolean;
   /** Geluidje bij iets wat een gast doet. */
-  guestSound(kind: 'flush' | 'guest.laugh'): void;
+  guestSound(kind: 'flush' | 'guest.laugh' | 'toilet.pee' | 'toilet.poop'): void;
   /** Vraagt het level om afval op te ruimen? Dan laten gasten ook naast een afvalbak weleens iets vallen. */
   messy(): boolean;
   /** Hoeveel sneller gasten zin krijgen in iets van dit soort kraam: meer als een level erom vraagt. */
@@ -387,6 +387,8 @@ export class Guest {
       const kind = this.shop.kind;
       this.state = kind === 'bench' || kind === 'playground' || kind === 'fountain' || kind === 'carousel' ? 'sit' : 'buy';
       this.timer = kind === 'bench' ? 4.5 : kind === 'playground' ? 6 : kind === 'carousel' ? 8 : kind === 'fountain' ? 4 : kind === 'toilet' ? 3 : 1.8;
+      // op de wc hoor je af en toe wat er achter de deur gebeurt
+      if (kind === 'toilet' && Math.random() < 0.6) w.guestSound(Math.random() < 0.55 ? 'toilet.pee' : 'toilet.poop');
       if (!w.shops.includes(this.shop)) this.timer = 0.2; // de kraam is intussen weggehaald
     } else if (this.face) {
       this.state = 'watch';

@@ -102,7 +102,8 @@
     {
       "id": "flush",
       "seconds": 1.5,
-      "prompt": "A toilet flushing, short and a little cartoonish."
+      "prompt": "A toilet flushing, short and a little cartoonish.",
+      "variants": 3
     },
     {
       "id": "amb.farm",
@@ -928,6 +929,30 @@
       "influence": 0.5,
       "variants": 2,
       "prompt": "A kangaroo joey making a cute, high-pitched soft clicking. Short, clean recording with no background noise."
+    },
+    {
+      "id": "toilet.pee",
+      "seconds": 1.5,
+      "variants": 3,
+      "prompt": "Someone peeing into a toilet bowl behind a closed door: a short trickle of water. Soft, muffled, slightly cartoonish."
+    },
+    {
+      "id": "toilet.poop",
+      "seconds": 1.2,
+      "variants": 3,
+      "prompt": "A short funny cartoon toot followed by a small plop in water, muffled behind a closed door. Soft and playful, for a children's game."
+    },
+    {
+      "id": "poop.plop",
+      "seconds": 0.8,
+      "variants": 3,
+      "prompt": "A tiny comic toot and a soft plop on straw. Very short, quiet and playful, for a children's game."
+    },
+    {
+      "id": "pee.trickle",
+      "seconds": 1.2,
+      "variants": 2,
+      "prompt": "A short trickle of water splashing onto dry ground. Soft and brief, no background noise."
     }
   ]
 }

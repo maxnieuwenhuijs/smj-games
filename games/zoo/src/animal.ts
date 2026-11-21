@@ -26,6 +26,10 @@ export interface AnimalWorld {
   poopsIn(regionId: number): number;
   dropPoop(gx: number, gy: number): void;
   dropPuddle(gx: number, gy: number): void;
+  /** Een dier poept of plast: af en toe hoor je dat. */
+  messSound(kind: 'poop' | 'pee'): void;
+  /** Hoeveel sneller dieren honger krijgen: meer als een level om voeren vraagt. */
+  hungerRate(): number;
   ate(trough: Trough): void;
   /** Hoe snel dieren moeten poepen; sneller als het level om opruimen vraagt. */
   poopRate(): number;
@@ -33,10 +37,10 @@ export interface AnimalWorld {
 
 type State = 'idle' | 'walk' | 'eat' | 'poop' | 'pee' | 'rest' | 'emote';
 
-// Een volle bak (vier porties) houdt twee volwassen dieren ruim vijf minuten zoet; daarna duurt het nog
-// een paar minuten voor ze echt honger hebben. Jongen eten mee zonder dat de bak er leger van wordt, en
+// Een volle bak (vier porties) houdt twee volwassen dieren ongeveer twaalf minuten zoet; daarna duurt het
+// nog een paar minuten voor ze echt honger hebben. Jongen eten mee zonder dat de bak er leger van wordt, en
 // poepen niet. Zo wordt het zorgen niet zwaarder als er jongen bij komen.
-const HUNGER_PER_SEC = 1 / 400;
+const HUNGER_PER_SEC = 1 / 900;
 const NEED_KIND: Record<FenceNeed, number> = { wall: 3, net: 4 };
 /** Zo hoog ligt een dier dat op zijn slaapplek slaapt: boven op de rots of het stro, niet erin. */
 const BED_LIFT: Record<string, number> = { straw: 0.1, shed: 0.1, rock: 0.22, nest: 0.07, cave: 0.03 };
@@ -326,7 +330,7 @@ export class Animal {
 
   update(dt: number, w: AnimalWorld): void {
     this.model.mixer.update(dt);
-    this.hunger = Math.min(1, this.hunger + dt * HUNGER_PER_SEC * (this.young ? 0.5 : 1));
+    this.hunger = Math.min(1, this.hunger + dt * HUNGER_PER_SEC * w.hungerRate() * (this.young ? 0.5 : 1));
     this.poopIn -= dt * w.poopRate();
 
     if (this.state === 'walk') {
@@ -384,6 +388,7 @@ export class Animal {
         // nooit buiten het eigen verblijf laten vallen
         if (!w.grid.inBounds(Math.floor(px), Math.floor(py)) || w.grid.regionOf[tileIndex(Math.floor(px), Math.floor(py))] !== w.grid.regionOf[this.tile])
           [px, py] = [this.gx, this.gy];
+        w.messSound(this.state);
         if (this.state === 'poop') w.dropPoop(px, py);
         else w.dropPuddle(px, py);
       }

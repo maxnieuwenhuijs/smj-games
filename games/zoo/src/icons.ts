@@ -294,7 +294,10 @@ export function icon(name: IconId, cls = ''): string {
 }
 
 /** Het plaatje als muiscursor. (hx, hy) is het punt waarmee je aanwijst. */
+const CURSOR_PX = 48;
 export function cursor(name: IconId, hx = 16, hy = 16, fallback = 'pointer'): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 48 48">${ICONS[name]}</svg>`;
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${hx} ${hy}, ${fallback}`;
+  // anderhalf keer zo groot als een gewone cursor, zodat een kind goed ziet wat een tik gaat doen
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${CURSOR_PX}" height="${CURSOR_PX}" viewBox="0 0 48 48">${ICONS[name]}</svg>`;
+  const k = CURSOR_PX / 32;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${Math.round(hx * k)} ${Math.round(hy * k)}, ${fallback}`;
 }

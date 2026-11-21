@@ -33,6 +33,8 @@
   "lang.en": "English",
 
   "tool.hand": "Hand",
+  "tool.broom": "Broom",
+  "need": "Go to the animal that needs help",
   "tool.terrain": "Ground",
   "tool.fence": "Fence",
   "tool.trough": "Trough",

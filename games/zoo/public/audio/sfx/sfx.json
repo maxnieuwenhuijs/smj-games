@@ -304,7 +304,9 @@
   "fence-1-1fa13d.mp3"
  ],
  "flush": [
-  "flush-1-5c0550.mp3"
+  "flush-1-5c0550.mp3",
+  "flush-2-5c0550.mp3",
+  "flush-3-5c0550.mp3"
  ],
  "guest.chat": [
   "guest.chat-1-6d2a38.mp3",
@@ -375,8 +377,17 @@
  "paint": [
   "paint-1-b35234.mp3"
  ],
+ "pee.trickle": [
+  "pee.trickle-1-7ba168.mp3",
+  "pee.trickle-2-7ba168.mp3"
+ ],
  "place": [
   "place-1-8773c4.mp3"
+ ],
+ "poop.plop": [
+  "poop.plop-1-91f7a1.mp3",
+  "poop.plop-2-91f7a1.mp3",
+  "poop.plop-3-91f7a1.mp3"
  ],
  "pour": [
   "pour-1-b9eb8e.mp3"
@@ -392,6 +403,16 @@
  ],
  "tap": [
   "tap-1-c1f3ab.mp3"
+ ],
+ "toilet.pee": [
+  "toilet.pee-1-df28dc.mp3",
+  "toilet.pee-2-df28dc.mp3",
+  "toilet.pee-3-df28dc.mp3"
+ ],
+ "toilet.poop": [
+  "toilet.poop-1-a79382.mp3",
+  "toilet.poop-2-a79382.mp3",
+  "toilet.poop-3-a79382.mp3"
  ],
  "young.alpaca": [
   "young.alpaca-1-8b4cdc.mp3",
