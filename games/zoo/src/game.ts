@@ -24,6 +24,16 @@ export type ToolId = 'hand' | 'action' | 'terrain' | 'fence' | 'trough' | 'bed' 
 type Verdict = 'good' | 'ok' | 'bad';
 type Sex = 'male' | 'female';
 
+/**
+ * De balk in groepjes, van links naar rechts: doen (handje, actie, weghalen), grond (ondergrond en hek),
+ * dieren (dier en wat in het verblijf hoort) en dierentuin (winkels, versiering, personeel).
+ */
+const TOOL_GROUPS: [string, ToolId[]][] = [
+  ['do', ['hand', 'action', 'erase']],
+  ['land', ['terrain', 'fence']],
+  ['animal', ['animal', 'trough', 'bed', 'toy']],
+  ['park', ['shop', 'decor', 'staff']],
+];
 const PAINT_TOOLS = new Set<ToolId>(['terrain', 'fence', 'erase', 'action']);
 /** Hek slepen (in tegels): na zoveel beweging ligt de richting vast, zoveel opzij is een hoek, en zo ver moet je een rand op zijn. */
 const AXIS_AFTER = 0.3;
@@ -790,7 +800,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         rows: [{ key: 'staff', active: this.option.staff, options: (['feed', 'clean'] as const).map(r => ({ id: r, icon: icon(r === 'feed' ? 'feed' : 'broom'), label: t(`staff.${r}`), price: WAGE, per: true })) }],
       });
     defs.push(opt('erase', 'erase', t('tool.erase')));
-    this.hud.setTools(defs, this.tool, hint, this.linger);
+    const grouped = TOOL_GROUPS.flatMap(([group, ids]) => ids.flatMap(id => defs.filter(d => d.id === id).map(d => ({ ...d, group }))));
+    this.hud.setTools(grouped, this.tool, hint, this.linger);
   }
 
   /** Wat er onder de actieknop zit: de veger altijd, de prikker zodra er afval komt, de hamer zodra hekken slijten. */

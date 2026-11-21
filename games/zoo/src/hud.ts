@@ -24,6 +24,8 @@ export interface ToolOption {
   on?: boolean;
 }
 export interface ToolDef extends ToolOption {
+  /** Het groepje in de balk waar de knop bij hoort; knoppen van één groep staan samen in een gekleurd vak. */
+  group?: string;
   /** Rijen met keuzes die boven de knop verschijnen als hij aan staat. */
   rows?: { key: string; active: string; options: ToolOption[] }[];
 }
@@ -159,6 +161,11 @@ export class Hud {
     this.rowsOf = open ?? active;
     this.toolbar.replaceChildren();
     this.options.replaceChildren();
+    // hoe meer knoppen, hoe smaller ze worden, zodat alles naast elkaar past
+    this.toolbar.classList.toggle('some', defs.length >= 8);
+    this.toolbar.classList.toggle('many', defs.length >= 10);
+    this.toolbar.classList.toggle('full', defs.length >= 12);
+    let box: HTMLElement | null = null;
     for (const def of defs) {
       const b = button(def, '');
       b.dataset.tool = def.id;
@@ -166,7 +173,13 @@ export class Hud {
       b.classList.toggle('open', def.id === open);
       b.classList.toggle('hint', def.id === hint && def.id !== active);
       b.addEventListener('click', () => this.on.tool(def.id));
-      this.toolbar.append(b);
+      // een nieuw vak zodra de groep wisselt
+      if (!box || box.dataset.group !== (def.group ?? '')) {
+        box = el('div', 'grp');
+        box.dataset.group = def.group ?? '';
+        this.toolbar.append(box);
+      }
+      box.append(b);
       if (def.id !== (open ?? active)) continue;
       for (const row of def.rows ?? []) {
         const line = el('div', 'row');

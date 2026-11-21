@@ -264,6 +264,19 @@ Als vuistregel heb je per 10 gasten een eetkraam en een drinkkraam nodig, per 8 
 - Een blij paar krijgt om de anderhalve minuut een jong. Zijn er al twee jongen, dan verhuist de oudste naar een andere dierentuin en krijg je 2 munten.
 - Terugverdienen: heeft het park net veel uitgegeven, dan krijgen gasten wat sneller trek. Zo is een aankoop binnen een paar minuten terugverdiend, zolang de gasten tevreden zijn.
 
+## De knoppenbalk in groepjes
+
+De knoppen onderaan staan in vier vakken, elk met een eigen lichte kleur en een randje, met wat ruimte ertussen. Zo zie je wat bij elkaar hoort, ook als je niet kunt lezen.
+
+| Vak | Kleur | Knoppen |
+|---|---|---|
+| Doen | Wit | Hand, Actie (veger, hamer, prikker), Weg |
+| Grond | Groen | Grond, Hek |
+| Dieren | Oranje | Dier, Voerbak, Slaapplek, Speelgoed |
+| Dierentuin | Blauw | Winkel, Mooi, Personeel |
+
+Knoppen die er in een level nog niet zijn, staan er niet; een vak zonder knoppen ook niet. Hoe meer knoppen, hoe smaller ze worden, zodat alles op één rij blijft. De volgorde staat bovenaan `games/zoo/src/game.ts` (`TOOL_GROUPS`).
+
 ## Terug naar het handje
 
 Na het neerzetten van een voerbak, slaapplek, winkel of dier staat het handje weer aan. Zo koopt een volgende tik niet per ongeluk nog iets. De rij met dieren, winkels of slaapplekken blijft wel open staan, met de laatste keuze omlijnd: een tik op een dier in die rij zet de knop weer aan, een tik op het handje sluit de rij. Hek, ondergrond (ook pad) en de gum blijven aan staan: daar veeg je mee. Lukt het neerzetten niet (verkeerde plek, te weinig munten), dan blijft de knop aan.
