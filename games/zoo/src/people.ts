@@ -57,6 +57,8 @@ export interface GuestWorld {
   guestSound(kind: 'flush' | 'guest.laugh'): void;
   /** Vraagt het level om afval op te ruimen? Dan laten gasten ook naast een afvalbak weleens iets vallen. */
   messy(): boolean;
+  /** Hoeveel sneller gasten zin krijgen in iets van dit soort kraam: meer als een level erom vraagt. */
+  craving(kind: ShopKind): number;
 }
 
 // ------------------------------------------------------------ poppetje
@@ -498,14 +500,14 @@ export class Guest {
   update(dt: number, w: GuestWorld, list: number[], reach: Set<number>): void {
     this.age += dt;
     const demand = w.demand();
-    if (w.sells('foodstall') && !this.bought.foodstall) this.hunger = Math.min(1, this.hunger + (dt / 160) * demand);
-    if (w.sells('drinkstall') && !this.bought.drinkstall) this.thirst = Math.min(1, this.thirst + (dt / 130) * demand);
+    if (w.sells('foodstall') && !this.bought.foodstall) this.hunger = Math.min(1, this.hunger + (dt / 160) * demand * w.craving('foodstall'));
+    if (w.sells('drinkstall') && !this.bought.drinkstall) this.thirst = Math.min(1, this.thirst + (dt / 130) * demand * w.craving('drinkstall'));
     if (w.sells('toilet')) this.bladder = Math.min(1, this.bladder + dt / 170);
-    if (w.sells('icecream') && !this.bought.icecream) this.treat = Math.min(1, this.treat + (dt / 190) * demand);
-    if (w.sells('balloon') && this.wantsBalloon && !this.bought.balloon) this.balloon = Math.min(1, this.balloon + (dt / 85) * demand);
-    if (w.sells('hats') && this.wantsHat && !this.bought.hats) this.hat = Math.min(1, this.hat + (dt / 75) * demand);
+    if (w.sells('icecream') && !this.bought.icecream) this.treat = Math.min(1, this.treat + (dt / 190) * demand * w.craving('icecream'));
+    if (w.sells('balloon') && this.wantsBalloon && !this.bought.balloon) this.balloon = Math.min(1, this.balloon + (dt / 85) * demand * w.craving('balloon'));
+    if (w.sells('hats') && this.wantsHat && !this.bought.hats) this.hat = Math.min(1, this.hat + (dt / 75) * demand * w.craving('hats'));
     if (w.sells('bench')) this.tired = Math.min(1, this.tired + dt / 180);
-    if (w.sells('souvenir') && !this.bought.souvenir) this.gift = Math.min(1, this.gift + (dt / 120) * demand);
+    if (w.sells('souvenir') && !this.bought.souvenir) this.gift = Math.min(1, this.gift + (dt / 120) * demand * w.craving('souvenir'));
     if (w.sells('playground') && this.child) this.playful = Math.min(1, this.playful + dt / 90);
     if (w.sells('fountain')) this.curious = Math.min(1, this.curious + dt / 120);
     if (w.sells('carousel')) this.rideWish = Math.min(1, this.rideWish + dt / (this.child ? 70 : 170));

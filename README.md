@@ -68,6 +68,13 @@ await T.run(50);
 T.log;
 ```
 
+Tellen hoeveel berichten de figuren geven (in een bestaand park, plek 2, vijf minuten speltijd):
+
+```js
+const { measure } = await import('/@fs/<pad naar deze map>/tools/playtest/berichten.js');
+await measure(1, 5);
+```
+
 ## Publiceren
 
 Elke push naar `main` bouwt de site en zet hem op GitHub Pages (zie `.github/workflows/deploy.yml`).

@@ -96,13 +96,29 @@ Een dier dat gaat slapen, loopt naar zijn slaapplek en gaat er midden bovenop li
 ## Zorgen heeft gevolgen
 
 1. Een dier dat iets mist, toont een wolkje met wat het wil.
-2. Na ongeveer een minuut kleurt het wolkje oranje en waarschuwt de verzorger met een dringend gezicht.
-3. Na ongeveer tweeënhalve minuut zonder zorg haalt de verzorger één dier op (naar de opvang). De andere dieren in dat verblijf krijgen nog een kans.
+2. Na ongeveer tweeënhalve minuut kleurt het wolkje oranje en waarschuwt de verzorger met een dringend gezicht.
+3. Na ongeveer zes minuten zonder zorg haalt de verzorger één dier op (naar de opvang). De andere dieren in dat verblijf krijgen nog een kans.
 4. Het verblijf gaat daarna 45 seconden dicht: er mogen even geen nieuwe dieren in. Zolang hangt er een bordje 'dicht' boven.
 
 Ziek zijn, ontsnapt zijn, een open hek, honger en een vies hok tellen zwaar. Het soort hek, ondergrond, slaapplek en een vriendje tellen licht. De tijden staan bovenaan `games/zoo/src/game.ts`.
 
 Hoe vaak je moet zorgen: een volle voerbak houdt twee volwassen dieren ruim vijf minuten zoet, en een verblijf met twee dieren is pas na ongeveer een kwartier vies: een volwassen dier poept eens in de zes tot negen minuten, en de dieren vinden het vies vanaf vier poepjes. Vraagt een level om opruimen, dan poepen ze vier keer zo vaak, zodat dat doel niet lang duurt. Jongen eten mee zonder dat de bak leger wordt en poepen niet. Zo is een boerderij met tien verblijven met de hand bij te houden. Wordt het park groter, dan zijn er verzorgers. Wordt er een dier opgehaald uit een verblijf zonder verzorger, dan geeft de verzorger de tip om hulp aan te nemen.
+
+## Rust: hoe vaak de figuren praten
+
+Een kind mag zich niet opgejaagd voelen. Daarom:
+
+- Tussen twee meldingen die een figuur uit zichzelf geeft, zit minstens een minuut. Antwoorden op wat je zelf doet (verkeerd voer, te weinig munten) komen wel meteen.
+- Een wens moet een halve minuut openstaan voordat een figuur erover begint; iets wat kan wachten (slaapplek, ondergrond, vriendje, soort hek) een minuut. Het wolkje boven het dier is er wel meteen.
+- Dezelfde melding komt pas na drie minuten terug; "de gasten vervelen zich" en "iemand vraagt om iets wat je niet verkoopt" na vijf.
+- "Er is een jong geboren" en "verhuist naar een andere dierentuin" hoor je hooguit eens in de twee minuten; het hartje en de naam boven het dier zie je elke keer.
+- Een dier wordt pas na zes minuten zonder zorg opgehaald (was tweeënhalve minuut); het wolkje kleurt na tweeënhalve minuut oranje.
+- Buiten de levels die erom vragen wordt een dier eens in de drie tot vijf minuten ziek en ontsnapt er eens in de vijf tot zeven minuten een.
+- Het praatvenster schudt niet meer bij een dringende melding en het rode wolkje pulseert langzaam.
+
+Ook wachten hoort bij rust: vraagt een level om iets te verkopen (bijvoorbeeld vier knuffels), dan krijgen gasten daar drie keer zo snel zin in. Het level met de knuffels duurde bij de proefspeler eerst tot bijna tien minuten, nu drie. En vraagt een level om een ziek of ontsnapt dier, dan hoef je daar hooguit een minuut op te wachten.
+
+Gemeten met `tools/playtest/berichten.js` in een park met 80 dieren zonder verzorgers waar de speler vijf minuten niets doet: eerst 121 berichten, nu 10. (In die meting kost praten geen tijd; in het echte spel waren het er eerst hooguit ongeveer 35.) De getallen staan bovenaan `games/zoo/src/game.ts` (`ALERT_GAP`, `ALERT_AFTER`, `REPEAT_AFTER`, `NEGLECT_WARN`, `NEGLECT_GONE`).
 
 ## Gebeurtenissen
 

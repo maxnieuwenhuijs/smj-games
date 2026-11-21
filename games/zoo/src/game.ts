@@ -30,15 +30,23 @@ const TURN_AFTER = 0.75;
 const EDGE_REACH = 0.35;
 const TROUGH_PORTIONS = 4;
 /** Verwaarlozing in seconden: eerst waarschuwen, daarna haalt de verzorger het dier op. */
-const NEGLECT_WARN = 60;
-const NEGLECT_GONE = 150;
+const NEGLECT_WARN = 150;
+const NEGLECT_GONE = 360;
+/**
+ * Rust: de figuren praten niet de hele tijd. Tussen twee meldingen uit zichzelf zit minstens ALERT_GAP
+ * seconden, een wens moet al ALERT_AFTER seconden openstaan (iets wat kan wachten, zoals een slaapplek,
+ * twee keer zo lang) en dezelfde melding komt pas na REPEAT_AFTER seconden terug.
+ */
+const ALERT_GAP = 60;
+const ALERT_AFTER = 30;
+const REPEAT_AFTER = 180;
 const PEN_CLOSED_SECONDS = 45;
 /** Zo lang moeten een jongen en een meisje samen blij zijn voor er een jong komt. */
 const BIRTH_SECONDS = 50;
 /** Om de zoveel seconden wordt er een dier ziek of ontsnapt er een; vaker als het level erom vraagt. */
-const SICK_EVERY: [number, number] = [110, 170];
+const SICK_EVERY: [number, number] = [200, 320];
 const SICK_FOR_GOAL: [number, number] = [35, 55];
-const ESCAPE_EVERY: [number, number] = [160, 240];
+const ESCAPE_EVERY: [number, number] = [280, 420];
 const ESCAPE_FOR_GOAL: [number, number] = [45, 70];
 const MAX_LITTER = 12;
 const SEX_COLOR: Record<Sex, number> = { male: 0x4a90e2, female: 0xf06aa6 };
@@ -209,6 +217,8 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   private lines: Line[] = [];
   private said = new Map<string, number>();
   private quietUntil = 0;
+  /** Tot dit moment komt er uit zichzelf geen nieuwe melding. */
+  private calmUntil = 0;
   private goalIdx = -2;
   private unmet = new Map<Animal, { wish: WishId | null; since: number }>();
   private reacted = new Map<Animal, number>();
@@ -414,14 +424,14 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       this.floatAt(icon('coin'), gx, gy, 0.7, 'coin');
       sfx('coin', { volume: 0.7, every: 0.12 });
     }
-    if (before < COIN_CAP && this.coins >= COIN_CAP) this.alert(say.cash('full'), 60);
+    if (before < COIN_CAP && this.coins >= COIN_CAP) this.alert(say.cash('full'), 600);
   }
 
   /** Betalen. Lukt het niet, dan zegt de kassier waarom. */
   private pay(cost: number, gx: number, gy: number): boolean {
     if (this.coins < cost) {
       this.nope(gx, gy);
-      this.sayNow(say.cash('short'));
+      if (this.clock - (this.said.get('cash.short') ?? -999) > 20) this.sayNow(say.cash('short'));
       return false;
     }
     this.coins -= cost;
@@ -474,6 +484,13 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     sfx(kind, { volume: 0.25, every: 5 });
   }
 
+  /** Vraagt het level om iets te verkopen, dan krijgen gasten daar drie keer zo snel zin in: zo wacht je niet eindeloos. */
+  craving(kind: ShopKind): number {
+    const asked = this.levelDef()?.goals.some(g =>
+      g.type === 'sold' && goalProgress(g, this.stats) < g.n && (g.product ? PRODUCTS.find(p => p.id === g.product)?.shop === kind : !g.shop || g.shop === kind));
+    return asked ? 3 : 1;
+  }
+
   messy(): boolean {
     return this.goalOpen('tidy');
   }
@@ -509,7 +526,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     sfx('guest.uhoh', { volume: 0.8, every: 1 });
     this.floatAt(icon('smile_bad'), guest.gx, guest.gy, guest.height + 0.2);
     for (const q of this.guests.guests) if (q !== guest && Math.hypot(q.gx - guest.gx, q.gy - guest.gy) < 2.5) q.fun = Math.max(0, q.fun - 0.08);
-    this.alert(say.host('accident'), 50);
+    this.alert(say.host('accident'), REPEAT_AFTER);
   }
 
   /** Wat een gast op deze padtegel te zien krijgt: het leukste verblijf ernaast. */
@@ -683,7 +700,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   /** Bij nood roept de verzorger de speler bij zijn naam, maar hooguit eens in de drie minuten. */
   private callForHelp(key: string): void {
     const line = this.named(key);
-    if (!line || this.clock - this.calledAt < 180) return;
+    if (!line || this.clock - this.calledAt < 300) return;
     this.calledAt = this.clock;
     this.lines.unshift(line);
   }
@@ -709,11 +726,18 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
   }
 
   /** Een melding die mag wachten: alleen als het stil is en hij niet net al gezegd is. */
-  private alert(line: Line, cooldown = 45): void {
-    if (this.hud.speaking || this.lines.length || this.clock < this.quietUntil || this.celebrating) return;
+  private alert(line: Line, cooldown = REPEAT_AFTER): void {
+    if (this.hud.speaking || this.lines.length || this.clock < Math.max(this.quietUntil, this.calmUntil) || this.celebrating) return;
     const last = this.said.get(line.id ?? line.key);
     if (last !== undefined && this.clock - last < cooldown) return;
+    this.calmUntil = this.clock + ALERT_GAP;
     this.sayNow(line);
+  }
+
+  /** Leuk nieuws dat in de rij mag: hooguit eens in de zoveel seconden, anders hoor je bij elk jong een stem. */
+  private mention(line: Line, gap = 120): void {
+    if (this.clock - (this.said.get(line.id ?? line.key) ?? -999) < gap || this.lines.some(l => l.key === line.key)) return;
+    this.lines.push(line);
   }
 
   private introduceLevel(): void {
@@ -1166,7 +1190,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
         const young = same.filter(a => a.young);
         if (young.length >= 2) {
           const grown = young[0];
-          this.lines.push(say.grown(grown.name));
+          this.mention(say.grown(grown.name));
           this.earn(2, grown.gx, grown.gy);
           this.removeAnimal(grown);
         }
@@ -1177,7 +1201,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
         sfx('born');
         this.floatAt(icon('born'), baby.gx, baby.gy, baby.top + 0.4);
         this.floatAt(baby.name, baby.gx, baby.gy, baby.top + 0.1, `word ${sexOf(baby) === 'male' ? 'boy' : 'girl'}`);
-        this.lines.push(say.born(baby.name));
+        this.mention(say.born(baby.name));
       }
     }
   }
@@ -1235,6 +1259,8 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
 
   private events(dt: number): void {
     if (this.has('sick')) {
+      // vraagt het level erom, dan hoef je er niet lang op te wachten
+      if (this.goalOpen('healed')) this.sickIn = Math.min(this.sickIn, SICK_FOR_GOAL[1]);
       this.sickIn -= dt;
       if (this.sickIn <= 0) {
         this.sickIn = between(this.goalOpen('healed') ? SICK_FOR_GOAL : SICK_EVERY);
@@ -1242,6 +1268,7 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       }
     }
     if (this.has('escape')) {
+      if (this.goalOpen('caught')) this.escapeIn = Math.min(this.escapeIn, ESCAPE_FOR_GOAL[1]);
       this.escapeIn -= dt;
       if (this.escapeIn <= 0) {
         this.escapeIn = between(this.goalOpen('caught') ? ESCAPE_FOR_GOAL : ESCAPE_EVERY);
@@ -1820,7 +1847,8 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
     this.hud.setWallet(this.coins, COIN_CAP, this.has('paths') ? crowd.total : null);
 
     // een dier wacht al een poos op iets: de verzorger of de bouwer zegt wat er aan de hand is
-    if (worst && worst.age > 10) {
+    const light = worst && (worst.wish === 'bed' || worst.wish === 'terrain' || worst.wish === 'friend' || (worst.wish === 'enclosure' && !!worst.a.needsFence));
+    if (worst && worst.age > (light ? ALERT_AFTER * 2 : ALERT_AFTER)) {
       const { a, wish } = worst;
       this.alert(a.escaped ? say.escaped(t, a.species) : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN));
       if (a.neglect > NEGLECT_WARN * 1.5 && !this.hud.speaking) this.callForHelp('name.help.1');
@@ -1835,12 +1863,12 @@ export class Game implements AnimalWorld, GuestWorld, KeeperWorld {
       else lack[q.wish.kind] = (lack[q.wish.kind] ?? 0) + 1;
     }
     if (crowd.total && !this.said.has('host.first')) this.alert(say.host('first', 'happy'), 1e9);
-    else if (lack.toilet) this.alert(say.host('toilet'), 60);
-    else if (lack.food) this.alert(say.host('food'), 60);
-    else if (lack.drink) this.alert(say.host('drink'), 60);
-    else if (picky) this.alert(say.host('product'), 90);
-    else if (this.litter.length >= 4) this.alert(say.host('litter'), 75);
-    else if (crowd.total >= 3 && crowd.happy * 3 < crowd.total) this.alert(say.host('sad'), 90);
+    else if (lack.toilet) this.alert(say.host('toilet'));
+    else if (lack.food) this.alert(say.host('food'));
+    else if (lack.drink) this.alert(say.host('drink'));
+    else if (picky) this.alert(say.host('product'), 300);
+    else if (this.litter.length >= 6) this.alert(say.host('litter'), 240);
+    else if (crowd.total >= 3 && crowd.happy * 3 < crowd.total) this.alert(say.host('sad'), 300);
 
     this.refreshTools();
     const level = this.levelDef();
