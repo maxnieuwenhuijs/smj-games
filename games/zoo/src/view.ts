@@ -2380,6 +2380,56 @@ export class View {
 
   // ------------------------------------------------------------ effecten
   /** Witte gloed over een stel tegels, bijvoorbeeld als een hek een verblijf is geworden. */
+  private glow: THREE.InstancedMesh | null = null;
+  private glowLine: THREE.InstancedMesh | null = null;
+  private glowKey = '';
+  private glowMat = new THREE.MeshBasicMaterial({ color: 0xfff6c8, transparent: true, opacity: 0, depthWrite: false });
+  private glowLineMat = new THREE.MeshBasicMaterial({ color: 0xfffbe6, transparent: true, opacity: 0, depthWrite: false });
+  private glowLineGeo = new THREE.BoxGeometry(1.1, 0.01, 0.2).translate(0.5, 0, 0);
+
+  /**
+   * Het verblijf dat je aanwijst of gekozen hebt licht heel zacht op: een licht waasje over de tegels en een dun
+   * lichtrandje onder het hek (`edges`). `strength` is hoe goed je het ziet (0 tot 1); het ademt een klein beetje
+   * mee met `t`. Zonder tegels is het weg.
+   */
+  highlight(tiles: number[] | null, edges: Edge[] = [], strength = 1, t = 0): void {
+    const key = tiles ? `${tiles.length}:${tiles[0]}:${tiles[tiles.length - 1]}:${edges.length}` : '';
+    if (key !== this.glowKey) {
+      this.glowKey = key;
+      for (const old of [this.glow, this.glowLine])
+        if (old) {
+          this.scene.remove(old);
+          old.dispose();
+        }
+      this.glow = this.glowLine = null;
+      if (tiles?.length) {
+        const m = new THREE.Matrix4();
+        this.glow = new THREE.InstancedMesh(this.flashGeo, this.glowMat, tiles.length);
+        tiles.forEach((i, k) => {
+          const [x, y] = tileXY(i);
+          this.glow!.setMatrixAt(k, m.makeTranslation(toWorldX(x + 0.5), 0.016, toWorldZ(y + 0.5)));
+        });
+        const line = (this.glowLine = new THREE.InstancedMesh(this.glowLineGeo, this.glowLineMat, Math.max(1, edges.length)));
+        const turn = new THREE.Matrix4();
+        edges.forEach((e, k) => {
+          // dezelfde plek en draaiing als het hek zelf (zie placeEdge)
+          turn.makeRotationY(e.o === 'v' ? -Math.PI / 2 : 0);
+          line.setMatrixAt(k, m.makeTranslation(toWorldX(e.x), 0.02, toWorldZ(e.y)).multiply(turn));
+        });
+        line.count = edges.length;
+        for (const mesh of [this.glow, line]) {
+          mesh.renderOrder = 3;
+          mesh.frustumCulled = false;
+          this.scene.add(mesh);
+        }
+      }
+    }
+    if (!this.glow) return;
+    const breath = 1 + 0.12 * Math.sin(t * 2.4);
+    this.glowMat.opacity = strength * 0.13 * breath;
+    this.glowLineMat.opacity = strength * 0.6 * breath;
+  }
+
   flash(tiles: number[]): void {
     const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false });
     const meshes = tiles.map(i => {

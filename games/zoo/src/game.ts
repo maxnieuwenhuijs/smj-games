@@ -1470,7 +1470,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     for (const d of this.decors) this.view.animateDecor(d.mesh, d.kind, t, d.x * 2 + d.y);
   }
 
+  /** Het verblijf onder de muis (met het handje) en het verblijf waarvan het menu open staat: die lichten zacht op. */
+  private hoverPen: Pen | null = null;
+  private menuPen: Pen | null = null;
+
   private penMenu(pen: Pen): void {
+    this.menuPen = pen;
     const s = this.view.toScreen(pen.cx, pen.cy, 0.5);
     const opt = (id: string, ic: IconId, key: string, price = 0): ToolOption => ({ id, icon: icon(ic), label: t(key), price: price || undefined, cant: price > this.coins });
     const items = [opt('color', 'paint', 'pen.color'), opt('rename', 'dice', 'pen.rename')];
@@ -2529,6 +2534,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.staffGhost) this.staffGhost.worker.mesh.visible = false;
     this.hoverPoop = null;
     this.hoverWorn = null;
+    this.hoverPen = null;
     const g = this.view.groundPoint(cx, cy);
     if (!g) return;
     const x = Math.floor(g.gx), y = Math.floor(g.gy);
@@ -2627,7 +2633,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         if (this.pickAnimal(cx, cy)) return this.hud.setCursor(CUR.pet);
         if (this.pick(this.guests.guests, cx, cy, q => q.height * 0.6, 0.4)) return this.hud.setCursor(CUR.menu);
         if (inside && (this.troughAt(x, y) || this.shopAt(x, y))) return this.hud.setCursor(inside && this.troughAt(x, y) ? CUR.feed : CUR.menu);
-        if (inside && this.penAt(x, y)) return this.hud.setCursor(CUR.menu);
+        if (inside && this.penAt(x, y)) {
+          // een tik hier opent het menu van het verblijf: het licht alvast zacht op (niet op speelgoed, daar tik je op)
+          if (!this.toyAt(x, y) && !this.bedAt(x, y)) this.hoverPen = this.penAt(x, y) ?? null;
+          return this.hud.setCursor(CUR.menu);
+        }
         return this.hud.setCursor(CUR.grab);
     }
   }
@@ -2915,6 +2925,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       this.view.zoomBy(e.deltaY > 0 ? 1.1 : 0.9);
     }, { passive: false });
     canvas.addEventListener('pointerleave', () => {
+      this.hoverPen = null;
       this.view.hideGhost();
       if (this.staffGhost) this.staffGhost.worker.mesh.visible = false;
     });
@@ -2923,6 +2934,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       canvas.setPointerCapture(e.pointerId);
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       this.hud.hideMenu();
+      this.menuPen = null;
       this.lastInput = this.clock;
       this.hideHand();
       if (this.pointers.size === 2) {
@@ -3732,6 +3744,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.marked && (this.clock > this.marked.until || !this.animals.includes(this.marked.a))) this.marked = null;
     if (this.marked) spots.push({ gx: this.marked.a.gx, gy: this.marked.a.gy, hot: true, r: 2.6 });
     this.view.showMarks(spots, this.clock * 5);
+    // het gekozen verblijf (menu open) licht iets duidelijker op dan het verblijf dat je alleen aanwijst
+    if (this.menuPen && (!this.hud.menuOpen || !this.pens.includes(this.menuPen))) this.menuPen = null;
+    if (this.hoverPen && (this.tool !== 'hand' || this.moving || !this.pens.includes(this.hoverPen))) this.hoverPen = null;
+    const lit = this.menuPen ?? this.hoverPen;
+    this.view.highlight(lit ? lit.region.tiles : null, lit ? this.grid.borderEdges(lit.region) : [], this.menuPen ? 1 : 0.6, this.clock);
     for (const a of this.animals) a.update(dt, this);
     this.guests.update(dt);
     this.animateToys();

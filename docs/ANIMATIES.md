@@ -14,7 +14,7 @@ De volledige lijst van de dierentuin: per onderdeel wat je ermee kunt doen (tikk
 | Werker | Kleur van het pak kiezen, karretje kopen (**nieuw**), naar huis sturen. |
 | Voerbak | Voer kiezen. |
 | Speelgoed, heuvel, klimrek, tunnel, drinkvijver | Het veert op en een dier komt ermee spelen, erop klimmen, erdoorheen rennen of drinken (**deels nieuw**). |
-| Verblijf | Kleur van het hek, andere naam, leegmaken. |
+| Verblijf | Het verblijf licht heel zacht op als je het aanwijst en zolang het menu open staat (**nieuw**). Menu: kleur van het hek, andere naam, leegmaken. |
 | Kraam | Kiezen wat hij verkoopt, of draaien. |
 | Vieze kraam | Met de veger: schoonvegen, 1 munt (**nieuw**). |
 | Bankje, bloembak, afvalbak | Omdraaien; afval in de bak doen. |
