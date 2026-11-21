@@ -118,6 +118,12 @@ export const T = {
     this.home[sp] = n;
     this.order.push(sp);
     this.terrain(slot.x0, slot.y0, slot.x1, slot.y1, info.terrain);
+    // de mix: twee tegels per extra soort grond, op plekken waar geen voerbak, slaapplek of speelgoed komt
+    (data.ALSO?.[sp] ?? []).forEach((kind, i) => {
+      const tiles = i === 0 ? [[slot.x1, slot.y1], [slot.x0 + 1, slot.y1]] : [[slot.x0, slot.y1], [slot.x0, slot.y0 + 1]];
+      for (const [x, y] of tiles) z().grid.setTerrain(x, y, TERRAINS.indexOf(kind));
+    });
+    z().view.paintTerrain(z().grid);
     this.fence(slot, info.need ? KIND[info.need] : 1);
     this.furnish(sp);
     return slot;

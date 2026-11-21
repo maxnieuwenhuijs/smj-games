@@ -1,5 +1,5 @@
 // Alle spelinhoud als gegevens: soorten, voer, ondergrond, slaapplekken, winkels, prijzen en levels.
-export type Terrain = 'grass' | 'mud' | 'sand' | 'water' | 'path' | 'snow' | 'forest';
+export type Terrain = 'grass' | 'mud' | 'sand' | 'water' | 'path' | 'snow' | 'forest' | 'stones' | 'ice' | 'swamp' | 'meadow' | 'steppe';
 export type FoodId = 'veg' | 'hay' | 'fruit' | 'grain' | 'meat' | 'leaves' | 'fish' | 'bamboo';
 export type BedKind = 'straw' | 'shed' | 'rock' | 'shade' | 'nest' | 'cave' | 'climb';
 export type ShopKind = 'foodstall' | 'drinkstall' | 'bench' | 'toilet' | 'icecream' | 'balloon' | 'flowers' | 'bin' | 'souvenir' | 'playground' | 'hats' | 'fountain' | 'carousel'
@@ -20,7 +20,7 @@ export type WishId = 'health' | 'enclosure' | 'food' | 'bed' | 'terrain' | 'frie
 export type ToyKind = 'ball' | 'bush' | 'log' | 'flowerbed';
 
 /** De volgorde is ook de waarde in het opslagbestand: nieuwe soorten komen achteraan. */
-export const TERRAINS: Terrain[] = ['grass', 'mud', 'sand', 'water', 'path', 'snow', 'forest'];
+export const TERRAINS: Terrain[] = ['grass', 'mud', 'sand', 'water', 'path', 'snow', 'forest', 'stones', 'ice', 'swamp', 'meadow', 'steppe'];
 export const TERRAIN_INFO: Record<Terrain, { colors: [number, number] }> = {
   grass: { colors: [0x86c95c, 0x7cc053] },
   mud: { colors: [0x9c6b44, 0x8f6039] },
@@ -29,6 +29,12 @@ export const TERRAIN_INFO: Record<Terrain, { colors: [number, number] }> = {
   path: { colors: [0xd8c7ab, 0xcdbb9d] },
   snow: { colors: [0xf4f8fc, 0xe6eef6] },
   forest: { colors: [0x4f9a4a, 0x458d42] },
+  // rotsgrond, ijs, moeras, bloemenwei (groen met roze: bloemen) en droog gras
+  stones: { colors: [0x9aa0a8, 0x8d939b] },
+  ice: { colors: [0xcfeaf7, 0xbfe0f1] },
+  swamp: { colors: [0x5f7f4a, 0x4f6f55] },
+  meadow: { colors: [0x8fd06a, 0xf2c9de] },
+  steppe: { colors: [0xd6c46a, 0xc9b65b] },
 };
 
 export const FOODS: FoodId[] = ['veg', 'hay', 'fruit', 'grain', 'meat', 'leaves', 'fish', 'bamboo'];
@@ -257,6 +263,22 @@ export const SPECIES: Record<SpeciesId, SpeciesInfo> = {
   lemur: sp('forest', 'fruit', 'climb', 30, 'net'),
   bison: sp('grass', 'hay', 'shed', 42, 'wall'),
   kangaroo: sp('sand', 'hay', 'shade', 50, 'net'),
+};
+
+/**
+ * Veel dieren willen een mix: naast hun eigen grond (minstens de helft van wat overblijft) ook een stukje van
+ * iets anders, minstens MIX_TILES tegels per soort. De boerderij blijft eenvoudig; alleen de eend wil ook gras.
+ */
+export const MIX_TILES = 2;
+export const ALSO: Partial<Record<SpeciesId, Terrain[]>> = {
+  duck: ['grass'],
+  zebra: ['steppe'], giraffe: ['steppe'], lion: ['steppe', 'stones'], camel: ['stones'], rhino: ['steppe', 'water'], hippo: ['mud', 'grass'],
+  elephant: ['mud', 'water'], cheetah: ['steppe'], gazelle: ['steppe'],
+  tiger: ['water'], gorilla: ['grass'], crocodile: ['swamp', 'sand'], panda: ['grass'], peacock: ['meadow'], panther: ['stones'],
+  penguin: ['ice', 'water'], seal: ['ice', 'stones'], polarbear: ['ice', 'water'], reindeer: ['grass'], wolf: ['forest', 'stones'], arcticfox: ['stones'],
+  bear: ['stones', 'water'], yak: ['stones'], walrus: ['ice', 'water'],
+  flamingo: ['swamp', 'sand'], turtle: ['water', 'grass'], otter: ['grass', 'stones'], beaver: ['forest', 'mud'], pelican: ['sand'], redpanda: ['stones'],
+  lemur: ['sand'], bison: ['steppe', 'mud'], kangaroo: ['steppe', 'grass'],
 };
 
 // ------------------------------------------------------------ levels

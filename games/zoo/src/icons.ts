@@ -294,6 +294,12 @@ const ICONS = {
     `<path d="M24 44 q-6 -3 0 -6 q6 -3 0 -6 q-6 -3 0 -5" fill="none" stroke="#8a857a" stroke-width="3" stroke-linecap="round"/><ellipse cx="22" cy="20" rx="14" ry="8" fill="${RED}"/><circle cx="37" cy="13" r="7" fill="${RED}"/><path d="M43 13 l5 2 l-5 2Z" fill="${SUN}"/><circle cx="38.5" cy="11.5" r="1.5" fill="#fff"/><path d="M8 18 l-5 -6 l8 2Z" fill="${SUN}"/><path d="M26 10 v-6" stroke="#3d4f5a" stroke-width="3" stroke-linecap="round"/><rect x="18" y="42" width="12" height="4" rx="2" fill="#3d4f5a"/>`,
   trampoline:
     `<ellipse cx="24" cy="30" rx="21" ry="9" fill="#4a90e2"/><ellipse cx="24" cy="29" rx="16" ry="6" fill="#3d4f5a"/><path d="M8 34 V44 M40 34 V44 M24 39 V46" stroke="#8a857a" stroke-width="3.5" stroke-linecap="round"/><circle cx="24" cy="10" r="5" fill="${SUN}"/><path d="M17 19 q7 -4 14 0" fill="none" stroke="${SUN}" stroke-width="3" stroke-linecap="round"/>`,
+  // meer grond: rots, ijs, moeras, bloemenwei en droog gras
+  stones: tile('#9aa0a8', '#8a9099') + '<g fill="#6f757d"><ellipse cx="16" cy="24" rx="4" ry="2.5"/><ellipse cx="27" cy="29" rx="5" ry="3"/><ellipse cx="29" cy="19" rx="4" ry="2.4"/></g>',
+  ice: tile('#cfeaf7', '#bfe0f1') + '<path d="M12 25 l8 -4 M22 31 l10 -5 M24 19 l6 -3" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>',
+  swamp: tile('#5f7f4a', '#526f40') + '<ellipse cx="18" cy="25" rx="6" ry="3" fill="#3f6b6b"/><ellipse cx="30" cy="29" rx="5" ry="2.5" fill="#3f6b6b"/><path d="M28 21 v-6 M31 22 v-4" stroke="#8a5a2c" stroke-width="2" stroke-linecap="round"/>',
+  meadow: tile('#8fd06a', '#84c660') + '<circle cx="15" cy="24" r="2.6" fill="#f06aa6"/><circle cx="25" cy="30" r="2.6" fill="#ffd23f"/><circle cx="30" cy="20" r="2.6" fill="#fff"/><circle cx="22" cy="17" r="2.2" fill="#e0584f"/>',
+  steppe: tile('#d6c46a', '#c9b65b') + '<path d="M13 26 l2 -6 l2 6 M24 32 l2 -6 l2 6 M28 21 l2 -6 l2 6" fill="none" stroke="#a8923a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>',
   // de grote voerbak (steen) en de voersilo
   trough_big:
     `<path d="M3 18 H45 L41 40 H7Z" fill="#a9adb3" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><rect x="6" y="20" width="36" height="4" rx="2" fill="${INK}" opacity=".3"/><path d="M12 30 h24" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>`,

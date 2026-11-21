@@ -343,6 +343,21 @@ Vanaf level 8 slijt een houten hek (stenen muren en netten niet). Ongeveer eens 
 
 Kies bij de actieknop de hamer; een tik op het hek timmert het in elke fase weer vast. Bij een kapot hek voelen de dieren in dat verblijf zich niet veilig: ze zijn niet blij, het wolkje toont een hamertje en de bouwer zegt dat je het moet maken. Ze worden er niet voor opgehaald.
 
+## Twaalf soorten grond en dieren die een mix willen
+
+Er zijn vijf soorten grond bijgekomen: rots, ijs, moeras, bloemenwei en droog gras (naast gras, modder, zand, water, sneeuw, bos en pad). Je krijgt een soort in de rij bij Grond zodra je een dier hebt dat hem wil.
+
+Veel dieren willen een mix: hun eigen grond, en daarnaast een stukje (minstens twee tegels) van een of twee andere soorten. Van wat overblijft moet minstens de helft de eigen grond zijn. Op de boerderij blijft het eenvoudig: alleen de eend wil naast water ook gras.
+
+| Wereld | Wie wil wat erbij |
+|---|---|
+| Savanne | Zebra, giraffe, cheeta, gazelle: droog gras. Leeuw: droog gras en rots. Kameel: rots. Neushoorn: droog gras en water. Nijlpaard: modder en gras. Olifant: modder en water. |
+| Jungle | Tijger: water. Gorilla en panda: gras. Krokodil: moeras en zand. Pauw: bloemenwei. Panter: rots. |
+| IJs en bergen | Pinguïn, ijsbeer, walrus: ijs en water. Zeehond: ijs en rots. Rendier: gras. Wolf: bos en rots. Poolvos en jak: rots. Beer: rots en water. |
+| Verre landen | Flamingo: moeras en zand. Schildpad: water en gras. Otter: gras en rots. Bever: bos en modder. Pelikaan en maki: zand. Rode panda: rots. Bizon: droog gras en modder. Kangoeroe: droog gras en gras. |
+
+Ontbreekt er iets, dan toont het wolkje boven het dier precies die grond, en de verzorger noemt de hele mix ("De leeuw wil zand met een stukje droog gras en rotsgrond in het verblijf."). Tik je op het dier, dan staat elk stukje van de mix apart, groen of rood. Klopt de eigen grond en ontbreekt alleen nog een stukje van de mix, dan is het dier niet blij, maar het wordt er nooit voor opgehaald. In een bestaand opgeslagen park zijn daardoor veel dieren eerst niet blij, tot je de stukjes erbij legt. De lijst staat in `games/zoo/src/data.ts` (`ALSO`, `MIX_TILES`).
+
 ## Drie voerbakken
 
 | Voerbak | Prijs | Porties | Vanaf level | Hoe hij eruitziet |

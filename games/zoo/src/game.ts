@@ -8,7 +8,7 @@ import {
   BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
-  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, SPACE, guestsAt, SERVES, } from './data';
+  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, SPACE, guestsAt, SERVES, } from './data';
 import { Grid, H, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region } from './grid';
 import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
 import { cursor, icon, type IconId } from './icons';
@@ -493,7 +493,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   private terrainOptions(): Terrain[] {
+    // de grond van elk dier dat je hebt, en de stukjes van de mix die die dieren willen
+    const mix = new Set(this.species().flatMap(sp => ALSO[sp] ?? []));
     const list = this.unlocked(TERRAINS.filter(k => k !== 'path'), ['grass', 'mud'], sp => SPECIES[sp].terrain);
+    for (const k of TERRAINS) if (mix.has(k) && !list.includes(k)) list.push(k);
+    list.sort((p, q) => TERRAINS.indexOf(p) - TERRAINS.indexOf(q));
     return this.has('paths') ? [...list, 'path'] : list;
   }
 
@@ -2017,7 +2021,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       case 'bed': return icon(info.bed);
       case 'fun': return icon(TOY_OF[a.species] ?? 'ball');
       case 'space': return icon('grow');
-      case 'terrain': return icon(info.terrain);
+      case 'terrain': return icon(a.missing ?? info.terrain);
       // bij een groepsdier staat erbij hoeveel er nog bij moeten
       case 'friend': return speciesIcon(a.species) + (a.lonely > 1 ? `<i class="count">+${a.lonely}</i>` : icon('plus', 'badge'));
       case 'clean': return icon('poop');
@@ -2045,7 +2049,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const wishes = a.checkWishes(this);
     const header =
       icon(sexOf(a) === 'male' ? 'boy' : 'girl') +
-      WISH_ORDER.filter(k => (k !== 'health' || a.sick) && (k !== 'fun' || (this.has('fun') && !!TOY_OF[a.species])) && (k !== 'space' || !!SPACE[a.species])).map(k => `<span class="wish ${wishes[k] ? 'ok' : 'no'}">${this.wishIcon(a, k)}</span>`).join('');
+      WISH_ORDER.filter(k => (k !== 'health' || a.sick) && (k !== 'fun' || (this.has('fun') && !!TOY_OF[a.species])) && (k !== 'space' || !!SPACE[a.species])).map(k =>
+        // bij de grond staat elk stukje van de mix apart: zo zie je wat er nog bij moet
+        k === 'terrain'
+          ? [SPECIES[a.species].terrain, ...(ALSO[a.species] ?? [])].map((kind, i) => `<span class="wish ${(i ? !a.lacking.includes(kind) : a.mainOk) ? 'ok' : 'no'}">${icon(kind)}</span>`).join('')
+          : `<span class="wish ${wishes[k] ? 'ok' : 'no'}">${this.wishIcon(a, k)}</span>`).join('');
     const opt = (id: string, ic: IconId, key: string): ToolOption => ({ id, icon: icon(ic), label: t(key) });
     const items = [opt('pet', 'pet', 'animal.pet'), opt('feed', 'feed', 'animal.feed'), opt('rename', 'dice', 'animal.rename'), opt('sedate', 'sleep', 'animal.sedate'), opt('move', 'move', 'animal.move'), opt('away', 'empty', 'animal.away')];
     if (a.sick) items.unshift(opt('vet', 'vet', 'animal.vet'));
@@ -2654,7 +2662,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // zorgwensen (ziek, verblijf, voer, schoon) tellen zwaarder dan het soort hek, ondergrond, slaapplek en een vriendje
       const care = a.unmet === 'health' || (a.unmet === 'enclosure' && !a.needsFence) || a.unmet === 'food' || a.unmet === 'clean';
       // verveling, te weinig ruimte en een kapot hek maken een dier ongelukkig, maar het wordt er nooit voor opgehaald
-      const calm = a.unmet === 'fun' || a.unmet === 'space' || (a.unmet === 'enclosure' && a.fenceBroken && !a.escaped);
+      const calm = a.unmet === 'fun' || a.unmet === 'space' || (a.unmet === 'terrain' && a.mixOnly) || (a.unmet === 'enclosure' && a.fenceBroken && !a.escaped);
       const rate = a.unmet === null ? -2 : calm ? 0 : care ? 1 : 0.4;
       a.neglect = Math.max(0, a.neglect + rate * 0.4);
       if (a.neglect > NEGLECT_GONE) taken.push(a);

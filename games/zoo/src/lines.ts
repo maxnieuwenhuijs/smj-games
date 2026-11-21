@@ -1,7 +1,7 @@
 // Alles wat de figuren kunnen zeggen. Het spel bouwt zijn zinnen hier, en het stemmenscript
 // (tools/voice) vraagt hier de volledige lijst op, zodat elke zin ook ingesproken kan worden.
 // Geen DOM en geen Three.js in dit bestand: het draait ook buiten de browser.
-import { GOAL_OWNER, LEVELS, SPECIES, type FenceNeed, type Goal, type SpeciesId, type WishId, TOY_OF, SPACE, herdOf, SERVES } from './data';
+import { ALSO, GOAL_OWNER, LEVELS, SPECIES, type FenceNeed, type Goal, type SpeciesId, type WishId, TOY_OF, SPACE, herdOf, SERVES } from './data';
 import { FIGURES, type FigureId, type Mood } from './figures';
 
 export type Vars = Record<string, string | number>;
@@ -34,7 +34,10 @@ export function speciesVars(tr: Tr, sp: SpeciesId): Vars {
     The: cap(the),
     many: tr(`species.${sp}.many`),
     food: tr(`food.${info.food}`).toLowerCase(),
-    terrain: tr(`terrain.${info.terrain}.want`),
+    // met de mix erbij: 'zand met een stukje droog gras en rotsgrond'
+    terrain: ALSO[sp]?.length
+      ? tr('terrain.mix', { main: tr(`terrain.${info.terrain}.want`), also: ALSO[sp]!.map(k => tr(`terrain.${k}.want`)).join(tr('list.and')) })
+      : tr(`terrain.${info.terrain}.want`),
     bed: tr(`bed.${info.bed}.a`),
     toy: TOY_OF[sp] ? tr(`toy.${TOY_OF[sp]}.a`) : '',
     herd: String(herdOf(sp)),

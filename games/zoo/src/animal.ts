@@ -1,5 +1,5 @@
 // Eén dier: wat het wil, wat het doet en welke animatie daarbij hoort.
-import { MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, type FenceNeed, type SpeciesId, type Variant, type WishId } from './data';
+import { ALSO, MIX_TILES, type Terrain, MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, type FenceNeed, type SpeciesId, type Variant, type WishId } from './data';
 import { Grid, tileIndex, tileXY } from './grid';
 import { MODEL_SCALE, modelInfo, spawnModel, type ModelInfo, type Spawned } from './models';
 import { toWorldX, toWorldZ } from './view';
@@ -80,6 +80,12 @@ export class Animal {
   name = '';
   /** Loopt op zolang het dier iets mist; bij te veel wordt het opgehaald. */
   neglect = 0;
+  /** De grond die nog ontbreekt (eerst de eigen grond, dan de mix), en welke stukjes van de mix er nog niet zijn. */
+  missing: Terrain | null = null;
+  lacking: Terrain[] = [];
+  /** De eigen grond klopt; er ontbreekt alleen nog een stukje van de mix. Daar wordt een dier nooit voor opgehaald. */
+  mixOnly = false;
+  mainOk = false;
   /** Het verblijf heeft niet het hek dat dit dier nodig heeft: 'wall' (stenen muur) of 'net' (hoog net). */
   needsFence: FenceNeed | null = null;
   /** Ziek: het dier ligt stil tot de dokter is geweest. */
@@ -305,8 +311,18 @@ export class Animal {
       health: !this.sick, enclosure: !!region && !this.needsFence && !this.fenceBroken, food: this.hunger < HUNGRY, bed: false, terrain: false, friend: false, clean: false, space: true, fun: true,
     };
     if (region) {
-      const want = TERRAINS.indexOf(info.terrain);
-      result.terrain = region.tiles.filter(i => w.grid.terrain[i] === want).length * 2 >= region.tiles.length;
+      const tilesOf = (kind: Terrain): number => {
+        const k = TERRAINS.indexOf(kind);
+        return region.tiles.filter(i => w.grid.terrain[i] === k).length;
+      };
+      // de mix: een paar tegels van elke extra soort (in een heel klein verblijf alleen de eerste); van wat
+      // overblijft is minstens de helft de eigen grond
+      const extras = (ALSO[this.species] ?? []).slice(0, Math.max(1, Math.floor((region.tiles.length - 1) / MIX_TILES)));
+      this.mainOk = tilesOf(info.terrain) >= Math.max(1, Math.ceil((region.tiles.length - extras.length * MIX_TILES) / 2));
+      this.lacking = extras.filter(kind => tilesOf(kind) < MIX_TILES);
+      this.missing = !this.mainOk ? info.terrain : this.lacking[0] ?? null;
+      this.mixOnly = this.mainOk && this.lacking.length > 0;
+      result.terrain = this.mainOk && !this.lacking.length;
       // groepsdieren willen met meer bij elkaar zijn; grote dieren willen een groot verblijf
       this.lonely = Math.max(0, herdOf(this.species) - w.animals.filter(a => a.species === this.species && w.grid.regionOf[a.tile] === region.id).length);
       result.friend = this.lonely === 0;
