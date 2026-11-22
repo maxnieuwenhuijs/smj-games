@@ -74,6 +74,8 @@ export class Hud {
 
   private need = el('div', '');
   private needKey = '';
+  /** Het kaartje van een evenement (een gast vraagt om hulp). */
+  private offer = el('div', '');
   /** Het handje dat wijst waar je kunt tikken. */
   private hand = el('div', '', `<i class="ring"></i><span class="arm">${icon('hand')}</span>`);
   /** Wat er gebeurt als je naast de kaart tikt (alleen bij de dierenarts). */
@@ -85,6 +87,9 @@ export class Hud {
     this.need.setAttribute('aria-label', t('need'));
     // links in het midden van het scherm, los van de knoppenbalk
     document.getElementById('ui')!.append(this.need);
+    this.offer.id = 'offer';
+    this.offer.hidden = true;
+    document.getElementById('ui')!.append(this.offer);
     // het handje ligt boven de knoppen, maar onder een kaart
     this.hand.id = 'pointer';
     this.hand.hidden = true;
@@ -159,6 +164,28 @@ export class Hud {
   }
 
   /** Een kaart met uitleg in stappen (plaatje en zin per stap) en een knop om verder te gaan. */
+  /**
+   * Het kaartje van een evenement: een plaatje, een paar woorden en een groene speelknop. Tik je erop, dan gebeurt
+   * `onYes` (het puzzeltje begint); met het rode kruisje doe je het weg. Zonder `onYes` is het alleen een
+   * briefje met een opdracht (bijvoorbeeld: tik op het verblijf van dit dier), dat je wel kunt wegklikken.
+   */
+  showOffer(picture: string, label: string, onYes: (() => void) | null, onNo: () => void): void {
+    const go = el('button', onYes ? 'go' : 'go still', `<span class="pic">${picture}</span><span class="label">${label}</span>${onYes ? `<span class="play">${icon('play')}</span>` : ''}`);
+    go.type = 'button';
+    if (onYes) go.addEventListener('click', onYes);
+    const no = el('button', 'no', '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M10 10 L38 38 M38 10 L10 38" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/></svg>');
+    no.type = 'button';
+    no.setAttribute('aria-label', t('event.no'));
+    no.addEventListener('click', onNo);
+    this.offer.replaceChildren(go, no);
+    this.offer.hidden = false;
+  }
+
+  hideOffer(): void {
+    this.offer.hidden = true;
+    this.offer.replaceChildren();
+  }
+
   showGuide(title: string, steps: { icon: string; text: string }[], ok: string): void {
     this.overlayTap = null;
     this.overlay.replaceChildren();

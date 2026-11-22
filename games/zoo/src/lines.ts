@@ -143,6 +143,11 @@ export const say = {
   celeb: (): Line => ({ who: 'host', mood: 'happy', key: 'say.celeb' }),
   celebHappy: (): Line => ({ who: 'host', mood: 'happy', key: 'say.celeb.happy' }),
   lost: (): Line => ({ who: 'host', mood: 'urgent', key: 'say.lost' }),
+  // evenementen: de uitleg bij het eerste kaartje, de vraag om hulp, en hoe het afliep (goed of niet)
+  eventNew: (): Line => ({ who: 'host', mood: 'happy', key: 'say.event.new' }),
+  event: (kind: string): Line => ({ who: 'host', mood: 'happy', key: `say.event.${kind}` }),
+  eventEnd: (kind: string, good: boolean): Line => ({ who: 'host', mood: good ? 'happy' : 'worried', key: `say.event.${kind}.${good ? 'good' : 'bad'}` }),
+  classBye: (good: boolean): Line => ({ who: 'host', mood: good ? 'happy' : 'worried', key: `say.class.bye.${good ? 'good' : 'bad'}` }),
   found: (): Line => ({ who: 'host', mood: 'happy', key: 'say.found' }),
   trainOne: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.train.one' }),
   trainGo: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.train.go' }),
@@ -257,6 +262,9 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   for (const ask of ['green.more', 'green.less', 'stone.more', 'stone.less']) add(wishLine(tr, 'wild', 'pig', null, false, ask));
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.visit(), say.party(), say.celeb(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
     say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate()]) add(line);
+  for (const kind of ['delivery', 'photo', 'guide']) add(say.event(kind));
+  for (const kind of ['schoolclass', 'party', 'celeb', 'delivery', 'photo']) for (const good of [true, false]) add(say.eventEnd(kind, good));
+  for (const line of [say.eventNew(), say.eventEnd('guide', true), say.classBye(true), say.classBye(false)]) add(line);
   add(say.night());
   add(say.nightNew());
   add(say.aquaNew());

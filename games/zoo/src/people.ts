@@ -146,7 +146,7 @@ export interface GuestWorld {
   /** Ligt er afval op deze tegel? */
   litterOn(tile: number): boolean;
   /** Geluidje bij iets wat een gast doet. */
-  guestSound(kind: 'flush' | 'guest.laugh' | 'toilet.pee' | 'toilet.poop' | 'guest.grumble'): void;
+  guestSound(kind: 'flush' | 'guest.laugh' | 'toilet.pee' | 'toilet.poop' | 'guest.grumble', guest: Guest): void;
   /** Vraagt het level om afval op te ruimen? Dan laten gasten ook naast een afvalbak weleens iets vallen. */
   messy(): boolean;
   /** Welk deel van de gasten bij dit soort kraam geen plek vindt, omdat er te weinig van zijn (0 = genoeg). */
@@ -185,6 +185,8 @@ export interface GuestWorld {
   reunited(child: Guest, parent: Guest, helped: boolean): void;
   /** De beroemde gast gaat naar huis; was hij blij, dan komen er meer gasten. */
   starLeft(guest: Guest, happy: boolean): void;
+  /** De schoolklas gaat naar huis; `happy`: de juf of meester had het naar zijn zin. */
+  classLeft(guest: Guest, happy: boolean): void;
   /** Bij een heel vol park krijgt elke gast wat minder snel trek, zodat de kramen het aankunnen (1 = gewoon). */
   ease(): number;
 }
@@ -485,6 +487,8 @@ export class Guest implements Leader {
   private leading = false;
   /** Een rondje langs de dieren (de juf met haar klas, de jarige): nog zoveel keer stoppen, en eerst naar het feest. */
   tour: { stops: number; party?: boolean } | null = null;
+  /** De speler heeft de weg gewezen: bij de volgende stop van het rondje loopt het groepje eerst naar deze padtegel. */
+  sendTo?: number;
   private partyShop: ShopSpot | null = null;
   /** Een verdwaald kind staat te huilen tot de speler erop tikt; dan rent het naar `seeker`. */
   lost = false;
@@ -769,10 +773,10 @@ export class Guest implements Leader {
       }
     } else if (this.wc === 1 && e >= WC.walk + WC.step + 0.5) {
       this.wc = 2;
-      w.guestSound(Math.random() < 0.55 ? 'toilet.pee' : 'toilet.poop');
+      w.guestSound(Math.random() < 0.55 ? 'toilet.pee' : 'toilet.poop', this);
     } else if (this.wc === 2 && e >= WC_TIME - this.wcTail - WC.step - 2.05) {
       this.wc = 3;
-      w.guestSound('flush');
+      w.guestSound('flush', this);
     }
     this.wcPose();
     this.stepping = WC_AT.moving;
@@ -1190,6 +1194,7 @@ export class Guest implements Leader {
     if (this.gone) return;
     this.gone = true;
     if (this.star) w.starLeft(this, this.happy);
+    else if (this.badge === 'schoolclass' && this.tour) w.classLeft(this, this.happy);
     else if (this.happy && !this.leader) w.signBook(this);
   }
 
@@ -1217,6 +1222,18 @@ export class Guest implements Leader {
       if (spot && (spot.tile === this.tile || this.go(w, reach, spot.tile))) {
         this.partyShop = spot.shop;
         if (spot.tile === this.tile) this.arrive(w);
+        return;
+      }
+    }
+    if (this.sendTo !== undefined) {
+      const tile = this.sendTo, view = w.viewScore(tile);
+      this.sendTo = undefined;
+      if (view && tile !== this.tile && this.go(w, reach, tile)) {
+        // daar is het extra leuk: de speler heeft het zelf aangewezen
+        this.gain = view.score * 1.5;
+        this.sees = view.species;
+        this.face = [view.x, view.y];
+        this.seen = [...this.seen.slice(-6), tile];
         return;
       }
     }
@@ -1485,7 +1502,7 @@ export class Guest implements Leader {
     this.fun = Math.max(0, this.fun - 0.06);
     if (this.wish) this.wish = { ...this.wish, lacking: true, busy: true };
     this.moan = 1.4;
-    w.guestSound('guest.grumble');
+    w.guestSound('guest.grumble', this);
   }
 
   /** Klaar met kijken, kopen of zitten. Geeft true als de gast zelf al weet wat hij hierna doet. */
@@ -1518,7 +1535,7 @@ export class Guest implements Leader {
         this.joy = 1.6;
       }
     } else if (this.state === 'sit' && kind && PLAY.includes(kind)) {
-      w.guestSound('guest.laugh');
+      w.guestSound('guest.laugh', this);
       this.playful = 0;
       this.fun = Math.min(1, this.fun + 0.25);
     } else if (this.state === 'sit' && kind === 'station') {
@@ -1530,7 +1547,7 @@ export class Guest implements Leader {
         this.joy = 1;
       } else this.postpone('ride');
     } else if (this.state === 'sit' && kind && RIDES.includes(kind)) {
-      w.guestSound('guest.laugh');
+      w.guestSound('guest.laugh', this);
       this.rideWish = 0;
       this.fun = Math.min(1, this.fun + (kind === 'ferris' ? 0.4 : 0.35));
     } else if (this.state === 'sit' && kind === 'tower' && this.shop) {

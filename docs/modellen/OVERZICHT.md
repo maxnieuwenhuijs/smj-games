@@ -47,6 +47,14 @@ Links staat steeds hoe het was, rechts hoe het nu is.
 - **Warmtelamp, ijsblok, klimrek, tunnel**: kleine dingen erbij (een rand aan de kap, ronde sneeuw, planken in
   twee tinten en knopen in het touw, donkere hoepels aan de tunnel).
 - De **bal** en de **boomstam** zijn niet aangeraakt: daar werkte iemand anders aan.
+- De **struik** van het speelgoed staat nu in een houten bak en heeft grote bessen, zodat hij niet meer op het
+  struikje van de natuur lijkt.
+- **Zes nieuwe speeltjes** (22 november), elk met een eigen beweging van het ding en van het dier: de
+  **autoband** (rolt rechtop door het verblijf), de **wipplank** (het dier staat erop en wipt mee), de
+  **slingerbal** (een stootje met de neus en de bal draait om de paal), de **kruipboog** (eronderdoor, de slierten
+  zwaaien mee), de **bandenschommel** (kleine dieren zitten erop en schommelen, grote geven duwtjes) en de
+  **klimpaal** (omhoog klimmen en bovenop rondkijken). Het bewegende deel is steeds het laatste onderdeel van het
+  model; de hoogtes staan in `TOY_PIVOT`, `SWING` en `TOY_LIFT` in `data.ts`.
 
 ## Hekken
 
@@ -178,8 +186,10 @@ Het doorzichtige voorbeeld bij het neerzetten werkt nog gewoon:
 | ![voor](voor/speeltuin.jpg) | ![na](na/speeltuin.jpg) |
 
 Een randje om de vloer, een knop op de daken, een leuning om het torentje van de glijbaan, een gestreepte rand
-om de trampoline, en wipkippen die op diertjes lijken (oren, een snuit, oogjes en een zadeltje op een veer). In
-de grote speeltuin hangt het schommelzitje aan kettingen en ligt er een emmertje in het zand.
+om de trampoline, en wipkippen die op diertjes lijken (oren, een snuit, oogjes en een zadeltje op een veer).
+
+De grote speeltuin als één gebouw is er niet meer (22 november): je bouwt een speeltuin nu zelf uit de losse
+toestellen, die een voor een vrijkomen. Een speeltuin uit een ouder spel wordt een glijbaan.
 
 ## Attracties
 
@@ -219,11 +229,27 @@ bloemenpad zijn rond in plaats van vierkant. De brug is gelijk gebleven.
 
 ![natuur](na/natuur.jpg)
 
-De natuurdingen op een kwart tegel zijn tegelijk met deze ronde door iemand anders gemaakt. De **eik**, de
-**spar** en de **kokospalm** gebruiken de vormen van de boom, de den en de palm, en zijn dus vanzelf mee
-veranderd. De kleine dingen (graspol, madeliefjes, varen, struikje, kiezels, steen en rotspunt) zijn in deze
-ronde met rust gelaten. De madeliefjes en de besjes zijn nog vierkant en de rotspunt is nog van blokken: die
-kunnen in een volgende ronde dezelfde beurt krijgen.
+De **eik**, de **spar** en de **kokospalm** gebruiken de vormen van de boom, de den en de palm. Het
+**struikje** is lage paarse hei geworden, de **madeliefjes** zijn rond en de **rotspunt** is van ronde keien.
+
+## Kleine dingen voor het park (op een kwart tegel)
+
+![parkjes](na/parkjes.jpg)
+
+Tien kleine dingen die je net als de natuur op een kwart van een tegel zet, maar alleen buiten de verblijven:
+bloempot, kabouter, windmolentje, badeend, ballen, vogelhuisje, gieter, emmertje, slak en een kistje appels. Elk
+is één onderdeel met de kleuren in de punten. Ze tellen niet mee voor de natuurwens van de dieren. Ze staan bij
+Natuur, in de groep Voor het park (vanaf level 11).
+
+## Vijvers die aan elkaar haken
+
+![vijvers](na/vijvers.jpg)
+
+Zet je vijvers naast elkaar, dan worden ze één vijver: twee naast elkaar een ovaal, vier in een blok een grote
+afgeronde vijver, en elke andere vorm krijgt ronde buitenhoeken en kleine ronde binnenhoeken. De rand met keien
+ligt alleen langs de open kanten; riet staat alleen in ronde hoeken; leliebladen en de kikker wisselen per tegel.
+Een losse vijver ziet eruit als voorheen. Bij het neerzetten zie je nog de losse ronde vijver; hij haakt aan
+zodra hij staat (`syncPonds` en `shapePond` in `view.ts`).
 
 ## Niet veranderd
 

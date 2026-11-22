@@ -369,4 +369,18 @@ describe('natuur in de verblijven', () => {
   it('iets kleins telt voor één vakje, een boom of rots voor vier', () => {
     for (const kind of PROPS) expect(propPoints(kind)).toBe(PROP[kind].size === 2 ? 4 : 1);
   });
+
+  it('wat voor het park is telt voor geen dier mee, is klein en komt na de natuur', () => {
+    for (const kind of PROPS) {
+      const park = PROP[kind].group === 'park';
+      // natuur telt altijd ergens voor mee; het spul voor het park nooit
+      expect(!!PROP[kind].wild, kind).toBe(!park);
+      if (!park) continue;
+      expect(PROP[kind].size, kind).toBe(1);
+      expect(PROP[kind].from, kind).toBeGreaterThan(FEATURE.wild);
+      expect(nl[`prop.${kind}` as keyof typeof nl], kind).toBeTruthy();
+    }
+    // nieuwe soorten komen achteraan, zodat de natuur zijn plek in het rijtje houdt
+    expect(PROPS.findIndex(k => PROP[k].group === 'park')).toBe(PROPS.filter(k => PROP[k].group !== 'park').length);
+  });
 });

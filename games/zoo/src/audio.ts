@@ -1,4 +1,5 @@
-// Geluid: de stemmen van de figuren, effecten, dierengeluiden en het achtergrondgeluid per wereld.
+// Geluid: de stemmen van de figuren, effecten, dierengeluiden, het achtergrondgeluid en de muziek.
+// Wat in het park gebeurt (dieren, gasten) hoor je alleen goed als het in het midden van je beeld is: zie `listen`.
 // Alle bestanden zijn van tevoren gemaakt (tools/voice). Ontbreekt er een bestand, dan blijft het stil
 // en gaat het spel gewoon door.
 const MUTE_KEY = 'zoo-muted';
@@ -18,7 +19,7 @@ try {
 let voices: Record<string, string> = {};
 /** Effecten: naam -> een of meer bestanden (er wordt er steeds één gekozen). */
 let effects: Record<string, string[]> = {};
-/** Achtergrondmuziek: wereld -> bestand. */
+/** Achtergrondmuziek: naam van het nummer -> bestand. */
 let tracks: Record<string, string> = {};
 let voiceDir = './audio/nl/';
 const buffers = new Map<string, Promise<AudioBuffer | null>>();
@@ -49,6 +50,14 @@ export function unlockAudio(): void {
       master = ctx.createGain();
       master.gain.value = muted ? 0 : 1;
       master.connect(ctx.destination);
+      // alles wat in het park zelf klinkt (dieren, gasten) gaat door één filter: uitgezoomd klinkt het doffer en zachter
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = cutoff(ear.far);
+      const gain = ctx.createGain();
+      gain.gain.value = distant(ear.far);
+      gain.connect(filter).connect(master);
+      park = { gain, filter };
     }
     if (ctx.state === 'suspended') void ctx.resume();
   } catch {
@@ -162,6 +171,40 @@ export function playVoice(ids: string | string[]): Voice | null {
   return voice;
 }
 
+// ------------------------------------------------------------ luisteren naar wat in beeld is
+/**
+ * Het oor van de speler: het midden van het beeld (in tegels), hoe ver je daaromheen nog iets hoort (`reach`,
+ * ongeveer zo ver als het beeld reikt), hoe ver er uitgezoomd is (`far`: 0 = dichtbij, 1 = heel ver weg), en welke
+ * kant op het scherm rechts is (`rx`, `ry`), zodat een geluid links in beeld ook links klinkt.
+ */
+const ear = { x: 0, y: 0, reach: 9, far: 0, rx: 1, ry: 0, on: false };
+/** Het filter en de volumeknop waar alle geluiden uit het park doorheen gaan. */
+let park: { gain: GainNode; filter: BiquadFilterNode } | null = null;
+
+/** Hoe dof het klinkt: dichtbij helder (alle hoge tonen), ver uitgezoomd dof, alsof het van ver komt. */
+const cutoff = (far: number): number => 16000 * 0.1 ** far;
+/** Uitgezoomd klinkt alles ook wat zachter. */
+const distant = (far: number): number => 1 - 0.45 * far;
+
+/** Het spel vertelt waar de speler naar kijkt; een paar keer per seconde is genoeg. */
+export function listen(x: number, y: number, reach: number, far: number, rx: number, ry: number): void {
+  Object.assign(ear, { x, y, reach, far, rx, ry, on: true });
+  if (!park || !ctx) return;
+  park.filter.frequency.setTargetAtTime(cutoff(far), ctx.currentTime, 0.25);
+  park.gain.gain.setTargetAtTime(distant(far), ctx.currentTime, 0.25);
+}
+
+/**
+ * Hoe goed je iets hoort dat op deze plek gebeurt (0 tot 1): in het midden van het beeld helemaal, naar de rand
+ * toe zachter, en een eind buiten beeld niet meer.
+ */
+export function heard(x: number, y: number): number {
+  if (!ear.on) return 1;
+  const d = Math.hypot(x - ear.x, y - ear.y) / ear.reach;
+  if (d <= 0.3) return 1;
+  return d >= 1.5 ? 0 : (1 - (d - 0.3) / 1.2) ** 1.6;
+}
+
 // ------------------------------------------------------------ effecten
 export interface SfxOptions {
   volume?: number;
@@ -169,15 +212,32 @@ export interface SfxOptions {
   rate?: number;
   /** Niet vaker dan eens per zoveel seconden. */
   every?: number;
+  /** Waar het in het park gebeurt (in tegels): dan hoor je het alleen als het in beeld is, en links of rechts. */
+  at?: [number, number];
 }
 
-export function sfx(id: string, { volume = 1, rate = 1, every = 0.06 }: SfxOptions = {}): void {
+export function sfx(id: string, { volume = 1, rate = 1, every = 0.06, at }: SfxOptions = {}): void {
   const files = effects[id];
   if (!files?.length || !ctx || !master || muted || ctx.state !== 'running') return;
+  // een geluid met een plek: buiten beeld hoor je het niet, aan de rand zacht
+  const near = at ? heard(at[0], at[1]) : 1;
+  if (near < 0.04) return;
+  volume *= near;
   const now = ctx.currentTime;
   if (now - (lastPlayed.get(id) ?? -99) < every) return;
   lastPlayed.set(id, now);
-  const audio = ctx, out = master;
+  const audio = ctx;
+  let out: AudioNode = master;
+  if (at && park) {
+    out = park.gain;
+    // links in beeld klinkt links, rechts klinkt rechts (als de browser dat kan)
+    if (typeof audio.createStereoPanner === 'function') {
+      const pan = audio.createStereoPanner();
+      pan.pan.value = Math.max(-0.75, Math.min(0.75, ((at[0] - ear.x) * ear.rx + (at[1] - ear.y) * ear.ry) / ear.reach));
+      pan.connect(park.gain);
+      out = pan;
+    }
+  }
   // nooit twee keer achter elkaar dezelfde variant
   let pickAt = Math.floor(Math.random() * files.length);
   if (files.length > 1 && pickAt === lastVariant.get(id)) pickAt = (pickAt + 1) % files.length;
@@ -194,11 +254,11 @@ export function sfx(id: string, { volume = 1, rate = 1, every = 0.06 }: SfxOptio
   });
 }
 
-/** Het geluid van een dier; jonge dieren klinken hoger. */
-export function animalSound(species: string, young: boolean, volume = 1): void {
+/** Het geluid van een dier; jonge dieren klinken hoger. Met `at` (de plek van het dier) hoor je het alleen als het in beeld is. */
+export function animalSound(species: string, young: boolean, volume = 1, at?: [number, number]): void {
   // jonge dieren hebben hun eigen geluid; is dat er niet, dan het geluid van de ouders, maar hoger
-  if (young && effects[`young.${species}`]?.length) sfx(`young.${species}`, { volume: volume * 0.7, every: 0.4 });
-  else sfx(`animal.${species}`, { volume: volume * 0.7, rate: young ? 1.4 : 1, every: 0.4 });
+  if (young && effects[`young.${species}`]?.length) sfx(`young.${species}`, { volume: volume * 0.7, every: 0.4, at });
+  else sfx(`animal.${species}`, { volume: volume * 0.7, rate: young ? 1.4 : 1, every: 0.4, at });
 }
 
 // ------------------------------------------------------------ achtergrond
@@ -243,7 +303,8 @@ const layerVolume = new Map<string, number>();
 export function layer(id: string, volume: number): void {
   layerVolume.set(id, volume);
   if (!ctx || !master) return;
-  const audio = ctx, out = master;
+  // het geroezemoes van de gasten hoort bij het park: uitgezoomd klinkt het doffer
+  const audio = ctx, out: AudioNode = id.startsWith('crowd.') && park ? park.gain : master;
   const have = layers.get(id);
   if (have && have !== 'loading') {
     have.gain.gain.setTargetAtTime(volume * GAIN.ambience, audio.currentTime, 1.2);
@@ -281,19 +342,29 @@ export function reshuffle(id: string): void {
 
 // ------------------------------------------------------------ muziek
 let tune: { id: string; el: HTMLAudioElement; gain: GainNode | null } | null = null;
-let wantedTune = '';
+let wantedTune = false;
+/** De nummers die nog niet geweest zijn in dit rondje; is het leeg, dan begint er een nieuw rondje in een andere volgorde. */
+let queue: string[] = [];
 
-/** Rustige achtergrondmuziek die bij de wereld hoort. Het nummer begint steeds opnieuw, met een korte stilte ertussen. */
-export function music(world: string): void {
-  wantedTune = world;
-  const file = tracks[world];
-  if (!ctx || !master || tune?.id === world) return;
-  if (tune) {
-    const old = tune;
-    old.gain?.gain.setTargetAtTime(0, ctx.currentTime, 1);
-    setTimeout(() => old.el.pause(), 4000);
-    tune = null;
+/** Het volgende nummer: alle nummers komen om de beurt, steeds in een andere volgorde, en nooit twee keer hetzelfde achter elkaar. */
+function nextTrack(): string {
+  if (!queue.length) {
+    queue = Object.keys(tracks).sort(() => Math.random() - 0.5);
+    if (queue.length > 1 && queue[0] === tune?.id) queue.push(queue.shift()!);
   }
+  return queue.shift() ?? '';
+}
+
+/** Rustige achtergrondmuziek: de nummers spelen na elkaar, met een korte stilte ertussen. */
+export function music(): void {
+  wantedTune = true;
+  if (!ctx || !master || tune) return;
+  playTrack(nextTrack());
+}
+
+function playTrack(world: string): void {
+  const file = tracks[world];
+  if (!ctx || !master) return;
   if (!file) return;
   const el = new Audio(`./audio/music/${file}`);
   el.crossOrigin = 'anonymous';
@@ -309,8 +380,9 @@ export function music(world: string): void {
     el.volume = GAIN.music;
   }
   el.addEventListener('ended', () => {
+    // even stil, en dan het volgende nummer
     setTimeout(() => {
-      if (tune?.el === el) void el.play().catch(() => undefined);
+      if (tune?.el === el) playTrack(nextTrack());
     }, 6000);
   });
   void el.play().catch(() => undefined);
@@ -321,5 +393,5 @@ export function music(world: string): void {
 export function resumeAmbience(): void {
   if (wantedAmbience && !ambient) ambience(wantedAmbience);
   for (const [id, volume] of layerVolume) if (!layers.has(id)) layer(id, volume);
-  if (wantedTune && !tune) music(wantedTune);
+  if (wantedTune && !tune) music();
 }

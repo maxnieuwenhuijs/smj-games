@@ -4,6 +4,7 @@ import {
   ALSO, AQUATIC, CLIMATE, MIX_TILES, MUD_LOVERS, PETTABLE, TANK_WATER, TOY_DRINK, TOY_LIFT, type Nature, type Rare, type Terrain, type ToyKind,
   MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, palsOf, wildRange, WILD_KINDS, type PropGroup, type WildKind, type FenceNeed, type SpeciesId, type Variant, type WishId,
 } from './data';
+import { CLIMB_SECONDS, PUSH, ROCK_SECONDS, SWING, SWING_SECONDS, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, swingAt, type Beat } from './data';
 import { Grid, tileIndex, tileXY } from './grid';
 import { MODEL_SCALE, modelInfo, spawnModel, type ModelInfo, type Spawned } from './models';
 import { toWorldX, toWorldZ } from './view';
@@ -44,8 +45,11 @@ export interface AnimalWorld {
   wantsFun(): boolean;
   /** Is het nacht? Dan slapen de meeste dieren. */
   isNight(): boolean;
-  /** Een dier speelt zoveel seconden met dit ding: het ding beweegt mee. */
-  playWith(toy: Toy, seconds: number, facing?: number): void;
+  /**
+   * Een dier speelt zoveel seconden met dit ding: het ding beweegt mee. `facing`: de kant waar het dier naartoe kijkt.
+   * `hits`: 1 = het dier geeft er stootjes tegen (in plaats van erop te zitten), -1 = het snuffelt er alleen aan.
+   */
+  playWith(toy: Toy, seconds: number, facing?: number, hits?: number): void;
   /** Een dier op (fromX, fromY) geeft een los stuk van dit ding een duwtje: het rolt van het dier weg. Lukt niet als het ding weg is. */
   nudgeToy(toy: Toy, piece: number, fromX: number, fromY: number): boolean;
   animals: Animal[];
@@ -97,7 +101,9 @@ const BED_LIFT: Record<string, number> = { straw: 0.1, shed: 0.1, rock: 0.22, ne
 const WATER_TILE = TERRAINS.indexOf('water');
 /** Kunstjes die een dier zomaar kan doen: hoe lang ze duren en welke animatie uit het model erbij hoort. */
 type Solo = 'hop' | 'spin' | 'roll' | 'shake' | 'wiggle' | 'stretch' | 'sniff' | 'dig' | 'bow' | 'jumpturn' | 'sway' | 'peek' | 'survey';
-type Trick = Solo | 'nuzzle' | 'greet' | 'dance' | 'leap' | 'look' | 'tunnel' | 'peekin' | 'fetch';
+type Trick = Solo | 'nuzzle' | 'greet' | 'dance' | 'leap' | 'look' | 'tunnel' | 'peekin' | 'fetch'
+  // bij het speelgoed dat zelf beweegt: schommelen, wippen, stootjes geven, klimmen en ergens onderdoor lopen
+  | 'swing' | 'rock' | 'punch' | 'climb' | 'under';
 const SHOW: Record<Solo, [number, string]> = {
   hop: [1.6, 'Happy'], spin: [1.1, 'Play'], roll: [2.6, 'Lie'], shake: [0.9, 'Idle'], wiggle: [1.4, 'Idle'], stretch: [2.2, 'Idle'],
   sniff: [2.62, 'Eat'], dig: [2.2, 'Eat'], bow: [1.8, 'Idle'], jumpturn: [1.8, 'Happy'], sway: [2.95, 'Idle'], peek: [2.6, 'Idle'], survey: [5.24, 'Idle'],
@@ -107,7 +113,7 @@ const HUNGRY = 0.6;
 /** Hoe snel een dier loopt, naar zijn karakter. */
 const PACE: Record<Nature, number> = { plain: 1, shy: 0.85, playful: 1.2, sleepy: 0.85, brave: 1 };
 /** Dingen voor dieren op het land: een zeedier doet er niets mee. */
-const LAND_TOYS: string[] = ['hill', 'rocks', 'frame', 'tunnel', 'drink', 'fall', 'lamp', 'icebox'];
+const LAND_TOYS: string[] = ['hill', 'rocks', 'frame', 'tunnel', 'drink', 'fall', 'lamp', 'icebox', 'tyre', 'rocker', 'tetherball', 'logarch', 'tyreswing', 'pole'];
 /** Zoveel ruimte blijft er tussen het lijf van een dier en het hek. */
 const FENCE_GAP = 0.1;
 const GOLD = new THREE.Color(0xf2c14e);
@@ -201,8 +207,13 @@ export class Animal {
   private y1 = Infinity;
   /** Staat boven op een heuvel, de rotsen of het klimrek: daarna komt het eerst naar beneden. */
   private perched = false;
-  /** De ren door de tunnel: van waar naar waar. */
+  /** De ren door de tunnel: van waar naar waar. Ook voor het lopen onder de kruipboog door en de sprong op de bandenschommel. */
   private dash: { fx: number; fy: number; tx: number; ty: number; seconds: number; down?: boolean } | null = null;
+  /**
+   * Stootjes geven tegen de slingerbal of de bandenschommel: wanneer (`first`, `every`, `hits`), hoe lang het hele
+   * spel duurt, hoe ver het dier daarvoor naar voren of naar achteren stapt (`back`) en hoe ver het uithaalt (`lunge`).
+   */
+  private hit: (Beat & { seconds: number; back: number; lunge: number }) | null = null;
   /**
    * Spelen met een bal of een stam: achter welk los stuk het dier aan gaat (`i`), hoe vaak het nog duwt, hoe lang
    * het eerst kijkt hoe het ding rolt (`wait`), de tel van het duwtje zelf (`bump`) en hoe lang het er al niet bij kan.
@@ -439,9 +450,43 @@ export class Animal {
         const s = Math.sin((1 - this.fetch.bump / 0.3) * Math.PI);
         along = s * 0.1;
         pitch = s * 0.12;
+      } else if (k.kind === 'swing' && this.dash) {
+        // op de bandenschommel: met een sprongetje erop, en dan mee heen en weer; de neus gaat mee omhoog en omlaag
+        const d = this.dash, p = Math.min(1, u / d.seconds), rope = (TOY_PIVOT.tyreswing?.[1] ?? 1.25) - SWING.seat, a = swingAt(u);
+        this.gx = d.fx + (d.tx - d.fx) * p;
+        this.gy = d.fy + (d.ty - d.fy) * p;
+        if (p < 1) y += Math.sin(p * Math.PI) * 0.22;
+        along = Math.sin(a) * rope;
+        y += (1 - Math.cos(a)) * rope;
+        pitch = -a;
+      } else if (k.kind === 'rock') {
+        // op de wipplank: mee voorover en achterover, met het gewicht steeds naar de lage kant
+        const a = rockAt(u);
+        pitch = a;
+        along = Math.sin(a) * 0.3;
+      } else if (k.kind === 'punch' && this.hit) {
+        // stootjes tegen de slingerbal of de schommel: op de goede afstand gaan staan en steeds even uithalen met de neus
+        const h = this.hit, i = clamp(Math.round((u - h.first) / h.every), 0, h.hits - 1);
+        const near = clamp(1 - Math.abs(u - h.first - i * h.every) / 0.16, 0, 1), s = near * near * (3 - 2 * near);
+        along = h.back * clamp(Math.min(u, h.seconds - u) / 0.4, 0, 1) + s * h.lunge;
+        pitch = s * 0.1;
+      } else if (k.kind === 'climb') {
+        // de klimpaal op: een stapje achteruit, rechtop tegen de paal, met kleine rukjes omhoog en bovenaan de vlonder op
+        const p = Math.min(1, u / CLIMB_SECONDS), rear = clamp(p / 0.2, 0, 1) * clamp((1 - p) / 0.2, 0, 1), rise = clamp((p - 0.15) / 0.65, 0, 1);
+        along = -0.4 * rear;
+        pitch = -1.15 * rear;
+        this.lift = (TOY_LIFT.pole ?? 1) * (rise + Math.sin(rise * Math.PI * 8) * 0.02);
+      } else if (k.kind === 'under' && this.dash) {
+        // onder de kruipboog door: bukken (een hoog dier maakt zich klein) en aan de andere kant weer rechtop
+        const d = this.dash, p = Math.min(1, u / d.seconds), q = Math.min(1, p / 0.3);
+        this.gx = d.fx + (d.tx - d.fx) * (d.down ? q : p);
+        this.gy = d.fy + (d.ty - d.fy) * (d.down ? p : q);
+        const low = clamp(Math.min(p - 0.2, 0.8 - p) / 0.12, 0, 1);
+        sy = 1 - low * (1 - clamp(UNDER.clear / tall, 0.6, 0.92));
+        pitch = low * 0.1;
       }
-      // voorover of achterover: iets optillen, anders zakt de neus of de staart door de grond
-      if (pitch && k.kind !== 'leap') y += Math.abs(Math.sin(pitch)) * (pitch > 0 ? this.info.length - this.info.back : this.info.back) * MODEL_SCALE * 0.5;
+      // voorover of achterover: iets optillen, anders zakt de neus of de staart door de grond (niet op de schommel of de wipplank: daar kantelt het dier mee)
+      if (pitch && k.kind !== 'leap' && k.kind !== 'swing' && k.kind !== 'rock') y += Math.abs(Math.sin(pitch)) * (pitch > 0 ? this.info.length - this.info.back : this.info.back) * MODEL_SCALE * 0.5;
     } else if (this.anim === 'Sleep') {
       sy = 1 + Math.sin(this.bob * 1.7) * 0.035; // ademen in de slaap
       // af en toe een schokje: het dier droomt
@@ -661,7 +706,7 @@ export class Animal {
       result.clean = w.poopsIn(region.id) <= MAX_POOPS_CLEAN;
       result.bed = w.beds.some(b => w.grid.regionOf[tileIndex(b.x, b.y)] === region.id);
       const fav = TOY_OF[this.species];
-      result.fun = !fav || !w.wantsFun() || w.toys.some(t => t.kind === fav && w.grid.regionOf[tileIndex(t.x, t.y)] === region.id);
+      result.fun = !fav || !w.wantsFun() || w.toys.some(t => likesToy(this.species, t.kind) && w.grid.regionOf[tileIndex(t.x, t.y)] === region.id);
     } else if (region) {
       const tilesOf = (kind: Terrain): number => {
         const k = TERRAINS.indexOf(kind);
@@ -683,7 +728,7 @@ export class Animal {
       result.clean = w.poopsIn(region.id) <= MAX_POOPS_CLEAN;
       result.bed = w.beds.some(b => b.kind === info.bed && w.grid.regionOf[tileIndex(b.x, b.y)] === region.id);
       const fav = TOY_OF[this.species];
-      result.fun = !fav || !w.wantsFun() || w.toys.some(t => t.kind === fav && w.grid.regionOf[tileIndex(t.x, t.y)] === region.id);
+      result.fun = !fav || !w.wantsFun() || w.toys.some(t => likesToy(this.species, t.kind) && w.grid.regionOf[tileIndex(t.x, t.y)] === region.id);
     }
     if (region) {
       // warmte of kou: een lamp of een blok ijs in het verblijf
@@ -725,8 +770,13 @@ export class Animal {
     const ti = tileIndex(toy.x, toy.y);
     if (TOY_LIFT[toy.kind as ToyKind] !== undefined) return w.grid.regionOf[ti] === regionId && !this.dry(w, ti) ? [ti] : [];
     const near = w.grid.neighbors(ti).filter(i => !blocked(i) && w.grid.regionOf[i] === regionId);
-    const down = (toy.rot ?? 0) % 2 === 1;
-    return toy.kind === 'tunnel' ? near.filter(i => (down ? tileXY(i)[0] === toy.x : tileXY(i)[1] === toy.y)) : near;
+    // de tunnel ligt langs x; onder de kruipboog door en op de bandenschommel gaat het juist dwars daarop (langs z)
+    const along = toy.kind === 'tunnel' ? 1 : toy.kind === 'logarch' || toy.kind === 'tyreswing' ? 0 : -1;
+    if (along < 0) return near;
+    const down = (toy.rot ?? 0) % 2 === along;
+    const inLine = near.filter(i => (down ? tileXY(i)[0] === toy.x : tileXY(i)[1] === toy.y));
+    // op de schommel springen kan desnoods ook van opzij
+    return inLine.length || toy.kind !== 'tyreswing' ? inLine : near;
   }
 
   /** Naar dit ding toe lopen (of rennen) om ermee te spelen. Lukt dat? */
@@ -753,12 +803,98 @@ export class Animal {
     return true;
   }
 
+  /**
+   * Spelen met speelgoed dat zelf beweegt: wippen op de wipplank, de klimpaal op, schommelen op de band (of hem een
+   * duw geven), stootjes tegen de slingerbal en onder de kruipboog door. Geeft terug of dit zulk speelgoed is.
+   */
+  private playMoving(w: AnimalWorld, toy: Toy): boolean {
+    const kind = toy.kind as ToyKind, cx = toy.x + 0.5, cy = toy.y + 0.5, base = ((toy.rot ?? 0) * Math.PI) / 2;
+    const tall = this.info.height * MODEL_SCALE, long = this.info.length * MODEL_SCALE;
+    // langs deze lijn van het ding kijken: heen of terug, wat het dichtst bij is
+    const facing = (line: number): number => (Math.cos(this.heading - line) >= 0 ? line : line + Math.PI);
+    if (kind === 'rocker') {
+      // de wipplank: erop gaan staan, in de lengte van de plank, en heen en weer wippen
+      this.gx = cx;
+      this.gy = cy;
+      this.lift = TOY_LIFT.rocker ?? 0;
+      this.heading = facing(base + Math.PI / 2);
+      w.playWith(toy, ROCK_SECONDS, this.heading);
+      this.doTrick('rock', ROCK_SECONDS, 'Idle');
+      this.perched = true;
+      return true;
+    }
+    if (kind === 'pole') {
+      // de klimpaal: omhoog klimmen en boven op de vlonder rondkijken
+      this.gx = cx;
+      this.gy = cy;
+      w.playWith(toy, CLIMB_SECONDS + 2.5);
+      this.doTrick('climb', CLIMB_SECONDS, 'Walk');
+      this.encore = Math.random() < 0.6 ? 'survey' : 'peek';
+      this.perched = true;
+      return true;
+    }
+    if (kind !== 'tyreswing' && kind !== 'tetherball' && kind !== 'logarch') return false;
+    const to = Math.atan2(cx - this.gx, cy - this.gy);
+    this.heading = to;
+    if (kind === 'tetherball') {
+      // de slingerbal: een stootje, kijken hoe de bal om de paal draait, en nog een keer
+      this.punch(w, toy, TETHER, 0.56, 0.26, 0);
+      return true;
+    }
+    // de schommel en de boog hebben een richting (langs z): staat het dier er recht voor of recht achter?
+    const inLine = Math.abs(Math.cos(to - base)) > 0.8, face = facing(base);
+    if (kind === 'tyreswing') {
+      if (tall <= 0.9 && long <= 1) {
+        // klein genoeg: met een sprongetje op de band, en schommelen
+        this.heading = face;
+        this.dash = { fx: this.gx, fy: this.gy, tx: cx, ty: cy, seconds: SWING.hop };
+        this.lift = SWING.seat;
+        w.playWith(toy, SWING_SECONDS, face);
+        this.doTrick('swing', SWING_SECONDS, 'Sit');
+        this.perched = true;
+      } else if (inLine) {
+        // te groot om erop te zitten: de band een paar duwtjes geven
+        this.heading = face;
+        this.punch(w, toy, PUSH, 0.42, 0.14, 3);
+      } else {
+        w.playWith(toy, 2.5, undefined, -1);
+        this.show('sniff');
+      }
+      return true;
+    }
+    // de kruipboog: eronderdoor naar de tegel aan de andere kant; wie te hoog is of er niet door kan, snuffelt alleen aan de slierten
+    const dx = Math.round(Math.sin(face)), dy = Math.round(Math.cos(face)), far = tileIndex(toy.x + dx, toy.y + dy);
+    if (!inLine || tall > 1.33 || !w.grid.canStep(toy.x, toy.y, dx, dy) || w.grid.regionOf[far] !== w.grid.regionOf[this.tile] || isTroughTile(w, far) || this.dry(w, far)) {
+      w.playWith(toy, 2.5, undefined, -1);
+      this.show('sniff');
+      return true;
+    }
+    this.heading = face;
+    this.dash = { fx: this.gx, fy: this.gy, tx: cx + dx, ty: cy + dy, seconds: UNDER.seconds, down: dx === 0 };
+    w.playWith(toy, UNDER.seconds + 2.5, face);
+    this.doTrick('under', UNDER.seconds, 'Walk');
+    return true;
+  }
+
+  /**
+   * Naast iets wat hangt gaan staan en er een paar keer met de neus tegenaan stoten. `gap`: zo ver blijft de neus van
+   * het midden van het ding, `lunge`: zo ver haalt het dier uit, `after`: zo lang zwaait het ding daarna nog uit.
+   */
+  private punch(w: AnimalWorld, toy: Toy, beat: Beat, gap: number, lunge: number, after: number): void {
+    const dist = Math.hypot(toy.x + 0.5 - this.gx, toy.y + 0.5 - this.gy), front = (this.info.length - this.info.back) * MODEL_SCALE;
+    const seconds = beat.first + beat.every * beat.hits;
+    this.hit = { first: beat.first, every: beat.every, hits: beat.hits, seconds, back: clamp(dist - front - gap, -0.4, 0.4), lunge };
+    w.playWith(toy, seconds + after, this.heading, 1);
+    this.doTrick('punch', seconds, 'Play');
+  }
+
   /** Bij het speelgoed aangekomen: ernaar kijken en spelen; het ding beweegt mee. */
   private startPlay(w: AnimalWorld): void {
     const toy = this.playAt;
     this.playAt = null;
     if (!toy) return;
     const kind = toy.kind as ToyKind, cx = toy.x + 0.5, cy = toy.y + 0.5;
+    if (this.playMoving(w, toy)) return;
     const up = TOY_LIFT[kind];
     if (up !== undefined) {
       // boven op de heuvel, de rotsen of het klimrek: rondkijken, zich lang maken of even zitten
@@ -1112,7 +1248,7 @@ export class Animal {
     // een blij dier loopt graag naar zijn speelgoed, de heuvel of de drinkvijver en doet er iets mee; het liefst met zijn eigen ding
     if (this.happy && Math.random() < 0.22 * lively) {
       const here = w.toys.filter(t => w.grid.regionOf[tileIndex(t.x, t.y)] === region.id && this.uses(t));
-      const mine = here.filter(t => t.kind === TOY_OF[this.species] || t.kind === CLIMATE[this.species]);
+      const mine = here.filter(t => likesToy(this.species, t.kind) || t.kind === CLIMATE[this.species]);
       const pool = mine.length && Math.random() < 0.7 ? mine : here;
       const toy = pool[Math.floor(Math.random() * pool.length)];
       if (toy && this.goPlay(w, toy, region.id, isTrough, false)) return;
@@ -1303,7 +1439,8 @@ export class Animal {
       this.leap = null;
       w.splash(this.gx, this.gy);
     }
-    if (this.dash && this.trick?.kind !== 'tunnel') this.dash = null;
+    if (this.dash && this.trick?.kind !== 'tunnel' && this.trick?.kind !== 'under' && this.trick?.kind !== 'swing') this.dash = null;
+    if (this.hit && this.trick?.kind !== 'punch') this.hit = null;
     if (this.fetch && this.trick?.kind !== 'fetch') this.fetch = null;
     const swims = w.grid.terrain[this.tile] === WATER_TILE && !this.lift;
     // in een bak van glas staat het water hoger: daar zwemt het dier in het water, met de rug net boven

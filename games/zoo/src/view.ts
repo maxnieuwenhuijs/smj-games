@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, SHOP_DEEP, shopSpan, TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
-  BUMPER_CARS, FERRIS, RESTAURANT_TABLES, SEASONAL, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TRAIN, bumperCar, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
+  BUMPER_CARS, FERRIS, RESTAURANT_TABLES, SEASONAL, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, bumperCar, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
 } from './data';
 import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type Land, type Side } from './grid';
 
@@ -568,6 +568,13 @@ const TOY_PARTS: Record<ToyKind, Part[]> = {
   icebox: [],
   frame: [],
   tunnel: [],
+  // en het speelgoed dat zelf beweegt ook
+  tyre: [],
+  rocker: [],
+  tetherball: [],
+  logarch: [],
+  tyreswing: [],
+  pole: [],
   // de ballen liggen los: die staan in TOY_LOOSE
   ball: [],
   bush: [
@@ -605,11 +612,23 @@ const TOY_PARTS: Record<ToyKind, Part[]> = {
   ],
 };
 /**
- * De losse stukken van speelgoed: de twee ballen en de liggende stam. Elk stuk is rond zijn eigen midden
- * gemaakt, zodat het echt kan rollen. `x`, `z`: de eigen plek op de tegel. `r`: de straal, zo hoog ligt het
- * midden. `turn`: zo ligt een stam gedraaid; die rolt alleen dwars op zijn lengte.
+ * Een autoband rond zijn eigen midden, met de as langs x (voor `painted`): `r` is de buitenste straal, `thick` de
+ * dikte van het rubber. De blokjes op het loopvlak en de witte streep op de zijkant laten zien dat hij rolt.
  */
-const TOY_LOOSE: Partial<Record<ToyKind, { x: number; z: number; r: number; turn?: number; parts: Part[] }[]>> = {
+const tyreGeo = (r: number, thick: number): [number, ...THREE.BufferGeometry[]][] => [
+  [0x3d4148, new THREE.TorusGeometry(r - thick, thick, 7, 14).rotateY(Math.PI / 2)],
+  [0x5b616a, ...Array.from({ length: 7 }, (_, i) => new THREE.BoxGeometry(thick * 1.5, 0.03, 0.06).translate(0, r - 0.008, 0).rotateX((i / 7) * Math.PI * 2))],
+  [0xf7f4ec, ...[-1, 1].map(side => new THREE.TorusGeometry(r - thick, thick * 0.3, 4, 5, Math.PI * 0.6).rotateY(Math.PI / 2).translate(side * thick * 0.82, 0, 0))],
+];
+/**
+ * De losse stukken van speelgoed: de twee ballen, de liggende stam en de autoband. Elk stuk is rond zijn eigen
+ * midden gemaakt, zodat het echt kan rollen. `x`, `z`: de eigen plek op de tegel. `r`: de straal, zo hoog ligt het
+ * midden. `turn`: zo ligt een stam gedraaid; die rolt alleen dwars op zijn lengte. `wheel`: een band, die rolt
+ * rechtop en draait mee met de kant waar hij heen gaat.
+ */
+const TOY_LOOSE: Partial<Record<ToyKind, { x: number; z: number; r: number; turn?: number; wheel?: boolean; parts: Part[] }[]>> = {
+  // de band staat rechtop, met de as langs x
+  tyre: [{ x: 0.12, z: 0.1, r: 0.22, wheel: true, parts: [[painted(...tyreGeo(0.22, 0.07)), MATTE_MAT]] }],
   // de band om elke bal laat zien dat hij rolt
   ball: [
     { x: -0.08, z: 0, r: 0.2, parts: [[ball(0.2, 0, 0, 0), std(0xe0584f, 0.5)], [tube(0.203, 0.203, 0.07, 0, 0, 0), WHITE_MAT]] },
@@ -1172,6 +1191,90 @@ TOY_PARTS.tunnel = [
     ...[-0.44, 0.44].flatMap(x => [-75, -50, -25, 0, 25, 50, 75].map(deg => new THREE.BoxGeometry(0.05, 0.03, 0.2).translate(x, 0.43, 0).rotateX((deg * Math.PI) / 180).translate(0, 0.04, 0))),
   ])!, DARK_MAT],
 ];
+
+// ------------------------------------------------------------ speelgoed dat zelf beweegt
+// Bij de wipplank, de slingerbal, de kruipboog, de bandenschommel en de klimpaal is het LAATSTE onderdeel het losse
+// stuk: het spel laat het bewegen om het punt uit TOY_PIVOT (zie `swayToy` in game.ts en `swingPart` hieronder).
+// Komt er een onderdeel bij, zet het dan vóór het losse stuk.
+const ROPE = 0xe8dcc0;
+const pivotOf = (kind: ToyKind): [number, number, number] => TOY_PIVOT[kind] ?? [0, 0, 0];
+// autoband: 0 = een band die plat in de hoek ligt; de band die rechtop staat ligt los en rolt (zie TOY_LOOSE)
+TOY_PARTS.tyre = [
+  [painted(...tyreGeo(0.2, 0.065)).rotateZ(Math.PI / 2).translate(-0.25, 0.065, -0.25), MATTE_MAT],
+];
+// wipplank: 0 = de liggende stam waar hij op rust, 1 = de plank (los: hij wipt om de bovenkant van de stam, langs x)
+const ROCK_Y = pivotOf('rocker')[1];
+TOY_PARTS.rocker = [
+  [painted(
+    [0xa8743f, new THREE.CylinderGeometry(0.09, 0.09, 0.56, 9).rotateX(Math.PI / 2).translate(0, ROCK_Y - 0.09, 0)],
+    [0xe3c08a, ...[-0.285, 0.285].map(z => new THREE.CylinderGeometry(0.07, 0.07, 0.012, 9).rotateX(Math.PI / 2).translate(0, ROCK_Y - 0.09, z))],
+    [0x80552c, ...CORNERS.map(([x, z]) => boxAt(0.05, 0.1, 0.05, x * 0.1, 0.05, z * 0.22))],
+  ), MATTE_MAT],
+  [painted(
+    [0xe3c08a, boxAt(0.8, 0.045, 0.4, 0, ROCK_Y + 0.0225, 0)],
+    [0xc58a4b, ...[-0.3, -0.15, 0.15, 0.3].map(x => boxAt(0.035, 0.018, 0.4, x, ROCK_Y + 0.054, 0))],
+    // een rood en een blauw uiteinde
+    [0xe0584f, boxAt(0.075, 0.05, 0.41, -0.435, ROCK_Y + 0.0225, 0)],
+    [0x4a90e2, boxAt(0.075, 0.05, 0.41, 0.435, ROCK_Y + 0.0225, 0)],
+  ), MATTE_MAT],
+];
+// slingerbal: 0 = de paal op zijn voet, 1 = het touw met de bal (los: hij draait om de paal en zwaait naar buiten)
+const TETHER_Y = pivotOf('tetherball')[1];
+TOY_PARTS.tetherball = [
+  [painted(
+    [0xa8743f, tube(0.035, 0.045, TETHER_Y + 0.03, 0, (TETHER_Y + 0.03) / 2, 0)],
+    [0x8a8f98, tube(0.15, 0.18, 0.05, 0, 0.025, 0), tube(0.07, 0.1, 0.05, 0, 0.075, 0)],
+    [0x4a90e2, tube(0.05, 0.05, 0.06, 0, 0.62, 0), tube(0.048, 0.048, 0.06, 0, 0.8, 0)],
+    [0xe0584f, ball(0.06, 0, TETHER_Y + 0.06, 0)],
+  ), PAINT_MAT],
+  [painted(
+    [ROPE, rod(0.013, [0.03, TETHER_Y, 0], [0.17, 0.53, 0], 5)],
+    [0xffd23f, ball(0.13, 0.17, 0.42, 0)],
+    [0xe0584f, tube(0.133, 0.133, 0.05, 0.17, 0.42, 0)],
+  ), PAINT_MAT],
+];
+// kruipboog: 0 = twee palen met een dwarsbalk, 1 = de slierten met kralen (los: ze zwaaien om de dwarsbalk, langs z)
+const ARCH_Y = pivotOf('logarch')[1];
+const STRIPS: [number, number, number][] = [[-0.27, 0.4, 0xe0584f], [-0.135, 0.5, 0xffd23f], [0, 0.42, 0x4a90e2], [0.135, 0.52, 0xf06aa6], [0.27, 0.38, 0x6cc04a]];
+TOY_PARTS.logarch = [
+  [painted(
+    [0xa8743f, ...[-0.42, 0.42].map(x => tube(0.065, 0.075, ARCH_Y + 0.04, x, (ARCH_Y + 0.04) / 2, 0)), new THREE.CylinderGeometry(0.06, 0.06, 0.98, 8).rotateZ(Math.PI / 2).translate(0, ARCH_Y + 0.05, 0)],
+    [0xe3c08a, ...[-0.494, 0.494].map(x => new THREE.CylinderGeometry(0.046, 0.046, 0.012, 8).rotateZ(Math.PI / 2).translate(x, ARCH_Y + 0.05, 0))],
+    [0x80552c, ...[-0.42, 0.42].map(x => prism(0.1, 0.12, 0.06, x, 0.03, 0, 6))],
+    // een paar blaadjes boven op de balk
+    [0x5fa544, blob(0.07, 1.5, 0.4, 1, -0.2, ARCH_Y + 0.12, 0.02, 0), blob(0.06, 1.3, 0.4, 1, 0.14, ARCH_Y + 0.12, -0.02, 0)],
+  ), MATTE_MAT],
+  [painted(
+    [ROPE, ...STRIPS.map(([x, len]) => boxAt(0.022, len, 0.022, x, ARCH_Y - len / 2, 0))],
+    ...STRIPS.map(([x, len, color]): [number, THREE.BufferGeometry] => [color, dot(0.045, x, ARCH_Y - len - 0.02, 0)]),
+  ), PAINT_MAT],
+];
+// bandenschommel: 0 = het houten rek, 1 = de band aan twee touwen (los: hij schommelt om de bovenbalk, langs z)
+const SWING_Y = pivotOf('tyreswing')[1], SEAT_Y = SWING.seat - 0.07;
+TOY_PARTS.tyreswing = [
+  [merge([
+    ...[-0.43, 0.43].flatMap(x => [-0.3, 0.3].map(z => beam(0.065, [x, 0, z], [x, SWING_Y + 0.02, 0]))),
+    ...[-0.43, 0.43].map(x => boxAt(0.045, 0.045, 0.36, x, 0.5, 0)),
+    boxAt(0.98, 0.08, 0.08, 0, SWING_Y + 0.02, 0),
+  ]), WOOD_MAT],
+  [merge([
+    painted(...tyreGeo(0.26, 0.07)).rotateZ(Math.PI / 2).translate(0, SEAT_Y, 0),
+    painted([ROPE, ...[-0.19, 0.19].map(x => boxAt(0.025, SWING_Y - SEAT_Y - 0.04, 0.025, x, (SWING_Y + SEAT_Y + 0.04) / 2, 0))]),
+  ]), MATTE_MAT],
+];
+// klimpaal: 0 = de paal met touw eromheen, drie sporten en een vlonder bovenop (daar zit een dier), 1 = een touw met
+// een knoop aan de rand van de vlonder (los: het bungelt)
+const POLE = TOY_LIFT.pole ?? 1, [POLE_X, POLE_Y, POLE_Z] = pivotOf('pole');
+TOY_PARTS.pole = [
+  [painted(
+    [0xa8743f, tube(0.08, 0.1, POLE - 0.06, 0, (POLE - 0.06) / 2, 0), prism(0.15, 0.19, 0.06, 0, 0.03, 0, 7)],
+    [ROPE, ...[0.3, 0.38, 0.46].map(y => tube(0.099, 0.101, 0.07, 0, y, 0))],
+    [0x80552c, ...[[0.18, 0.4], [0.6, 2.5], [0.76, 4.6]].map(([y, a]) => rod(0.025, [0, y, 0], [Math.cos(a) * 0.2, y + 0.02, Math.sin(a) * 0.2], 5))],
+    [0xd3ad74, prism(0.2, 0.11, 0.08, 0, POLE - 0.1, 0, 8)],
+    [0xe3c08a, prism(0.33, 0.33, 0.06, 0, POLE - 0.03, 0, 8)],
+  ), MATTE_MAT],
+  [merge([rod(0.014, [POLE_X, POLE_Y, POLE_Z], [POLE_X, POLE_Y - 0.42, POLE_Z], 5), dot(0.04, POLE_X, POLE_Y - 0.44, POLE_Z), dot(0.026, POLE_X, POLE_Y - 0.24, POLE_Z)]), std(ROPE, 1)],
+];
 // De stam van een boom: onderaan breder, met een voet en twee takken die de kruin in gaan.
 const trunk = (h: number, r: number): THREE.BufferGeometry => merge([
   new THREE.CylinderGeometry(r * 0.62, r, h, 7).translate(0, h / 2, 0),
@@ -1694,6 +1797,108 @@ const PROP_PARTS: Record<PropKind, Part[]> = {
     [merge([stone(0.62, 0.58, 0.52, -0.06, -0.06, 0, 0.3), stone(0.4, 0.4, 0.4, 0.26, -0.05, 0.14, 1.1), stone(0.36, 0.38, 0.34, -0.1, 0.44, -0.04, 2), stone(0.24, 0.24, 0.24, -0.3, -0.04, 0.24, 0.6)]), ROCK_MAT],
     [merge([stone(0.24, 0.14, 0.22, -0.1, 0.76, -0.04, 0.8), stone(0.2, 0.14, 0.18, 0.3, 0.3, 0.14, 1.7), stone(0.14, 0.1, 0.12, 0.1, -0.02, 0.36, 0.2)]), STONE],
   ],
+  // ---- klein spul voor het park: elk één onderdeel in een paar felle kleuren, de voorkant naar +z
+  // bloempot: een pot van aardewerk met een grote rode bloem en een kleine gele
+  pot: [
+    [merge([
+      painted(
+        [0xc9653f, tube(0.115, 0.08, 0.15, 0, 0.075, 0)],
+        [0xdc7a4e, tube(0.132, 0.132, 0.04, 0, 0.16, 0)],
+        [0x5a3d22, tube(0.108, 0.108, 0.012, 0, 0.184, 0)],
+        [0x4f9e45, rod(0.016, [0, 0.18, 0], [0.01, 0.4, 0.03], 5), rod(0.012, [0, 0.18, 0], [-0.09, 0.3, 0.05], 5), blob(0.075, 1.2, 0.3, 0.7, 0.085, 0.25, -0.02, 0), blob(0.065, 0.7, 0.3, 1.2, -0.03, 0.24, -0.08, 0)],
+      ),
+      ...bloom(0.01, 0.42, 0.04, 0xe0584f, 0.1, 0.5),
+      ...bloom(-0.095, 0.31, 0.06, 0xffd23f, 0.06, 0.4),
+    ]), PAINT_MAT],
+  ],
+  // kabouter: blauw jasje, witte baard, een roze neus en een hoge rode puntmuts
+  gnome: [
+    [painted(
+      [0x4a90e2, tube(0.075, 0.115, 0.19, 0, 0.095, 0)],
+      [0x3a2a1a, tube(0.108, 0.108, 0.028, 0, 0.07, 0), dot(0.013, -0.035, 0.265, 0.076), dot(0.013, 0.035, 0.265, 0.076)],
+      [0x8a5a2c, blob(0.04, 1, 0.6, 1.25, -0.05, 0.02, 0.088, 0), blob(0.04, 1, 0.6, 1.25, 0.05, 0.02, 0.088, 0)],
+      [0xffd23f, boxAt(0.04, 0.036, 0.012, 0, 0.07, 0.108)],
+      [0xf6cfa6, ball(0.088, 0, 0.245, 0)],
+      [0xffffff, blob(0.08, 1, 1.25, 0.6, 0, 0.16, 0.062)],
+      [0xf3a6b8, dot(0.026, 0, 0.238, 0.092)],
+      [0xe0241f, cone(0.105, 0.27, 0, 0.43, 0, 9)],
+    ), PAINT_MAT],
+  ],
+  // windmolentje: vier wiekjes in vier kleuren op een stokje, een beetje achterover zodat je het van boven ziet
+  pinwheel: [
+    [merge([
+      paint(rod(0.014, [0, 0, 0], [0, 0.44, 0], 5), 0xf7f4ec),
+      merge([
+        ...[0xe0584f, 0xffd23f, 0x4a90e2, 0x6cc04a].map((hex, i) => paint(boxAt(0.14, 0.078, 0.014, 0.07, 0.039, 0).rotateZ((i * Math.PI) / 2), hex)),
+        paint(dot(0.028, 0, 0, 0.016), 0xffffff),
+      ]).rotateX(-0.45).translate(0, 0.44, 0.02),
+    ]), PAINT_MAT],
+  ],
+  // badeend: geel, met een oranje snavel en een opgewipt staartje
+  ducky: [
+    [painted(
+      [0xffd23f, blob(0.11, 1, 0.75, 1.3, 0, 0.085, -0.02), ball(0.078, 0, 0.2, 0.07), new THREE.ConeGeometry(0.045, 0.1, 5).rotateX(-0.6).translate(0, 0.15, -0.14)],
+      [0xf2b01d, blob(0.06, 0.45, 0.7, 1.3, -0.1, 0.1, -0.03, 0), blob(0.06, 0.45, 0.7, 1.3, 0.1, 0.1, -0.03, 0)],
+      [0xf08a24, blob(0.04, 1.1, 0.5, 1.3, 0, 0.188, 0.155, 0)],
+      [0x3a2a1a, dot(0.014, -0.036, 0.225, 0.133), dot(0.014, 0.036, 0.225, 0.133)],
+    ), PAINT_MAT],
+  ],
+  // ballen: drie op de grond en één er bovenop
+  balls: [
+    [painted(
+      [0xe0584f, ball(0.085, -0.085, 0.085, 0.055)],
+      [0x4a90e2, ball(0.085, 0.085, 0.085, 0.05)],
+      [0xffd23f, ball(0.082, 0, 0.082, -0.09)],
+      [0xb06ad9, ball(0.075, 0, 0.21, 0.005)],
+    ), PAINT_MAT],
+  ],
+  // vogelhuisje: een licht huisje met een rood puntdak op een paal, met een rond gat en een stokje ervoor
+  birdhouse: [
+    [painted(
+      [0xa8743f, boxAt(0.045, 0.25, 0.045, 0, 0.125, 0), boxAt(0.25, 0.025, 0.22, 0, 0.245, 0), rod(0.011, [0, 0.285, 0.08], [0, 0.285, 0.15], 5)],
+      [0xfff1c9, boxAt(0.2, 0.17, 0.17, 0, 0.34, 0)],
+      [0x3a2a1a, new THREE.CylinderGeometry(0.036, 0.036, 0.012, 8).rotateX(Math.PI / 2).translate(0, 0.355, 0.087)],
+      [0xd8362e, cone(0.18, 0.13, 0, 0.485, 0, 4)],
+    ), MATTE_MAT],
+  ],
+  // gieter: blauw, met water erin, een oor aan de ene kant en een tuit met een gele broes aan de andere
+  can: [
+    [painted(
+      [0x4aa8e8, tube(0.1, 0.1, 0.18, -0.02, 0.09, 0), rod(0.024, [0.06, 0.06, 0], [0.165, 0.2, 0], 6, 0.018)],
+      [0x2f7fc0, tube(0.106, 0.106, 0.025, -0.02, 0.17, 0), tube(0.106, 0.106, 0.025, -0.02, 0.015, 0), new THREE.TorusGeometry(0.07, 0.016, 5, 8, Math.PI).rotateZ(Math.PI / 2).translate(-0.115, 0.095, 0)],
+      [0xbfe6f7, tube(0.088, 0.088, 0.01, -0.02, 0.182, 0)],
+      [0xffd23f, blob(0.04, 1, 1, 1, 0.175, 0.212, 0, 0)],
+    ), PAINT_MAT],
+  ],
+  // emmertje: rood met een gele rand, vol zand, met een hengsel en een blauw schepje erin
+  bucket: [
+    [painted(
+      [0xe0584f, tube(0.112, 0.08, 0.16, 0, 0.08, 0)],
+      [0xffd23f, tube(0.122, 0.122, 0.024, 0, 0.158, 0)],
+      [0xf0d9a0, blob(0.104, 1, 0.4, 1, 0, 0.168, 0, 0)],
+      [0xf7f4ec, new THREE.TorusGeometry(0.112, 0.012, 4, 10, Math.PI).rotateX(0.35).translate(0, 0.165, 0)],
+      [0x4a90e2, rod(0.015, [-0.02, 0.17, -0.02], [-0.07, 0.4, -0.06], 5), rod(0.017, [-0.105, 0.39, -0.06], [-0.035, 0.41, -0.06], 5)],
+    ), PAINT_MAT],
+  ],
+  // slak: een oranje huisje met een krul op de zij, en twee oogjes op steeltjes
+  snail: [
+    [painted(
+      [0xf3c9a0, blob(0.055, 1, 0.7, 3, 0, 0.04, 0), ball(0.052, 0, 0.1, 0.15), rod(0.009, [-0.02, 0.13, 0.16], [-0.04, 0.21, 0.185], 4), rod(0.009, [0.02, 0.13, 0.16], [0.04, 0.21, 0.185], 4)],
+      [0x3a2a1a, dot(0.017, -0.04, 0.215, 0.187), dot(0.017, 0.04, 0.215, 0.187)],
+      [0xf08a24, blob(0.115, 0.6, 1, 1, 0, 0.155, -0.03), new THREE.CylinderGeometry(0.028, 0.028, 0.17, 8).rotateZ(Math.PI / 2).translate(0, 0.155, -0.03)],
+      [0xffd23f, new THREE.CylinderGeometry(0.062, 0.062, 0.152, 10).rotateZ(Math.PI / 2).translate(0, 0.155, -0.03)],
+    ), PAINT_MAT],
+  ],
+  // kistje appels: een houten kistje met rode appels en één groene
+  crate: [
+    [painted(
+      [0xc58a4b, boxAt(0.3, 0.13, 0.22, 0, 0.065, 0)],
+      [0xa8743f, boxAt(0.31, 0.03, 0.23, 0, 0.07, 0)],
+      [0x8a5a2c, ...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([x, z]) => boxAt(0.04, 0.15, 0.04, x * 0.14, 0.075, z * 0.1))],
+      [0xd8362e, ball(0.052, -0.09, 0.145, -0.045), ball(0.052, 0.09, 0.145, -0.045), ball(0.052, -0.05, 0.145, 0.05), ball(0.052, 0, 0.145, -0.05), ball(0.05, -0.01, 0.2, -0.005)],
+      [0x8fcf4a, ball(0.054, 0.06, 0.148, 0.05)],
+    ), MATTE_MAT],
+  ],
 };
 
 function buildDecor(kind: DecorKind, mat?: THREE.Material): THREE.Group {
@@ -1719,6 +1924,130 @@ function buildDecor(kind: DecorKind, mat?: THREE.Material): THREE.Group {
     group.add(pendulum);
   }
   return group;
+}
+
+// Vijvers die naast elkaar liggen, lopen in elkaar over (zie View.syncPonds): twee naast elkaar worden een ovaal,
+// vier in een blok een grote vijver met ronde hoeken. Per tegel hangt de vorm af van welke buren ook vijver zijn.
+// In `mask` telt noord 1, oost 2, zuid 4 en west 8; schuin telt noordoost 16, zuidoost 32, zuidwest 64 en
+// noordwest 128 (alleen als de twee kanten ernaast ook vijver zijn). Een vijver zonder buren houdt het gewone model.
+const POND_WATER = 0.37, POND_STONES = 0.41, POND_BASE = 0.44;
+/** Naar een buur toe loopt de vijver een haartje over de tegelrand heen, zodat er geen kier tussen twee tegels valt. */
+const POND_EDGE = 0.502;
+// De tegel in vier kwarten, de klok rond: zuidoost, zuidwest, noordwest, noordoost. Elk kwart loopt van zijn
+// eerste kant (POND_SIDE) naar de kant van het volgende kwart; POND_DIAG is de buur schuin in die hoek.
+const POND_SIDE = [2, 4, 8, 1], POND_DIAG = [32, 64, 128, 16];
+/** Draait een punt uit het eerste kwart (zuidoost) naar kwart `k`. */
+const pondTurn = (u: number, v: number, k: number): [number, number] => (k === 0 ? [u, v] : k === 1 ? [-v, u] : k === 2 ? [-u, -v] : [v, -u]);
+/**
+ * De omtrek van één vijvertegel. Aan een open kant ligt hij `r` van het midden; naar een buur toe loopt hij recht
+ * door tot de tegelrand. Een hoek is rond als beide kanten open zijn. Zijn beide kanten vijver maar de tegel
+ * schuin ertussen niet, dan komt daar een klein rond inhammetje.
+ */
+function pondOutline(mask: number, r: number): THREE.Vector2[] {
+  const pts: THREE.Vector2[] = [];
+  const add = (u: number, v: number, k: number): void => {
+    const [x, z] = pondTurn(u, v, k), last = pts[pts.length - 1];
+    if (!last || Math.abs(last.x - x) + Math.abs(last.y - z) > 1e-6) pts.push(new THREE.Vector2(x, z));
+  };
+  for (let k = 0; k < 4; k++) {
+    const a = !!(mask & POND_SIDE[k]), b = !!(mask & POND_SIDE[(k + 1) % 4]);
+    if (!a && !b) for (let i = 0; i <= 4; i++) add(Math.cos((i * Math.PI) / 8) * r, Math.sin((i * Math.PI) / 8) * r, k);
+    else if (a && !b) [[POND_EDGE, 0], [POND_EDGE, r], [0, r]].forEach(([u, v]) => add(u, v, k));
+    else if (!a && b) [[r, 0], [r, POND_EDGE], [0, POND_EDGE]].forEach(([u, v]) => add(u, v, k));
+    else if (mask & POND_DIAG[k]) [[POND_EDGE, 0], [POND_EDGE, POND_EDGE], [0, POND_EDGE]].forEach(([u, v]) => add(u, v, k));
+    else {
+      // het inhammetje: een kwart rondje om de hoek van de tegel
+      const rho = 0.5 - r;
+      add(POND_EDGE, 0, k);
+      add(POND_EDGE, r, k);
+      for (let i = 0; i <= 2; i++) add(0.5 - Math.sin((i * Math.PI) / 4) * rho, 0.5 - Math.cos((i * Math.PI) / 4) * rho, k);
+      add(r, POND_EDGE, k);
+      add(0, POND_EDGE, k);
+    }
+  }
+  if (pts.length > 1 && pts[0].distanceTo(pts[pts.length - 1]) < 1e-6) pts.pop();
+  return pts;
+}
+/** Een platte plak in de vorm van de vijvertegel, van hoogte `bottom` tot `top`. */
+const pondSlab = (mask: number, r: number, bottom: number, top: number): THREE.BufferGeometry => {
+  const g = new THREE.ExtrudeGeometry(new THREE.Shape(pondOutline(mask, r)), { depth: top - bottom, bevelEnabled: false });
+  g.clearGroups();
+  return g.rotateX(Math.PI / 2).translate(0, top, 0);
+};
+/**
+ * De rand van een vijvertegel met buren: de voet, keien langs de open kanten en riet in de ronde hoeken die in
+ * `reeds` aan staan (1 voor het eerste kwart, 2, 4 en 8 voor de volgende).
+ */
+function pondRim(mask: number, reeds: number): THREE.BufferGeometry {
+  const light: THREE.BufferGeometry[] = [], dark: THREE.BufferGeometry[] = [], stalks: THREE.BufferGeometry[] = [], heads: THREE.BufferGeometry[] = [];
+  let n = 0;
+  const put = (u: number, v: number, k: number, w = 0.16, d = 0.13): void => {
+    const [x, z] = pondTurn(u, v, k);
+    (n % 2 ? dark : light).push(stone(w, 0.1 + (n % 3) * 0.025, d, x, 0.03, z, n * 0.9 + k));
+    n++;
+  };
+  for (let k = 0; k < 4; k++) {
+    const a = !!(mask & POND_SIDE[k]), b = !!(mask & POND_SIDE[(k + 1) % 4]), odd = k % 2 === 1;
+    if (!a && !b) {
+      for (const deg of [15, 45, 75]) put(Math.cos((deg * Math.PI) / 180) * POND_STONES, Math.sin((deg * Math.PI) / 180) * POND_STONES, k);
+      if (reeds & (1 << k)) {
+        // hetzelfde plukje riet als bij de losse vijver (dat staat noordwest), gedraaid naar deze hoek
+        const turn = ((2 - k) * Math.PI) / 2;
+        stalks.push(...[rod(0.012, [-0.3, 0.1, -0.3], [-0.34, 0.5, -0.32], 4), rod(0.012, [-0.36, 0.1, -0.22], [-0.42, 0.42, -0.2], 4), rod(0.012, [-0.24, 0.1, -0.36], [-0.2, 0.4, -0.4], 4)].map(g => g.rotateY(turn)));
+        heads.push(...[rod(0.026, [-0.335, 0.4, -0.318], [-0.342, 0.52, -0.322], 6), rod(0.024, [-0.41, 0.34, -0.203], [-0.425, 0.44, -0.198], 6)].map(g => g.rotateY(turn)));
+      }
+    }
+    // langs een rechte kant ligt een kei met zijn lange kant langs het water
+    else if (a && !b) for (const u of [0.375, 0.125]) put(u, POND_STONES, k, odd ? 0.13 : 0.17, odd ? 0.17 : 0.13);
+    else if (!a && b) for (const v of [0.125, 0.375]) put(POND_STONES, v, k, odd ? 0.17 : 0.13, odd ? 0.13 : 0.17);
+    else if (!(mask & POND_DIAG[k])) put(0.435, 0.435, k, 0.15, 0.15);
+  }
+  return painted([0x9aa3ab, pondSlab(mask, POND_BASE, 0, 0.08)], [0xb9c2c9, ...light], [0x8f949c, ...dark], [0x5fa544, ...stalks], [0x6b4a2a, ...heads]);
+}
+/** De randen en het water die al eens gemaakt zijn: tegels met dezelfde buren delen hun vorm. */
+const POND_RIMS = new Map<number, THREE.BufferGeometry>(), POND_WATERS = new Map<number, THREE.BufferGeometry>();
+// Wat er drijft op een vijver met buren, per tegel iets anders: de lelie met de kikker (zoals de losse vijver),
+// alleen de lelie, alleen de kikker, een paar losse bladeren of niets. Alles blijft dicht bij het midden van de
+// tegel, dus nooit op een naad.
+const POND_LILY = painted(
+  [0xf48fb1, ...[0, 1, 2, 3, 4, 5].map(i => new THREE.ConeGeometry(0.022, 0.07, 4).translate(0, 0.035, 0).rotateZ(0.6).rotateY(i * 1.05).translate(-0.14, 0.11, 0.1))],
+  [0xffd23f, dot(0.02, -0.14, 0.135, 0.1)],
+);
+const POND_FROG = painted([0x6cc04a, blob(0.036, 1, 0.8, 1.2, 0.16, 0.135, -0.08), dot(0.016, 0.146, 0.165, -0.055), dot(0.016, 0.174, 0.165, -0.055)]);
+const POND_LEAVES = mergeGeometries([tube(0.075, 0.075, 0.012, -0.1, 0.106, -0.12), tube(0.055, 0.055, 0.012, 0.13, 0.106, 0.1)])!;
+/**
+ * Geeft één vijver de vorm die bij zijn buren past. De vier onderdelen blijven op hun plek in de groep (rand,
+ * water, bladeren, lelie en kikker), zodat animateDecor ze blijft vinden.
+ */
+function shapePond(group: THREE.Object3D, mask: number, x: number, y: number, rot: number): void {
+  const [rim, water, pads, top] = group.children as THREE.Mesh[], parts = DECOR_PARTS.pond;
+  // een losse vijver ligt zoals hij gezet is; een vijver met buren ligt recht, anders past hij niet op zijn buren
+  group.rotation.y = mask ? 0 : (rot * Math.PI) / 2;
+  if (!mask) {
+    [rim, water, pads, top].forEach((mesh, i) => {
+      mesh.geometry = parts[i][0];
+      mesh.visible = true;
+      mesh.rotation.y = 0;
+    });
+    return;
+  }
+  // riet in een ronde hoek: achteraan (noordwest) altijd, opzij soms, vooraan nooit (daar staat het in de weg)
+  let reeds = 4 | (hash(x, y, 9) < 0.35 ? 2 : 0) | (hash(x, y, 10) < 0.35 ? 8 : 0);
+  for (let k = 0; k < 4; k++) if (mask & (POND_SIDE[k] | POND_SIDE[(k + 1) % 4])) reeds &= ~(1 << k);
+  const key = mask | (reeds << 8);
+  if (!POND_RIMS.has(key)) POND_RIMS.set(key, pondRim(mask, reeds));
+  if (!POND_WATERS.has(mask)) POND_WATERS.set(mask, pondSlab(mask, POND_WATER, 0.07, 0.1));
+  rim.geometry = POND_RIMS.get(key)!;
+  water.geometry = POND_WATERS.get(mask)!;
+  // om en om: de ene tegel een lelie of een kikker, de andere een paar losse bladeren of alleen water
+  const pick = hash(x, y, 11), even = (x + y) % 2 === 0;
+  const leaves = even ? parts[2][0] : pick < 0.5 ? POND_LEAVES : null;
+  const guest = !even ? null : pick < 0.4 ? parts[3][0] : pick < 0.75 ? POND_LILY : POND_FROG;
+  pads.visible = !!leaves;
+  top.visible = !!guest;
+  if (leaves) pads.geometry = leaves;
+  if (guest) top.geometry = guest;
+  pads.rotation.y = top.rotation.y = (Math.floor(hash(x, y, 12) * 4) * Math.PI) / 2;
 }
 
 /**
@@ -1922,13 +2251,13 @@ function build(parts: Part[], mat?: THREE.Material): THREE.Group {
 function buildToy(kind: ToyKind, mat?: THREE.Material): THREE.Group {
   const group = build(TOY_PARTS[kind], mat);
   const loose: THREE.Object3D[] = [];
-  for (const { x, z, r, turn, parts } of TOY_LOOSE[kind] ?? []) {
+  for (const { x, z, r, turn, wheel, parts } of TOY_LOOSE[kind] ?? []) {
     const piece = build(parts, mat);
     piece.position.set(x, r, z);
     // eerst rollen om de eigen lengte, dan pas draaien: zo rolt een stam altijd dwars op hoe hij ligt
     piece.rotation.order = 'YXZ';
     piece.rotation.y = turn ?? 0;
-    piece.userData = { x, z, r, turn };
+    piece.userData = { x, z, r, turn, wheel };
     group.add(piece);
     loose.push(piece);
   }
@@ -1937,6 +2266,8 @@ function buildToy(kind: ToyKind, mat?: THREE.Material): THREE.Group {
 }
 /** De as waar een los stuk omheen rolt: één keer gemaakt, elke keer opnieuw gebruikt. */
 const ROLL_AXIS = new THREE.Vector3();
+/** Voor het draaien van een los onderdeel om zijn paal (zie `swingPart`). */
+const SPIN = new THREE.Quaternion();
 
 const NIGHT_SKY = new THREE.Color(0x16224a);
 /** De omgeving kleurt mee met de wereld waarin je speelt. */
@@ -2600,6 +2931,15 @@ export class View {
     bow.position.set(this.target.x - Math.sin(phi) * back, -0.4 * tall, this.target.z - Math.cos(phi) * back);
   }
 
+  /**
+   * Waar de speler naar kijkt, voor het geluid: het midden van het beeld (in tegels), hoeveel tegels er verticaal in
+   * beeld zijn, en welke kant op het raster op het scherm naar rechts wijst.
+   */
+  hearing(): [x: number, y: number, zoom: number, rx: number, ry: number] {
+    const phi = this.angle + Math.PI / 4;
+    return [this.target.x + W / 2, this.target.z + H / 2, this.zoom, Math.cos(phi), -Math.sin(phi)];
+  }
+
   /** Schuif het beeld rustig naar deze plek op het raster. */
   flyTo(gx: number, gy: number): void {
     this.fly = { x: toWorldX(gx), z: toWorldZ(gy) };
@@ -2911,6 +3251,24 @@ export class View {
   }
 
   /**
+   * Vijvers die naast elkaar liggen, worden samen één vijver: elke vijvertegel krijgt de rand en het water die bij
+   * zijn buren passen (zie shapePond). Geef alle vijvers mee, telkens als er een bij komt of weggaat.
+   */
+  syncPonds(ponds: { x: number; y: number; rot?: number; mesh: THREE.Object3D }[]): void {
+    const spots = new Set(ponds.map(p => p.y * W + p.x));
+    const at = (x: number, y: number): boolean => x >= 0 && x < W && spots.has(y * W + x);
+    for (const p of ponds) {
+      const { x, y } = p, n = at(x, y - 1), e = at(x + 1, y), s = at(x, y + 1), w = at(x - 1, y);
+      let mask = (n ? 1 : 0) | (e ? 2 : 0) | (s ? 4 : 0) | (w ? 8 : 0);
+      if (n && e && at(x + 1, y - 1)) mask |= 16;
+      if (s && e && at(x + 1, y + 1)) mask |= 32;
+      if (s && w && at(x - 1, y + 1)) mask |= 64;
+      if (n && w && at(x - 1, y - 1)) mask |= 128;
+      shapePond(p.mesh, mask, x, y, p.rot ?? 0);
+    }
+  }
+
+  /**
    * Geen twee bomen zijn gelijk: bij elke plek hoort een eigen draaiing, grootte, hoogte, vorm van de kruin en
    * tint van het blad. Alles staat op de onderdelen zelf, zodat het spel de groep vrij kan laten wiegen en veren.
    */
@@ -3034,6 +3392,19 @@ export class View {
   /** Een losse bal rolt een stukje: `angle` om een as die plat op de grond ligt (`ax`, `az`: in het speelgoed zelf gemeten, lengte 1). */
   rollLoose(piece: THREE.Object3D, ax: number, az: number, angle: number): void {
     piece.rotateOnWorldAxis(ROLL_AXIS.set(ax, 0, az), angle);
+  }
+
+  /**
+   * Zet het losse onderdeel van speelgoed scheef: `angle` om een as die plat ligt (`ax`, `az`: lengte 1) door het punt
+   * `pivot`, en daarna `yaw` om de as recht omhoog door dat punt. Zo schommelt de band aan zijn balk, wipt de plank
+   * en draait de slingerbal om zijn paal. Met `angle` en `yaw` op nul staat het onderdeel weer gewoon.
+   */
+  swingPart(part: THREE.Object3D | undefined, pivot: [number, number, number], ax: number, az: number, angle: number, yaw = 0): void {
+    if (!part) return;
+    part.quaternion.setFromAxisAngle(ROLL_AXIS.set(ax, 0, az), angle);
+    if (yaw) part.quaternion.premultiply(SPIN.setFromAxisAngle(UP, yaw));
+    // draaien om het punt: het punt zelf blijft waar het is
+    part.position.set(pivot[0], pivot[1], pivot[2]).sub(ROLL_AXIS.set(pivot[0], pivot[1], pivot[2]).applyQuaternion(part.quaternion));
   }
 
   ghostToy(x: number, y: number, kind: ToyKind, ok: boolean, rot = 0): void {

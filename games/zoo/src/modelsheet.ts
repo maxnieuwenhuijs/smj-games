@@ -5,7 +5,7 @@
 // &bos=1 (de bomen rond het park), &seizoen=winter, &nacht=1, &spook=1 (het doorzichtige voorbeeld), &draai=1 (kwartslagen), &druk=1 (alsof er
 // gasten zijn), &t=2.5 (het moment van de foto), &zoom=6 (tegels in beeld).
 import * as THREE from 'three';
-import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FERRIS, FOODS, PROPS, SHOPS, SHOP_SIZE, TERRAINS, TOYS, TROUGHS, bumperCar, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type ToyKind, type TroughKind } from './data';
+import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FERRIS, FOODS, PARK_PROPS, WILD_PROPS, SHOPS, SHOP_SIZE, TERRAINS, TOYS, TROUGHS, bumperCar, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type ToyKind, type TroughKind } from './data';
 import { BASE_LAND, FULL_LAND, Grid, edgeKey, type Edge, type EdgeKind } from './grid';
 import { View, toWorldX, toWorldZ } from './view';
 
@@ -54,6 +54,23 @@ const decor = (kind: DecorKind): Item => ({
     const seed = x * 1.3 + y * 0.7;
     live.push(t => view.animateDecor(group, kind, t, seed));
     if (query.get('tik') === '1') view.pokeDecor(group, kind, num('t', 1.3) - 0.3);
+  },
+});
+/** De vijvers van de groep 'vijvers': het beeld laat buren in elkaar overlopen (zie View.syncPonds). */
+const ponds: { x: number; y: number; rot: number; mesh: THREE.Object3D }[] = [];
+/** Een vijver van meer tegels; `tiles` zijn de tegels, geteld vanaf de hoek linksboven. */
+const pond = (name: string, size: number, tiles: [number, number][]): Item => ({
+  name, size,
+  put: (x, y) => {
+    // het voorbeeld is altijd één losse vijver
+    if (ghost) return view.ghostDecor(x, y, 'pond', true, undefined, rot);
+    for (const [dx, dy] of tiles) {
+      const mesh = view.makeDecor(x + dx, y + dy, 'pond', undefined, rot);
+      ponds.push({ x: x + dx, y: y + dy, rot, mesh });
+      const seed = (x + dx) * 2 + y + dy;
+      live.push(t => view.animateDecor(mesh, 'pond', t, seed));
+      if (query.get('tik') === '1') view.pokeDecor(mesh, 'pond', num('t', 1.3) - 0.3);
+    }
   },
 });
 const shop = (kind: ShopKind): Item => ({
@@ -164,7 +181,18 @@ const GROUPS: Record<string, Item[]> = {
   afval: [0, 1, 2, 3].map(litter),
   trein: [train],
   pad: [path('flowerpath'), path('bridge')],
-  natuur: PROPS.map(prop),
+  natuur: WILD_PROPS.map(prop),
+  // het kleine spul voor het park, elk in het midden van een eigen tegel
+  parkjes: PARK_PROPS.map(prop),
+  // vijvers die aan elkaar haken: los, twee naast elkaar, een blok, een hoek, drie op een rij en een grillige grote
+  vijvers: [
+    pond('vijver los', 1, [[0, 0]]),
+    pond('vijver 2', 2, [[0, 0], [1, 0]]),
+    pond('vijver 2x2', 2, [[0, 0], [1, 0], [0, 1], [1, 1]]),
+    pond('vijver hoek', 2, [[0, 0], [0, 1], [1, 1]]),
+    pond('vijver 3', 3, [[0, 0], [1, 0], [2, 0]]),
+    pond('vijver groot', 4, [[1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [3, 1], [0, 2], [1, 2], [2, 2], [1, 3]]),
+  ],
 };
 // niets vergeten: wat in geen enkel rijtje staat, komt in 'rest'
 const listed = new Set([...Object.values(DECOR_SETS).flat(), ...Object.values(SHOP_SETS).flat()] as string[]);
@@ -177,7 +205,7 @@ const items = (GROUPS[groupName] ?? []).filter(item => !only || only.includes(it
 // Per groep: hoe hoog de modellen ongeveer zijn, hoeveel ruimte ertussen moet en hoeveel er op een rij staan.
 const LOOK: Record<string, { tall?: number; gap?: number; row?: number }> = {
   kramen: { tall: 3.2 }, gebouwen: { tall: 3 }, speeltuin: { tall: 3 }, attracties: { tall: 4.6, gap: 2, row: 3 }, afval: { tall: 0.5 }, klein: { tall: 1.2 },
-  voer: { tall: 1.4 }, hekken: { tall: 1.4 }, trein: { tall: 1.2 },
+  voer: { tall: 1.4 }, hekken: { tall: 1.4 }, trein: { tall: 1.2 }, parkjes: { tall: 0.7, gap: 0, row: 5 },
 };
 const look = only ? {} : LOOK[groupName] ?? {};
 const perRow = num('rij', look.row ?? Math.ceil(Math.sqrt(items.length * 1.6)));
@@ -203,6 +231,7 @@ items.forEach((item, i) => {
 view.paintTerrain(grid);
 view.syncFences(grid, wear);
 view.syncProps(props);
+view.syncPonds(ponds);
 
 // De camera: midden boven de modellen, en zo ver uitgezoomd dat alles past.
 const wide = maxX - x0, deep = maxY - y0, tall = num('hoog', look.tall ?? 1.9);

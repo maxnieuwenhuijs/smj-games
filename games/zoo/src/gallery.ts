@@ -47,7 +47,7 @@ for (const id of FIGURES) {
   html += '</div>';
 }
 html += '<h2>Muziek</h2><div class="grid">';
-for (const [world, file] of Object.entries(tunes)) html += play(`./audio/music/${file}`, t(`world.${world}`));
+for (const [world, file] of Object.entries(tunes)) html += play(`./audio/music/${file}`, world);
 html += '</div><h2>Complimenten</h2><div class="grid">';
 PRAISE.forEach((who, i) => {
   const text = t(`praise.${i + 1}`);

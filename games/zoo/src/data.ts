@@ -27,7 +27,9 @@ export type WishId = 'health' | 'enclosure' | 'food' | 'bed' | 'terrain' | 'frie
 /** Iets leuks in een verblijf: speelgoed of groen. Elk dier is er blij mee. */
 export type ToyKind = 'ball' | 'bush' | 'log' | 'flowerbed' | 'hoop'
   // heuvel, rotsen, drinkvijver, waterval, warmtelamp, ijsblok, klimrek en tunnel
-  | 'hill' | 'rocks' | 'drink' | 'fall' | 'lamp' | 'icebox' | 'frame' | 'tunnel';
+  | 'hill' | 'rocks' | 'drink' | 'fall' | 'lamp' | 'icebox' | 'frame' | 'tunnel'
+  // speelgoed dat zelf beweegt: een losse autoband, een wipplank, een slingerbal, een kruipboog, een bandenschommel en een klimpaal
+  | 'tyre' | 'rocker' | 'tetherball' | 'logarch' | 'tyreswing' | 'pole';
 
 /** De volgorde is ook de waarde in het opslagbestand: nieuwe soorten komen achteraan. */
 export const TERRAINS: Terrain[] = ['grass', 'mud', 'sand', 'water', 'path', 'snow', 'forest', 'stones', 'ice', 'swamp', 'meadow', 'steppe', 'gravel', 'planks', 'flowerpath', 'bridge', 'brick', 'cobble', 'marble'];
@@ -65,12 +67,69 @@ export const SEASONAL: Terrain[] = ['grass', 'forest', 'meadow', 'steppe'];
 
 export const FOODS: FoodId[] = ['veg', 'hay', 'fruit', 'grain', 'meat', 'leaves', 'fish', 'bamboo'];
 export const BEDS: BedKind[] = ['straw', 'shed', 'rock', 'shade', 'nest', 'cave', 'climb', 'coral'];
-export const TOYS: ToyKind[] = ['ball', 'bush', 'log', 'flowerbed', 'hoop', 'tunnel', 'drink', 'hill', 'rocks', 'frame', 'fall', 'lamp', 'icebox'];
+export const TOYS: ToyKind[] = ['ball', 'bush', 'log', 'flowerbed', 'hoop', 'tunnel', 'drink', 'hill', 'rocks', 'frame', 'fall', 'lamp', 'icebox',
+  'tyre', 'rocker', 'tetherball', 'logarch', 'tyreswing', 'pole'];
 /** Na hoeveel gehaalde levels je iets voor in het verblijf vrijspeelt, en wat het kost (anders PRICE.toy). */
-export const TOY_FROM: Record<ToyKind, number> = { ball: 9, bush: 9, log: 9, flowerbed: 9, tunnel: 11, drink: 12, hill: 14, rocks: 17, hoop: 20, frame: 22, fall: 27, lamp: 25, icebox: 30 };
-export const TOY_PRICE: Partial<Record<ToyKind, number>> = { hill: 4, rocks: 3, drink: 3, fall: 8, lamp: 5, icebox: 5, frame: 6, tunnel: 4 };
+export const TOY_FROM: Record<ToyKind, number> = {
+  ball: 9, bush: 9, log: 9, flowerbed: 9, tunnel: 11, drink: 12, hill: 14, rocks: 17, hoop: 20, frame: 22, fall: 27, lamp: 25, icebox: 30,
+  // het bewegende speelgoed komt er één voor één bij, steeds in een level waarin er geen ander speelgoed vrijkomt
+  tyre: 13, rocker: 16, tetherball: 19, logarch: 23, tyreswing: 28, pole: 32,
+};
+export const TOY_PRICE: Partial<Record<ToyKind, number>> = {
+  hill: 4, rocks: 3, drink: 3, fall: 8, lamp: 5, icebox: 5, frame: 6, tunnel: 4,
+  tyre: 3, rocker: 4, tetherball: 4, logarch: 5, tyreswing: 6, pole: 6,
+};
 /** Hier klimt een dier bovenop: zo hoog staat het dan (in tegels). */
-export const TOY_LIFT: Partial<Record<ToyKind, number>> = { hill: 0.34, rocks: 0.3, frame: 0.8 };
+export const TOY_LIFT: Partial<Record<ToyKind, number>> = { hill: 0.34, rocks: 0.3, frame: 0.8, rocker: 0.21, pole: 1 };
+/**
+ * Speelgoed dat zelf beweegt. Het dier (animal.ts) en het ding (game.ts) rekenen met dezelfde getallen en dezelfde
+ * tel `u` (seconden sinds het spelen begon): zo gaan ze precies gelijk op.
+ * `TOY_PIVOT`: het punt waar het losse onderdeel om draait (x, hoogte, z), gemeten in het ding zelf.
+ */
+export const TOY_PIVOT: Partial<Record<ToyKind, [number, number, number]>> = {
+  tyreswing: [0, 1.25, 0], tetherball: [0, 0.97, 0], rocker: [0, 0.16, 0], logarch: [0, 0.88, 0], pole: [0.25, 0.95, 0.1],
+};
+/** De bandenschommel: `hop` seconden om erop te springen, dan `swings` keer heen en weer. `seat`: zo hoog zit het dier. */
+export const SWING = { hop: 0.5, period: 1.8, swings: 4, angle: 0.32, seat: 0.4 };
+export const SWING_SECONDS = SWING.hop + SWING.period * SWING.swings;
+/** Hoe ver de schommel op tel `u` uitslaat (in radialen): rustig op gang, en aan het eind hangt hij weer stil. */
+export function swingAt(u: number): number {
+  const v = u - SWING.hop, left = SWING_SECONDS - u;
+  if (v <= 0 || left <= 0) return 0;
+  return SWING.angle * Math.min(1, v / 1.5, left / 1.5) * Math.sin((v / SWING.period) * Math.PI * 2);
+}
+/** De wipplank: `rocks` keer heen en weer. */
+export const ROCK = { period: 1.4, rocks: 4, angle: 0.24 };
+export const ROCK_SECONDS = ROCK.period * ROCK.rocks;
+/** Hoe schuin de wipplank op tel `u` ligt (in radialen); hij blijft steeds even op de grond liggen voor hij terugwipt. */
+export function rockAt(u: number): number {
+  const left = ROCK_SECONDS - u;
+  if (u <= 0 || left <= 0) return 0;
+  const s = Math.max(-1, Math.min(1, Math.sin((u / ROCK.period) * Math.PI * 2) * 1.5));
+  return ROCK.angle * Math.min(1, u / 0.8, left / 0.8) * s;
+}
+/** Een paar stootjes met de neus achter elkaar: het eerste na `first` seconden, daarna om de `every` seconden. */
+export interface Beat { first: number; every: number; hits: number }
+/** De slingerbal: na elk stootje draait hij `turns` keer om de paal en zwaait hij hooguit `tilt` (radialen) naar buiten. */
+export const TETHER = { first: 0.5, every: 2, hits: 3, turns: 2, tilt: 0.5 };
+/** Een dier dat te groot is voor de bandenschommel geeft hem duwtjes: steeds als de band weer terug is. */
+export const PUSH = { first: 0.5, every: SWING.period, hits: 3, angle: 0.4 };
+/** Hoeveel seconden geleden het laatste stootje was (of -1: er is er nog geen geweest). */
+export function sinceHit(u: number, beat: Beat): number {
+  if (u < beat.first) return -1;
+  return u - beat.first - Math.min(beat.hits - 1, Math.floor((u - beat.first) / beat.every)) * beat.every;
+}
+/** Iets wat hangt en een zetje krijgt: het zwaait uit (tussen -1 en 1) en komt langzaam tot rust. `v`: seconden sinds het zetje. */
+export const sway = (v: number, speed: number, fade: number): number => (v <= 0 ? 0 : Math.sin(v * speed) * Math.exp(-v * fade));
+/** De slingerbal, `v` seconden na een stootje: hoe ver hij rond de paal is (radialen) en hoe ver hij naar buiten zwaait (0 tot 1). */
+export function tetherAt(v: number): [number, number] {
+  if (v <= 0) return [0, 0];
+  const x = Math.min(1, v / TETHER.every), slow = 1 - x;
+  return [TETHER.turns * Math.PI * 2 * (1 - slow ** 1.6), Math.min(1, x * 10) * slow ** 0.8];
+}
+/** De klimpaal: zo lang doet een dier erover om boven te komen. De kruipboog: zo lang om eronderdoor te lopen, en zo hoog is het eronder. */
+export const CLIMB_SECONDS = 1.8;
+export const UNDER = { seconds: 2.6, touch: 0.9, clear: 0.8 };
 /** Hier drinkt een dier uit. */
 export const TOY_DRINK: ToyKind[] = ['drink', 'fall'];
 /**
@@ -177,6 +236,20 @@ export const TOY_OF: Partial<Record<SpeciesId, ToyKind>> = {
   penguin: 'ball', seal: 'ball', polarbear: 'log', reindeer: 'bush', wolf: 'ball', arcticfox: 'flowerbed', bear: 'log', yak: 'bush', owl: 'log', walrus: 'ball',
   otter: 'ball', beaver: 'log', koala: 'bush', redpanda: 'log', lemur: 'bush', bison: 'log', kangaroo: 'ball',
 };
+/**
+ * Het bewegende speelgoed is voor deze dieren net zo leuk als hun lievelingsding: staat het in hun verblijf, dan
+ * vervelen ze zich niet, en ze spelen er het liefst mee.
+ */
+export const TOY_ALSO: Partial<Record<ToyKind, SpeciesId[]>> = {
+  tyre: ['pig', 'horse', 'rhino', 'hippo', 'elephant', 'bison', 'bear', 'polarbear', 'wolf', 'walrus'],
+  rocker: ['goat', 'sheep', 'alpaca', 'donkey', 'penguin', 'seal', 'reindeer', 'yak', 'otter'],
+  tetherball: ['lion', 'tiger', 'cheetah', 'panther', 'kangaroo', 'cow', 'zebra', 'camel', 'giraffe', 'arcticfox'],
+  logarch: ['gazelle', 'pig', 'wolf', 'arcticfox', 'beaver', 'otter', 'panda', 'cheetah'],
+  tyreswing: ['monkey', 'gorilla', 'panda', 'lemur', 'koala', 'redpanda', 'sloth', 'parrot', 'toucan'],
+  pole: ['monkey', 'lemur', 'redpanda', 'koala', 'sloth', 'panther', 'goat', 'owl', 'parrot', 'toucan', 'bear'],
+};
+/** Is dit het lievelingsding van deze soort, of iets wat hij net zo leuk vindt? */
+export const likesToy = (sp: SpeciesId, kind: string): boolean => TOY_OF[sp] === kind || !!TOY_ALSO[kind as ToyKind]?.includes(sp);
 /**
  * Wat je kunt bouwen. De speeltuin als één gebouw staat er niet meer bij: je bouwt losse toestellen (eerst de
  * glijbaan, later de schommel, de wipwap, de wipkip en de trampoline). 'playground' bestaat nog als naam voor
@@ -553,19 +626,35 @@ export const AQUATIC: SpeciesId[] = ['dolphin', 'orca', 'ray', 'shark'];
  * Natuur voor in de verblijven (en in het park): graspollen, bloemetjes, varens, struikjes, kiezels en stenen. Elke
  * tegel is in vier vakjes verdeeld: iets kleins neemt één vakje (`size` 1), een boom of rots de hele tegel (`size` 2).
  */
-export type PropKind = 'tuft' | 'daisies' | 'fern' | 'shrub' | 'pebbles' | 'stone' | 'oak' | 'fir' | 'coco' | 'crag';
-export type PropGroup = 'green' | 'stone';
+export type PropKind = 'tuft' | 'daisies' | 'fern' | 'shrub' | 'pebbles' | 'stone' | 'oak' | 'fir' | 'coco' | 'crag'
+  // klein spul voor in het park (de groep `park`): ook op een kwart tegel, zodat er een paar op één tegel passen
+  | 'pot' | 'gnome' | 'pinwheel' | 'ducky' | 'balls' | 'birdhouse' | 'can' | 'bucket' | 'snail' | 'crate';
+export type PropGroup = 'green' | 'stone' | 'park';
 /** Waar een dier om vraagt: bomen, planten (graspollen, bloemetjes, varens, struikjes) of stenen. */
 export type WildKind = 'tree' | 'plant' | 'stone';
 export const WILD_KINDS: WildKind[] = ['tree', 'plant', 'stone'];
-export const PROP: Record<PropKind, { group: PropGroup; wild: WildKind; size: 1 | 2; price: number }> = {
+/**
+ * `wild`: waar het voor de dieren als telt (bomen, planten of stenen). Wat voor het park is heeft geen `wild`: het
+ * telt voor geen enkel dier mee en staat alleen buiten de verblijven. `from`: na hoeveel gehaalde levels je het
+ * vrijspeelt; zonder `from` is het er zodra de natuur er is (FEATURE.wild).
+ */
+export const PROP: Record<PropKind, { group: PropGroup; wild?: WildKind; size: 1 | 2; price: number; from?: number }> = {
   tuft: { group: 'green', wild: 'plant', size: 1, price: 1 }, daisies: { group: 'green', wild: 'plant', size: 1, price: 1 }, fern: { group: 'green', wild: 'plant', size: 1, price: 1 },
   shrub: { group: 'green', wild: 'plant', size: 1, price: 1 },
   pebbles: { group: 'stone', wild: 'stone', size: 1, price: 1 }, stone: { group: 'stone', wild: 'stone', size: 1, price: 1 },
   oak: { group: 'green', wild: 'tree', size: 2, price: 3 }, fir: { group: 'green', wild: 'tree', size: 2, price: 3 }, coco: { group: 'green', wild: 'tree', size: 2, price: 3 },
   crag: { group: 'stone', wild: 'stone', size: 2, price: 3 },
+  // voor het park: een paar per keer, vanaf een paar levels na de natuur
+  pot: { group: 'park', size: 1, price: 1, from: 10 }, gnome: { group: 'park', size: 1, price: 1, from: 10 }, pinwheel: { group: 'park', size: 1, price: 1, from: 10 },
+  ducky: { group: 'park', size: 1, price: 1, from: 12 }, balls: { group: 'park', size: 1, price: 1, from: 12 },
+  birdhouse: { group: 'park', size: 1, price: 1, from: 15 }, can: { group: 'park', size: 1, price: 1, from: 15 },
+  bucket: { group: 'park', size: 1, price: 1, from: 18 }, snail: { group: 'park', size: 1, price: 1, from: 18 },
+  crate: { group: 'park', size: 1, price: 1, from: 21 },
 };
 export const PROPS = Object.keys(PROP) as PropKind[];
+/** De natuur (voor verblijven en park) en het kleine spul dat alleen in het park mag. */
+export const WILD_PROPS = PROPS.filter(k => PROP[k].group !== 'park');
+export const PARK_PROPS = PROPS.filter(k => PROP[k].group === 'park');
 /** Hoeveel vakjes iets vult: zoveel telt het mee als groen of als steen. */
 export const propPoints = (kind: PropKind): number => PROP[kind].size * PROP[kind].size;
 /**
