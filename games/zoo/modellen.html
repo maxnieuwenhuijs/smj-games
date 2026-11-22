@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Modellen</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; font-family: system-ui, sans-serif; }
+  canvas { display: block; }
+  #balk { position: absolute; left: 8px; top: 8px; display: flex; flex-wrap: wrap; gap: 4px; max-width: 96vw; }
+  #balk a { background: #fff; border-radius: 8px; padding: 4px 8px; color: #234; text-decoration: none; font-size: 13px; box-shadow: 0 1px 3px #0004; }
+  #balk a.aan { background: #ffd23f; }
+</style>
+</head>
+<body>
+<!-- Alleen voor het bouwen: alle zelfgebouwde modellen op een rij (zie src/modelsheet.ts). Niet in het gepubliceerde spel. -->
+<div id="balk"></div>
+<script type="module" src="/src/modelsheet.ts"></script>
+</body>
+</html>
