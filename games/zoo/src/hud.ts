@@ -197,14 +197,27 @@ export class Hud {
     this.placeSpin();
   }
 
-  /** Zet de draaiknop boven de gekozen knop: boven de keuzerijen, en altijd binnen het scherm. */
+  /**
+   * Zet de draaiknop op zijn plek. Zijn er keuzerijen, dan staat hij in de bovenste rij, links naast de eerste
+   * knop (of rechts naast de laatste als daar geen plek is): zo hoort hij bij de balk en zweeft hij niet los boven
+   * het park. Zonder keuzerijen staat hij recht boven de gekozen knop.
+   */
   private placeSpin(): void {
     const at = this.spinAt;
     if (!at || !at.isConnected || this.spinBtn.hidden) return;
-    const r = at.getBoundingClientRect(), rows = this.options.getBoundingClientRect(), b = this.spinBtn.getBoundingClientRect();
-    const top = rows.height ? Math.min(r.top, rows.top) : r.top;
+    const b = this.spinBtn.getBoundingClientRect();
+    const boxes = [...this.options.querySelectorAll<HTMLElement>('.tool')].map(k => k.getBoundingClientRect()).filter(k => k.width > 0);
+    if (boxes.length) {
+      const top = Math.min(...boxes.map(k => k.top)), row = boxes.filter(k => k.top < top + 8);
+      const left = Math.min(...row.map(k => k.left)), right = Math.max(...row.map(k => k.right)), gap = 10;
+      const x = left - b.width - gap >= 6 ? left - b.width - gap : Math.min(innerWidth - b.width - 6, right + gap);
+      this.spinBtn.style.left = `${x}px`;
+      this.spinBtn.style.top = `${top + (row[0].height - b.height) / 2}px`;
+      return;
+    }
+    const r = at.getBoundingClientRect();
     this.spinBtn.style.left = `${Math.max(6, Math.min(innerWidth - b.width - 6, r.left + r.width / 2 - b.width / 2))}px`;
-    this.spinBtn.style.top = `${top - b.height - 12}px`;
+    this.spinBtn.style.top = `${r.top - b.height - 12}px`;
   }
 
   /** `open`: de knop waarvan de keuzerij open blijft staan terwijl het handje aan staat (net iets neergezet). */
