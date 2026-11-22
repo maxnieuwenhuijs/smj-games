@@ -1923,6 +1923,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private solid = new Set<number>();
   /** Per verblijf hoeveel groen en steen er staat; elk beeldje opnieuw uitgerekend zodra iemand ernaar vraagt. */
   private wildCache: Map<number, Record<WildKind, number> & { land: number }> | null = null;
+  /** Wat er nu in het wenswolkje van elk dier staat, zodat het alleen opnieuw getekend wordt als het verandert. */
+  private bubbleShows = new WeakMap<Animal, string>();
 
   private cellKey(sx: number, sy: number): number {
     return sy * W * 2 + sx;
@@ -4259,10 +4261,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       bubble.hidden = a.happy;
       bubble.classList.toggle('warn', a.neglect > NEGLECT_WARN);
       bubble.classList.toggle('danger', a.neglect > NEGLECT_WARN * 1.8);
-      const shown = a.escaped ? 'escaped' : a.unmet === 'enclosure' && a.needsFence ? a.needsFence : a.unmet === 'friend' ? `friend${a.lonely}` : a.unmet;
-      if (shown && bubble.dataset.wish !== shown) {
-        bubble.dataset.wish = shown;
-        bubble.innerHTML = a.escaped ? icon('catch') : this.wishIcon(a, a.unmet!);
+      // het wolkje laat altijd zien wat er nu nog mist: ook als de wens dezelfde blijft maar het plaatje verandert
+      // (eerst zand, dan droog gras; eerst een boom, dan twee stenen)
+      const shown = a.escaped ? icon('catch') : a.unmet ? this.wishIcon(a, a.unmet) : '';
+      if (shown && this.bubbleShows.get(a) !== shown) {
+        this.bubbleShows.set(a, shown);
+        bubble.innerHTML = shown;
       }
       const rec = this.unmet.get(a);
       if (!rec || rec.wish !== a.unmet) this.unmet.set(a, { wish: a.unmet, since: this.clock });
