@@ -235,11 +235,12 @@ export class Hud {
     const b = this.spinBtn.getBoundingClientRect();
     const boxes = [...this.options.querySelectorAll<HTMLElement>('.tool')].map(k => k.getBoundingClientRect()).filter(k => k.width > 0);
     if (boxes.length) {
+      // de knop Draai staat helemaal bovenaan: boven de bovenste rij, links, recht boven de eerste knop van die rij.
+      // Zo is de volgorde van onder naar boven steeds: de grote knop, de groep, de dingen zelf, en dan draaien.
       const top = Math.min(...boxes.map(k => k.top)), row = boxes.filter(k => k.top < top + 8);
-      const left = Math.min(...row.map(k => k.left)), right = Math.max(...row.map(k => k.right)), gap = 10;
-      const x = left - b.width - gap >= 6 ? left - b.width - gap : Math.min(innerWidth - b.width - 6, right + gap);
-      this.spinBtn.style.left = `${x}px`;
-      this.spinBtn.style.top = `${top + (row[0].height - b.height) / 2}px`;
+      const left = Math.max(6, Math.min(...row.map(k => k.left)));
+      this.spinBtn.style.left = `${Math.min(innerWidth - b.width - 6, left)}px`;
+      this.spinBtn.style.top = `${Math.max(6, top - b.height - 10)}px`;
       return;
     }
     const r = at.getBoundingClientRect();

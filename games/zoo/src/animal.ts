@@ -122,12 +122,24 @@ const TINT = new THREE.Color();
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 const luminance = (c: THREE.Color): number => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-/** Een zeldzame kleur: wit, goud of donker. Heel donkere stukjes (ogen, neus) en zuiver wit blijven zoals ze zijn. */
+/** De gekke felle kleuren: roze, geel, groen en blauw. */
+const FUNNY: Partial<Record<Rare, THREE.Color>> = { pink: new THREE.Color(0xff6fb8), yellow: new THREE.Color(0xffdc3a), green: new THREE.Color(0x4fd662), blue: new THREE.Color(0x45aeff) };
+/**
+ * Een zeldzame kleur: wit, goud, donker, glimmend (iets lichter; het glimmen zelf zit in het materiaal) of een gekke
+ * felle kleur. Heel donkere stukjes (ogen, neus) en zuiver wit blijven zoals ze zijn.
+ */
 function tint(c: THREE.Color, kind: Rare, floor: number): void {
   if (luminance(c) < floor || (c.r > 0.98 && c.g > 0.98 && c.b > 0.98)) return;
+  const funny = FUNNY[kind];
   if (kind === 'white') c.lerp(WHITE, 0.75);
   else if (kind === 'gold') c.lerp(GOLD, 0.55);
-  else c.multiplyScalar(0.42);
+  else if (kind === 'dark') c.multiplyScalar(0.42);
+  else if (kind === 'shiny') c.lerp(WHITE, 0.14);
+  else if (funny) {
+    // de felle kleur, maar licht en donker van het dier zelf blijven te zien (vlekken, strepen, een lichte buik)
+    const shade = clamp(0.5 + 1.1 * luminance(c), 0.5, 1.25);
+    c.copy(funny).multiplyScalar(shade);
+  }
 }
 
 /** Een tegel waar een dier niet overheen loopt: daar staat een voerbak, een boom of een rots. */
@@ -274,12 +286,43 @@ export class Animal {
     return this.gy + this.ny;
   }
 
+  /** De gewone materialen van dit dier, bewaard zolang het een glimmende vacht heeft. */
+  private matte: { mesh: THREE.Mesh; material: THREE.Material | THREE.Material[] }[] | null = null;
+
+  /** Een glimmende vacht: dit ene dier krijgt eigen materialen die het licht fel weerkaatsen. */
+  private setGloss(on: boolean): void {
+    if (on === !!this.matte) return;
+    if (!on) {
+      for (const m of this.matte!) m.mesh.material = m.material;
+      this.matte = null;
+      return;
+    }
+    const matte: { mesh: THREE.Mesh; material: THREE.Material | THREE.Material[] }[] = [];
+    this.model.root.traverse(o => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      matte.push({ mesh, material: mesh.material });
+      const many = Array.isArray(mesh.material);
+      const own = ((many ? mesh.material : [mesh.material]) as THREE.Material[]).map(m => {
+        const shiny = m.clone() as THREE.MeshStandardMaterial;
+        if ('roughness' in shiny) {
+          shiny.roughness = 0.16;
+          shiny.metalness = 0.3;
+        }
+        return shiny;
+      });
+      mesh.material = many ? own : own[0];
+    });
+    this.matte = matte;
+  }
+
   /**
    * Een zeldzame kleur voor dit ene dier: wit, goud of donker; `null` zet de gewone kleur terug.
    * De kleuren zitten in de punten van het model, dus dit dier krijgt een eigen lijst met kleuren.
    */
   setRare(kind: Rare | null): void {
     this.rare = kind;
+    this.setGloss(kind === 'shiny');
     if (!kind && !this.tintReady) return;
     if (!this.tintReady) {
       this.tintReady = true;

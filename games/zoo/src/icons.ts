@@ -491,6 +491,23 @@ const ICONS = {
     '<path d="M16 36 H32 L29 45 H19Z" fill="#c9553f"/><rect x="22" y="28" width="4" height="9" fill="#a8743f"/><circle cx="24" cy="23" r="10" fill="#468f3e"/><circle cx="24" cy="10" r="6.5" fill="#4f9e45"/>',
   lantern:
     '<rect x="22" y="18" width="4" height="26" fill="#3d4f5a"/><rect x="17" y="42" width="14" height="4" rx="2" fill="#3d4f5a"/><rect x="16" y="8" width="16" height="13" rx="2" fill="#fff1a8" stroke="#3d4f5a" stroke-width="2.5"/><path d="M14 8 L24 2 L34 8Z" fill="#3d4f5a"/>',
+  // meer licht: een laag tuinlampje, een lampion aan een stok, een fakkel en een straatlamp met twee lampen
+  gardenlight:
+    '<rect x="21.5" y="30" width="5" height="14" rx="2" fill="#3d4f5a"/><ellipse cx="24" cy="44" rx="9" ry="3" fill="#3d4f5a"/><circle cx="24" cy="24" r="10" fill="#fff1a8" stroke="#ffd23f" stroke-width="2.5"/><path d="M12 19 Q24 6 36 19Z" fill="#3d4f5a"/>',
+  lampion:
+    '<path d="M12 46 V10 Q12 4 20 4 H31" fill="none" stroke="#7a5230" stroke-width="3.5" stroke-linecap="round"/><path d="M31 4 V11" stroke="#3d4f5a" stroke-width="2"/>' +
+    '<ellipse cx="31" cy="24" rx="10.5" ry="12" fill="#ffb84a" stroke="#e0584f" stroke-width="2.5"/><path d="M31 12 V36 M25 14 Q22 24 25 34 M37 14 Q40 24 37 34" fill="none" stroke="#e0584f" stroke-width="1.6"/><rect x="26" y="9.5" width="10" height="4" rx="1.5" fill="#e0584f"/><rect x="26" y="34.5" width="10" height="4" rx="1.5" fill="#e0584f"/><path d="M31 38.5 V45" stroke="#e0584f" stroke-width="2.2" stroke-linecap="round"/>',
+  torch:
+    '<path d="M21 46 L22.5 20 H25.5 L27 46Z" fill="#a9743f"/><path d="M17 20 H31 L28.5 27 H19.5Z" fill="#3d4f5a"/><path d="M24 2 C33 10 32 20 24 20 C16 20 15 10 24 2Z" fill="#f08a24"/><path d="M24 9 C28.5 13.5 28 19.5 24 19.5 C20 19.5 19.5 13.5 24 9Z" fill="#ffd23f"/>',
+  streetlamp:
+    '<rect x="22" y="9" width="4" height="35" fill="#3d4f5a"/><rect x="16" y="42" width="16" height="4" rx="2" fill="#3d4f5a"/><path d="M9 11 Q24 2 39 11" fill="none" stroke="#3d4f5a" stroke-width="3.5" stroke-linecap="round"/>' +
+    '<path d="M4 11 H15 L13 14 H6Z" fill="#3d4f5a"/><path d="M33 11 H44 L42 14 H35Z" fill="#3d4f5a"/><ellipse cx="9.5" cy="18" rx="5" ry="5.5" fill="#fff1a8" stroke="#ffd23f" stroke-width="2"/><ellipse cx="38.5" cy="18" rx="5" ry="5.5" fill="#fff1a8" stroke="#ffd23f" stroke-width="2"/>',
+  // de knop Winkel: een hamburger, een beker met een rietje, een ballon en een knuffel bij elkaar
+  shopmix:
+    '<ellipse cx="38" cy="11" rx="7" ry="8.5" fill="#e0584f"/><path d="M38 19.5 l-1.5 3 h3Z" fill="#e0584f"/><path d="M38 22 Q34 28 37 33" fill="none" stroke="#7a8691" stroke-width="1.3"/><circle cx="35.5" cy="8" r="1.8" fill="#fff" opacity=".7"/>' +
+    '<path d="M3 20 Q3 9 14 9 Q25 9 25 20Z" fill="#e9a23b"/><rect x="2" y="20" width="24" height="4.5" rx="2" fill="#6cc04a"/><rect x="3" y="24" width="22" height="5" rx="2" fill="#8a4b2a"/><path d="M3 29.5 H25 Q25 35 20 35 H8 Q3 35 3 29.5Z" fill="#e9a23b"/><circle cx="10" cy="14" r="1" fill="#fff7e0"/><circle cx="15" cy="12.5" r="1" fill="#fff7e0"/><circle cx="19" cy="15" r="1" fill="#fff7e0"/>' +
+    '<path d="M28 27 H41 L39.5 46 H29.5Z" fill="#4a90e2"/><rect x="27" y="24.5" width="15" height="4" rx="2" fill="#d6ecfb"/><path d="M36 25 L39 16" stroke="#e0584f" stroke-width="2.4" stroke-linecap="round"/><path d="M29.5 34 H40.5" stroke="#fff" stroke-width="2.5"/>' +
+    '<circle cx="8.5" cy="38.5" r="3" fill="#b9793f"/><circle cx="19.5" cy="38.5" r="3" fill="#b9793f"/><circle cx="14" cy="42" r="6" fill="#c98a4b"/><circle cx="12" cy="41" r=".9" fill="#3a2a1a"/><circle cx="16" cy="41" r=".9" fill="#3a2a1a"/><ellipse cx="14" cy="44" rx="2.2" ry="1.6" fill="#f3d9b5"/>',
   flag:
     '<rect x="9" y="4" width="4" height="42" rx="2" fill="#9aa0a6"/><path d="M13 7 H40 L34 15 L40 23 H13Z" fill="#e0584f"/><rect x="13" y="13" width="23" height="4" fill="#ffd23f"/>',
   signpost:

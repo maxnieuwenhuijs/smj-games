@@ -161,10 +161,23 @@ export const PETTABLE: SpeciesId[] = ['pig', 'cow', 'sheep', 'horse', 'donkey', 
 /** Het karakter van een dier: je ziet het aan hoe het loopt en wat het doet. */
 export type Nature = 'plain' | 'shy' | 'playful' | 'sleepy' | 'brave';
 export const NATURES: Nature[] = ['plain', 'shy', 'playful', 'sleepy', 'brave'];
-/** Een zeldzame kleur: af en toe wordt er een wit, goudkleurig of donker jong geboren. */
-export type Rare = 'white' | 'gold' | 'dark';
-export const RARES: Rare[] = ['white', 'gold', 'dark'];
-export const RARE_CHANCE = 0.12;
+/**
+ * Een bijzonder jong: heel af en toe wordt er een wit, goudkleurig of donker jong geboren. Nog zeldzamer is een jong
+ * met een glimmende vacht, en het allerzeldzaamst een jong in een gekke felle kleur (een roze olifant!).
+ */
+export type Rare = 'white' | 'gold' | 'dark' | 'shiny' | 'pink' | 'yellow' | 'green' | 'blue';
+export const RARES: Rare[] = ['white', 'gold', 'dark', 'shiny', 'pink', 'yellow', 'green', 'blue'];
+/** Zo vaak is een jong bijzonder: ongeveer een op de twintig. */
+export const RARE_CHANCE = 0.05;
+/**
+ * Welke bijzondere kleur het wordt: zes van de tien keer wit, goud of donker, twee van de tien keer glimmend, en twee
+ * van de tien keer een gekke kleur. Een roze jong is dus ongeveer een op de vierhonderd geboortes.
+ */
+export function pickRare(roll = Math.random()): Rare {
+  if (roll < 0.6) return (['white', 'gold', 'dark'] as const)[Math.floor(roll / 0.2)];
+  if (roll < 0.8) return 'shiny';
+  return (['pink', 'yellow', 'green', 'blue'] as const)[Math.min(3, Math.floor((roll - 0.8) / 0.05))];
+}
 /** Dieren die graag in een regenplas rollen. */
 export const MUD_LOVERS: SpeciesId[] = ['pig', 'hippo', 'rhino', 'elephant', 'bison'];
 /**
@@ -198,9 +211,11 @@ export type DecorKind =
   | 'pond' | 'well' | 'birdbath' | 'waterfall' | 'pump'
   | 'boulder' | 'signpost' | 'flag' | 'lantern' | 'picnic' | 'scarecrow' | 'topiary' | 'arch' | 'totem' | 'snowman' | 'campfire' | 'windmill' | 'statue' | 'clocktower'
   // een gastenboek, een plattegrond, en palen waar vanzelf vlaggetjes of lichtjes tussen komen te hangen
-  | 'guestbook' | 'mapboard' | 'bunting' | 'lightstring';
-export type DecorGroup = 'green' | 'water' | 'art';
-export const DECOR_GROUPS: DecorGroup[] = ['green', 'water', 'art'];
+  | 'guestbook' | 'mapboard' | 'bunting' | 'lightstring'
+  // meer licht voor de nacht: een tuinlampje, een lampion, een fakkel en een hoge straatlamp met twee lampen
+  | 'gardenlight' | 'lampion' | 'torch' | 'streetlamp';
+export type DecorGroup = 'green' | 'water' | 'art' | 'light';
+export const DECOR_GROUPS: DecorGroup[] = ['green', 'water', 'art', 'light'];
 export const DECOR: Record<DecorKind, { group: DecorGroup; price: number; from: number }> = {
   tree: { group: 'green', price: 4, from: 5 }, roses: { group: 'green', price: 3, from: 5 }, hedge: { group: 'green', price: 3, from: 6 },
   tulips: { group: 'green', price: 3, from: 7 }, pine: { group: 'green', price: 4, from: 8 }, mushrooms: { group: 'green', price: 2, from: 9 },
@@ -209,12 +224,31 @@ export const DECOR: Record<DecorKind, { group: DecorGroup; price: number; from: 
   pond: { group: 'water', price: 10, from: 10 }, well: { group: 'water', price: 8, from: 16 }, birdbath: { group: 'water', price: 6, from: 22 },
   waterfall: { group: 'water', price: 15, from: 26 }, pump: { group: 'water', price: 8, from: 34 },
   boulder: { group: 'art', price: 2, from: 5 }, signpost: { group: 'art', price: 4, from: 7 }, flag: { group: 'art', price: 5, from: 11 },
-  lantern: { group: 'art', price: 5, from: 14 }, picnic: { group: 'art', price: 8, from: 15 }, scarecrow: { group: 'art', price: 6, from: 18 },
+  lantern: { group: 'light', price: 5, from: 14 }, picnic: { group: 'art', price: 8, from: 15 }, scarecrow: { group: 'art', price: 6, from: 18 },
   topiary: { group: 'art', price: 12, from: 23 }, arch: { group: 'art', price: 10, from: 24 }, totem: { group: 'art', price: 10, from: 29 },
-  snowman: { group: 'art', price: 6, from: 31 }, campfire: { group: 'art', price: 8, from: 33 }, windmill: { group: 'art', price: 18, from: 36 },
+  snowman: { group: 'art', price: 6, from: 31 }, campfire: { group: 'light', price: 8, from: 33 }, windmill: { group: 'art', price: 18, from: 36 },
   statue: { group: 'art', price: 20, from: 38 }, clocktower: { group: 'art', price: 25, from: 41 },
-  guestbook: { group: 'art', price: 6, from: 9 }, mapboard: { group: 'art', price: 8, from: 12 }, bunting: { group: 'art', price: 4, from: 13 }, lightstring: { group: 'art', price: 6, from: 15 },
+  guestbook: { group: 'art', price: 6, from: 9 }, mapboard: { group: 'art', price: 8, from: 12 }, bunting: { group: 'art', price: 4, from: 13 }, lightstring: { group: 'light', price: 6, from: 15 },
+  gardenlight: { group: 'light', price: 3, from: 16 }, lampion: { group: 'light', price: 5, from: 18 }, torch: { group: 'light', price: 4, from: 20 }, streetlamp: { group: 'light', price: 9, from: 26 },
 };
+/**
+ * Kleine versieringen: die zet je niet midden op een tegel maar in een van de vier kwarten, net als de natuur. Zo
+ * passen er meer op een tegel en kun je ze preciezer neerzetten (naast een bankje, in een hoekje).
+ */
+export const SMALL_DECOR: DecorKind[] = ['mushrooms', 'cactus', 'pumpkins', 'birdbath', 'pump', 'boulder', 'guestbook', 'scarecrow', 'topiary', 'totem', 'snowman', 'campfire', 'statue',
+  'gardenlight', 'lampion', 'torch', 'streetlamp'];
+/**
+ * De groepen onder de knop Park, van links naar rechts. In een groep staan versieringen, klein spul en gebouwtjes
+ * door elkaar: de bloembak staat bij Groen, wc en bankje bij Handig, de speeltoestellen bij Speeltuin.
+ */
+export const PARK_GROUPS = ['green', 'water', 'art', 'light', 'small', 'service', 'play'] as const;
+export type ParkGroup = (typeof PARK_GROUPS)[number];
+export const SERVICE_SHOPS: ShopKind[] = ['toilet', 'bench', 'bin', 'umbrellas', 'shelter'];
+/** In welke groep onder Park dit gebouwtje staat; niets als het onder de knop Winkel hoort. */
+export const parkShopGroup = (kind: ShopKind): ParkGroup | null =>
+  kind === 'flowers' ? 'green' : SERVICE_SHOPS.includes(kind) ? 'service' : kind !== 'playground' && PLAY.includes(kind) ? 'play' : null;
+/** Onder de knop Winkel staan de kramen en, in een eigen groep, de attracties. */
+export const ATTRACTIONS: ShopKind[] = ['fountain', 'tower', 'carousel', 'station', 'bumper', 'ferris'];
 /** Palen waar een slinger tussen komt: staan er twee in één lijn, hooguit zoveel tegels uit elkaar, dan hangt er vanzelf een slinger. */
 export const STRING_REACH = 5;
 export const STRING_HEIGHT = 1.25;
@@ -377,7 +411,7 @@ export const DAY_SECONDS = 240;
 export const NIGHT_SECONDS = 100;
 export const DUSK_SECONDS = 12;
 /** Hoe ver het licht reikt, in tegels: een lantaarn, een kampvuur, een winkel of speeltoestel, en de ingang. */
-export const LIGHT = { lantern: 3.5, campfire: 3, shop: 2.4, entrance: 4.5 };
+export const LIGHT = { lantern: 3.5, campfire: 3, shop: 2.4, entrance: 4.5, lightstring: 2.4, gardenlight: 1.8, lampion: 3, torch: 2.6, streetlamp: 5 };
 /** In het donker ziet een gast bijna niets: zoveel van het plezier blijft er over. */
 export const DARK_FUN = 0.25;
 /** Een strook grond erbij (links, rechts of achter) is duur: daar spaar je lang voor. */

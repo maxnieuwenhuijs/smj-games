@@ -161,7 +161,7 @@ const train: Item = {
 const DECOR_SETS: Record<string, DecorKind[]> = {
   bomen: ['tree', 'pine', 'palm', 'cherry', 'bamboogrove', 'topiary', 'cactus', 'hedge', 'arch'],
   bloemen: ['roses', 'tulips', 'sunflowers', 'mushrooms', 'pumpkins', 'boulder', 'pond', 'well', 'birdbath', 'waterfall', 'pump'],
-  borden: ['signpost', 'flag', 'lantern', 'bunting', 'lightstring', 'mapboard', 'guestbook', 'picnic'],
+  borden: ['signpost', 'flag', 'lantern', 'gardenlight', 'lampion', 'torch', 'streetlamp', 'bunting', 'lightstring', 'mapboard', 'guestbook', 'picnic'],
   beelden: ['scarecrow', 'totem', 'snowman', 'campfire', 'windmill', 'statue', 'clocktower'],
 };
 const SHOP_SETS: Record<string, ShopKind[]> = {

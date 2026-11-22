@@ -672,6 +672,19 @@ Alles hieronder staat in `games/zoo/src`; de vaste getallen in `data.ts`. De vol
 - **Vijvers haken aan elkaar:** vijvers op tegels naast elkaar worden één vijver met ronde hoeken (twee een ovaal, vier een grote afgeronde vijver). Haal je er een weg, dan wordt de buur weer rond.
 - **Slim geluid, vaste omgeving en muziek:** zie Geluid op de achtergrond. De savanne, de jungle, het ijs en de verre landen hebben geen eigen lucht, gras of achtergrondgeluid meer; de naam van de wereld staat nog wel bij het level en de dieren staan er nog per wereld.
 
+### Later op 22 november: het menu opnieuw ingedeeld
+
+- **Vier knoppen voor het park:** Winkels (kramen en het restaurant), Attracties (fontein, uitkijktoren, draaimolen, treintje, botsauto's, reuzenrad), Park en Personeel. De knop Winkels heeft een plaatje met een hamburger, een beker, een ballon en een knuffel.
+- **Park in zeven groepen:** Groen (bomen, bloemen, heg, en de bloembak), Water, Sier, Licht, Klein, Handig (wc, bankje, afvalbak, paraplu's, schuilhut) en Speeltuin (glijbaan, schommel, wip, veerdier, trampoline). In een groep staan versieringen, klein spul en gebouwtjes door elkaar; het spel kijkt naar wat je kiest om te weten hoe je het neerzet (`mode()` in `game.ts`, `PARK_GROUPS` en `parkShopGroup` in `data.ts`). De kleine dingen voor het park staan dus niet meer bij Natuur maar bij Park, groep Klein.
+- **Volgorde van de rijen:** van onder naar boven staat er steeds de grote knop, dan de groep, dan de dingen zelf, en helemaal bovenaan de knop Draai (of jongen en meisje bij de dieren).
+- **Kleine versieringen op een kwart tegel:** paddenstoelen, cactus, pompoenen, vogelbadje, pomp, kei, gastenboek, vogelverschrikker, vormboom, totempaal, sneeuwpop, kampvuur, standbeeld en de nieuwe lampen (`SMALL_DECOR`) zet je in het kwart van de tegel onder je vinger. Er passen er vier op één tegel, ook naast een graspol of steen, en de knop blijft aan zodat je er een paar achter elkaar zet. Wat er al stond, blijft midden op zijn tegel staan.
+- **Licht:** lantaarn, kampvuur en lichtjes staan in de groep Licht, met vier nieuwe lampen: tuinlampje (level 17, 3 munten, licht 1,8 tegel ver), lampion (19, 5 munten, 3 tegels), fakkel (21, 4 munten, 2,6 tegels) en straatlamp (27, 9 munten, 5 tegels). De getallen staan in `LIGHT`.
+- **Natuurplaatje:** bij de boom en de steen in de wensen van een dier staat klein het plaatje van de knop Natuur.
+- **Smileys bij neerzetten:** zet je in een verblijf een voerbak, slaapplek, speelgoed of iets van de natuur neer, dan laat elk dier een smiley zien: groen (dit wilde ik), geel (prima, maar niet nodig) of rood (nu staat er te veel).
+- **Ring bij zweven:** hang je met de muis boven een dier, gast, werker, voerbak of winkel, dan ligt er een gele ring omheen: daar kun je op tikken voor een menu.
+- **Meldingen:** de melding dat een werker ergens niet in kan (er moet een poort komen) kun je aantikken; het beeld gaat dan naar dat verblijf. Zinnen als "Daar zijn de eerste gasten!" en "De kinderboerderij is open!" klinken niet meer bij elke start.
+- **Bijzondere jongen:** nog maar één op de twintig jongen is bijzonder (was één op de acht). Zes van de tien keer is dat wit, goud of donker, twee van de tien keer een glimmende vacht die af en toe fonkelt, en twee van de tien keer een gekke felle kleur: roze, geel, groen of blauw (`pickRare`). Een roze olifant is dus heel zeldzaam.
+
 ## Bekende zwakke punten van de modellen
 
 De modellen zijn op stilstaande beelden bekeken en doorgemeten (niets zakt meer dan een centimeter door de grond), maar geen enkele animatie is in beweging beoordeeld. Wat de modelbouwers zelf als zwak aanmerkten:

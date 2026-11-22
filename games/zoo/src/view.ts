@@ -1449,6 +1449,36 @@ const DECOR_PARTS: Record<DecorKind, Part[]> = {
       ...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([x, z]) => boxAt(0.016, 0.21, 0.016, x * 0.078, 1.15, z * 0.078)),
     ]), std(0x3d4f5a, 0.7)],
   ],
+  // De lampen hieronder: onderdeel 1 is steeds het licht zelf, om zijn eigen midden, zodat het kan flakkeren en
+  // 's nachts fel brandt (zie buildDecor en animateDecor).
+  // tuinlampje: een lage paal met een lichtende bol onder een kapje
+  gardenlight: [
+    [merge([tube(0.03, 0.04, 0.22, 0, 0.11, 0), tube(0.08, 0.1, 0.04, 0, 0.02, 0), cone(0.15, 0.09, 0, 0.42, 0, 8), ball(0.022, 0, 0.475, 0)]), std(0x3d4f5a, 0.7)],
+    [new THREE.IcosahedronGeometry(0.1, 1), LAMP_MAT, false],
+  ],
+  // lampion: een stok met een haak, en een papieren lampion met een rood dopje boven en onder en een kwastje
+  lampion: [
+    [merge([tube(0.028, 0.036, 1.25, -0.1, 0.625, 0), tube(0.08, 0.1, 0.04, -0.1, 0.02, 0), rod(0.022, [-0.1, 1.24, 0], [0.12, 1.3, 0], 6), rod(0.012, [0.12, 1.3, 0], [0.12, 1.16, 0], 5)]), std(0x7a5230, 0.9)],
+    [new THREE.IcosahedronGeometry(0.15, 1).scale(1, 1.15, 1), LAMP_MAT, false],
+    [merge([tube(0.07, 0.085, 0.045, 0.12, 1.155, 0), tube(0.085, 0.07, 0.045, 0.12, 0.825, 0), tube(0.012, 0.012, 0.1, 0.12, 0.76, 0), ball(0.028, 0.12, 0.7, 0)]), std(0xe0584f, 0.7)],
+  ],
+  // fakkel: een bamboe stok met een schaal, en een vlam
+  torch: [
+    [painted(
+      [0xb98a55, tube(0.03, 0.04, 0.92, 0, 0.46, 0), tube(0.045, 0.045, 0.03, 0, 0.35, 0), tube(0.045, 0.045, 0.03, 0, 0.65, 0)],
+      [0x3d4f5a, tube(0.1, 0.05, 0.1, 0, 0.96, 0)],
+    ), PAINT_MAT],
+    [merge([cone(0.075, 0.24, 0, 0.07, 0, 6), ball(0.07, 0, -0.03, 0)]), FLAME_MAT, false],
+  ],
+  // straatlamp: een hoge paal met een boog en aan elke kant een lamp
+  streetlamp: [
+    [merge([
+      tube(0.04, 0.055, 1.5, 0, 0.75, 0), tube(0.11, 0.13, 0.06, 0, 0.03, 0), tube(0.07, 0.09, 0.05, 0, 0.085, 0),
+      rod(0.026, [0, 1.48, 0], [-0.24, 1.56, 0], 6), rod(0.026, [0, 1.48, 0], [0.24, 1.56, 0], 6),
+      cone(0.13, 0.08, -0.24, 1.52, 0, 8), cone(0.13, 0.08, 0.24, 1.52, 0, 8), ball(0.04, 0, 1.52, 0),
+    ]), std(0x3d4f5a, 0.7)],
+    [merge([new THREE.IcosahedronGeometry(0.095, 1).translate(-0.24, 0, 0), new THREE.IcosahedronGeometry(0.095, 1).translate(0.24, 0, 0)]), LAMP_MAT, false],
+  ],
   // vlag: het doek golft in vier banen, rood met een gele streep
   flag: [
     [mergeGeometries([tube(0.03, 0.035, 1.5, 0, 0.75, 0), tube(0.1, 0.12, 0.05, 0, 0.025, 0)])!, WHITE_MAT],
@@ -1907,6 +1937,10 @@ function buildDecor(kind: DecorKind, mat?: THREE.Material): THREE.Group {
   if (kind === 'windmill') kids[3].position.set(0, 0.92, 0.2);
   if (kind === 'campfire') kids[2].position.y = kids[3].position.y = 0.1;
   if (kind === 'lantern') kids[1].position.y = 1.15;
+  if (kind === 'gardenlight') kids[1].position.y = 0.3;
+  if (kind === 'lampion') kids[1].position.set(0.12, 0.99, 0);
+  if (kind === 'torch') kids[1].position.y = 1.04;
+  if (kind === 'streetlamp') kids[1].position.y = 1.42;
   if (kind === 'lightstring') kids[1].position.y = STRING_HEIGHT + 0.05;
   if (kind === 'guestbook') {
     kids[2].position.set(0, 0.754, 0.045);
@@ -3715,6 +3749,10 @@ export class View {
         c[2].rotation.x = -0.5 + Math.sin(t * 2.4 + seed) * 0.2 * (1 + p * 1.5);
         break;
       case 'lantern':
+      case 'gardenlight':
+      case 'lampion':
+      case 'torch':
+      case 'streetlamp':
       case 'lightstring':
         // het licht flikkert een beetje; aangetikt licht het fel op
         c[1].scale.setScalar(1 + Math.sin(t * 9 + seed) * 0.03 + Math.sin(t * 23 + seed * 2) * 0.02 + p * 0.7);
