@@ -1595,6 +1595,8 @@ const DECOR_PARTS: Record<DecorKind, Part[]> = {
   ],
 };
 
+/** Zo ver schuift een versiering op als er een hek op zijn rand staat: net naast het hek. */
+export const EDGE_SHIFT = 0.22;
 /** Hoe iets op een rand staat: langs welke rand, en aan welke kant het pad ligt (1, -1 of 0 = geen van beide). */
 export interface EdgePose {
   o: 'h' | 'v';
@@ -2889,13 +2891,20 @@ export class View {
   }
 
   /** Op een rand ('h' = de noordrand van tegel (x, y), 'v' = de westrand) staat het ding midden op die rand. */
-  private atSpot<T extends THREE.Object3D>(obj: T, x: number, y: number, edge?: 'h' | 'v', rot = 0): T {
-    obj.position.set(toWorldX(x + (edge === 'v' ? 0 : 0.5)), 0, toWorldZ(y + (edge === 'h' ? 0 : 0.5)));
+  private atSpot<T extends THREE.Object3D>(obj: T, x: number, y: number, edge?: 'h' | 'v', rot = 0, shift = 0): T {
+    // `shift`: staat er een hek op die rand, dan schuift het ding een stukje op naar die kant (1 = zuid of oost,
+    // -1 = noord of west), zodat het naast het hek staat en nog binnen de tegel valt
+    obj.position.set(toWorldX(x + (edge === 'v' ? shift * EDGE_SHIFT : 0.5)), 0, toWorldZ(y + (edge === 'h' ? shift * EDGE_SHIFT : 0.5)));
     return this.turned(obj, rot);
   }
 
-  makeDecor(x: number, y: number, kind: DecorKind, edge?: 'h' | 'v', rot = 0): THREE.Group {
-    const group = this.atSpot(buildDecor(kind), x, y, edge, rot);
+  /** Zet een versiering die er al staat op een andere plek (er is een hek bij gekomen of weggehaald). */
+  poseDecor(group: THREE.Object3D, x: number, y: number, edge: 'h' | 'v' | undefined, shift: number): void {
+    group.position.set(toWorldX(x + (edge === 'v' ? shift * EDGE_SHIFT : 0.5)), 0, toWorldZ(y + (edge === 'h' ? shift * EDGE_SHIFT : 0.5)));
+  }
+
+  makeDecor(x: number, y: number, kind: DecorKind, edge?: 'h' | 'v', rot = 0, shift = 0): THREE.Group {
+    const group = this.atSpot(buildDecor(kind), x, y, edge, rot, shift);
     this.varyTree(group, x, y, kind);
     this.scene.add(group);
     return group;
@@ -2932,9 +2941,9 @@ export class View {
     }
   }
 
-  ghostDecor(x: number, y: number, kind: DecorKind, ok: boolean, edge?: 'h' | 'v', rot = 0): void {
+  ghostDecor(x: number, y: number, kind: DecorKind, ok: boolean, edge?: 'h' | 'v', rot = 0, shift = 0): void {
     this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
-    this.atSpot(this.ghostDecors[kind], x, y, edge, rot).visible = true;
+    this.atSpot(this.ghostDecors[kind], x, y, edge, rot, shift).visible = true;
   }
 
   private runPool: THREE.Object3D[] = [];

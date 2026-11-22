@@ -18,7 +18,7 @@ import { emptyStats, goalProgress, levelDone, type Stats } from './levels';
 import { CHEERS, NAMED, PRAISE, callText, goalLine, say, textOf, voiceId, wishLine, type Line } from './lines';
 import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStatic, speciesIcon } from './models';
 import { ENTRANCE, GuestManager, Train, Vendor, Worker, edgePose, edgeSides, shopCenter, shopTiles, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type PetSpot, type ShopSpot, type VetJob, type WorkerRole, type WorkerWorld, type FixJob } from './people';
-import { View, toWorldX, toWorldZ, type TroughMesh } from './view';
+import { EDGE_SHIFT, View, toWorldX, toWorldZ, type TroughMesh } from './view';
 
 /** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken. */
 export type ActionId = 'broom' | 'hammer' | 'picker';
@@ -1590,6 +1590,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private gridChanged(): void {
     this.syncPens(true);
     this.syncWear();
+    this.poseEdgeDecors();
   }
 
   /** Tekent de hekken opnieuw met hun slijtage en houdt bij welke verblijven een kapot hek hebben. */
@@ -1865,14 +1866,43 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return this.decors.find(b => b.edge === e.o && b.x === e.x && b.y === e.y);
   }
 
-  /** Waar een versiering staat: midden op de tegel, of midden op de rand. */
+  /** Waar een versiering staat: midden op de tegel, of op de rand (naast het hek, als daar een hek staat). */
   private decorPos(d: { x: number; y: number; edge?: 'h' | 'v' }): [number, number] {
-    return [d.x + (d.edge === 'v' ? 0 : 0.5), d.y + (d.edge === 'h' ? 0 : 0.5)];
+    const shift = this.decorShift(d) * EDGE_SHIFT;
+    return [d.x + (d.edge === 'v' ? shift : 0.5), d.y + (d.edge === 'h' ? shift : 0.5)];
   }
 
-  /** Mag hier een paal of bord op de rand? Niet op een hek, niet in een verblijf of gebouw, en niet dubbel. */
-  private edgeDecorFits(e: Edge): boolean {
-    if (!this.grid.validEdge(e) || this.grid.getEdge(e) !== 0 || this.edgeItemAt(e) || this.edgeDecorAt(e)) return false;
+  /**
+   * Staat er een hek op de rand van deze versiering, dan schuift hij een stukje op, zodat hij naast het hek staat
+   * en binnen de tegel blijft: naar de kant buiten het verblijf (1 = zuid of oost, -1 = noord of west). Zonder
+   * hek staat hij midden op de rand (0).
+   */
+  private decorShift(d: { x: number; y: number; edge?: 'h' | 'v' }): number {
+    if (!d.edge || this.grid.getEdge({ o: d.edge, x: d.x, y: d.y }) === 0) return 0;
+    const free = (x: number, y: number): boolean => this.grid.inBounds(x, y) && !this.grid.enclosureAt(x, y);
+    // de tegel aan de zuid- of oostkant is tegel (x, y) zelf; aan de andere kant ligt zijn buur
+    if (free(d.x, d.y)) return 1;
+    return (d.edge === 'h' ? free(d.x, d.y - 1) : free(d.x - 1, d.y)) ? -1 : 1;
+  }
+
+  /** Er is een hek bij gekomen of weggehaald: wat op een rand staat, schuift naast het hek of weer terug. */
+  private poseEdgeDecors(): void {
+    for (const d of this.decors) if (d.edge) this.view.poseDecor(d.mesh, d.x, d.y, d.edge, this.decorShift(d));
+    this.syncStrings();
+  }
+
+  /**
+   * Mag hier een paal, bord, heg of bloemperk op de rand? Niet dubbel en niet in een gebouw. Op een vrije rand niet
+   * tegen een verblijf aan. Staat er een hek, dan mag het ernaast, aan de kant buiten het verblijf; niet bij een
+   * poort (daar moet je doorheen kunnen) en geen bloemenboog (daar loop je onderdoor).
+   */
+  private edgeDecorFits(e: Edge, kind: DecorKind = this.option.decor as DecorKind): boolean {
+    if (!this.grid.validEdge(e) || this.edgeItemAt(e) || this.edgeDecorAt(e)) return false;
+    const fence = this.grid.getEdge(e);
+    if (fence !== 0) {
+      if (fence === 2 || fence === 8 || kind === 'arch') return false;
+      return edgeSides({ x: e.x, y: e.y, edge: e.o }).some(i => !this.grid.enclosureAt(...tileXY(i)) && !this.shopAt(...tileXY(i)) && this.grid.terrain[i] !== WATER);
+    }
     const sides = edgeSides({ x: e.x, y: e.y, edge: e.o }).map(i => tileXY(i));
     if (!sides.length || sides.some(([x, y]) => !this.grid.inBounds(x, y) || this.grid.enclosureAt(x, y))) return false;
     const [a, b] = sides.map(([x, y]) => this.shopAt(x, y));
@@ -1893,7 +1923,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   private addDecor(x: number, y: number, kind: DecorKind, edge?: 'h' | 'v', rot = 0): DecorObj {
-    const decor: DecorObj = { x, y, kind, edge, rot, mesh: this.view.makeDecor(x, y, kind, edge, rot) };
+    const decor: DecorObj = { x, y, kind, edge, rot, mesh: this.view.makeDecor(x, y, kind, edge, rot, this.decorShift({ x, y, edge })) };
     this.decors.push(decor);
     if (kind === 'bunting' || kind === 'lightstring') this.syncStrings();
     return decor;
@@ -3330,7 +3360,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       case 'decor':
         if (EDGE_DECOR.includes(this.option.decor as DecorKind)) {
           const e = nearestEdge(g.gx, g.gy);
-          if (e && this.grid.validEdge(e)) this.view.ghostDecor(e.x, e.y, this.option.decor as DecorKind, this.edgeDecorFits(e), e.o, this.edgeRot(e, this.edgeSide(e, g.gx, g.gy)));
+          if (e && this.grid.validEdge(e)) this.view.ghostDecor(e.x, e.y, this.option.decor as DecorKind, this.edgeDecorFits(e), e.o, this.edgeRot(e, this.edgeSide(e, g.gx, g.gy)), this.decorShift({ x: e.x, y: e.y, edge: e.o }));
         } else if (inside) this.view.ghostDecor(x, y, this.option.decor as DecorKind, this.decorFits(x, y), undefined, this.quarter);
         return this.hud.setCursor(CUR[this.option.decor]);
       case 'prop': {
@@ -3381,7 +3411,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         const item = e && this.edgeItemAt(e), post = e && this.edgeDecorAt(e);
         if (e && this.grid.getEdge(e) !== 0) this.view.ghostFence(e, this.grid.getEdge(e), false);
         else if (item) this.view.ghostShop(item.x, item.y, item.kind, false, { o: item.edge!, face: item.face ?? 1 });
-        else if (post) this.view.ghostDecor(post.x, post.y, post.kind, false, post.edge, post.rot ?? 0);
+        else if (post) this.view.ghostDecor(post.x, post.y, post.kind, false, post.edge, post.rot ?? 0, this.decorShift(post));
         else if (inside && this.troughAt(x, y)) this.view.ghostTrough(x, y, false, this.troughAt(x, y)!.rot ?? 0);
         else if (inside && this.bedAt(x, y)) this.view.ghostBed(x, y, this.bedAt(x, y)!.kind, false, this.bedAt(x, y)!.rot ?? 0);
         else if (inside && this.toyAt(x, y)) this.view.ghostToy(x, y, this.toyAt(x, y)!.kind, false, this.toyAt(x, y)!.rot ?? 0);

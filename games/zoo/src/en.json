@@ -795,5 +795,14 @@
 
   "names.pens": "Sunny Meadow,Clover Field,Muddy Corner,Flower Meadow,Apple Yard,Butterfly Field,Oak Corner,Daisy Patch,Rainbow Meadow,Star Field,Cherry Yard,Brook Valley,Birch Lane,Sand Hill,Palm Yard,Willow Corner,Moon Field,Frog Pond,Nut Grove,Berry Meadow,Dune Hollow,Reed Land,Linden Yard,Sunflower",
   "names.boys": "Oink,Ben,Moe,Gus,Tim,Sam,Bo,Max,Ted,Finn,Leo,Jack,Otis,Milo,Hugo,Boris",
-  "names.girls": "Bella,Daisy,Pip,Lottie,Fern,Jules,Nora,Lulu,Kiki,Mila,Rosie,Lola,Bunny,Evie,Poppy,Tess"
+  "names.girls": "Bella,Daisy,Pip,Lottie,Fern,Jules,Nora,Lulu,Kiki,Mila,Rosie,Lola,Bunny,Evie,Poppy,Tess",
+
+  "mini.sum.plus": "How many is it together?",
+  "mini.sum.minus": "How many are left?",
+  "mini.spell": "Which word is this?",
+  "mini.order.size": "Put them from small to big.",
+  "mini.order.count": "Put the numbers from small to big.",
+  "mini.done.good": "Well done!",
+  "mini.done.try": "Nice try!",
+  "mini.close": "Close"
 }

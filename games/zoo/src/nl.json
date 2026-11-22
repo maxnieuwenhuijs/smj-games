@@ -795,5 +795,14 @@
 
   "names.pens": "Zonneweide,Klaverveld,Modderhoek,Bloemenwei,Appelhof,Vlinderveld,Eikenhoek,Madeliefje,Regenboogwei,Sterrenveld,Kersenhof,Beekdal,Berkenlaan,Zandheuvel,Palmhof,Wilgenhoek,Maanveld,Kikkerpoel,Notenhof,Bessenweide,Duinpan,Rietland,Lindenhof,Zonnebloem",
   "names.boys": "Knor,Bram,Moos,Guus,Tijn,Sam,Bo,Max,Teun,Dop,Flip,Pim,Jip,Ties,Siem,Boris",
-  "names.girls": "Bella,Saar,Pip,Lotje,Fien,Juul,Noor,Loes,Kiki,Mila,Roos,Lola,Nijn,Evi,Puck,Tess"
+  "names.girls": "Bella,Saar,Pip,Lotje,Fien,Juul,Noor,Loes,Kiki,Mila,Roos,Lola,Nijn,Evi,Puck,Tess",
+
+  "mini.sum.plus": "Hoeveel is het samen?",
+  "mini.sum.minus": "Hoeveel blijft er over?",
+  "mini.spell": "Welk woord is dit?",
+  "mini.order.size": "Zet ze van klein naar groot.",
+  "mini.order.count": "Zet de getallen van klein naar groot.",
+  "mini.done.good": "Goed gedaan!",
+  "mini.done.try": "Knap geprobeerd!",
+  "mini.close": "Sluiten"
 }
