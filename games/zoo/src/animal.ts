@@ -25,6 +25,8 @@ export interface Toy {
   x: number;
   y: number;
   kind: string;
+  /** Hoeveel kwartslagen het gedraaid is; een tunnel ligt dan van boven naar beneden in plaats van links naar rechts. */
+  rot?: number;
 }
 
 /** Wat een dier van het park moet weten en kunnen. */
@@ -181,7 +183,7 @@ export class Animal {
   /** Staat boven op een heuvel, de rotsen of het klimrek: daarna komt het eerst naar beneden. */
   private perched = false;
   /** De ren door de tunnel: van waar naar waar. */
-  private dash: { fx: number; fy: number; tx: number; ty: number; seconds: number } | null = null;
+  private dash: { fx: number; fy: number; tx: number; ty: number; seconds: number; down?: boolean } | null = null;
   /** Het kunstje dat hierna komt (uitrekken na het slapen, een sprong na het eten). */
   private encore: Solo | null = null;
   /** Waar het dier naartoe loopt om te rollen ('roll') of om iemand te begroeten ('come'). */
@@ -396,8 +398,10 @@ export class Animal {
       } else if (k.kind === 'tunnel' && this.dash) {
         // door de tunnel: het dier duikt erin weg en komt er aan de andere kant met een sprongetje weer uit
         const d = this.dash, p = Math.min(1, u / d.seconds);
-        this.gx = d.fx + (d.tx - d.fx) * p;
-        this.gy = d.fy + (d.ty - d.fy) * Math.min(1, p / 0.3);
+        // langs de tunnel gelijkmatig; dwars erop schuift het dier snel naar het midden
+        const q = Math.min(1, p / 0.3);
+        this.gx = d.fx + (d.tx - d.fx) * (d.down ? q : p);
+        this.gy = d.fy + (d.ty - d.fy) * (d.down ? p : q);
         const inside = p < 0.5 ? clamp((p - 0.2) / 0.12, 0, 1) : clamp((0.8 - p) / 0.12, 0, 1);
         sx = sy = sz = 1 - inside * 0.97;
         if (p > 0.8) y += Math.sin(((p - 0.8) / 0.2) * Math.PI) * tall * 0.45;
@@ -677,7 +681,8 @@ export class Animal {
     const ti = tileIndex(toy.x, toy.y);
     if (TOY_LIFT[toy.kind as ToyKind] !== undefined) return w.grid.regionOf[ti] === regionId && !this.dry(w, ti) ? [ti] : [];
     const near = w.grid.neighbors(ti).filter(i => !blocked(i) && w.grid.regionOf[i] === regionId);
-    return toy.kind === 'tunnel' ? near.filter(i => tileXY(i)[1] === toy.y) : near;
+    const down = (toy.rot ?? 0) % 2 === 1;
+    return toy.kind === 'tunnel' ? near.filter(i => (down ? tileXY(i)[0] === toy.x : tileXY(i)[1] === toy.y)) : near;
   }
 
   /** Naar dit ding toe lopen (of rennen) om ermee te spelen. Lukt dat? */
@@ -725,15 +730,19 @@ export class Animal {
     }
     this.heading = Math.atan2(cx - this.gx, cy - this.gy);
     if (kind === 'tunnel') {
-      // de tunnel ligt van links naar rechts; een groot dier past er niet in en snuffelt er alleen aan
-      const side = Math.floor(this.gy) !== toy.y ? 0 : Math.sign(toy.x - Math.floor(this.gx));
+      // de tunnel ligt van links naar rechts, of gedraaid van boven naar beneden; een groot dier past er niet in en snuffelt er alleen aan
+      const down = (toy.rot ?? 0) % 2 === 1;
+      const side = down
+        ? Math.floor(this.gx) !== toy.x ? 0 : Math.sign(toy.y - Math.floor(this.gy))
+        : Math.floor(this.gy) !== toy.y ? 0 : Math.sign(toy.x - Math.floor(this.gx));
       if (!side || this.info.height * MODEL_SCALE > 0.8 || this.info.length * MODEL_SCALE > 1.3) return this.show('sniff');
-      this.heading = (side * Math.PI) / 2;
-      const far = tileIndex(toy.x + side, toy.y);
-      const free = w.grid.canStep(toy.x, toy.y, side, 0) && w.grid.regionOf[far] === w.grid.regionOf[this.tile] && !isTroughTile(w, far) && !this.dry(w, far);
+      const dx = down ? 0 : side, dy = down ? side : 0;
+      this.heading = Math.atan2(dx, dy);
+      const far = tileIndex(toy.x + dx, toy.y + dy);
+      const free = w.grid.canStep(toy.x, toy.y, dx, dy) && w.grid.regionOf[far] === w.grid.regionOf[this.tile] && !isTroughTile(w, far) && !this.dry(w, far);
       w.playWith(toy, 2);
       if (!free) return this.doTrick('peekin', 2.2, 'Walk');
-      this.dash = { fx: this.gx, fy: this.gy, tx: cx + side, ty: cy, seconds: 2 };
+      this.dash = { fx: this.gx, fy: this.gy, tx: cx + dx, ty: cy + dy, seconds: 2, down };
       return this.doTrick('tunnel', 2, 'Run');
     }
     if (TOY_DRINK.includes(kind)) {

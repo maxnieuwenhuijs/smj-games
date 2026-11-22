@@ -11,6 +11,7 @@
   "sound": "Geluid",
   "turn.left": "Draai het beeld naar links",
   "turn.right": "Draai het beeld naar rechts",
+  "spin": "Draai",
   "level": "Level {n}",
   "level.new": "Nieuw dier:",
   "level.next": "Verder",

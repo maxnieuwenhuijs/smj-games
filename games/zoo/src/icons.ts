@@ -338,11 +338,25 @@ const ICONS = {
     `<path d="M24 44 V17" stroke="${WOOD_D}" stroke-width="4.5" stroke-linecap="round"/><rect x="16" y="6" width="17" height="11" rx="2.5" fill="#8a857a" stroke="${INK}" stroke-width="1.8"/>` +
     `<path d="M33 31 L44 33 L43 42 L34 40Z" fill="#fff" stroke="${GREY}" stroke-width="1.8" stroke-linejoin="round"/><path d="M39 36 V46" stroke="#8a857a" stroke-width="2.5" stroke-linecap="round"/><path d="M39 5 V36" stroke="${WOOD_D}" stroke-width="3.5" stroke-linecap="round"/><path d="M39 5 V12" stroke="${RED}" stroke-width="5.5" stroke-linecap="round"/>`,
   // de prikker: een stok met een punt, met een propje papier eraan geprikt
+  // de prikker: een stok met een rood handvat en een stalen punt, met een prop papier en een blikje eraan geprikt
   picker:
-    `<path d="M9 27 L24 29 L23 42 L10 40Z" fill="#fff" stroke="${GREY}" stroke-width="2" stroke-linejoin="round"/><path d="M15 37 L8 45" stroke="#8a857a" stroke-width="3" stroke-linecap="round"/>` +
-    `<path d="M41 5 L15 37" stroke="${WOOD_D}" stroke-width="5" stroke-linecap="round"/><path d="M41 5 L35 12.4" stroke="${RED}" stroke-width="7" stroke-linecap="round"/>`,
+    `<ellipse cx="17" cy="43" rx="12" ry="2.6" fill="#000" opacity=".12"/>` +
+    `<path d="M22 15 L31 12 L36 20 L28 25 Z" fill="#6ec3e8" stroke="#3f8fb5" stroke-width="2" stroke-linejoin="round"/><path d="M25.5 17.5 L31.5 15.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>` +
+    `<path d="M7 30 L14 25 L23 27 L27 34 L23 41 L13 42 L6 37 Z" fill="#fff" stroke="#8a857a" stroke-width="2.2" stroke-linejoin="round"/>` +
+    `<path d="M11 31 L16 34 L14 39 M20 30 L18 35 L23 37" fill="none" stroke="#b5b0a4" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path d="M17.5 34 L10.5 43" stroke="#6f7680" stroke-width="3.4" stroke-linecap="round"/><path d="M12.6 40.3 L9 45 " stroke="#c8cdd4" stroke-width="1.6" stroke-linecap="round"/>` +
+    `<path d="M40 6 L17.5 34" stroke="${WOOD_D}" stroke-width="6" stroke-linecap="round"/><path d="M39.4 6.6 L18 33.4" stroke="${WOOD}" stroke-width="3" stroke-linecap="round"/>` +
+    `<path d="M41 4.8 L33.5 14.2" stroke="#a8261f" stroke-width="8.4" stroke-linecap="round"/><path d="M41 4.8 L33.5 14.2" stroke="${RED}" stroke-width="5.6" stroke-linecap="round"/>` +
+    `<path d="M38.2 6.4 L36.2 8.9" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".7"/>`,
+  // de hamer: een houten steel met een rood handvat en een stalen kop met een klauw
   hammer:
-    `<path d="M12 40 L28 20" stroke="${WOOD_D}" stroke-width="6" stroke-linecap="round"/><path d="M20 12 L34 6 L42 16 L36 22 L30 16 L24 22Z" fill="#8a857a" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`,
+    `<g transform="rotate(38 24 25)">` +
+    `<rect x="20.5" y="15" width="7" height="30" rx="3.5" fill="${WOOD_D}"/><rect x="22" y="16" width="3" height="22" rx="1.5" fill="${WOOD}"/>` +
+    `<rect x="19.5" y="32" width="9" height="13.5" rx="4" fill="#a8261f"/><rect x="21" y="33.5" width="3.4" height="10.5" rx="1.7" fill="${RED}"/>` +
+    `<path d="M13 7 H31 V19 H13 Q11 14.5 5 17 L3.5 13 Q7 6.5 13 7 Z" fill="#8f96a0" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>` +
+    `<rect x="30" y="5" width="8.5" height="16" rx="2.6" fill="#b9bec6" stroke="${INK}" stroke-width="2"/>` +
+    `<path d="M14 10.5 H27" stroke="#dde1e6" stroke-width="2.2" stroke-linecap="round"/><path d="M33 8.5 V17.5" stroke="#e8ebef" stroke-width="1.8" stroke-linecap="round"/>` +
+    `</g>`,
   // het hok is te klein: een klein verblijf met een dier dat er bijna niet in past, en groene pijlen naar de grootte die het moet worden
   grow:
     `<rect x="4" y="4" width="40" height="40" rx="5" fill="#dff2d0" stroke="#5bab4c" stroke-width="3" stroke-dasharray="5 4"/>` +

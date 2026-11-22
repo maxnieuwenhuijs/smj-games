@@ -23,7 +23,7 @@ De volledige lijst van de dierentuin: per onderdeel wat je ermee kunt doen (tikk
 | Grond die te koop is | Het koopmenu. |
 | Poepje, afval, versleten hek | De goede actie wordt gekozen en de actieknop licht op. |
 
-Met de twee pijlen rechtsboven draai je het beeld een kwartslag (**nieuw**). Met Hek sleep je een heel hok: je ziet het als voorbeeld en de hekken komen bij loslaten (**nieuw**).
+Met de twee pijlen rechtsboven draai je het beeld een kwartslag (**nieuw**). Zet je iets neer (voerbak, slaapplek, speelgoed, iets van Park of een winkel), dan staat rechts de gele knop Draai: elke tik draait het ding een kwartslag en het voorbeeld draait mee (**nieuw**; op een toetsenbord de toets R). Heg, rozen, tulpen, zonnebloemen en de bloemenboog zet je op de rand van een tegel, net als een hek (**nieuw**). Met Hek sleep je een heel hok: je ziet het als voorbeeld en de hekken komen bij loslaten (**nieuw**).
 
 Slepen: het beeld schuiven; met grond, hek of gum in de hand verven, bouwen of weghalen; met de veger, prikker of hamer in de hand opruimen en repareren. Knijpen of scrollen: in- en uitzoomen.
 

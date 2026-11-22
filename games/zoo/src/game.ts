@@ -121,16 +121,17 @@ export interface SaveData {
   terrain: number[];
   h: number[];
   vv: number[];
-  troughs: { x: number; y: number; food: FoodId | null; amount: number; kind?: TroughKind }[];
+  /** `rot` (ook bij slaapplek, speelgoed en versiering): hoeveel kwartslagen het gedraaid staat. */
+  troughs: { x: number; y: number; food: FoodId | null; amount: number; kind?: TroughKind; rot?: number }[];
   animals: { species: SpeciesId; variant: Variant; gx: number; gy: number; hunger: number; name?: string; sick?: boolean; escaped?: boolean; nature?: Nature; rare?: Rare }[];
   poops: { gx: number; gy: number }[];
   /** `keeper`, `feeder` en `cleaner` komen uit oudere spellen, toen een werker bij één verblijf hoorde. */
   pens?: { tile: number; name: string; color?: number; keeper?: boolean; feeder?: boolean; cleaner?: boolean }[];
   /** Het personeel dat door het park loopt. */
   staff?: { role: WorkerRole; gx: number; gy: number; suit?: number; cart?: boolean }[];
-  beds?: { x: number; y: number; kind: BedKind }[];
-  toys?: { x: number; y: number; kind: ToyKind }[];
-  decor?: { x: number; y: number; kind: DecorKind; edge?: 'h' | 'v' }[];
+  beds?: { x: number; y: number; kind: BedKind; rot?: number }[];
+  toys?: { x: number; y: number; kind: ToyKind; rot?: number }[];
+  decor?: { x: number; y: number; kind: DecorKind; edge?: 'h' | 'v'; rot?: number }[];
   shops?: { x: number; y: number; kind: ShopKind; sells?: string[]; edge?: 'h' | 'v'; turned?: boolean; face?: number; rot?: number; manual?: boolean; dirt?: number }[];
   sold?: Record<string, number>;
   soldAt?: Record<string, number>;
@@ -168,12 +169,15 @@ interface TroughObj extends Trough {
   food: FoodId | null;
   kind: TroughKind;
   mesh: TroughMesh;
+  /** Hoeveel kwartslagen het gedraaid staat (ook bij slaapplek, speelgoed en versiering). */
+  rot?: number;
 }
 interface BedObj {
   x: number;
   y: number;
   kind: BedKind;
   mesh: THREE.Object3D;
+  rot?: number;
 }
 interface DecorObj {
   x: number;
@@ -182,12 +186,14 @@ interface DecorObj {
   /** Een paal of bord staat op een rand van tegel (x, y): 'h' is de noordrand, 'v' de westrand. */
   edge?: 'h' | 'v';
   mesh: THREE.Object3D;
+  rot?: number;
 }
 interface ToyObj {
   x: number;
   y: number;
   kind: ToyKind;
   mesh: THREE.Object3D;
+  rot?: number;
   /** Tot dit moment speelt er een dier mee: het ding beweegt. */
   playUntil?: number;
   /** Naar welke kant de hoepel gedraaid staat. */
@@ -382,6 +388,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       goal: i => this.explainGoal(i),
       need: i => this.gotoNeed(i),
       turn: dir => this.view.rotate(dir),
+      spin: () => this.spinGhost(),
     });
     this.guests = new GuestManager(this.view.scene, this);
     const train = this.view.makeTrain();
@@ -445,10 +452,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.facts = new Set(d.facts ?? []);
     this.told = new Set(d.told ?? []);
     this.savedPens = (d.pens ?? []).map(p => ({ name: p.name, color: p.color, tile: tileIndex((p.tile % ow) + ox, Math.floor(p.tile / ow) + oy) }));
-    for (const tr of d.troughs) this.addTrough(tr.x + ox, tr.y + oy, tr.food, tr.amount, tr.kind && TROUGH[tr.kind] ? tr.kind : 'wood');
-    for (const b of d.beds ?? []) this.addBed(b.x + ox, b.y + oy, b.kind);
-    for (const b of d.toys ?? []) this.addToy(b.x + ox, b.y + oy, b.kind);
-    for (const b of d.decor ?? []) if (DECOR[b.kind]) this.addDecor(b.x + ox, b.y + oy, b.kind, b.edge);
+    for (const tr of d.troughs) this.addTrough(tr.x + ox, tr.y + oy, tr.food, tr.amount, tr.kind && TROUGH[tr.kind] ? tr.kind : 'wood', tr.rot);
+    for (const b of d.beds ?? []) this.addBed(b.x + ox, b.y + oy, b.kind, b.rot);
+    for (const b of d.toys ?? []) this.addToy(b.x + ox, b.y + oy, b.kind, b.rot);
+    // iets op een rand ligt langs die rand; een heg of bloemperk uit een ouder spel staat nog midden op zijn tegel
+    for (const b of d.decor ?? []) if (DECOR[b.kind]) this.addDecor(b.x + ox, b.y + oy, b.kind, b.edge, b.rot ?? (b.edge === 'v' ? 1 : 0));
     // eerst de losse dingen (bankje, bloemen, afvalbak): die blijven staan waar ze stonden
     const stored = [...(d.shops ?? [])].sort((p, q) => (SHOP_SIZE[p.kind] ?? 1) - (SHOP_SIZE[q.kind] ?? 1));
     for (const sh of stored) {
@@ -522,7 +530,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       terrain: Array.from(this.grid.terrain),
       h: Array.from(this.grid.h),
       vv: Array.from(this.grid.v),
-      troughs: this.troughs.map(({ x, y, food, amount, kind }) => ({ x, y, food, amount, kind: kind === 'wood' ? undefined : kind })),
+      troughs: this.troughs.map(({ x, y, food, amount, kind, rot }) => ({ x, y, food, amount, kind: kind === 'wood' ? undefined : kind, rot: rot || undefined })),
       animals: this.animals.map(a => ({
         species: a.species, variant: a.variant, gx: a.gx, gy: a.gy, hunger: a.hunger, name: a.name, sick: a.sick || undefined, escaped: a.escaped || undefined,
         nature: a.nature === 'plain' ? undefined : a.nature, rare: a.rare ?? undefined,
@@ -533,9 +541,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       wear: Object.fromEntries(this.wear),
       pens: this.pens.map(p => ({ tile: p.region.tiles[0], name: p.name, color: p.color || undefined })),
       staff: this.workers.map(w => ({ role: w.role, gx: w.gx, gy: w.gy, suit: w.suit || undefined, cart: w.cart || undefined })),
-      beds: this.beds.map(({ x, y, kind }) => ({ x, y, kind })),
-      toys: this.toys.map(({ x, y, kind }) => ({ x, y, kind })),
-      decor: this.decors.map(({ x, y, kind, edge }) => ({ x, y, kind, edge })),
+      beds: this.beds.map(({ x, y, kind, rot }) => ({ x, y, kind, rot: rot || undefined })),
+      toys: this.toys.map(({ x, y, kind, rot }) => ({ x, y, kind, rot: rot || undefined })),
+      decor: this.decors.map(({ x, y, kind, edge, rot }) => ({ x, y, kind, edge, rot: rot || undefined })),
       shops: this.shops.map(({ x, y, kind, sells, edge, turned, set, rot, manual, dirt }) => ({ x, y, kind, sells, edge, turned, face: set, rot, manual, dirt: dirt ? Math.round(dirt * 100) / 100 : undefined })),
       gw: W,
       gh: H,
@@ -830,9 +838,53 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.moving = null;
     if (row && option && row in this.option) this.option[row as keyof typeof this.option] = option;
     if (option) this.fresh.delete(option);
+    // een ander ding begint weer recht; kies je hetzelfde nog een keer, dan staat het zoals je het had gedraaid
+    if (this.canSpin()) {
+      const key = `${id}:${(this.option as Record<string, string>)[id]}`;
+      if (key !== this.quarterKey) this.quarter = this.spins = 0;
+      this.quarterKey = key;
+    }
     this.hud.hideMenu();
     this.view.hideGhost();
     this.refreshTools(true);
+  }
+
+  /** Hoeveel kwartslagen het ding dat je gaat neerzetten gedraaid is (de draaiknop, of de toets R). */
+  private quarter = 0;
+  private quarterKey = '';
+  /** Hoe vaak er op de draaiknop is gedrukt: zo draait het pijltje op de knop steeds dezelfde kant op. */
+  private spins = 0;
+  /** Waar de vinger of muis het laatst was: daar verschijnt het voorbeeld na het draaien. */
+  private lastHover: [number, number] | null = null;
+
+  /** Kun je wat je nu vasthebt draaien? Voerbak, slaapplek, speelgoed, alles van Park en alle winkels. */
+  private canSpin(): boolean {
+    return this.tool === 'trough' || this.tool === 'bed' || this.tool === 'toy' || this.tool === 'decor' || this.tool === 'shop';
+  }
+
+  /** De draaiknop: het ding dat je gaat neerzetten draait een kwartslag; het voorbeeld laat meteen zien hoe het komt te staan. */
+  private spinGhost(): void {
+    if (!this.canSpin()) return;
+    this.quarter = (this.quarter + 1) % 4;
+    this.spins++;
+    this.hud.setSpin(true, this.spins);
+    const box = this.view.renderer.domElement.getBoundingClientRect();
+    const [cx, cy] = this.lastHover ?? [box.left + box.width / 2, box.top + box.height / 2];
+    this.hover(cx, cy, false);
+  }
+
+  /** Iets op een rand een halve slag gedraaid? (De draaiknop een of drie keer ingedrukt.) */
+  private get flip(): 1 | -1 {
+    return this.quarter % 2 ? -1 : 1;
+  }
+
+  /**
+   * Hoe een bord, heg of bloemperk op deze rand komt te liggen: langs de rand, met de voorkant naar het pad (of
+   * naar de kant waar je tikt), en andersom als je de draaiknop hebt gebruikt. In kwartslagen, zoals bij een gebouw.
+   */
+  private edgeRot(e: Edge, side: 1 | -1): number {
+    const face = this.faceFor(e, side) * this.flip;
+    return e.o === 'h' ? (face > 0 ? 0 : 2) : face > 0 ? 1 : 3;
   }
 
   private refreshTools(force = false): void {
@@ -950,6 +1002,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     defs.push(opt('erase', 'erase', t('tool.erase')));
     const grouped = TOOL_GROUPS.flatMap(([group, ids]) => ids.flatMap(id => defs.filter(d => d.id === id).map(d => ({ ...d, group }))));
     this.hud.setTools(grouped, this.tool, hint, this.linger);
+    this.hud.setSpin(this.canSpin() && !this.moving, this.spins);
   }
 
   /** Wat er onder de actieknop zit: de veger altijd, de prikker zodra er afval komt, de hamer zodra hekken slijten. */
@@ -1628,8 +1681,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return !!(this.troughAt(x, y) || this.bedAt(x, y) || this.toyAt(x, y) || this.decorAt(x, y) || this.shopAt(x, y));
   }
 
-  private addTrough(x: number, y: number, food: FoodId | null, amount: number, kind: TroughKind = 'wood'): TroughObj {
-    const tr: TroughObj = { x, y, food, amount, kind, mesh: this.view.makeTrough(x, y, kind) };
+  private addTrough(x: number, y: number, food: FoodId | null, amount: number, kind: TroughKind = 'wood', rot = 0): TroughObj {
+    const tr: TroughObj = { x, y, food, amount, kind, rot, mesh: this.view.makeTrough(x, y, kind, rot) };
     this.view.fillTrough(tr.mesh, food, amount);
     this.troughs.push(tr);
     return tr;
@@ -1659,21 +1712,21 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return !(a && a === b);
   }
 
-  /** Een lantaarn, vlag, wegwijzer of ander paaltje zet je op een rand, net als een hek. */
-  private placeDecorOnEdge(e: Edge | null): void {
+  /** Een lantaarn, vlag, wegwijzer, heg of bloemperk zet je op een rand, net als een hek: het ligt langs die rand. */
+  private placeDecorOnEdge(e: Edge | null, side: 1 | -1 = 1): void {
     const kind = this.option.decor as DecorKind;
     if (!e) return;
     const [cx, cy] = this.decorPos({ x: e.x, y: e.y, edge: e.o });
     if (!this.edgeDecorFits(e)) return this.nope(cx, cy);
     if (!this.pay(DECOR[kind].price, cx, cy)) return;
-    this.addDecor(e.x, e.y, kind, e.o);
+    this.addDecor(e.x, e.y, kind, e.o, this.edgeRot(e, side));
     sfx('place');
     this.floatAt(icon('sparkle'), cx, cy, 0.6);
     this.backToHand();
   }
 
-  private addDecor(x: number, y: number, kind: DecorKind, edge?: 'h' | 'v'): DecorObj {
-    const decor: DecorObj = { x, y, kind, edge, mesh: this.view.makeDecor(x, y, kind, edge) };
+  private addDecor(x: number, y: number, kind: DecorKind, edge?: 'h' | 'v', rot = 0): DecorObj {
+    const decor: DecorObj = { x, y, kind, edge, rot, mesh: this.view.makeDecor(x, y, kind, edge, rot) };
     this.decors.push(decor);
     if (kind === 'bunting' || kind === 'lightstring') this.syncStrings();
     return decor;
@@ -1690,7 +1743,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const kind = this.option.decor as DecorKind;
     if (!this.decorFits(x, y)) return this.nope(x + 0.5, y + 0.5);
     if (!this.pay(DECOR[kind].price, x + 0.5, y + 0.5)) return;
-    this.addDecor(x, y, kind);
+    this.addDecor(x, y, kind, undefined, this.quarter);
     this.uncover(x, y);
     sfx('place');
     this.floatAt(icon('sparkle'), x + 0.5, y + 0.5, 0.6);
@@ -1709,8 +1762,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return this.toys.find(b => b.x === x && b.y === y);
   }
 
-  private addToy(x: number, y: number, kind: ToyKind): ToyObj {
-    const toy: ToyObj = { x, y, kind, mesh: this.view.makeToy(x, y, kind) };
+  private addToy(x: number, y: number, kind: ToyKind, rot = 0): ToyObj {
+    const toy: ToyObj = { x, y, kind, rot, mesh: this.view.makeToy(x, y, kind, rot) };
     this.toys.push(toy);
     return toy;
   }
@@ -1753,17 +1806,19 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     for (const toy of this.toys) {
       const m = toy.mesh;
       if (toy.playUntil === undefined) continue;
+      // zo staat het ding gedraaid; het bewegen komt daar bovenop
+      const base = ((toy.rot ?? 0) * Math.PI) / 2;
       if (this.clock > toy.playUntil) {
         toy.playUntil = undefined;
         m.position.y = 0;
-        m.rotation.set(0, toy.kind === 'hoop' ? toy.facing ?? 0 : 0, 0);
+        m.rotation.set(0, toy.kind === 'hoop' ? toy.facing ?? base : base, 0);
         m.scale.set(1, 1, 1);
         continue;
       }
       const t = this.clock;
       if (toy.kind === 'hoop') {
         // de hoepel staat dwars op de sprong en trilt even na
-        m.rotation.y = toy.facing ?? 0;
+        m.rotation.y = toy.facing ?? base;
         m.rotation.z = Math.sin(t * 22) * 0.03;
       } else if (toy.kind === 'ball') {
         m.position.y = Math.abs(Math.sin(t * 6)) * 0.28;
@@ -1775,7 +1830,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         m.rotation.z = Math.sin(t * 5) * 0.13;
         m.position.y = Math.abs(Math.sin(t * 5)) * 0.04;
       } else {
-        m.rotation.y = Math.sin(t * 4) * 0.18;
+        m.rotation.y = base + Math.sin(t * 4) * 0.18;
         m.scale.y = 1 + Math.sin(t * 8) * 0.07;
       }
     }
@@ -1856,8 +1911,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.view.drawNight(night, this.lightList);
   }
 
-  private addBed(x: number, y: number, kind: BedKind): BedObj {
-    const bed: BedObj = { x, y, kind, mesh: this.view.makeBed(x, y, kind) };
+  private addBed(x: number, y: number, kind: BedKind, rot = 0): BedObj {
+    const bed: BedObj = { x, y, kind, rot, mesh: this.view.makeBed(x, y, kind, rot) };
     this.beds.push(bed);
     return bed;
   }
@@ -2026,7 +2081,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!region) return this.nope(x + 0.5, y + 0.5);
     const kind = this.option.trough as TroughKind;
     if (this.taken(x, y) || !this.pay(TROUGH[kind].price, x + 0.5, y + 0.5)) return;
-    this.addTrough(x, y, null, 0, kind);
+    this.addTrough(x, y, null, 0, kind, this.quarter);
     this.uncover(x, y);
     sfx('place');
     this.floatAt(icon('sparkle'), x + 0.5, y + 0.5);
@@ -2051,7 +2106,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!region) return this.nope(x + 0.5, y + 0.5);
     if (this.taken(x, y) || !this.pay(PRICE.bed, x + 0.5, y + 0.5)) return;
     const kind = this.option.bed as BedKind;
-    this.addBed(x, y, kind);
+    this.addBed(x, y, kind, this.quarter);
     this.uncover(x, y);
     sfx('place');
     this.floatAt(icon('sparkle'), x + 0.5, y + 0.5);
@@ -2065,7 +2120,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!region) return this.nope(x + 0.5, y + 0.5);
     const kind = this.option.toy as ToyKind;
     if (this.taken(x, y) || !this.pay(TOY_PRICE[kind] ?? PRICE.toy, x + 0.5, y + 0.5)) return;
-    this.addToy(x, y, kind);
+    this.addToy(x, y, kind, this.quarter);
     this.uncover(x, y);
     sfx('place');
     this.floatAt(icon('sparkle'), x + 0.5, y + 0.5);
@@ -2120,7 +2175,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const [cx, cy] = shopCenter({ x: e.x, y: e.y, kind, size: 1, sells: [], edge: e.o });
     if (!this.edgeFits(e)) return this.nope(cx, cy);
     if (!this.pay(SHOP_PRICE[kind], cx, cy)) return;
-    this.addShop(e.x, e.y, kind, undefined, e.o, undefined, undefined, undefined, side);
+    // met de draaiknop staat het andersom: langs een pad met de rug naar het pad, anders van je af
+    const auto = this.edgeFace(e), flipped = this.flip < 0;
+    this.addShop(e.x, e.y, kind, undefined, e.o, auto !== 0 && flipped, undefined, undefined, auto ? side : side * this.flip);
     sfx('place');
     this.floatAt(icon('sparkle'), cx, cy, 0.5);
     this.backToHand();
@@ -2131,7 +2188,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const cx = x + SHOP_SIZE[kind] / 2, cy = y + SHOP_SIZE[kind] / 2;
     if (!this.shopFits(x, y, kind)) return this.nope(cx, cy);
     if (!this.pay(SHOP_PRICE[kind], cx, cy)) return;
-    this.addShop(x, y, kind);
+    // zelf gedraaid met de draaiknop? Dan blijft het zo staan; anders kijkt het vanzelf naar het pad
+    if (this.quarter) this.addShop(x, y, kind, undefined, undefined, undefined, (this.autoRot(x, y, SHOP_SIZE[kind]) + this.quarter) % 4, true);
+    else this.addShop(x, y, kind);
     sfx('place');
     this.floatAt(icon('sparkle'), cx, cy, 0.8);
     // één halte: de trein wacht nog; bij de tweede gaat hij rijden
@@ -2602,6 +2661,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Onder de muis: het voorbeeld van wat je gaat plaatsen en de cursor die bij de handeling hoort. */
   private hover(cx: number, cy: number, dragging: boolean): void {
     this.view.hideGhost();
+    this.lastHover = [cx, cy];
     if (this.staffGhost) this.staffGhost.worker.mesh.visible = false;
     this.hoverPoop = null;
     this.hoverWorn = null;
@@ -2637,19 +2697,19 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         return this.hud.setCursor(CUR[this.option.fence]);
       }
       case 'trough':
-        if (free) this.view.ghostTrough(x, y, !!this.grid.enclosureAt(x, y));
+        if (free) this.view.ghostTrough(x, y, !!this.grid.enclosureAt(x, y), this.quarter);
         return this.hud.setCursor(inside && this.troughAt(x, y) ? CUR.feed : CUR.trough);
       case 'bed':
-        if (free) this.view.ghostBed(x, y, this.option.bed as BedKind, !!this.grid.enclosureAt(x, y));
+        if (free) this.view.ghostBed(x, y, this.option.bed as BedKind, !!this.grid.enclosureAt(x, y), this.quarter);
         return this.hud.setCursor(CUR[this.option.bed]);
       case 'toy':
-        if (free) this.view.ghostToy(x, y, this.option.toy as ToyKind, !!this.grid.enclosureAt(x, y));
+        if (free) this.view.ghostToy(x, y, this.option.toy as ToyKind, !!this.grid.enclosureAt(x, y), this.quarter);
         return this.hud.setCursor(CUR[this.option.toy]);
       case 'decor':
         if (EDGE_DECOR.includes(this.option.decor as DecorKind)) {
           const e = nearestEdge(g.gx, g.gy);
-          if (e && this.grid.validEdge(e)) this.view.ghostDecor(e.x, e.y, this.option.decor as DecorKind, this.edgeDecorFits(e), e.o);
-        } else if (inside) this.view.ghostDecor(x, y, this.option.decor as DecorKind, this.decorFits(x, y));
+          if (e && this.grid.validEdge(e)) this.view.ghostDecor(e.x, e.y, this.option.decor as DecorKind, this.edgeDecorFits(e), e.o, this.edgeRot(e, this.edgeSide(e, g.gx, g.gy)));
+        } else if (inside) this.view.ghostDecor(x, y, this.option.decor as DecorKind, this.decorFits(x, y), undefined, this.quarter);
         return this.hud.setCursor(CUR[this.option.decor]);
       case 'staff': {
         const role = this.option.staff as WorkerRole;
@@ -2676,11 +2736,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         if (SHOP_SIZE[kind] === 1) {
           const e = this.itemEdge(g.gx, g.gy);
           // het voorbeeld staat al zoals het komt: naar het pad, of anders naar de kant waar je bent
-          if (e) this.view.ghostShop(e.x, e.y, kind, this.edgeFits(e), { o: e.o, face: this.faceFor(e, this.edgeSide(e, g.gx, g.gy)) });
+          if (e) this.view.ghostShop(e.x, e.y, kind, this.edgeFits(e), { o: e.o, face: this.faceFor(e, this.edgeSide(e, g.gx, g.gy)) * this.flip });
           return this.hud.setCursor(CUR[this.option.shop]);
         }
         const [ax, ay] = this.shopAnchor(g, kind);
-        this.view.ghostShop(ax, ay, kind, this.shopFits(ax, ay, kind), undefined, this.autoRot(ax, ay, SHOP_SIZE[kind]));
+        this.view.ghostShop(ax, ay, kind, this.shopFits(ax, ay, kind), undefined, (this.autoRot(ax, ay, SHOP_SIZE[kind]) + this.quarter) % 4);
         return this.hud.setCursor(CUR[this.option.shop]);
       }
       case 'animal': {
@@ -2690,13 +2750,14 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       }
       case 'erase': {
         const e = nearestEdge(g.gx, g.gy, 0.3);
-        const item = e && this.edgeItemAt(e);
+        const item = e && this.edgeItemAt(e), post = e && this.edgeDecorAt(e);
         if (e && this.grid.getEdge(e) !== 0) this.view.ghostFence(e, this.grid.getEdge(e), false);
         else if (item) this.view.ghostShop(item.x, item.y, item.kind, false, { o: item.edge!, face: item.face ?? 1 });
-        else if (inside && this.troughAt(x, y)) this.view.ghostTrough(x, y, false);
-        else if (inside && this.bedAt(x, y)) this.view.ghostBed(x, y, this.bedAt(x, y)!.kind, false);
-        else if (inside && this.toyAt(x, y)) this.view.ghostToy(x, y, this.toyAt(x, y)!.kind, false);
-        else if (inside && this.decorAt(x, y)) this.view.ghostDecor(x, y, this.decorAt(x, y)!.kind, false);
+        else if (post) this.view.ghostDecor(post.x, post.y, post.kind, false, post.edge, post.rot ?? 0);
+        else if (inside && this.troughAt(x, y)) this.view.ghostTrough(x, y, false, this.troughAt(x, y)!.rot ?? 0);
+        else if (inside && this.bedAt(x, y)) this.view.ghostBed(x, y, this.bedAt(x, y)!.kind, false, this.bedAt(x, y)!.rot ?? 0);
+        else if (inside && this.toyAt(x, y)) this.view.ghostToy(x, y, this.toyAt(x, y)!.kind, false, this.toyAt(x, y)!.rot ?? 0);
+        else if (inside && this.decorAt(x, y)) this.view.ghostDecor(x, y, this.decorAt(x, y)!.kind, false, undefined, this.decorAt(x, y)!.rot ?? 0);
         else if (inside && this.shopAt(x, y)) this.view.ghostShop(this.shopAt(x, y)!.x, this.shopAt(x, y)!.y, this.shopAt(x, y)!.kind, false, undefined, this.shopAt(x, y)!.rot ?? 0);
         return this.hud.setCursor(CUR.erase);
       }
@@ -2977,7 +3038,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const guest = this.pick(this.guests.guests, cx, cy, q => q.height * 0.6, 0.4);
       if (guest) return this.guestMenu(guest);
     }
-    if (this.tool === 'decor' && g && EDGE_DECOR.includes(this.option.decor as DecorKind)) return this.placeDecorOnEdge(nearestEdge(g.gx, g.gy));
+    if (this.tool === 'decor' && g && EDGE_DECOR.includes(this.option.decor as DecorKind)) {
+      const e = nearestEdge(g.gx, g.gy);
+      return this.placeDecorOnEdge(e, e ? this.edgeSide(e, g.gx, g.gy) : 1);
+    }
     if (this.tool === 'shop' && g) {
       const kind = this.option.shop as ShopKind;
       const e = SHOP_SIZE[kind] === 1 ? this.itemEdge(g.gx, g.gy) : null;
@@ -3007,6 +3071,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private attachInput(canvas: HTMLCanvasElement): void {
     canvas.style.touchAction = 'none';
     canvas.addEventListener('contextmenu', e => e.preventDefault());
+    // de toets R draait wat je gaat neerzetten, net als de draaiknop
+    window.addEventListener('keydown', e => {
+      if (!canvas.isConnected || e.repeat || (e.key !== 'r' && e.key !== 'R')) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      this.spinGhost();
+    });
     canvas.addEventListener('wheel', e => {
       e.preventDefault();
       this.view.zoomBy(e.deltaY > 0 ? 1.1 : 0.9);

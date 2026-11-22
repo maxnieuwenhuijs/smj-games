@@ -11,6 +11,7 @@
   "sound": "Sound",
   "turn.left": "Turn the view left",
   "turn.right": "Turn the view right",
+  "spin": "Turn",
   "level": "Level {n}",
   "level.new": "New animal:",
   "level.next": "Go on",

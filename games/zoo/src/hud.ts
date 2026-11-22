@@ -77,7 +77,7 @@ export class Hud {
   /** Wat er gebeurt als je naast de kaart tikt (alleen bij de dierenarts). */
   private overlayTap: (() => void) | null = null;
 
-  constructor(private on: { tool(id: string, row?: string, option?: string): void; home(): void; goal(index: number): void; need(index: number): void; turn(dir: 1 | -1): void }) {
+  constructor(private on: { tool(id: string, row?: string, option?: string): void; home(): void; goal(index: number): void; need(index: number): void; turn(dir: 1 | -1): void; spin(): void }) {
     this.need.id = 'needs';
     this.need.hidden = true;
     this.need.setAttribute('aria-label', t('need'));
@@ -103,6 +103,12 @@ export class Hud {
       b.addEventListener('click', () => this.on.turn(dir));
       document.getElementById('ui')!.append(b);
     }
+    // de draaiknop: staat er alleen als je iets gaat neerzetten wat je kunt draaien
+    this.spinBtn.id = 'spin';
+    this.spinBtn.hidden = true;
+    this.spinBtn.setAttribute('aria-label', t('spin'));
+    this.spinBtn.addEventListener('click', () => this.on.spin());
+    document.getElementById('ui')!.append(this.spinBtn);
     const sound = $('sound');
     const showSound = (): void => {
       sound.innerHTML = icon(isMuted() ? 'sound_off' : 'sound_on');
@@ -162,6 +168,14 @@ export class Hud {
     card.append(go);
     this.overlay.append(card);
     this.overlay.hidden = false;
+  }
+
+  private spinBtn = el('button', 'tool', `${icon('turn')}<b>${t('spin')}</b>`);
+
+  /** De draaiknop tonen of verbergen; `quarters`: hoe vaak er al gedraaid is, zodat het pijltje mee draait. */
+  setSpin(show: boolean, quarters = 0): void {
+    this.spinBtn.hidden = !show;
+    this.spinBtn.style.setProperty('--q', String(quarters));
   }
 
   /** `open`: de knop waarvan de keuzerij open blijft staan terwijl het handje aan staat (net iets neergezet). */

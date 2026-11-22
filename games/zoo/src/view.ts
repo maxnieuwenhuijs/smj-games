@@ -871,23 +871,24 @@ const DECOR_PARTS: Record<DecorKind, Part[]> = {
     [mergeGeometries([0, 1, 2, 3, 4, 5].map(i => new THREE.BoxGeometry(0.56, 0.04, 0.16).translate(0.3, 0, 0).rotateZ(-0.35).rotateY((i * Math.PI) / 3).translate(0, 1.12, 0)))!, PALM_MAT],
     [mergeGeometries([ball(0.07, 0.07, 1.04, 0.03), ball(0.07, -0.05, 1.02, -0.05)])!, std(0x6b4a2a)],
   ],
+  // lang en smal: een heg is precies een tegel lang, zodat een rij heggen één geheel wordt
   hedge: [
-    [boxAt(0.92, 0.42, 0.4, 0, 0.21, 0), LEAF2],
-    [boxAt(0.86, 0.1, 0.34, 0, 0.45, 0), LEAF_MAT],
+    [boxAt(1, 0.42, 0.3, 0, 0.21, 0), LEAF2],
+    [boxAt(0.94, 0.1, 0.24, 0, 0.45, 0), LEAF_MAT],
   ],
   roses: [
-    [boxAt(0.8, 0.05, 0.8, 0, 0.025, 0), DARK_MAT, false],
-    [mergeGeometries([ball(0.16, -0.2, 0.2, -0.18), ball(0.18, 0.2, 0.22, 0.14), ball(0.15, -0.14, 0.19, 0.24), ball(0.15, 0.22, 0.19, -0.22)])!, LEAF2],
-    flowersOn([[-0.2, 0.38, -0.18], [0.2, 0.42, 0.14], [0.26, 0.36, -0.22]], 0xd8362e),
-    flowersOn([[-0.14, 0.36, 0.24], [0.1, 0.4, 0.2]], 0xf06aa6),
-    flowersOn([[-0.26, 0.34, -0.1]], 0xf7f4ec),
+    [boxAt(0.94, 0.05, 0.34, 0, 0.025, 0), DARK_MAT, false],
+    [mergeGeometries([ball(0.15, -0.32, 0.19, -0.02), ball(0.17, -0.1, 0.21, 0.03), ball(0.16, 0.12, 0.2, -0.03), ball(0.15, 0.33, 0.19, 0.02)])!, LEAF2],
+    flowersOn([[-0.32, 0.36, -0.05], [0.12, 0.38, -0.06], [0.36, 0.35, 0.05]], 0xd8362e),
+    flowersOn([[-0.1, 0.4, 0.07], [0.24, 0.36, 0.08]], 0xf06aa6),
+    flowersOn([[-0.22, 0.35, 0.1], [0.02, 0.37, -0.09]], 0xf7f4ec),
   ],
   tulips: [
-    [boxAt(0.8, 0.05, 0.5, 0, 0.025, 0), DARK_MAT, false],
-    [mergeGeometries([-0.3, -0.15, 0, 0.15, 0.3].flatMap(x => [boxAt(0.025, 0.24, 0.025, x, 0.17, -0.12), boxAt(0.025, 0.22, 0.025, x, 0.16, 0.12)]))!, STEM_MAT],
-    flowersOn([[-0.3, 0.33, -0.12], [0, 0.33, -0.12], [0.3, 0.33, -0.12]], 0xe0584f),
-    flowersOn([[-0.15, 0.33, -0.12], [0.15, 0.33, -0.12], [-0.3, 0.31, 0.12], [0.3, 0.31, 0.12]], 0xffd23f),
-    flowersOn([[-0.15, 0.31, 0.12], [0, 0.31, 0.12], [0.15, 0.31, 0.12]], 0xb06ad9),
+    [boxAt(0.94, 0.05, 0.36, 0, 0.025, 0), DARK_MAT, false],
+    [mergeGeometries([-0.3, -0.15, 0, 0.15, 0.3].flatMap(x => [boxAt(0.025, 0.24, 0.025, x, 0.17, -0.08), boxAt(0.025, 0.22, 0.025, x, 0.16, 0.08)]))!, STEM_MAT],
+    flowersOn([[-0.3, 0.33, -0.08], [0, 0.33, -0.08], [0.3, 0.33, -0.08]], 0xe0584f),
+    flowersOn([[-0.15, 0.33, -0.08], [0.15, 0.33, -0.08], [-0.3, 0.31, 0.08], [0.3, 0.31, 0.08]], 0xffd23f),
+    flowersOn([[-0.15, 0.31, 0.08], [0, 0.31, 0.08], [0.15, 0.31, 0.08]], 0xb06ad9),
   ],
   mushrooms: [
     [mergeGeometries([tube(0.05, 0.06, 0.2, -0.16, 0.1, 0.06), tube(0.04, 0.05, 0.14, 0.14, 0.07, -0.1), tube(0.035, 0.04, 0.1, 0.1, 0.05, 0.2)])!, WHITE_MAT],
@@ -955,7 +956,7 @@ const DECOR_PARTS: Record<DecorKind, Part[]> = {
     [mergeGeometries([[-0.24, 1.2, -0.1], [-0.08, 1.4, 0.12], [0.1, 1.1, -0.14], [0.24, 1.3, 0.06]].flatMap(([x, h, z]) => [boxAt(0.22, 0.03, 0.08, x + 0.1, h - 0.1, z), boxAt(0.08, 0.03, 0.2, x, h - 0.25, z + 0.1)]))!, LEAF_MAT],
   ],
   sunflowers: [
-    [boxAt(0.8, 0.05, 0.4, 0, 0.025, 0), DARK_MAT, false],
+    [boxAt(0.94, 0.05, 0.3, 0, 0.025, 0), DARK_MAT, false],
     [mergeGeometries([-0.26, 0, 0.26].map((x, i) => boxAt(0.035, 0.62 + i * 0.08, 0.035, x, 0.33 + i * 0.04, 0)))!, STEM_MAT],
     [mergeGeometries([-0.26, 0, 0.26].map((x, i) => new THREE.CylinderGeometry(0.14, 0.14, 0.04, 10).rotateX(Math.PI / 2).translate(x, 0.7 + i * 0.08, 0.03)))!, std(0xffd23f)],
     [mergeGeometries([-0.26, 0, 0.26].map((x, i) => new THREE.CylinderGeometry(0.065, 0.065, 0.05, 8).rotateX(Math.PI / 2).translate(x, 0.7 + i * 0.08, 0.04)))!, std(0x6b4a2a)],
@@ -2176,7 +2177,7 @@ export class View {
   }
 
   // ------------------------------------------------------------ voerbak
-  makeTrough(x: number, y: number, kind: TroughKind = 'wood'): TroughMesh {
+  makeTrough(x: number, y: number, kind: TroughKind = 'wood', rot = 0): TroughMesh {
     const group = new THREE.Group();
     const food = new THREE.Group();
     if (kind === 'silo') {
@@ -2202,6 +2203,7 @@ export class View {
       box.castShadow = true;
     }
     group.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
+    group.rotation.y = (rot * Math.PI) / 2;
     this.scene.add(group);
     return { group, food, kind };
   }
@@ -2223,30 +2225,40 @@ export class View {
     }
   }
 
-  private at<T extends THREE.Object3D>(obj: T, x: number, y: number): T {
+  /**
+   * Midden op tegel (x, y), `rot` kwartslagen gedraaid (0 = voorkant naar het zuiden, 1 = oosten, 2 = noorden,
+   * 3 = westen). Eerst draaien en dan pas wiegen: zo blijft het wiegen van een ding hetzelfde, hoe het ook staat.
+   */
+  private at<T extends THREE.Object3D>(obj: T, x: number, y: number, rot = 0): T {
     obj.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
+    return this.turned(obj, rot);
+  }
+
+  private turned<T extends THREE.Object3D>(obj: T, rot: number): T {
+    obj.rotation.order = 'YXZ';
+    obj.rotation.y = obj.userData.turn = (rot * Math.PI) / 2;
     return obj;
   }
 
-  makeBed(x: number, y: number, kind: BedKind): THREE.Group {
-    const group = this.at(build(BED_PARTS[kind]), x, y);
+  makeBed(x: number, y: number, kind: BedKind, rot = 0): THREE.Group {
+    const group = this.at(build(BED_PARTS[kind]), x, y, rot);
     this.scene.add(group);
     return group;
   }
 
-  ghostBed(x: number, y: number, kind: BedKind, ok: boolean): void {
+  ghostBed(x: number, y: number, kind: BedKind, ok: boolean, rot = 0): void {
     this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
-    this.at(this.ghostBeds[kind], x, y).visible = true;
+    this.at(this.ghostBeds[kind], x, y, rot).visible = true;
   }
 
   /** Op een rand ('h' = de noordrand van tegel (x, y), 'v' = de westrand) staat het ding midden op die rand. */
-  private atSpot<T extends THREE.Object3D>(obj: T, x: number, y: number, edge?: 'h' | 'v'): T {
+  private atSpot<T extends THREE.Object3D>(obj: T, x: number, y: number, edge?: 'h' | 'v', rot = 0): T {
     obj.position.set(toWorldX(x + (edge === 'v' ? 0 : 0.5)), 0, toWorldZ(y + (edge === 'h' ? 0 : 0.5)));
-    return obj;
+    return this.turned(obj, rot);
   }
 
-  makeDecor(x: number, y: number, kind: DecorKind, edge?: 'h' | 'v'): THREE.Group {
-    const group = this.atSpot(buildDecor(kind), x, y, edge);
+  makeDecor(x: number, y: number, kind: DecorKind, edge?: 'h' | 'v', rot = 0): THREE.Group {
+    const group = this.atSpot(buildDecor(kind), x, y, edge, rot);
     this.varyTree(group, x, y, kind);
     this.scene.add(group);
     return group;
@@ -2280,9 +2292,9 @@ export class View {
     }
   }
 
-  ghostDecor(x: number, y: number, kind: DecorKind, ok: boolean, edge?: 'h' | 'v'): void {
+  ghostDecor(x: number, y: number, kind: DecorKind, ok: boolean, edge?: 'h' | 'v', rot = 0): void {
     this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
-    this.atSpot(this.ghostDecors[kind], x, y, edge).visible = true;
+    this.atSpot(this.ghostDecors[kind], x, y, edge, rot).visible = true;
   }
 
   private runPool: THREE.Object3D[] = [];
@@ -2311,15 +2323,15 @@ export class View {
     });
   }
 
-  makeToy(x: number, y: number, kind: ToyKind): THREE.Group {
-    const group = this.at(build(TOY_PARTS[kind]), x, y);
+  makeToy(x: number, y: number, kind: ToyKind, rot = 0): THREE.Group {
+    const group = this.at(build(TOY_PARTS[kind]), x, y, rot);
     this.scene.add(group);
     return group;
   }
 
-  ghostToy(x: number, y: number, kind: ToyKind, ok: boolean): void {
+  ghostToy(x: number, y: number, kind: ToyKind, ok: boolean, rot = 0): void {
     this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
-    this.at(this.ghostToys[kind], x, y).visible = true;
+    this.at(this.ghostToys[kind], x, y, rot).visible = true;
   }
 
   /** Een winkel met zijn linkerbovenhoek op tegel (x, y); een gebouw beslaat 2 bij 2 tegels. */
@@ -2397,9 +2409,10 @@ export class View {
     this.ghostTileMesh.visible = true;
   }
 
-  ghostTrough(x: number, y: number, ok: boolean): void {
+  ghostTrough(x: number, y: number, ok: boolean, rot = 0): void {
     this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
     this.ghostTroughMesh.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
+    this.ghostTroughMesh.rotation.y = (rot * Math.PI) / 2;
     this.ghostTroughMesh.visible = true;
   }
 
@@ -2566,7 +2579,7 @@ export class View {
     const shake = p * Math.sin(since * 24);
     switch (kind) {
       case 'flag':
-        group.rotation.y = Math.sin(t * 1.8 + seed) * 0.3 + p * Math.sin(since * 15) * 0.9;
+        group.rotation.y = (u.turn ?? 0) + Math.sin(t * 1.8 + seed) * 0.3 + p * Math.sin(since * 15) * 0.9;
         break;
       case 'tree':
       case 'pine':

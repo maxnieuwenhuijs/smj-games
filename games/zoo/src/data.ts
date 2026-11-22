@@ -155,8 +155,11 @@ export const DECOR: Record<DecorKind, { group: DecorGroup; price: number; from: 
 export const STRING_REACH = 5;
 export const STRING_HEIGHT = 1.25;
 export const DECORS = Object.keys(DECOR) as DecorKind[];
-/** Palen en borden zet je op de rand van een tegel, net als een hek of een bankje: ze nemen geen tegel in. */
-export const EDGE_DECOR: DecorKind[] = ['lantern', 'lightstring', 'flag', 'bunting', 'signpost', 'mapboard'];
+/**
+ * Palen, borden en alles wat langwerpig is (heg, rozen, tulpen, zonnebloemen, de bloemenboog) zet je op de rand
+ * van een tegel, net als een hek of een bankje: ze nemen geen tegel in en liggen langs die rand.
+ */
+export const EDGE_DECOR: DecorKind[] = ['lantern', 'lightstring', 'flag', 'bunting', 'signpost', 'mapboard', 'hedge', 'roses', 'tulips', 'sunflowers', 'arch'];
 /**
  * De meeste dieren hebben een eigen lievelingsding: daar spelen ze mee, en zonder vervelen ze zich (vanaf level 10).
  * Kippen, eenden en een paar andere rustige dieren hebben niets nodig.
