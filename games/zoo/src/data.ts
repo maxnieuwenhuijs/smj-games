@@ -407,13 +407,13 @@ export const WORLDS: WorldId[] = ['farm', 'savanna', 'jungle', 'ice', 'far'];
 /** Er passen nooit meer munten in de kas dan dit: twee cijfers, net genoeg voor twee van de duurste dieren. */
 export const COIN_CAP = 99;
 /** Dag en nacht (vanaf FEATURE.night): zo lang duren ze, in tellen. De schemering duurt DUSK_SECONDS. */
-export const DAY_SECONDS = 300;
+export const DAY_SECONDS = 600;
 /**
  * De nacht in drie stukken, elk [van uur, tot uur, tellen]: de avond (21 tot 24 uur: donker, het park is nog open),
  * de slaapnacht (0 tot 5 uur: het park is dicht en alles slaapt; die duurt maar kort) en de vroege ochtend (5 tot 7
  * uur: het personeel is al aan het werk, de gasten komen om 7 uur).
  */
-export const NIGHT_PARTS: [number, number, number][] = [[21, 24, 45], [0, 5, 20], [5, 7, 20]];
+export const NIGHT_PARTS: [number, number, number][] = [[21, 24, 90], [0, 5, 40], [5, 7, 40]];
 export const NIGHT_SECONDS = NIGHT_PARTS.reduce((n, p) => n + p[2], 0);
 /** Het uur van de dag (7 = zeven uur 's ochtends, 21,5 = half tien 's avonds) op dit moment in de kring van dag en nacht. */
 export function hourAt(phase: number): number {
@@ -425,7 +425,7 @@ export function hourAt(phase: number): number {
   }
   return 7;
 }
-export const DUSK_SECONDS = 12;
+export const DUSK_SECONDS = 20;
 /** Hoe ver het licht reikt, in tegels: een lantaarn, een kampvuur, een winkel of speeltoestel, en de ingang. */
 export const LIGHT = { lantern: 3.5, campfire: 3, shop: 2.4, entrance: 4.5, lightstring: 2.4, gardenlight: 1.8, lampion: 3, torch: 2.6, streetlamp: 5 };
 /** In het donker ziet een gast bijna niets: zoveel van het plezier blijft er over. */

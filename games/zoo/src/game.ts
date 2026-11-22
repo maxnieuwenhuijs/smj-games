@@ -4500,10 +4500,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return this.timeBase + this.clock;
   }
 
-  /** Elk seizoen duurt twee dagen in het spel. Voor FEATURE.season is het altijd zomer. */
+  /** Elk seizoen duurt één dag in het spel (een dag en een nacht: ongeveer dertien minuten). Voor FEATURE.season is het altijd zomer. */
   private seasonNow(): Season {
     if (!this.has('season')) return 'summer';
-    return SEASONS[Math.floor(this.now() / (2 * (DAY_SECONDS + NIGHT_SECONDS))) % SEASONS.length];
+    return SEASONS[Math.floor(this.now() / (DAY_SECONDS + NIGHT_SECONDS)) % SEASONS.length];
   }
 
   /** Regent het (en is het geen sneeuw)? Dan worden gasten nat en schuilen de dieren. */

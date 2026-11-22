@@ -357,7 +357,7 @@ De getallen staan in `games/zoo/src/data.ts` (`BONUS`, `AQUATIC`, `TANK_WATER`).
 
 ## Dag en nacht
 
-Vanaf level 15 wordt het ook nacht. Een dag (7 tot 21 uur) duurt vijf minuten en een nacht bijna anderhalve minuut, met twaalf tellen schemering ertussen. De nacht bestaat uit drie stukken (`NIGHT_PARTS`): de avond van 21 tot 24 uur (45 tellen, het park is nog open), de slaapnacht van 0 tot 5 uur (20 tellen) en de vroege ochtend van 5 tot 7 uur (20 tellen). Elke keer dat je het spel opent, begint het overdag. Rechtsboven staat een zon of een maan met het uur (de dag loopt van 7 tot 21 uur).
+Vanaf level 15 wordt het ook nacht. Een dag (7 tot 21 uur) duurt tien minuten en een nacht bijna drie minuten, met twintig tellen schemering ertussen. De nacht bestaat uit drie stukken (`NIGHT_PARTS`): de avond van 21 tot 24 uur (anderhalve minuut, het park is nog open), de slaapnacht van 0 tot 5 uur (40 tellen) en de vroege ochtend van 5 tot 7 uur (40 tellen). Elke keer dat je het spel opent, begint het overdag. Rechtsboven staat een zon of een maan met het uur (de dag loopt van 7 tot 21 uur).
 
 - **Donker:** 's nachts ligt er een donkerblauw waas over het park. Alleen bij licht zie je alles goed: rond een lantaarn (3,5 tegel), een kampvuur (3), elke winkel en elk speeltoestel (2,4) en de ingang (4,5). De lantaarns branden dan fel.
 - **Gasten:** staat een gast in het donker naar dieren te kijken, dan heeft hij er maar een kwart van het plezier van en ziet hij zijn lievelingsdier niet. Boven zijn hoofd staat een oranje wolkje met een lantaarn. Zijn er meer gasten in het donker, dan zegt de gastvrouw: "Het is te donker! Zet er lantaarns bij."
@@ -620,7 +620,7 @@ Alles hieronder staat in `games/zoo/src`; de vaste getallen in `data.ts`. De vol
 ### Weer, seizoenen en tijd
 - **Tijd:** de klok van het park loopt door over opslaan heen (`time` in het opslagbestand).
 - **Regen** (vanaf level 11): om de zes tot negen minuten een bui van ongeveer een minuut. Gasten zonder paraplu worden minder blij en gaan eerder weg; ze halen een paraplu of schuilen. Dieren schuilen op hun slaapplek; modderliefhebbers rollen in een plas. Daarna een regenboog.
-- **Seizoenen** (vanaf level 17): lente, zomer, herfst, winter, elk twee dagen in het spel. In de winter valt er sneeuw in plaats van regen.
+- **Seizoenen** (vanaf level 17): lente, zomer, herfst, winter, elk één dag in het spel (een dag en een nacht, ongeveer dertien minuten). In de winter valt er sneeuw in plaats van regen.
 - **Zonsopgang:** de haan kraait en de dieren worden een voor een wakker.
 
 ### Hulp
