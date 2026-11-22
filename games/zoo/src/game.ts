@@ -1211,12 +1211,34 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.quietUntil = this.clock + 9;
     const text = textOf(t, line);
     const id = voiceId(line.who, text);
+    const at = line.at, tap = at && at() ? () => this.showSpot(at) : null;
     // af en toe noemt het figuur de speler eerst bij zijn naam: "Senna, de gasten hebben honger."
     const call = this.player && !line.key.startsWith('name.') && !line.vars?.name ? voiceId(line.who, callText(t, this.player)) : '';
     if (call && this.clock - this.namedAt > 40 && Math.random() < 0.35 && hasVoice(call) && hasVoice(id)) {
       this.namedAt = this.clock;
-      this.hud.say(line.who, line.mood, `${this.player}, ${text.charAt(0).toLowerCase()}${text.slice(1)}`, playVoice([call, id]));
-    } else this.hud.say(line.who, line.mood, text, playVoice(id));
+      this.hud.say(line.who, line.mood, `${this.player}, ${text.charAt(0).toLowerCase()}${text.slice(1)}`, playVoice([call, id]), tap);
+    } else this.hud.say(line.who, line.mood, text, playVoice(id), tap);
+  }
+
+  /** Een melding die over dit dier, deze gast of deze plek gaat: tik je erop, dan gaat het beeld erheen. */
+  private lineAbout(line: Line, who: Animal | Guest | { gx: number; gy: number }): Line {
+    return {
+      ...line,
+      at: () => {
+        // weg uit het park? Dan valt er niets meer aan te wijzen
+        if (who instanceof Animal ? !this.animals.includes(who) : 'wish' in who && !this.guests.guests.includes(who)) return null;
+        return [who.gx, who.gy];
+      },
+    };
+  }
+
+  /** Het beeld gaat naar waar de melding over ging, en die plek licht een paar tellen op. */
+  private showSpot(at: () => [number, number] | null): void {
+    const spot = at();
+    if (!spot) return;
+    this.view.flyTo(spot[0], spot[1]);
+    this.pointed = { at, until: this.clock + 6 };
+    sfx('tap');
   }
 
   /** Een melding die mag wachten: alleen als het stil is en hij niet net al gezegd is. */
@@ -1925,6 +1947,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private wildCache: Map<number, Record<WildKind, number> & { land: number }> | null = null;
   /** Wat er nu in het wenswolkje van elk dier staat, zodat het alleen opnieuw getekend wordt als het verandert. */
   private bubbleShows = new WeakMap<Animal, string>();
+  /** De plek uit de melding waar de speler net op tikte: die licht een paar tellen op. */
+  private pointed: { at: () => [number, number] | null; until: number } | null = null;
 
   private cellKey(sx: number, sy: number): number {
     return sy * W * 2 + sx;
@@ -2884,7 +2908,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         baby.hunger = 0.2;
         if (rare) {
           this.floatAt(icon('rare'), baby.gx, baby.gy, baby.top + 0.8);
-          this.mention(say.rare(), 60);
+          this.mention(this.lineAbout(say.rare(), baby), 60);
         }
         this.born++;
         this.earn(1);
@@ -2907,7 +2931,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     a.fallIll();
     sfx('alarm');
     this.floatAt(icon('sick'), a.gx, a.gy, a.top + 0.25);
-    if (!this.celebrating) this.sayNow(say.sick(t, a.species));
+    if (!this.celebrating) this.sayNow(this.lineAbout(say.sick(t, a.species), a));
   }
 
   private heal(a: Animal): void {
@@ -2943,7 +2967,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     animalSound(a.species, a.young);
     this.floatAt(icon('catch'), a.gx, a.gy, a.top + 0.25);
     if (!this.celebrating) {
-      this.sayNow(say.escaped(t, a.species));
+      this.sayNow(this.lineAbout(say.escaped(t, a.species), a));
       this.callForHelp('name.help.2');
     }
   }
@@ -4006,16 +4030,17 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!kind) return;
     this.lastEvent = kind;
     const [ex, ey] = tileXY(ENTRANCE);
-    if (kind === 'schoolclass' && this.guests.spawnClass(5 + Math.floor(Math.random() * 3))) {
-      this.mention(say.visit(), 60);
+    const group = kind === 'schoolclass' ? this.guests.spawnClass(5 + Math.floor(Math.random() * 3)) : kind === 'party' ? this.guests.spawnParty() : kind === 'celeb' ? this.guests.spawnStar() : null;
+    if (kind === 'schoolclass' && group) {
+      this.mention(this.lineAbout(say.visit(), group), 60);
       // een hele klas betaalt samen entree
       this.earn(3, ex + 0.5, ey + 0.5);
-    } else if (kind === 'party' && this.guests.spawnParty()) this.mention(say.party(), 60);
-    else if (kind === 'celeb' && this.guests.spawnStar()) this.mention(say.celeb(), 60);
+    } else if (kind === 'party' && group) this.mention(this.lineAbout(say.party(), group), 60);
+    else if (kind === 'celeb' && group) this.mention(this.lineAbout(say.celeb(), group), 60);
     else if (kind === 'lost') {
       const pair = this.guests.spawnLost();
       if (!pair) return;
-      this.mention(say.lost(), 60);
+      this.mention(this.lineAbout(say.lost(), pair.child), 60);
       this.marked = null;
       this.view.flyTo(pair.child.gx, pair.child.gy);
     }
@@ -4305,13 +4330,18 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const light = worst && (worst.wish === 'bed' || worst.wish === 'terrain' || worst.wish === 'friend' || worst.wish === 'fun' || worst.wish === 'climate' || worst.wish === 'wild' || worst.wish === 'space' || (worst.wish === 'enclosure' && !!worst.a.needsFence));
     if (worst && worst.age > (light ? ALERT_AFTER * 2 : ALERT_AFTER)) {
       const { a, wish } = worst;
-      this.alert(a.escaped ? say.escaped(t, a.species) : wish === 'enclosure' && a.fenceBroken ? say.broken() : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN, a.wildAsk ? `${a.wildAsk.group}.${a.wildAsk.more ? 'more' : 'less'}` : undefined));
+      this.alert(this.lineAbout(a.escaped ? say.escaped(t, a.species) : wish === 'enclosure' && a.fenceBroken ? say.broken() : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN, a.wildAsk ? `${a.wildAsk.group}.${a.wildAsk.more ? 'more' : 'less'}` : undefined), a));
       if (a.neglect > NEGLECT_WARN * 1.5 && !this.hud.speaking) this.callForHelp('name.help.1');
     }
     // de gastvrouw let op de gasten
     const lack: Record<string, number> = {};
     const full: Record<string, number> = {};
     let picky = 0;
+    // de melding wijst een gast aan die dit mist
+    const lacks = (kind: string, line: Line): Line => {
+      const guest = this.guests.guests.find(q => q.wish?.lacking && !q.wish.busy && q.wish.kind === kind);
+      return guest ? this.lineAbout(line, guest) : line;
+    };
     for (const q of this.guests.guests) {
       if (!q.wish?.lacking) continue;
       if (q.wish.busy) {
@@ -4323,9 +4353,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       else lack[q.wish.kind] = (lack[q.wish.kind] ?? 0) + 1;
     }
     if (crowd.total && !this.said.has('host.first')) this.alert(say.host('first', 'happy'), 1e9);
-    else if (lack.toilet) this.alert(say.host('toilet'));
-    else if (lack.food) this.alert(say.host('food'));
-    else if (lack.drink) this.alert(say.host('drink'));
+    else if (lack.toilet) this.alert(lacks('toilet', say.host('toilet')));
+    else if (lack.food) this.alert(lacks('food', say.host('food')));
+    else if (lack.drink) this.alert(lacks('drink', say.host('drink')));
     else if (Object.values(full).some(n => n >= 2)) {
       // het is ergens te druk: de gastvrouw zegt waar er een bij moet
       const need = Object.keys(full).sort((p, q) => full[q] - full[p])[0];
@@ -4334,9 +4364,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     else if ((lack.umbrella ?? 0) + (lack.shelter ?? 0) >= 2) this.alert(say.host('rain'), 300);
     else if (this.shops.some(sh => (sh.dirt ?? 0) >= 1)) this.alert(say.dirty(), 300);
     else if (lack.wide) this.alert(say.host('wide'), 400);
-    else if (this.shops.some(sh => sh.off)) this.alert(say.host('nopath'), 300);
+    else if (this.shops.some(sh => sh.off)) {
+      const [gx, gy] = shopCenter(this.shops.find(sh => sh.off)!);
+      this.alert(this.lineAbout(say.host('nopath'), { gx, gy }), 300);
+    }
     else if (picky) this.alert(say.host('product'), 300);
-    else if (this.litter.length >= 6) this.alert(say.host('litter'), 240);
+    else if (this.litter.length >= 6) this.alert(this.lineAbout(say.host('litter'), this.litter[0]), 240);
     else if (crowd.total >= 3 && crowd.happy * 3 < crowd.total) this.alert(say.host('sad'), 300);
     // gaat het goed, dan komt er af en toe een complimentje: over de dieren, de gasten, het park of de kas
     // alleen als er niets ernstigs speelt: geen dier dat al lang op hulp wacht
@@ -4493,6 +4526,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!(this.tool === 'action' && this.option.action === 'broom')) for (const p of this.poops) if (p !== hot) spots.push({ gx: p.gx, gy: p.gy, r: 0.9, brown: true });
     if (this.marked && (this.clock > this.marked.until || !this.animals.includes(this.marked.a))) this.marked = null;
     if (this.marked) spots.push({ gx: this.marked.a.gx, gy: this.marked.a.gy, hot: true, r: 2.6 });
+    // waar de melding over ging waar je net op tikte
+    const pointed = this.pointed && this.clock < this.pointed.until ? this.pointed.at() : null;
+    if (pointed) spots.push({ gx: pointed[0], gy: pointed[1], hot: true, r: 2.6 });
+    else this.pointed = null;
     this.view.showMarks(spots, this.clock * 5);
     // het gekozen verblijf (menu open) licht iets duidelijker op dan het verblijf dat je alleen aanwijst
     if (this.menuPen && (!this.hud.menuOpen || !this.pens.includes(this.menuPen))) this.menuPen = null;

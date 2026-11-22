@@ -15,6 +15,11 @@ export interface Line {
   vars?: Vars;
   /** Voor de wachttijd tussen twee dezelfde meldingen. */
   id?: string;
+  /**
+   * Waar de melding over gaat, in rastercoördinaten: tik je op de melding, dan gaat het beeld daarheen. Het is een
+   * functie, zodat het klopt als het dier of de gast intussen verder gelopen is; null als het er niet meer is.
+   */
+  at?: () => [number, number] | null;
 }
 
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);

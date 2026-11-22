@@ -161,6 +161,8 @@ const ICONS = {
   dice:
     `<rect x="7" y="7" width="34" height="34" rx="8" fill="#fff" stroke="${INK}" stroke-width="3"/><g fill="${INK}"><circle cx="16" cy="16" r="3.2"/><circle cx="32" cy="16" r="3.2"/>` +
     '<circle cx="24" cy="24" r="3.2"/><circle cx="16" cy="32" r="3.2"/><circle cx="32" cy="32" r="3.2"/></g>',
+  // 'ga erheen': staat in een melding waar je op kunt tikken om te zien waar het over gaat
+  goto: '<circle cx="24" cy="24" r="13" fill="#fff" stroke="#4a90e2" stroke-width="5"/><circle cx="24" cy="24" r="5" fill="#4a90e2"/><path d="M24 2 V9 M24 39 V46 M2 24 H9 M39 24 H46" stroke="#4a90e2" stroke-width="5" stroke-linecap="round"/>',
   sleep: disc('#6f8fe0') + '<path d="M13 14 H23 L13 26 H23 M27 22 H35 L27 32 H35" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>',
   move:
     disc('#2bb5a8') +

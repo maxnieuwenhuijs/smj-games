@@ -63,6 +63,8 @@ export class Hud {
   private menu = $('menu');
   private overlay = $('overlay');
   private speech = $('speech');
+  /** Wat er gebeurt als je op de melding tikt (naast dichtgaan): naar de plek gaan waar hij over gaat. */
+  private speechTap: (() => void) | null = null;
   private wallet = $('wallet');
   private walletKey = '';
   private canvasHost = $('app');
@@ -94,7 +96,13 @@ export class Hud {
     home.innerHTML = icon('home');
     home.setAttribute('aria-label', t('home'));
     home.addEventListener('click', () => this.on.home());
-    this.speech.addEventListener('click', () => this.hush());
+    this.speech.querySelector('.goto')!.innerHTML = icon('goto');
+    this.speech.addEventListener('click', () => {
+      // eerst dicht, dan pas erheen: de melding zelf zit anders in de weg
+      const go = this.speechTap;
+      this.hush();
+      go?.();
+    });
     // twee pijlen rechtsboven: het beeld een kwartslag naar links of naar rechts draaien
     for (const dir of [-1, 1] as const) {
       const b = el('button', 'tool small', icon('turn'));
@@ -566,8 +574,11 @@ export class Hud {
    * Een figuur zegt iets. Met een ingesproken zin beweegt het mondje mee met het geluid en gaat het
    * venster dicht als de zin uit is; zonder stem praat het figuur op een klokje.
    */
-  say(who: FigureId, mood: Mood, text: string, voice: Voice | null = null): void {
+  say(who: FigureId, mood: Mood, text: string, voice: Voice | null = null, onTap: (() => void) | null = null): void {
     this.hush();
+    // `onTap`: de melding gaat over een plek in het park; tik erop en het beeld gaat erheen
+    this.speechTap = onTap;
+    this.speech.querySelector<HTMLElement>('.goto')!.hidden = !onTap;
     const face = this.speech.querySelector<HTMLElement>('.portrait')!;
     this.speech.querySelector('.name')!.textContent = t(`figure.${who}`);
     this.speech.querySelector('.text')!.textContent = text;
@@ -609,6 +620,7 @@ export class Hud {
     this.voice?.stop();
     this.voice = null;
     this.speech.hidden = true;
+    this.speechTap = null;
   }
 
   // ------------------------------------------------------------ level gehaald
