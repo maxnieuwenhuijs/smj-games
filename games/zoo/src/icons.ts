@@ -161,6 +161,11 @@ const ICONS = {
   dice:
     `<rect x="7" y="7" width="34" height="34" rx="8" fill="#fff" stroke="${INK}" stroke-width="3"/><g fill="${INK}"><circle cx="16" cy="16" r="3.2"/><circle cx="32" cy="16" r="3.2"/>` +
     '<circle cx="24" cy="24" r="3.2"/><circle cx="16" cy="32" r="3.2"/><circle cx="32" cy="32" r="3.2"/></g>',
+  // een naamkaartje aan een touwtje: een nieuwe naam voor het dier
+  nametag:
+    '<path d="M7 20 L18 9 H41 Q44 9 44 12 V36 Q44 39 41 39 H18 L7 28 Q4 24 7 20Z" fill="#ffd23f" stroke="#e5b520" stroke-width="2.5" stroke-linejoin="round"/>' +
+    '<circle cx="14" cy="24" r="3.2" fill="#fff" stroke="#e5b520" stroke-width="2"/><path d="M14 24 Q6 30 3 42" fill="none" stroke="#a8743f" stroke-width="2.5" stroke-linecap="round"/>' +
+    `<path d="M22 19 H38 M22 25 H38 M22 31 H32" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`,
   // 'ga erheen': staat in een melding waar je op kunt tikken om te zien waar het over gaat
   goto: '<circle cx="24" cy="24" r="13" fill="#fff" stroke="#4a90e2" stroke-width="5"/><circle cx="24" cy="24" r="5" fill="#4a90e2"/><path d="M24 2 V9 M24 39 V46 M2 24 H9 M39 24 H46" stroke="#4a90e2" stroke-width="5" stroke-linecap="round"/>',
   sleep: disc('#6f8fe0') + '<path d="M13 14 H23 L13 26 H23 M27 22 H35 L27 32 H35" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>',

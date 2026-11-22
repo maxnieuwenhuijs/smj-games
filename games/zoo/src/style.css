@@ -237,6 +237,18 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 /* meer dan zes knoppen: zes naast elkaar, de rest op een volgende regel (met kleurvlakjes erbij is de rij al smal) */
 #menu .row:has(.tool:nth-child(7)):not(:has(.swatch)) { max-width: calc(6 * min(70px, 13vw) + 5 * min(10px, 1vw) + 2px); }
 .wish { position: relative; display: flex; padding: 3px; border-radius: 10px; background: #e2f4d8; }
+/* in het menu van het dier: grote plaatjes met een staand balkje ernaast, hoe voller hoe beter het gaat */
+#menu .needs { flex-basis: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; font-size: min(38px, 8vw); }
+#menu .needs .wish { padding: 4px 13px 4px 5px; border-radius: 12px; }
+.wish .meter { position: absolute; right: 3px; top: 4px; bottom: 4px; width: 7px; border-radius: 4px; background: rgba(0, 0, 0, 0.13); overflow: hidden; }
+.wish .meter b { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 4px; background: #54b83a; }
+.wish .meter.mid b { background: #f0a020; }
+.wish .meter.low b { background: #e0584f; }
+/* de knoppen eronder zijn klein: het gaat om wat het dier nodig heeft */
+#menu[data-kind='animal'] .row .tool.small { width: min(56px, 11vw); height: min(56px, 11vw); border-radius: 15px; }
+#menu[data-kind='animal'] .row .tool.small .ic { font-size: min(25px, 5vw); }
+#menu[data-kind='animal'] .row .tool.small b { font-size: clamp(7px, 1.6vw, 11px); }
+#menu[data-kind='animal'] .portrait3d { width: 96px; height: 96px; }
 .wish.no { background: #fbdcd9; }
 /* natuur: onder het plaatje staat hoeveel er nu staan en hoeveel het dier er wil */
 .wish.wild { flex-direction: column; align-items: center; padding-bottom: 1px; }

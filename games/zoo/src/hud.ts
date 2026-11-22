@@ -537,8 +537,10 @@ export class Hud {
     return !this.menu.hidden;
   }
 
-  showMenu(x: number, y: number, title: string, items: ToolOption[], choose: (id: string) => void, header = ''): void {
+  showMenu(x: number, y: number, title: string, items: ToolOption[], choose: (id: string) => void, header = '', kind = ''): void {
     this.menu.replaceChildren();
+    // `kind`: het soort menu, voor een eigen opmaak (het menu van een dier heeft kleine knoppen)
+    this.menu.dataset.kind = kind;
     const head = el('div', 'title');
     head.textContent = title;
     this.menu.append(head);

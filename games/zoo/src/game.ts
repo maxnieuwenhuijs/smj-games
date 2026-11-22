@@ -5,7 +5,7 @@ import { saveSet, t } from '@smj/shared';
 import { Animal, type AnimalWorld, type Trough } from './animal';
 import { ambience, animalSound, hasVoice, layer, music, playVoice, reshuffle, sfx } from './audio';
 import {
-  BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, SHOP_DEEP, shopSpan, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
+  BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, SHOP_DEEP, shopSpan, herdOf, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
   type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, LIGHT, SPACE, guestsAt, SERVES,
@@ -200,6 +200,9 @@ interface PropObj {
   rot: number;
 }
 /** Bij elk natuurding het plaatje van de knop; boom, den, palm en rots lenen dat van het park. */
+/** Het staande balkje naast een wens in het menu van het dier: hoe voller, hoe beter het gaat. */
+const meter = (level: number): string =>
+  `<i class="meter ${level >= 0.6 ? '' : level >= 0.3 ? 'mid' : 'low'}"><b style="height:${Math.round(Math.max(0, Math.min(1, level)) * 100)}%"></b></i>`;
 /** Het plaatje bij bomen, planten en stenen in de wens van een dier. */
 const WILD_ICON: Record<WildKind, IconId> = { tree: 'tree', plant: 'tuft', stone: 'stone' };
 const PROP_ICON: Record<PropKind, IconId> = { tuft: 'tuft', daisies: 'daisies', fern: 'fern', shrub: 'shrub', pebbles: 'pebbles', stone: 'stone', oak: 'tree', fir: 'pine', coco: 'palm', crag: 'boulder' };
@@ -3071,11 +3074,30 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!want || !have.land) return '';
     return WILD_KINDS.filter(kind => want[kind][0] > 0 || have[kind] > 0 || a.wildAsk?.kind === kind).map(kind => {
       const [min, max] = want[kind], ok = have[kind] >= min && have[kind] <= max;
-      return `<span class="wish wild ${ok ? 'ok' : 'no'}">${icon(WILD_ICON[kind])}<i class="range">${have[kind]} · ${min}-${max}</i></span>`;
+      // het balkje: vol als het klopt; te weinig of te veel maakt het leger
+      const level = ok ? 1 : have[kind] < min ? have[kind] / min : max / have[kind];
+      return `<span class="wish wild ${ok ? 'ok' : 'no'}">${icon(WILD_ICON[kind])}<i class="range">${have[kind]} · ${min}-${max}</i>${meter(ok ? 1 : Math.min(0.7, level))}</span>`;
     }).join('');
   }
 
+  /**
+   * Hoe goed het met deze wens gaat, van 0 tot 1, voor het balkje in het menu van het dier. Honger, een vies
+   * verblijf en eenzaamheid lopen geleidelijk op; de rest is in orde of niet.
+   */
+  private wishLevel(a: Animal, wish: WishId, ok: boolean): number {
+    if (wish === 'food') return Math.max(0.05, 1 - a.hunger);
+    if (wish === 'friend') return ok ? 1 : Math.max(0.12, 1 - a.lonely / Math.max(1, herdOf(a.species) - 1));
+    if (wish === 'clean') {
+      const region = this.grid.regionOf[a.tile];
+      const poops = this.poops.filter(p => this.grid.regionOf[tileIndex(Math.floor(p.gx), Math.floor(p.gy))] === region).length;
+      return Math.max(0.08, 1 - poops / (MAX_POOPS_CLEAN + 2));
+    }
+    return ok ? 1 : 0.12;
+  }
+
   private animalMenu(a: Animal): void {
+    // de speler weet nu dat je op een dier kunt tikken: de uitleg hoeft niet meer
+    this.told.add('tapAnimal');
     const s = this.view.toScreen(a.gx, a.gy, a.top);
     const wishes = a.checkWishes(this);
     // bovenaan het dier zelf, zoals het nu beweegt, met eronder wat het aan het doen is
@@ -3083,14 +3105,17 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       '<span class="live"><canvas class="portrait3d" width="144" height="144"></canvas><b class="doing"></b></span>' +
       icon(sexOf(a) === 'male' ? 'boy' : 'girl') +
       (a.rare ? icon('rare') : '') + (a.nature !== 'plain' ? `<span class="wish ok" title="${t(`nature.${a.nature}`)}">${icon(`nature_${a.nature}` as IconId)}</span>` : '') +
-      WISH_ORDER.filter(k => (k !== 'health' || a.sick) && (k !== 'fun' || (this.has('fun') && !!TOY_OF[a.species])) && (k !== 'space' || !!SPACE[a.species]) && (k !== 'climate' || (this.has('climate') && !!CLIMATE[a.species])) && (k !== 'wild' || (this.has('wild') && !!wildWant(a.species)))).map(k =>
+      '<span class="needs">' + WISH_ORDER.filter(k => (k !== 'health' || a.sick) && (k !== 'fun' || (this.has('fun') && !!TOY_OF[a.species])) && (k !== 'space' || !!SPACE[a.species]) && (k !== 'climate' || (this.has('climate') && !!CLIMATE[a.species])) && (k !== 'wild' || (this.has('wild') && !!wildWant(a.species)))).map(k =>
         // bij de grond staat elk stukje van de mix apart: zo zie je wat er nog bij moet
         k === 'terrain'
-          ? [SPECIES[a.species].terrain, ...(ALSO[a.species] ?? [])].map((kind, i) => `<span class="wish ${(i ? !a.lacking.includes(kind) : a.mainOk) ? 'ok' : 'no'}">${icon(kind)}</span>`).join('')
+          ? [SPECIES[a.species].terrain, ...(ALSO[a.species] ?? [])].map((kind, i) => {
+            const ok = i ? !a.lacking.includes(kind) : a.mainOk;
+            return `<span class="wish ${ok ? 'ok' : 'no'}">${icon(kind)}${meter(ok ? 1 : 0.12)}</span>`;
+          }).join('')
           : k === 'wild' ? this.wildChips(a)
-          : `<span class="wish ${wishes[k] ? 'ok' : 'no'}">${this.wishIcon(a, k)}</span>`).join('');
+          : `<span class="wish ${wishes[k] ? 'ok' : 'no'}">${this.wishIcon(a, k)}${meter(this.wishLevel(a, k, wishes[k]))}</span>`).join('') + '</span>';
     const opt = (id: string, ic: IconId, key: string): ToolOption => ({ id, icon: icon(ic), label: t(key) });
-    const items = [opt('pet', 'pet', 'animal.pet'), opt('feed', 'feed', 'animal.feed'), opt('fact', 'fact', 'animal.fact'), opt('rename', 'dice', 'animal.rename'), opt('sedate', 'sleep', 'animal.sedate'), opt('move', 'move', 'animal.move'), opt('away', 'empty', 'animal.away')];
+    const items = [opt('pet', 'pet', 'animal.pet'), opt('fact', 'fact', 'animal.fact'), opt('rename', 'nametag', 'animal.rename'), opt('sedate', 'sleep', 'animal.sedate'), opt('move', 'move', 'animal.move'), opt('away', 'empty', 'animal.away')];
     if (a.sick) items.unshift(opt('vet', 'vet', 'animal.vet'));
     animalSound(a.species, a.young, 0.8);
     // het karakter staat achter de naam: 'Bobo (speels)'
@@ -3104,8 +3129,6 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         a.emote('Happy', 1.4);
         animalSound(a.species, a.young);
         this.floatAt(icon('heart'), a.gx, a.gy, a.top + 0.2);
-      } else if (id === 'feed') {
-        this.hud.showMenu(s.x, s.y, t('animal.feed'), this.foodOptions([SPECIES[a.species].food]), food => this.handFeed(a, food as FoodId));
       } else if (id === 'rename') {
         a.name = this.animalName(a);
         this.floatAt(a.name, a.gx, a.gy, a.top + 0.2, 'word');
@@ -3117,7 +3140,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       } else {
         this.moving = a;
       }
-    }, header);
+    }, header, 'animal');
     const canvas = document.querySelector<HTMLCanvasElement>('#menu canvas.portrait3d');
     this.live = canvas ? { a, canvas, label: document.querySelector<HTMLElement>('#menu .doing'), was: '', skip: false } : null;
     this.updateLive();
@@ -3190,19 +3213,6 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       guest.greet();
       this.floatAt(icon('heart'), guest.gx, guest.gy, guest.height + 0.2);
     }, header);
-  }
-
-  /** Zelf een dier voeren, zonder voerbak. */
-  private handFeed(a: Animal, food: FoodId): void {
-    if (SPECIES[a.species].food !== food) {
-      a.emote('Sad', 1.6);
-      this.react(a, 'bad', true);
-      return this.sayNow(say.wrongFood(t, a.species));
-    }
-    if (!a.hungry) return this.react(a, 'ok', true);
-    a.handFeed();
-    this.fed++;
-    this.react(a, 'good', true);
   }
 
   // ------------------------------------------------------------ invoer
@@ -4201,6 +4211,18 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       return;
     }
     if (this.celebrating || this.hud.menuOpen || this.hud.speaking || this.moving || this.clock - this.lastInput < HAND_AFTER || this.clock - this.handAt < HAND_GAP) return;
+    // nog nooit op een dier getikt? Dan wijst het handje een dier aan dat iets mist, en de verzorger legt het uit
+    if (!this.told.has('tapAnimal') && this.tool === 'hand') {
+      const sad = this.animals.find(x => !x.happy && !x.escaped && !x.sick && x.unmet && this.grid.enclosureAt(...tileXY(x.tile)));
+      if (sad) {
+        this.handAt = this.clock;
+        this.handOn = { gx: sad.gx, gy: sad.gy, h: sad.top * 0.5 };
+        const s = this.view.toScreen(sad.gx, sad.gy, sad.top * 0.5);
+        this.hud.pointAt(s.x, s.y);
+        if (!this.said.has('say.tap.animal')) this.sayNow(this.lineAbout(say.tapAnimal(), sad));
+        return;
+      }
+    }
     const goal = this.levelDef()?.goals[this.firstOpenGoal()];
     if (!goal) return;
     let at: { gx: number; gy: number; h: number } | null = null;

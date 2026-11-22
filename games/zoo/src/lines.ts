@@ -131,6 +131,7 @@ export const say = {
   fact: (sp: SpeciesId): Line => ({ who: 'keeper', mood: 'happy', key: `fact.${sp}` }),
   climateNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.climate.new' }),
   wildNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.wild.new' }),
+  tapAnimal: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.tap.animal' }),
   rare: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.rare' }),
   pals: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.pals' }),
   season: (season: Season): Line => ({ who: 'director', mood: 'happy', key: `say.season.${season}` }),
@@ -249,6 +250,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.decorNew());
   CHEERS.forEach((_, i) => add(say.cheer(i)));
   add(say.tipKeeper());
+  add(say.tapAnimal());
   for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter', 'product', 'new', 'accident', 'nopath', 'dark', 'rain', 'wide'] as const) add(say.host(key));
   for (const season of SEASONS) add(say.season(season));
   for (const ask of ['green.more', 'green.less', 'stone.more', 'stone.less']) add(wishLine(tr, 'wild', 'pig', null, false, ask));
