@@ -8,14 +8,18 @@
       "keeper": { "voice": "7qdUFMklKPaaAVMsBTBt", "name": "Roos: jonge, vrolijke vrouwenstem" },
       "builder": { "voice": "AVIlLDn2TVmdaDycgbo3", "name": "Eric: nuchtere mannenstem" },
       "host": { "voice": "OlBRrVAItyi00MuGMbna", "name": "Emma: rustige, heldere vrouwenstem" },
-      "cashier": { "voice": "JoZAnrliG62q9Iogun7f", "name": "Marti: jonge mannenstem" }
+      "cashier": { "voice": "JoZAnrliG62q9Iogun7f", "name": "Marti: jonge mannenstem" },
+      "teacher": { "voice": "YUdpWWny7k5yb4QCeweX", "name": "Ruth: heldere, vriendelijke vrouwenstem (de juf)" },
+      "master": { "voice": "DYfqtQfWhbc1Z0SLiCWw", "name": "Thijs: vlotte, vriendelijke mannenstem (de meester)" }
     },
     "en": {
       "director": { "voice": "JBFqnCBsd6RMkjVDRZzb", "name": "George: warm British storyteller" },
       "keeper": { "voice": "cgSgspJ2msm6clMCkdW9", "name": "Jessica: playful, bright, warm" },
       "builder": { "voice": "iP95p4xoKVk53GoZ742B", "name": "Chris: charming, down-to-earth" },
       "host": { "voice": "Xb7hH8MSUJpSbSDYk0k2", "name": "Alice: clear, engaging" },
-      "cashier": { "voice": "bIHbv24MWmeRgasZH58o", "name": "Will: relaxed optimist" }
+      "cashier": { "voice": "bIHbv24MWmeRgasZH58o", "name": "Will: relaxed optimist" },
+      "teacher": { "voice": "XrExE9yKIg1WjnnlVkGX", "name": "Matilda: upbeat, knowledgeable (the teacher)" },
+      "master": { "voice": "cjVigY5qzO86Huf0OWal", "name": "Eric: smooth, trustworthy (the male teacher)" }
     }
   }
 }
