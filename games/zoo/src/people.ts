@@ -1019,7 +1019,15 @@ export class Guest implements Leader {
         return;
       }
       if (kind === 'shelter') {
-        put(mix(here, at(((this.seat % 3) - 1) * 0.45, 0, this.seat < 3 ? -0.25 : 0.3), k), k > 0.5 ? turn : this.heading);
+        // in de schuilhut: de eerste drie zitten op de bank achterin, de rest staat ervoor en kijkt naar de regen
+        if (this.seat < 3) {
+          put(mix(here, at(((this.seat % 3) - 1) * 0.45, 0.25 - sit, -0.6), k), k > 0.5 ? turn : this.heading);
+          legs(-1.4 * k);
+        } else {
+          put(mix(here, at(((this.seat % 3) - 1) * 0.45, 0, 0.3), k), k > 0.5 ? turn + Math.sin(this.phase * 0.05 + this.seat) * 0.5 : this.heading);
+          // af en toe een hand uitsteken om te voelen of het nog regent
+          if (k > 0.9 && Math.sin(this.phase * 0.03 + this.seat * 2) > 0.8) this.limbs[2].rotation.x = -1.4;
+        }
         return;
       }
       if (kind === 'station') {
@@ -1254,14 +1262,7 @@ export class Guest implements Leader {
     if (w.litterOn(this.tile)) this.fun = Math.max(0, this.fun - 0.04);
     this.fun = Math.min(1, this.fun + w.charm(this.tile));
     this.wish = this.fun < 0.2 ? { kind: 'bored', lacking: true } : null;
-    // een rolstoel of kinderwagen heeft een breed pad nodig
-    if (this.wheels && w.feature('wheels')) {
-      if (w.wide(this.tile)) this.fun = Math.min(1, this.fun + 0.015);
-      else {
-        this.fun = Math.max(0, this.fun - 0.012);
-        this.wish = { kind: 'wide', lacking: true };
-      }
-    }
+    // (een rolstoel of kinderwagen vroeg eerst om een pad van twee tegels breed; dat is eruit: het was vooral lastig)
     // op de plattegrond gekeken: nu weet de gast de weg
     if (!this.knows && w.mapNear(this.gx, this.gy)) {
       this.knows = true;
@@ -1808,7 +1809,8 @@ export class Guest implements Leader {
       // een blij kind zet het af en toe op een rennen
       if (this.dash > 0) this.dash -= dt;
       else if (this.child && this.fun > 0.7 && !this.inside && Math.random() < dt * 0.04) this.dash = 2 + Math.random() * 1.5;
-      const speed = this.wheels ? 0.62 : this.dash > 0 ? 1.35 : 0.8;
+      // het regent en de gast heeft geen paraplu: op een holletje naar de schuilhut of de paraplubak
+      const speed = this.wheels ? 0.62 : this.dash > 0 || this.hurrying(w) ? 1.35 : 0.8;
       if (this.stride(dt, speed)) this.arrive(w);
     } else if (this.state === 'queue') {
       // in de rij: opschuiven naar je plek en wachten; wie te lang wacht, loopt mopperend weg
@@ -1853,6 +1855,11 @@ export class Guest implements Leader {
     this.place();
   }
 
+  /** Rent de gast door de regen naar een droge plek? */
+  private hurrying(w: GuestWorld): boolean {
+    return !this.umbrella && (this.errand === 'shelter' || this.errand === 'umbrella') && w.raining() && w.feature('weather');
+  }
+
   /**
    * Alles wat een gast met zijn armen, hoofd en lijf doet boven op het lopen of staan: zwaaien, wijzen, een foto
    * maken, klappen, aaien, turen, lachen, eten, juichen, mopperen, en kleine dingen tussendoor.
@@ -1869,6 +1876,13 @@ export class Guest implements Leader {
       this.limbs[0].rotation.x = this.limbs[1].rotation.x = -1.45;
       right.rotation.x = left.rotation.x = this.state === 'walk' ? -0.5 + Math.sin(this.phase * 0.5) * 0.35 : -0.4;
     } else if (this.wheels === 'pram') right.rotation.x = left.rotation.x = -1.25;
+    // door de regen naar de schuilhut: de handen boven het hoofd
+    else if (wet && this.state === 'walk' && (this.errand === 'shelter' || this.errand === 'umbrella')) {
+      right.rotation.x = left.rotation.x = -2.7;
+      right.rotation.z = -0.35;
+      left.rotation.z = 0.35;
+      this.lean = 0.14;
+    }
     if (this.state === 'watch' && this.act) {
       this.actT += dt;
       const t = this.actT;

@@ -1,0 +1,146 @@
+/* Puzzeltjes over het spel heen (zie minigame.ts). Alle namen beginnen met mg-, zodat de rest van het spel er niets van merkt. */
+#minigame {
+  --mg-ok: #6cc04a; --mg-ok-shade: #4f9a35; --mg-no: #e0584f; --mg-soft: #f1f6ea; --mg-a: #4a90e2; --mg-b: #f08a2c;
+  position: fixed; inset: 0; z-index: 8; display: flex; align-items: center; justify-content: center; padding: 8px;
+  background: rgba(40, 70, 30, 0.45); color: var(--ink, #3a2a1a); font-family: system-ui, sans-serif;
+  user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; pointer-events: auto;
+}
+#minigame[hidden] { display: none; }
+#minigame * { box-sizing: border-box; }
+#minigame .ic { width: 1em; height: 1em; display: block; flex: none; object-fit: contain; }
+
+/* ---------- de kaart ---------- */
+.mg-card {
+  position: relative; width: min(560px, 100%); max-height: 100%; overflow-x: hidden; overflow-y: auto;
+  background: var(--card, #fff); border-radius: 36px; box-shadow: 0 10px 0 rgba(0, 0, 0, 0.18);
+  padding: 14px 16px 22px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;
+  animation: mg-pop 0.35s ease-out;
+}
+@keyframes mg-pop { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* het kruisje: het vlak om te tikken is groter dan het rondje dat je ziet */
+.mg-close {
+  position: absolute; top: 0; right: 0; width: 64px; height: 64px; border: 0; padding: 0; background: none; cursor: pointer;
+  display: grid; place-items: center; z-index: 1;
+}
+.mg-close span {
+  width: 46px; height: 46px; border-radius: 50%; background: var(--mg-soft); box-shadow: 0 4px 0 var(--shade, #c9d6c0);
+  display: grid; place-items: center;
+}
+.mg-close svg { width: 22px; height: 22px; display: block; }
+.mg-close:active span { transform: translateY(2px); box-shadow: 0 2px 0 var(--shade, #c9d6c0); }
+
+/* bovenaan: wie er om hulp vraagt, en een ster per vraag */
+.mg-head { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 52px; padding: 0 52px; }
+.mg-pic { font-size: 52px; display: flex; }
+.mg-pic:empty { display: none; }
+.mg-pips { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; font-size: 26px; }
+.mg-pip { filter: grayscale(1); opacity: 0.25; }
+.mg-pip.now { opacity: 0.6; animation: mg-pulse 1s ease-in-out infinite; }
+.mg-pip.ok { filter: none; opacity: 1; }
+@keyframes mg-pulse { 50% { transform: scale(1.25); } }
+.mg-card.done .mg-pips { display: none; }
+
+.mg-title { font-size: clamp(17px, 4.6vw, 22px); font-weight: 800; line-height: 1.2; }
+.mg-body { width: 100%; }
+.mg-round { display: flex; flex-direction: column; align-items: center; gap: 14px; animation: mg-in 0.3s ease-out; }
+@keyframes mg-in { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+.mg-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+
+/* ---------- knoppen en tegels ---------- */
+.mg-btn {
+  --size: clamp(64px, 16vw, 84px);
+  border: 0; padding: 0; margin: 0 0 5px; cursor: pointer; color: inherit; position: relative;
+  width: var(--size); height: var(--size); border-radius: 22px; background: var(--mg-soft); box-shadow: 0 5px 0 var(--shade, #c9d6c0);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  font: 800 clamp(34px, 9vw, 46px)/1 system-ui, sans-serif;
+}
+.mg-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--shade, #c9d6c0); }
+.mg-btn:disabled { cursor: default; }
+.mg-btn.ok { background: var(--mg-ok); color: #fff; box-shadow: 0 5px 0 var(--mg-ok-shade); }
+.mg-btn.ok .mg-dot { background: #fff; }
+/* fout antwoord bij een som: het blijft rood, zodat je ziet welke het niet was */
+.mg-btn.no { background: #f8cdc9; box-shadow: 0 5px 0 var(--mg-no); animation: mg-shake 0.35s ease-in-out; }
+/* verkeerde tegel: even schudden en rood, daarna mag hij gewoon weer */
+.mg-btn.oops { animation: mg-oops 0.45s ease-in-out; }
+/* een tegel die al gelegd is, laat een leeg plekje achter */
+.mg-btn.used { visibility: hidden; }
+@keyframes mg-shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
+@keyframes mg-oops {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-7px); background: #f8cdc9; box-shadow: 0 5px 0 var(--mg-no); }
+  40%, 80% { transform: translateX(7px); background: #f8cdc9; box-shadow: 0 5px 0 var(--mg-no); }
+}
+
+/* stippen om te tellen, vijf op een rij */
+.mg-dots { display: grid; grid-template-columns: repeat(5, 10px); gap: 3px; min-height: 10px; justify-content: center; }
+.mg-dot { width: 10px; height: 10px; border-radius: 50%; background: #8a8f98; }
+.mg-dots.a .mg-dot { background: var(--mg-a); }
+.mg-dots.b .mg-dot { background: var(--mg-b); }
+.mg-dots.s { grid-template-columns: repeat(5, 7px); gap: 2px; min-height: 7px; }
+.mg-dots.s .mg-dot { width: 7px; height: 7px; }
+/* een stip die eraf gaat: leeg, met een streep erdoor */
+.mg-dots .mg-dot.gone {
+  background: linear-gradient(to top right, transparent 42%, var(--mg-no) 42%, var(--mg-no) 58%, transparent 58%);
+  box-shadow: inset 0 0 0 2px #c3c7cd;
+}
+
+/* ---------- som ---------- */
+.mg-sum { display: flex; align-items: flex-start; justify-content: center; gap: 6px; }
+.mg-term { min-width: 64px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.mg-term > b, .mg-op { font: 800 clamp(44px, 12vw, 68px)/1 system-ui, sans-serif; }
+.mg-op { min-width: 24px; opacity: 0.55; }
+.mg-ask > b {
+  min-width: 64px; padding: 4px 8px; border-radius: 18px; background: var(--sun, #ffd95a); box-shadow: 0 4px 0 var(--sun-shade, #d9a520);
+}
+.mg-ask.ok > b { background: var(--mg-ok); color: #fff; box-shadow: 0 4px 0 var(--mg-ok-shade); animation: mg-pop 0.25s ease-out; }
+.mg-answer { --size: clamp(84px, 26vw, 112px); height: 88px; }
+
+/* ---------- woord ---------- */
+.mg-word { font-size: clamp(84px, 24vw, 120px); display: flex; }
+.mg-slot {
+  width: clamp(64px, 16vw, 84px); height: clamp(64px, 16vw, 84px); border-radius: 22px; border: 3px dashed var(--shade, #c9d6c0);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  font: 800 clamp(34px, 9vw, 46px)/1 system-ui, sans-serif;
+}
+.mg-slot.hint { color: rgba(58, 42, 26, 0.28); }
+.mg-slot.full { border-style: solid; border-color: var(--sun-shade, #d9a520); background: var(--sun, #ffd95a); animation: mg-pop 0.25s ease-out; }
+.mg-slot.ok { border-color: var(--mg-ok-shade); background: var(--mg-ok); color: #fff; }
+.mg-slot.ok .mg-dot { background: #fff; }
+
+/* ---------- volgorde ---------- */
+.mg-hint { height: 44px; display: flex; }
+.mg-hint svg { height: 100%; width: auto; display: block; }
+/* hetzelfde plaatje in drie of vier maten */
+.mg-size { display: flex; }
+.mg-size.s0 { font-size: 24px; }
+.mg-size.s1 { font-size: 38px; }
+.mg-size.s2 { font-size: 54px; }
+.mg-size.s3 { font-size: 62px; }
+
+/* ---------- klaar ---------- */
+.mg-result { flex-direction: row; justify-content: center; flex-wrap: wrap; gap: 6px; padding: 10px 0 6px; cursor: pointer; }
+.mg-star { font-size: clamp(56px, 17vw, 84px); filter: grayscale(1); opacity: 0.25; display: flex; }
+.mg-star.ok { filter: none; opacity: 1; animation: mg-star 0.5s ease-out backwards; }
+@keyframes mg-star { from { transform: scale(0.2) rotate(-40deg); opacity: 0; } 70% { transform: scale(1.2) rotate(8deg); opacity: 1; } to { transform: none; opacity: 1; } }
+
+/* ---------- laag scherm (telefoon op zijn kant): alles wat dichter op elkaar ---------- */
+@media (max-height: 480px) {
+  .mg-card { padding: 8px 16px 12px; gap: 6px; border-radius: 28px; }
+  .mg-head { min-height: 44px; }
+  .mg-pic { font-size: 40px; }
+  .mg-title { font-size: 16px; }
+  .mg-round { gap: 8px; }
+  .mg-word { font-size: 60px; }
+  .mg-hint { height: 30px; }
+  .mg-btn, .mg-slot { --size: 64px; width: 64px; height: 64px; }
+  .mg-answer { --size: 96px; width: 96px; height: 72px; }
+  .mg-term > b, .mg-op { font-size: 40px; }
+  .mg-star { font-size: 56px; }
+}
+
+/* ---------- liever weinig beweging ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .mg-card, .mg-round, .mg-slot.full, .mg-ask.ok > b, .mg-star.ok { animation: none; }
+  .mg-pip.now { animation: none; opacity: 0.75; }
+}

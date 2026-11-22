@@ -4388,7 +4388,6 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     } else if (this.isNight() && this.guests.guests.filter(q => q.wish?.kind === 'dark').length >= 2) this.alert(say.host('dark'), 240);
     else if ((lack.umbrella ?? 0) + (lack.shelter ?? 0) >= 2) this.alert(say.host('rain'), 300);
     else if (this.shops.some(sh => (sh.dirt ?? 0) >= 1)) this.alert(say.dirty(), 300);
-    else if (lack.wide) this.alert(say.host('wide'), 400);
     else if (this.shops.some(sh => sh.off)) {
       const [gx, gy] = shopCenter(this.shops.find(sh => sh.off)!);
       this.alert(this.lineAbout(say.host('nopath'), { gx, gy }), 300);
