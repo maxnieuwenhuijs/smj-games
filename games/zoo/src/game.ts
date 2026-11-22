@@ -434,6 +434,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private told = new Set<string>();
   /** Bijzondere gasten: over zoveel tellen komt er weer een klas, een feestje, een beroemde gast of een verdwaald kind. */
   private eventIn = 90;
+  /** Dit park komt uit een opgeslagen spel: wat er al was, wordt bij het openen niet opnieuw aangekondigd. */
+  private resumed = false;
   private lastEvent = '';
   private boostUntil = 0;
   /** Het kaartje van een evenement dat nu op het scherm ligt: de speler mag helpen of het wegklikken. */
@@ -554,6 +556,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.book = d.book ?? {};
     this.facts = new Set(d.facts ?? []);
     this.told = new Set(d.told ?? []);
+    this.resumed = true;
+    // een park dat al verder is, heeft zijn eerste gasten al lang gehad
+    if (d.level > FEATURE.paths) this.told.add('guests');
     this.classFans = d.fans ?? 0;
     this.savedPens = (d.pens ?? []).map(p => ({ name: p.name, color: p.color, tile: tileIndex((p.tile % ow) + ox, Math.floor(p.tile / ow) + oy) }));
     for (const tr of d.troughs) this.addTrough(tr.x + ox, tr.y + oy, tr.food, tr.amount, tr.kind && TROUGH[tr.kind] ? tr.kind : 'wood', tr.rot);
@@ -1339,13 +1344,19 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.goalIdx = -2;
     const level = this.levelDef();
     this.lines.push(level ? say.level(this.level + 1) : this.maxLevel < LEVELS.length ? say.soon() : say.free());
-    if (this.level === FEATURE.fun) this.lines.push(say.funNew());
-    if (this.level === FEATURE.decor) this.lines.push(say.decorNew());
-    if (this.level === FEATURE.petting) this.lines.push(say.pettingNew());
-    if (this.level === FEATURE.climate) this.lines.push(say.climateNew());
-    if (this.level === FEATURE.wild) this.lines.push(say.wildNew());
-    if (this.level === FEATURE.night) this.lines.push(say.nightNew());
-    if (this.level === BONUS.dolphin && hasSpecies('dolphin')) this.lines.push(say.aquaNew());
+    // de uitleg van iets nieuws hoor je één keer: niet opnieuw als je het spel later weer opent in hetzelfde level
+    const once = (line: Line): void => {
+      if (this.told.has(`new.${line.key}`)) return;
+      this.told.add(`new.${line.key}`);
+      this.lines.push(line);
+    };
+    if (this.level === FEATURE.fun) once(say.funNew());
+    if (this.level === FEATURE.decor) once(say.decorNew());
+    if (this.level === FEATURE.petting) once(say.pettingNew());
+    if (this.level === FEATURE.climate) once(say.climateNew());
+    if (this.level === FEATURE.wild) once(say.wildNew());
+    if (this.level === FEATURE.night) once(say.nightNew());
+    if (this.level === BONUS.dolphin && hasSpecies('dolphin')) once(say.aquaNew());
     // vanaf nu kun je hulp aannemen: de verzorger vertelt hoe
     if (this.level === FEATURE.keeper) this.showStaffGuide();
     // de lucht, het gras en het achtergrondgeluid blijven overal hetzelfde: ze wisselen niet meer per wereld
@@ -1358,7 +1369,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (first?.type === 'path') this.option.terrain = 'path';
     for (const g of level?.goals ?? []) if (g.type === 'shop' && g.shop && !this.stats.shops[g.shop]) this.option.shop = g.shop;
     // een kraam die er al was, kan vanaf nu iets nieuws verkopen
-    if (PRODUCTS.some(p => p.from === this.level && p.from > FEATURE[p.shop])) this.lines.push(say.host('new', 'happy'));
+    if (PRODUCTS.some(p => p.from === this.level && p.from > FEATURE[p.shop]) && !this.told.has(`products.${this.level}`)) {
+      this.told.add(`products.${this.level}`);
+      this.lines.push(say.host('new', 'happy'));
+    }
   }
 
   private explainGoal(i: number): void {
@@ -4220,7 +4234,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (!gates) gateless = true;
     }
     this.petRegions = regions;
-    if (spots.length && !this.petSpots.length && this.guests.open) this.mention(say.pettingOpen(), 600);
+    // een kinderboerderij die er al stond toen je het spel opende, is niet nieuw: dan zegt niemand dat hij open is
+    if (spots.length && !this.petSpots.length && this.guests.open && !(this.resumed && this.clock < 8)) this.mention(say.pettingOpen(), 600);
     this.petSpots = spots;
     if (small) this.alert(say.pettingSmall(), 400);
     else if (gateless) this.alert(say.pettingGate(), 400);
@@ -4737,8 +4752,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (q.wish.product && kind && this.shops.some(sh => sh.kind === kind)) picky++;
       else lack[q.wish.kind] = (lack[q.wish.kind] ?? 0) + 1;
     }
-    if (crowd.total && !this.said.has('host.first')) this.alert(say.host('first', 'happy'), 1e9);
-    else if (lack.toilet) this.alert(lacks('toilet', say.host('toilet')));
+    if (crowd.total && !this.told.has('guests')) {
+      // "Daar zijn de eerste gasten!" hoor je één keer per park, niet elke keer dat je het spel opent
+      this.alert(say.host('first', 'happy'), 1e9);
+      if (this.said.has('host.first')) this.told.add('guests');
+    } else if (lack.toilet) this.alert(lacks('toilet', say.host('toilet')));
     else if (lack.food) this.alert(lacks('food', say.host('food')));
     else if (lack.drink) this.alert(lacks('drink', say.host('drink')));
     else if (Object.values(full).some(n => n >= 2)) {
