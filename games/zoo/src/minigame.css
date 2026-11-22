@@ -111,12 +111,11 @@
 /* ---------- volgorde ---------- */
 .mg-hint { height: 44px; display: flex; }
 .mg-hint svg { height: 100%; width: auto; display: block; }
-/* hetzelfde plaatje in drie of vier maten */
+/* hetzelfde plaatje in drie maten */
 .mg-size { display: flex; }
 .mg-size.s0 { font-size: 24px; }
 .mg-size.s1 { font-size: 38px; }
 .mg-size.s2 { font-size: 54px; }
-.mg-size.s3 { font-size: 62px; }
 
 /* ---------- klaar ---------- */
 .mg-result { flex-direction: row; justify-content: center; flex-wrap: wrap; gap: 6px; padding: 10px 0 6px; cursor: pointer; }
