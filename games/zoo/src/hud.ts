@@ -110,7 +110,7 @@ export class Hud {
     });
     // twee pijlen rechtsboven: het beeld een kwartslag naar links of naar rechts draaien
     for (const dir of [-1, 1] as const) {
-      const b = el('button', 'tool small', icon('turn'));
+      const b = el('button', 'tool small', icon('camturn'));
       b.id = dir < 0 ? 'turnL' : 'turnR';
       b.setAttribute('aria-label', t(dir < 0 ? 'turn.left' : 'turn.right'));
       b.addEventListener('click', () => this.on.turn(dir));

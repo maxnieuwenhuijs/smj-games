@@ -5,6 +5,7 @@ import { PLUSH, PRODUCTS, SEEK_REACH, STALLS, type FoodId, type ShopKind } from 
 import { Grid, H, W, tileIndex, tileXY } from './grid';
 import { BUMPER_CARS, DARK_FUN, FERRIS, LOOKS, PETTING_GUESTS, PLAY, RESTAURANT_TABLES, RIDES, SUIT_COLORS, TOWER_TOP, TRAIN, bumperCar, isPath } from './data';
 import { toWorldX, toWorldZ } from './view';
+import { FaceCrowd, beardColor, faceFor, giveFace, setFace } from './faces';
 
 /** De tegel waar gasten binnenkomen en weer weggaan: midden aan de voorkant. */
 export const ENTRANCE = tileIndex(Math.floor(W / 2), H - 1);
@@ -120,6 +121,21 @@ export interface GuestSave {
 /** `busy`: het is er wel, maar te druk: er zijn te weinig van voor zoveel gasten. */
 export type GuestWish = { kind: Need | 'bored' | 'fav' | 'dark' | 'wide' | 'astray'; lacking: boolean; product?: string; busy?: boolean };
 
+/**
+ * De geluidjes bij wat een gast doet (de namen uit tools/voice/sounds.json). Hoe hard elk klinkt en hoe lang het
+ * daarna stil blijft, staat bij `guestSound` in het spel.
+ */
+export type GuestCue =
+  | 'flush' | 'guest.laugh' | 'toilet.pee' | 'toilet.poop' | 'guest.grumble' | 'guest.yum' | 'guest.uhoh' | 'guest.chat'
+  // eten en drinken
+  | 'guest.slurp' | 'guest.bite' | 'guest.aah'
+  // bij de dieren en op het pad
+  | 'guest.shh' | 'guest.yuck' | 'guest.aww' | 'guest.yawn' | 'guest.sigh' | 'guest.phew' | 'guest.dizzy' | 'guest.five'
+  // bij de dingen in het park
+  | 'guest.sniff' | 'guest.echo' | 'park.scribble' | 'park.splash' | 'park.brolly'
+  // op de speeltoestellen en in de botsauto's
+  | 'guest.whee' | 'ride.boing' | 'ride.creak' | 'ride.bump';
+
 export interface GuestWorld {
   grid: Grid;
   shops: ShopSpot[];
@@ -146,7 +162,7 @@ export interface GuestWorld {
   /** Ligt er afval op deze tegel? */
   litterOn(tile: number): boolean;
   /** Geluidje bij iets wat een gast doet. */
-  guestSound(kind: 'flush' | 'guest.laugh' | 'toilet.pee' | 'toilet.poop' | 'guest.grumble', guest: Guest): void;
+  guestSound(kind: GuestCue, guest: Guest): void;
   /** Vraagt het level om afval op te ruimen? Dan laten gasten ook naast een afvalbak weleens iets vallen. */
   messy(): boolean;
   /** Welk deel van de gasten bij dit soort kraam geen plek vindt, omdat er te weinig van zijn (0 = genoeg). */
@@ -281,11 +297,101 @@ const USE_POKE: Partial<Record<Use, number>> = { crouch: 0.5, show: 0.3, well: 0
 // ------------------------------------------------------------ poppetje
 const SKIN =[0xf6cfa6, 0xe8b48a, 0xc98d5e, 0xa86b42, 0x8a5637];
 const SHIRT = [0xe0584f, 0x4a90e2, 0xf5a623, 0x6cc04a, 0xb06ad9, 0x2bb5a8, 0xf06aa6, 0xf4f1e8];
-const PANTS = [0x3d4f7a, 0x5a4636, 0x38343c, 0x6b7a4a];
-const HAIR = [0x2b1b14, 0x7a4a22, 0xd9a520, 0xd9532b, 0x9aa0a6];
-const BODY_GEO = new THREE.BoxGeometry(0.2, 0.22, 0.13);
-const HEAD_GEO = new THREE.BoxGeometry(0.17, 0.17, 0.17);
-const HAIR_GEO = new THREE.BoxGeometry(0.185, 0.07, 0.185);
+const PANTS = [0x3d4f7a, 0x5a4636, 0x38343c, 0x6b7a4a, 0x4a6fa5, 0x8a8f98, 0xc9b28a];
+/** Haarkleuren; de laatste twee (grijs en wit) zijn alleen voor grote mensen. */
+const HAIR = [0x2b1b14, 0x4a2f1c, 0x7a4a22, 0xa8743f, 0xd9a520, 0xd9532b, 0x9aa0a6, 0xd8dce0];
+const SKIRTS = [0xe0584f, 0x4a90e2, 0xb06ad9, 0xf06aa6, 0x2bb5a8, 0x3d4f7a, 0xf5a623, 0xf4f1e8];
+const SHOES = [0x38343c, 0x38343c, 0x5a4636, 0xf4f1e8, 0xe0584f, 0x4a90e2];
+/** Onder een rok: blote benen (de kleur van de huid) of een maillot in een van deze kleuren. */
+const TIGHTS = [0xf4f1e8, 0x38343c, 0xf06aa6];
+
+/**
+ * Eén doorsnede van een zachte vorm, van boven naar beneden: [hoogte, halve breedte, halve diepte, afgesneden hoek,
+ * kleurvak, hoe ver het midden naar voren ligt]. Het kleurvak geldt voor het stuk tot de volgende doorsnede: 0 is de
+ * eerste kleur, 1 de tweede, 2 een van beide (zie ToneMaterial). Zonder kleurvak heeft de vorm één kleur.
+ */
+type Ring = [y: number, w: number, d: number, cut: number, tone?: number, z?: number];
+
+/**
+ * Een zachte vorm van een paar doorsnedes boven elkaar, met weinig driehoeken: vier zijden, of acht als er hoeken
+ * zijn afgesneden. Het licht loopt rond over de randen, zodat het geen blokje lijkt. `top` en `bottom`: met een
+ * deksel en een bodem.
+ */
+function loft(rings: Ring[], top = true, bottom = true): THREE.BufferGeometry {
+  const oct = rings.some(r => r[3] > 0), n = oct ? 8 : 4, toned = rings.some(r => r[4] !== undefined);
+  const at: THREE.Vector3[] = [];
+  for (const [y, w, d, c, , z = 0] of rings) {
+    const around = oct ? [[w - c, d], [w, d - c], [w, c - d], [w - c, -d], [c - w, -d], [-w, c - d], [-w, d - c], [c - w, d]] : [[w, d], [w, -d], [-w, -d], [-w, d]];
+    for (const [x, pz] of around) at.push(new THREE.Vector3(x, y, pz + z));
+  }
+  // de driehoeken: drie hoekpunten en hun kleurvak
+  const tris: number[][] = [];
+  for (let r = 0; r + 1 < rings.length; r++)
+    for (let k = 0; k < n; k++) {
+      const a = r * n + k, b = r * n + ((k + 1) % n), tone = rings[r][4] ?? 0;
+      tris.push([a, a + n, b + n, tone], [a, b + n, b, tone]);
+    }
+  const last = (rings.length - 1) * n;
+  for (let k = 1; k + 1 < n; k++) {
+    if (top) tris.push([0, k, k + 1, rings[0][4] ?? 0]);
+    if (bottom) tris.push([last, last + k + 1, last + k, rings[rings.length - 2][4] ?? 0]);
+  }
+  // per hoekpunt het gemiddelde van de vlakken eromheen: zo loopt het licht rond over de randen
+  const normals = at.map(() => new THREE.Vector3()), e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
+  for (const [a, b, c] of tris) {
+    e1.subVectors(at[b], at[a]);
+    e2.subVectors(at[c], at[a]);
+    e1.cross(e2);
+    normals[a].add(e1);
+    normals[b].add(e1);
+    normals[c].add(e1);
+  }
+  // waar twee kleurvakken elkaar raken, staat het hoekpunt er twee keer: zo blijft de grens scherp
+  const pos: number[] = [], nor: number[] = [], tones: number[] = [], index: number[] = [], ids = new Map<number, number>();
+  for (const [a, b, c, tone] of tris)
+    for (const v of [a, b, c]) {
+      let i = ids.get(v * 4 + tone);
+      if (i === undefined) {
+        ids.set(v * 4 + tone, (i = tones.length));
+        const m = normals[v].clone().normalize();
+        pos.push(at[v].x, at[v].y, at[v].z);
+        nor.push(m.x, m.y, m.z);
+        tones.push(tone);
+      }
+      index.push(i);
+    }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  if (toned) geo.setAttribute('tone', new THREE.Float32BufferAttribute(tones, 1));
+  geo.setIndex(index);
+  geo.computeBoundingSphere();
+  return geo;
+}
+
+// De maten van het poppetje. De houdingen en alles wat een gast draagt rekenen hierop: de heup zit op 0,2 hoog, de
+// schouder op 0,41 (0,13 uit het midden), de hand aan het eind van de arm (0,18 lager), het midden van het hoofd op
+// 0,505 en de voorkant van het hoofd 0,085 daarvoor. Een hoedje begint op 0,62.
+/** De romp: schouders die iets breder zijn dan het middel; het onderste stuk heeft de kleur van de broek of rok. */
+const BODY_GEO = loft([[0.11, 0.07, 0.042, 0.02, 0], [0.085, 0.1, 0.065, 0.028, 0], [-0.05, 0.09, 0.06, 0.024, 1], [-0.11, 0.086, 0.058, 0.022]]);
+/**
+ * Het hoofd: iets breder dan het gezicht, met afgeronde hoeken. De voorkant is een plat vlak van 0,17 bij 0,17 op
+ * 0,085 voor het midden: daar ligt het gezicht precies op (zie faces.ts).
+ */
+const HEAD_GEO = loft([[0.112, 0.058, 0.05, 0.02, undefined, -0.006], [0.085, 0.098, 0.0875, 0.013, undefined, -0.0025], [-0.085, 0.098, 0.0875, 0.013, undefined, -0.0025], [-0.103, 0.066, 0.058, 0.02, undefined, -0.004]]);
+{
+  // het licht valt op de voorkant net als op het gezicht dat ervoor zit: dan zie je geen rand om het gezicht
+  const at = HEAD_GEO.getAttribute('position'), normal = HEAD_GEO.getAttribute('normal');
+  for (let i = 0; i < at.count; i++) if (at.getZ(i) > 0.0849) normal.setXYZ(i, 0, 0, 1);
+}
+/** Het haar bovenop: een kapje dat op 0,066 boven het midden van het hoofd begint (daar ligt zijn nulpunt). */
+const HAIR_GEO = loft([[0.064, 0.06, 0.052, 0.022, undefined, -0.006], [0.04, 0.104, 0.094, 0.036, undefined, -0.003], [0, 0.107, 0.0965, 0.022, undefined, -0.003]], true, false);
+/** Het haar achter en opzij: een kokertje dat vanaf zijn bovenkant naar beneden hangt; langer of breder per kapsel (zie HAIRDO). */
+const HAIR_BACK_GEO = loft([[0, 0.105, 0.049, 0.03], [-0.1, 0.105, 0.049, 0.03]], true, false);
+/** Een rok: van het middel (het nulpunt) wijd uitlopend naar beneden. */
+const SKIRT_GEO = loft([[0, 0.092, 0.062, 0.024], [-0.13, 0.118, 0.088, 0.03]], false, true);
+/** Een streep om de romp: bij een werker laat hij zien wat zijn werk is, bij een gast is het een streep op het shirt. */
+const STRIPE_GEO = loft([[0.025, 0.1005, 0.0665, 0.0275], [-0.025, 0.098, 0.065, 0.026]], false, false);
 const CAP_GEO = new THREE.BoxGeometry(0.2, 0.06, 0.26).translate(0, 0, 0.035);
 const APRON_GEO = new THREE.BoxGeometry(0.16, 0.17, 0.02);
 const BALLOON_GEO = new THREE.IcosahedronGeometry(0.11, 1);
@@ -295,14 +401,76 @@ const PARTY_GEO = new THREE.ConeGeometry(0.075, 0.2, 8);
 const POM_GEO = new THREE.IcosahedronGeometry(0.03, 0);
 const SPIKE_GEO = new THREE.BoxGeometry(0.035, 0.05, 0.035);
 const STRING_GEO = new THREE.BoxGeometry(0.012, 0.34, 0.012);
-const LEG_GEO = new THREE.BoxGeometry(0.075, 0.2, 0.08).translate(0, -0.1, 0);
-const ARM_GEO = new THREE.BoxGeometry(0.055, 0.18, 0.07).translate(0, -0.09, 0);
+/** Een been, hangend aan de heup: de broekspijp (eerste kleur) en onderaan een schoen (tweede kleur) met de neus naar voren. */
+const LEG_GEO = loft([[0, 0.0365, 0.04, 0, 0], [-0.15, 0.033, 0.036, 0, 1], [-0.166, 0.039, 0.052, 0, 1, 0.013], [-0.2, 0.04, 0.058, 0, undefined, 0.016]]);
+/**
+ * Een arm, hangend aan de schouder: de mouw (eerste kleur), de onderarm (bij korte mouwen de tweede kleur) en de
+ * hand (tweede kleur: de huid).
+ */
+const ARM_GEO = loft([[0.008, 0.02, 0.026, 0, 0], [-0.015, 0.029, 0.036, 0, 0], [-0.075, 0.027, 0.033, 0, 2], [-0.14, 0.026, 0.032, 0, 1], [-0.185, 0.023, 0.029, 0]]);
 const mats = new Map<number, THREE.MeshStandardMaterial>();
 const mat = (color: number): THREE.MeshStandardMaterial => {
   let m = mats.get(color);
   if (!m) mats.set(color, (m = new THREE.MeshStandardMaterial({ color, roughness: 0.9 })));
   return m;
 };
+
+/**
+ * Een materiaal met twee kleuren, voor vormen met kleurvakken (zie Ring): vak 0 krijgt de gewone kleur, vak 1 de
+ * tweede kleur, en vak 2 de tweede kleur als `alt` aan staat (korte mouwen) en anders de eerste. Zo is een arm met
+ * een hand, of een been met een schoen, één onderdeel. In `tint` staan de tweede kleur en `alt` (als 0 of 1); bij
+ * alle gasten samen (zie Crowd) komt dat per poppetje uit `tint2`.
+ */
+class ToneMaterial extends THREE.MeshStandardMaterial {
+  readonly tint = { value: new THREE.Vector4() };
+  /** De tweede kleur als getal, om het materiaal terug te vinden (zie `dye`). */
+  second = 0;
+
+  constructor() {
+    super();
+    this.roughness = 0.9;
+  }
+
+  /** Een kopie (voor het doorzichtige voorbeeld van een werker) houdt zijn tweede kleur. */
+  override copy(source: THREE.MeshStandardMaterial): this {
+    super.copy(source);
+    if (source instanceof ToneMaterial) {
+      this.tint.value.copy(source.tint.value);
+      this.second = source.second;
+    }
+    return this;
+  }
+
+  override onBeforeCompile(shader: THREE.WebGLProgramParametersWithUniforms): void {
+    shader.uniforms.tint2 = this.tint;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float tone;\n#ifdef USE_INSTANCING\nattribute vec4 tint2;\n#else\nuniform vec4 tint2;\n#endif\nvarying vec4 vTint2;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTint2 = vec4( tint2.rgb, tone > 1.5 ? tint2.a : tone );');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec4 vTint2;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix( diffuseColor.rgb, vTint2.rgb, vTint2.a );');
+  }
+}
+const mats2 = new Map<number, ToneMaterial>();
+const tintColor = new THREE.Color();
+/** Het materiaal met `color` als eerste en `second` als tweede kleur. */
+const mat2 = (color: number, second: number, alt = false): ToneMaterial => {
+  const key = color * 0x2000000 + second * 2 + +alt;
+  let m = mats2.get(key);
+  if (!m) {
+    mats2.set(key, (m = new ToneMaterial()));
+    m.color.setHex(color);
+    tintColor.setHex(second);
+    m.tint.value.set(tintColor.r, tintColor.g, tintColor.b, +alt);
+    m.second = second;
+  }
+  return m;
+};
+/** Geef een onderdeel een andere (eerste) kleur; wat het als tweede kleur had, houdt het. */
+function dye(mesh: THREE.Mesh, color: number): void {
+  const old = mesh.material as Partial<ToneMaterial>;
+  mesh.material = old.tint ? mat2(color, old.second ?? 0, old.tint.value.w > 0.5) : mat(color);
+}
 const pick = <T>(list: T[]): T => list[Math.floor(Math.random() * list.length)];
 
 interface Person {
@@ -315,47 +483,144 @@ interface Person {
   head: THREE.Mesh;
 }
 
-/** Een poppetje van blokjes. Een verzorger draagt groen met een pet; een verkoper de kleur van zijn kraam, een pet en een wit schort. */
-function makePerson(keeper = false, outfit?: { shirt: number; hat: number }, force: { child?: boolean; shirt?: number } = {}): Person {
-  const skin = mat(pick(SKIN)), shirt = mat(force.shirt ?? (outfit ? outfit.shirt : keeper ? 0x4fa35a : pick(SHIRT))), pants = mat(keeper ? 0x5a4636 : pick(PANTS));
-  const part = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number): THREE.Mesh => {
+/** De kapsels: kort, met een scheiding, stekeltjes, een bob, lang, een staart, twee staartjes, een knot, krullen, een krans om een kale kruin, of kaal. */
+type HairStyle = 'short' | 'side' | 'crew' | 'bob' | 'long' | 'tail' | 'tails' | 'bun' | 'curls' | 'ring' | 'bald';
+/**
+ * Waar elk kapsel uit bestaat. `top`: het kapje bovenop (HAIR_GEO), [breder, hoger]; `back`: het stuk achter en
+ * opzij (HAIR_BACK_GEO), [breder, langer, dieper]; `blobs`: staarten en knotjes (bolletjes), elk [x, y, z, dik, lang].
+ * De plekken zijn gemeten vanaf het midden van het hoofd.
+ */
+const HAIRDO: Record<HairStyle, { top?: number[]; back?: number[]; blobs?: number[][] }> = {
+  short: { top: [1, 1], back: [1, 0.8, 1] },
+  side: { top: [1, 1.12], back: [1, 0.8, 1] },
+  crew: { top: [0.99, 0.8], back: [0.985, 0.75, 1] },
+  bob: { top: [1, 1], back: [1.03, 1.7, 1.3] },
+  long: { top: [1, 1], back: [1.02, 2.55, 0.85] },
+  tail: { top: [1, 1], back: [1, 0.8, 1], blobs: [[0, 0.01, -0.128, 1.3, 2.4]] },
+  tails: { top: [1, 1], back: [1, 0.8, 1], blobs: [[0.128, -0.005, -0.03, 1.2, 2.1], [-0.128, -0.005, -0.03, 1.2, 2.1]] },
+  bun: { top: [1, 1], back: [1, 0.8, 1], blobs: [[0, 0.11, -0.07, 1.5, 1.4]] },
+  curls: { top: [1.13, 1.35], back: [1.14, 1.2, 1.25] },
+  ring: { back: [1, 0.62, 1] },
+  bald: {},
+};
+/** Uit welke kapsels er gekozen wordt (wat er vaker in staat, komt vaker voor): met een baard of snor, grote mensen, wie een rok draagt, kinderen, en onder een pet. */
+const HAIR_BEARD: HairStyle[] = ['short', 'short', 'short', 'side', 'side', 'side', 'crew', 'crew', 'curls', 'ring', 'bald', 'long'];
+const HAIR_ADULT: HairStyle[] = ['short', 'short', 'side', 'side', 'crew', 'bob', 'bob', 'long', 'long', 'tail', 'tail', 'bun', 'curls', 'curls'];
+const HAIR_SKIRT: HairStyle[] = ['bob', 'bob', 'long', 'long', 'tail', 'tail', 'bun', 'bun', 'curls', 'short'];
+const HAIR_CHILD: HairStyle[] = ['short', 'short', 'short', 'side', 'side', 'crew', 'bob', 'long', 'tail', 'tails', 'curls', 'curls'];
+const HAIR_GIRL: HairStyle[] = ['bob', 'long', 'tail', 'tails', 'tails', 'curls'];
+const HAIR_CAPPED: HairStyle[] = ['short', 'short', 'short', 'bob', 'long', 'tail'];
+
+/** Zet een kapsel op een hoofd. `capped`: er komt een pet op, dus alleen het haar dat eronder uitkomt. */
+function addHair(head: THREE.Mesh, style: HairStyle, color: number, capped: boolean): void {
+  const { top, back, blobs } = HAIRDO[style];
+  if (top && !capped) {
+    const cap = bit(HAIR_GEO, color, 0, 0.066, 0, top[0], top[1], top[0]);
+    // een scheiding: het kapje zit een beetje scheef
+    if (style === 'side') cap.rotation.z = Math.random() < 0.5 ? 0.1 : -0.1;
+    head.add(cap);
+  }
+  // (de achterkant blijft op zijn plek, hoe diep het stuk ook is)
+  if (back) head.add(bit(HAIR_BACK_GEO, color, 0, capped ? 0.09 : style === 'ring' ? 0.05 : 0.075, -0.0975 * back[0] + 0.049 * back[2], back[0], back[1], back[2]));
+  for (const [x, y, z, wide, long] of blobs ?? []) head.add(bit(POM_GEO, color, x, y, z, wide, long, wide));
+}
+
+/** Hoe een poppetje eruitziet; wat hier niet in staat, wordt gegokt. */
+interface PersonLook {
+  hair?: HairStyle;
+  /** 0 = een broek, 1 = een rok, 2 = een jurk. */
+  skirt?: number;
+  /** Korte mouwen, een streep op het shirt en een rugzak. */
+  short?: boolean;
+  stripe?: boolean;
+  pack?: boolean;
+}
+
+/**
+ * Een poppetje: een romp met schouders, een rond hoofd met haar, armen met handen en benen met schoenen. Een
+ * verzorger draagt groen met een pet; een verkoper de kleur van zijn kraam, een pet en een wit schort (dat is dan
+ * het laatste onderdeel). `solo`: het wordt los getekend en krijgt zijn eigen gezicht (zie faces.ts).
+ */
+function makePerson(keeper = false, outfit?: { shirt: number; hat: number }, force: { child?: boolean; shirt?: number; solo?: boolean; look?: PersonLook } = {}): Person {
+  const staff = keeper || !!outfit, look = force.look ?? {};
+  const child = force.child ?? (!staff && Math.random() < 0.35);
+  const skin = pick(SKIN), shirt = force.shirt ?? (outfit ? outfit.shirt : keeper ? 0x4fa35a : pick(SHIRT));
+  // `shadow`: de grote onderdelen geven een schaduw, het kleine spul niet
+  const part = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, shadow = true): THREE.Mesh => {
     const mesh = new THREE.Mesh(geo, m);
     mesh.position.set(x, y, 0);
-    mesh.castShadow = true;
+    mesh.castShadow = shadow;
     return mesh;
   };
-  const limbs = [part(LEG_GEO, pants, 0.052, 0.2), part(LEG_GEO, pants, -0.052, 0.2), part(ARM_GEO, shirt, 0.13, 0.41), part(ARM_GEO, shirt, -0.13, 0.41)];
   const group = new THREE.Group();
-  const body = part(BODY_GEO, shirt, 0, 0.31), head = part(HEAD_GEO, skin, 0, 0.505);
+  const head = part(HEAD_GEO, mat(skin), 0, 0.505);
+  // een gezicht (zie faces.ts): gasten krijgen het via Crowd, een werker of verkoper wordt los getekend en heeft zijn eigen vlakje
+  giveFace(head, child, staff || !!force.solo);
+  // een kind heeft een groter hoofd; het gezicht en het haar groeien mee
+  if (child) head.scale.setScalar(1.12);
+  // wie een baard of snor heeft, krijgt haar in dezelfde kleur
+  const beard = beardColor(head.userData.face as number);
+  // de kleren: een broek, een rok (in een eigen kleur) of een jurk (in de kleur van het shirt)
+  const skirt = look.skirt ?? (staff || beard !== null || Math.random() > 0.3 ? 0 : force.shirt === undefined && Math.random() < 0.4 ? 2 : 1);
+  const bottom = skirt === 2 ? shirt : skirt ? pick(SKIRTS.filter(c => c !== shirt)) : keeper ? 0x5a4636 : pick(PANTS);
+  // onder een rok: blote benen of een maillot
+  const legs = !skirt ? bottom : Math.random() < 0.6 ? skin : pick(TIGHTS);
+  const sleeve = mat2(shirt, skin, look.short ?? (!staff && Math.random() < 0.45)), leg = mat2(legs, staff ? 0x38343c : pick(SHOES));
+  const limbs = [part(LEG_GEO, leg, 0.052, 0.2), part(LEG_GEO, leg, -0.052, 0.2), part(ARM_GEO, sleeve, 0.13, 0.41), part(ARM_GEO, sleeve, -0.13, 0.41)];
+  const body = part(BODY_GEO, mat2(shirt, bottom), 0, 0.31);
   group.add(...limbs, body, head);
-  group.add(keeper || outfit ? part(CAP_GEO, mat(outfit ? outfit.hat : 0x2f6e39), 0, 0.615) : part(HAIR_GEO, mat(pick(HAIR)), 0, 0.6));
+  if (skirt) group.add(part(SKIRT_GEO, mat(bottom), 0, 0.262, false));
+  if (look.stripe ?? (!staff && !skirt && force.shirt === undefined && Math.random() < 0.14)) group.add(part(STRIPE_GEO, mat(shirt === 0xf4f1e8 ? 0xe0584f : 0xf4f1e8), 0, 0.35, false));
+  const style = look.hair ?? pick(staff ? HAIR_CAPPED : beard !== null ? HAIR_BEARD : child ? (skirt ? HAIR_GIRL : HAIR_CHILD) : skirt ? HAIR_SKIRT : HAIR_ADULT);
+  addHair(head, style, beard ?? pick(child ? HAIR.slice(0, 6) : HAIR), staff);
+  if (look.pack ?? (!staff && style !== 'long' && Math.random() < (child ? 0.4 : 0.08))) {
+    // een rugzak: een blokje op de rug met een klep in een andere kleur
+    const color = pick(SHIRT.filter(c => c !== shirt));
+    group.add(bit(SPIKE_GEO, color, 0, 0.325, -0.098, 4, 2.9, 1.9), bit(SPIKE_GEO, color === 0xf4f1e8 ? 0x4a90e2 : 0xf4f1e8, 0, 0.36, -0.118, 3.2, 1, 1.2));
+  }
+  if (staff) group.add(part(CAP_GEO, mat(outfit ? outfit.hat : 0x2f6e39), 0, 0.615));
   if (outfit) {
     const apron = part(APRON_GEO, mat(0xf7f4ec), 0, 0.29);
     apron.position.z = 0.07;
     group.add(apron);
   }
-  const child = force.child ?? (!keeper && !outfit && Math.random() < 0.35);
   const scale = child ? 0.72 : outfit ? 1 : 1 + Math.random() * 0.12;
   group.scale.setScalar(scale);
   return { group, limbs, height: 0.66 * scale, child, shirts: [limbs[2], limbs[3], body], head };
 }
 
 // ------------------------------------------------------------ alle gasten in een paar tekenopdrachten
+/** Alle onderdelen van één vorm, van alle gasten samen. */
+interface CrowdPool {
+  mesh: THREE.InstancedMesh;
+  n: number;
+  cap: number;
+  /** De tweede kleur per poppetje, bij een vorm met kleurvakken (zie ToneMaterial). */
+  tint: THREE.InstancedBufferAttribute | null;
+}
+/** Klein spul dat geen eigen schaduw nodig heeft: dat scheelt per vorm een tekenopdracht. */
+const NO_SHADOW = new Set<THREE.BufferGeometry>([HAIR_GEO, HAIR_BACK_GEO, SKIRT_GEO, STRIPE_GEO]);
+
 /**
- * Elke gast bestaat uit een stuk of acht blokjes. Los getekend kost dat per gast acht tekenopdrachten (en nog eens
- * acht voor de schaduw); bij honderd gasten hapert het spel daarvan. Daarom tekent dit alle blokjes van dezelfde
+ * Elke gast bestaat uit een stuk of tien onderdelen. Los getekend kost dat per gast tien tekenopdrachten (en nog eens
+ * zoveel voor de schaduw); bij honderd gasten hapert het spel daarvan. Daarom tekent dit alle onderdelen van dezelfde
  * vorm in één keer: de poppetjes zelf staan niet in het beeld, hun plek en kleur worden elk beeldje overgenomen.
+ * Een vorm met kleurvakken (een arm met een hand, een been met een schoen) krijgt per poppetje ook zijn tweede kleur.
  */
 class Crowd {
-  private pools = new Map<THREE.BufferGeometry, { mesh: THREE.InstancedMesh; n: number; cap: number }>();
+  private pools = new Map<THREE.BufferGeometry, CrowdPool>();
   private mat = new THREE.MeshStandardMaterial({ roughness: 0.9 });
+  private mat2 = new ToneMaterial();
   private m = new THREE.Matrix4();
   private c = new THREE.Color();
+  /** De gezichten: één vlakje voor elk hoofd dat voorbijkomt, allemaal samen in één tekenopdracht (zie faces.ts). */
+  private faces: FaceCrowd | null = null;
 
   constructor(private scene: THREE.Scene) {}
 
   begin(): void {
     for (const p of this.pools.values()) p.n = 0;
+    (this.faces ??= new FaceCrowd(this.scene)).begin();
   }
 
   add(root: THREE.Object3D): void {
@@ -371,17 +636,34 @@ class Crowd {
       let p = this.pools.get(mesh.geometry);
       if (!p || p.n >= p.cap) p = this.grow(mesh.geometry, p);
       p.mesh.setMatrixAt(p.n, mesh.matrixWorld);
-      p.mesh.setColorAt(p.n, (mesh.material as THREE.MeshStandardMaterial).color);
+      const color = (mesh.material as THREE.MeshStandardMaterial).color;
+      p.mesh.setColorAt(p.n, color);
+      if (p.tint) {
+        // (heeft het onderdeel een gewoon materiaal gekregen, dan is het helemaal van die ene kleur)
+        const t = (mesh.material as Partial<ToneMaterial>).tint?.value;
+        if (t) p.tint.setXYZW(p.n, t.x, t.y, t.z, t.w);
+        else p.tint.setXYZW(p.n, color.r, color.g, color.b, 0);
+      }
       p.n++;
+      if (mesh.geometry === HEAD_GEO) this.faces?.add(mesh);
     }
     for (const child of o.children) this.walk(child);
   }
 
   /** Meer plek voor deze vorm: twee keer zoveel als eerst. */
-  private grow(geo: THREE.BufferGeometry, old?: { mesh: THREE.InstancedMesh; n: number; cap: number }): { mesh: THREE.InstancedMesh; n: number; cap: number } {
+  private grow(geo: THREE.BufferGeometry, old?: CrowdPool): CrowdPool {
     const cap = old ? old.cap * 2 : 64;
-    const mesh = new THREE.InstancedMesh(geo, this.mat, cap);
-    mesh.castShadow = true;
+    let shape = geo, tint: THREE.InstancedBufferAttribute | null = null;
+    if (geo.hasAttribute('tone')) {
+      // een vorm met kleurvakken: dezelfde hoekpunten, met de tweede kleur per poppetje erbij (de vorm zelf blijft zoals hij is)
+      shape = new THREE.BufferGeometry();
+      for (const name of ['position', 'normal', 'tone']) shape.setAttribute(name, geo.getAttribute(name));
+      shape.setIndex(geo.getIndex());
+      tint = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4);
+      shape.setAttribute('tint2', tint);
+    }
+    const mesh = new THREE.InstancedMesh(shape, tint ? this.mat2 : this.mat, cap);
+    mesh.castShadow = !NO_SHADOW.has(geo);
     mesh.frustumCulled = false;
     mesh.count = 0;
     if (old) {
@@ -391,11 +673,15 @@ class Crowd {
         old.mesh.getColorAt(i, this.c);
         mesh.setColorAt(i, this.c);
       }
+      if (tint && old.tint) {
+        (tint.array as Float32Array).set(old.tint.array);
+        old.mesh.geometry.dispose();
+      }
       this.scene.remove(old.mesh);
       old.mesh.dispose();
     }
     this.scene.add(mesh);
-    const pool = { mesh, n: old?.n ?? 0, cap };
+    const pool = { mesh, n: old?.n ?? 0, cap, tint };
     this.pools.set(geo, pool);
     return pool;
   }
@@ -405,7 +691,9 @@ class Crowd {
       p.mesh.count = p.n;
       p.mesh.instanceMatrix.needsUpdate = true;
       if (p.mesh.instanceColor) p.mesh.instanceColor.needsUpdate = true;
+      if (p.tint) p.tint.needsUpdate = true;
     }
+    this.faces?.end();
   }
 }
 
@@ -513,6 +801,20 @@ let crowdClock = 0;
 let offRide: Guest | null = null, offRideAt = -9;
 /** Zo lang duren de korte gebaren, in tellen. */
 const SHOT_TIME: Record<Shot, number> = { startle: 1.1, slump: 1.8, rub: 1.6, hug: 1.7, don: 1.3, relief: 1.9, shake: 1.5, alarm: 2.2, yuck: 1.3, dizzy: 1.8, five: 1.3, fan: 2.2, lookup: 3, stomp: 1.5 };
+/**
+ * Het geluidje bij een kort gebaar, een houding bij een verblijf, iets kleins tussendoor of een ding in het park:
+ * [welk geluid, na hoeveel tellen]. Bij de dingen in het park is het tweede getal het deel van het bezoek (0 tot 1).
+ * Elk klinkt één keer per gebaar.
+ */
+const SHOT_SOUND: Partial<Record<Shot, [GuestCue, number]>> = {
+  startle: ['guest.uhoh', 0.05], alarm: ['guest.uhoh', 0.1], slump: ['guest.aww', 0.5], lookup: ['guest.aww', 0.45], rub: ['guest.aah', 0.3],
+  relief: ['guest.phew', 0.15], shake: ['park.brolly', 0.2], yuck: ['guest.yuck', 0.15], dizzy: ['guest.dizzy', 0.2], five: ['guest.five', 0.55], stomp: ['park.splash', 0.1],
+};
+const ACT_SOUND: Partial<Record<Act, [GuestCue, number]>> = { hush: ['guest.shh', 0.4], stink: ['guest.yuck', 0.5], pity: ['guest.aww', 0.6] };
+const IDLE_SOUND: Partial<Record<Idle, [GuestCue, number]>> = { yawn: ['guest.yawn', 0.3], sigh: ['guest.sigh', 0.5] };
+const USE_SOUND: Partial<Record<Use, [GuestCue, number]>> = {
+  sniff: ['guest.sniff', 0.35], well: ['guest.echo', 0.52], write: ['park.scribble', 0.08], mimic: ['guest.laugh', 0.8], picnic: ['guest.chat', 0.3],
+};
 const SCOOPS = [0xffc1d6, 0xfff1c9, 0x8a5637, 0xb6e3c0];
 const PLUSH_COLORS = [0xc98d5e, 0xf4f1e8, 0xf5a623, 0x9aa0a6, 0xf48fb1, 0x8a5637, 0xffd23f];
 /** Waar de knuffel zit: onder de arm, en tegen de borst bij het knuffelen. */
@@ -581,6 +883,29 @@ function makePlush(product: string | undefined): THREE.Group {
   g.add(bit(BALLOON_GEO, color, 0, 0, 0, 0.5, 0.58, 0.45), bit(POM_GEO, color, 0, 0.075, 0.025, 1.5), bit(SPIKE_GEO, color, 0.03, 0.115, 0.02, 0.5), bit(SPIKE_GEO, color, -0.03, 0.115, 0.02, 0.5));
   g.position.set(PLUSH_REST[0], PLUSH_REST[1], PLUSH_REST[2]);
   return g;
+}
+
+/** Een hoedje uit de hoedenkraam: een petje, een strohoed, een feestmuts of een kroon. Het zit op het haar: vanaf 0,62 hoog. */
+function makeHat(product: string): THREE.Group {
+  const color = mat(COLOR_OF[product] ?? 0xe0584f);
+  const hat = new THREE.Group();
+  const add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z = 0): void => {
+    const mesh = new THREE.Mesh(geo, m);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    hat.add(mesh);
+  };
+  if (product === 'hat_straw') {
+    add(BRIM_GEO, color, 0, 0.65);
+    add(CROWN_GEO, color, 0, 0.7);
+  } else if (product === 'hat_party') {
+    add(PARTY_GEO, color, 0, 0.74);
+    add(POM_GEO, mat(0xffd23f), 0, 0.85);
+  } else if (product === 'hat_crown') {
+    add(CROWN_GEO, color, 0, 0.68);
+    for (const [x, z] of [[0.07, 0], [-0.07, 0], [0, 0.07], [0, -0.07]]) add(SPIKE_GEO, color, x, 0.74, z);
+  } else add(CAP_GEO, color, 0, 0.65);
+  return hat;
 }
 
 /** De verrekijker: twee kokertjes voor de ogen. Hij zit aan het hoofd en is alleen te zien als de gast erdoor kijkt. */
@@ -789,6 +1114,14 @@ export class Guest implements Leader {
   /** Een kort gebaar dat even boven alles uit gaat (schrikken, bah, opgelucht, ...) en hoe ver het is. */
   private shot: Shot | null = null;
   private shotT = 0;
+  /**
+   * Het geluidje dat bij het volgende beeldje klinkt (zie `update`), en wat er nodig is om het maar één keer te laten
+   * horen: hoe ver de hap of slok was, hoe ver het speeltoestel was, en of het geluid bij een ding in het park al klonk.
+   */
+  private cue: GuestCue | null = null;
+  private chewC = 0;
+  private rideMark = 0;
+  private useHeard = false;
   /** Zoveel tellen blijft de gast nog even staan tijdens het lopen, voor een kort gebaar. `gaze`: hij kijkt dan naar (lookX, lookY). */
   private stall = 0;
   private gaze = false;
@@ -1088,6 +1421,23 @@ export class Guest implements Leader {
     return this.fun >= 0.55 && this.hunger < 0.9 && this.thirst < 0.9 && this.bladder < 0.9;
   }
 
+  /**
+   * Het gezicht van nu (zie faces.ts): de ogen en de mond volgen wat de gast doet en hoe hij zich voelt. Een gebaar
+   * gaat voor; anders telt het plezier: blij, gewoon of sip. Knipperen, kauwen en praten regelt `faceFor`.
+   */
+  showFace(): void {
+    const seat = this.state === 'sit' ? this.shop?.kind : undefined;
+    const doing = this.lost ? (this.found ? 'joy' : 'cry')
+      : this.shot ?? (this.joy > 0 ? 'joy' : this.moan > 0 ? 'moan' : this.state === 'accident' ? 'oops' : this.eating > 0 ? this.bite
+        : this.state === 'watch' ? this.act : this.state === 'use' ? this.use
+        : seat && (PLAY.includes(seat) || RIDES.includes(seat)) ? 'ride'
+        // het dutje op het bankje (zie benchPose)
+        : seat === 'bench' && this.whim >= 0.75 && !this.child ? 'nap'
+        : this.astray > 0 || this.bladder > 0.85 ? 'worry'
+        : this.state === 'queue' && this.waited > PATIENCE * 0.6 ? 'cross' : this.idle?.kind);
+    setFace(this.head, faceFor(doing, this.fun >= 0.45 ? 'fine' : this.fun >= 0.25 ? 'plain' : 'glum', this.age, this.whim));
+  }
+
   // ------------------------------------------------------------ groepjes
   /** Er loopt vanaf nu iemand achter deze gast aan: hij onthoudt waar hij liep. */
   lead(): void {
@@ -1238,6 +1588,9 @@ export class Guest implements Leader {
         // wie niet de eerste is, wacht even op zijn beurt en doet zijn twee rondjes daarna iets vlotter
         const wait = this.seat * (kind === 'slide' ? 1.2 : 0.5), lap = (6 - wait) / 2, e = 6 - this.timer - wait;
         const u = e > 0 ? (e % lap) / lap : 0;
+        // joehoe: het geluidje op het moment dat het glijden begint
+        if (this.rideMark < 0.45 && u >= 0.45) this.cue = 'guest.whee';
+        this.rideMark = u;
         const top = kind === 'slide' ? at(0, 1.18, -0.5) : at(-0.39, 1.0, 0.1), low = kind === 'slide' ? at(0, 0.12, 0.95) : at(-0.39, 0.1, 1.1);
         if (u <= 0) {
           // nog even wachten op je beurt: wippen van ongeduld
@@ -1289,6 +1642,10 @@ export class Guest implements Leader {
           // onderaan zetten de voeten af tegen de grond; bovenaan zwaaien de benen naar voren, gaan de handen even los
           // en gaat het hoofd lachend in de nek
           const lift = side * Math.sin(spin) * amp;
+          // de plank kantelt naar de andere kant: dan kraakt de wip
+          const low = lift < 0 ? 1 : 0;
+          if (low !== this.rideMark && k > 0.9) this.cue = 'ride.creak';
+          this.rideMark = low;
           leg = -1.2 + 0.8 * Math.max(0, -lift) - 0.35 * Math.max(0, lift);
           arm = -1.0 - 0.9 * Math.max(0, lift - 0.5);
           this.head.rotation.x = -0.25 * Math.max(0, lift) * k;
@@ -1300,6 +1657,10 @@ export class Guest implements Leader {
           // trampoline: springen met de armen omhoog, en elke derde sprong op de billen landen en weer opveren
           const f = (spin + this.seat * 1.3) / Math.PI, jump = Math.abs(Math.sin(f * Math.PI));
           const bum = Math.round(f) % 3 === 0 ? Math.max(0, 1 - jump / 0.5) : 0;
+          // boing: het geluidje op het moment dat de gast op het doek neerkomt
+          const down = jump < 0.2 ? 1 : 0;
+          if (down && !this.rideMark && k > 0.9) this.cue = 'ride.boing';
+          this.rideMark = down;
           seat = at(side * 0.28, 0.41 + jump * 0.55 - bum * sit * 0.8, side * 0.1);
           facing = this.heading + spin * 0.5;
           leg = 0.5 * (1 - jump) * (1 - bum) - 1.45 * bum;
@@ -1348,6 +1709,9 @@ export class Guest implements Leader {
         arms(-1.2 * k);
         // tegen de rand gebotst: de gast wordt door elkaar geschud en juicht met de armen omhoog
         const jolt = k > 0.9 ? Math.max(0, Math.min(1, (Math.max(Math.abs(x), Math.abs(z)) - 0.58) / 0.05)) : 0;
+        // de bons zelf hoor je één keer, als de auto de rand raakt
+        if (jolt > 0 && !this.rideMark) this.cue = 'ride.bump';
+        this.rideMark = jolt > 0 ? 1 : 0;
         if (jolt > 0) {
           m.rotation.z = Math.sin(this.phase * 2.6) * 0.16 * jolt;
           m.rotation.x = -0.12 * jolt;
@@ -1740,6 +2104,7 @@ export class Guest implements Leader {
     s.used |= 1 << seat;
     this.use = this.pickUse(s.kind);
     this.useMark = 0;
+    this.useHeard = false;
     this.whim = Math.random();
     // waar de gast gaat staan: een paar passen van het pad, met het gezicht naar het ding
     let tx = this.gx, ty = this.gy, face = Math.atan2(s.x - this.gx, s.y - this.gy);
@@ -1793,6 +2158,12 @@ export class Guest implements Leader {
     this.useE = Math.max(0, e - gap);
     this.stepping = this.useK < 1;
     if (s.gone || this.useK < 1) return;
+    // het geluidje dat erbij hoort (snuffelen, schrijven, in de put roepen, kletsen aan tafel): één keer per bezoek
+    const snd = USE_SOUND[use];
+    if (snd && !this.useHeard && this.useE > snd[1] * this.useLen) {
+      this.useHeard = true;
+      if (use !== 'picnic' || s.n > 1) w.guestSound(snd[0], this);
+    }
     if (use === 'feed') {
       // bij elke worp plonst er een stukje brood in de vijver
       if (this.useMark < 3 && this.useE > 0.95 + this.useMark * 1.3) {
@@ -2732,24 +3103,7 @@ export class Guest implements Leader {
   addHat(product = 'cap_red'): void {
     this.wornHat = product;
     if (this.headwear) this.mesh.remove(this.headwear);
-    const color = mat(COLOR_OF[product] ?? 0xe0584f);
-    const hat = new THREE.Group();
-    const add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z = 0): void => {
-      const mesh = new THREE.Mesh(geo, m);
-      mesh.position.set(x, y, z);
-      mesh.castShadow = true;
-      hat.add(mesh);
-    };
-    if (product === 'hat_straw') {
-      add(BRIM_GEO, color, 0, 0.65);
-      add(CROWN_GEO, color, 0, 0.7);
-    } else if (product === 'hat_party') {
-      add(PARTY_GEO, color, 0, 0.74);
-      add(POM_GEO, mat(0xffd23f), 0, 0.85);
-    } else if (product === 'hat_crown') {
-      add(CROWN_GEO, color, 0, 0.68);
-      for (const [x, z] of [[0.07, 0], [-0.07, 0], [0, 0.07], [0, -0.07]]) add(SPIKE_GEO, color, x, 0.74, z);
-    } else add(CAP_GEO, color, 0, 0.65);
+    const hat = makeHat(product);
     this.headwear = hat;
     this.mesh.add(hat);
   }
@@ -2908,6 +3262,11 @@ export class Guest implements Leader {
     this.stepping = false;
     const rain = w.raining();
     if (this.brolly) this.brolly.visible = rain;
+    // het geluidje bij wat de gast net begon te doen (een gebaar, een hap, een sprong)
+    if (this.cue) {
+      w.guestSound(this.cue, this);
+      this.cue = null;
+    }
     if (this.leader) return this.follow(dt);
     if (this.lost) return this.cry(dt, w, reach);
     // wielen, ballon en paraplu, en opletten wat er om de gast heen gebeurt (iets vies, een ontsnapt dier, de ster)
@@ -3057,6 +3416,9 @@ export class Guest implements Leader {
     if (this.state === 'watch' && this.act) {
       this.actT += dt;
       const t = this.actT;
+      // ssst, bah of ach: het geluidje bij de houding, één keer
+      const snd = ACT_SOUND[this.act];
+      if (snd && t >= snd[1] && t - dt < snd[1]) this.cue = snd[0];
       if (this.poseAct(t)) {
         // een van de houdingen die erbij zijn gekomen (ssst, meedoen, verrekijker, ...): zie poseAct
       } else if (this.act === 'wave') {
@@ -3116,6 +3478,9 @@ export class Guest implements Leader {
       if (a) {
         a.t += dt;
         const t = a.t, u = Math.min(1, t / a.dur);
+        // een gaap of een zucht hoor je ook, één keer
+        const snd = IDLE_SOUND[a.kind];
+        if (snd && t >= snd[1] && t - dt < snd[1]) this.cue = snd[0];
         if (this.poseIdle(a.kind, t, u)) {
           // een van de kleine dingen die erbij zijn gekomen (gapen, zuchten, trappelen, ...): zie poseIdle
         } else if (a.kind === 'look') head.rotation.y = Math.sin(t * 2.2) * 0.9;
@@ -3438,17 +3803,26 @@ export class Guest implements Leader {
       const c = (this.phase * 0.045) % 1, up = smooth(0, 0.15, c) * (1 - smooth(0.75, 0.95, c));
       left.rotation.x = -1.25 - 0.3 * up;
       head.rotation.x = (0.15 + Math.sin(this.phase * 0.9) * 0.1) * up;
+      this.nibble(c, 0.12, 'guest.yum');
     } else if (this.bite === 'sip') {
       // de beker omhoog, het hoofd naar het rietje en een lange slok
       const c = (this.phase * 0.035) % 1, up = smooth(0.1, 0.3, c) * (1 - smooth(0.7, 0.9, c));
       left.rotation.x = -1.15 - 0.4 * up;
       head.rotation.x = 0.2 * up;
+      this.nibble(c, 0.3, 'guest.slurp');
     } else {
       // een hap nemen en dan kauwen
       const c = (this.phase * 0.055) % 1, up = smooth(0, 0.18, c) * (1 - smooth(0.3, 0.5, c));
       left.rotation.x = -1.1 - 0.5 * up;
       head.rotation.x = 0.2 * smooth(0.15, 0.25, c) * (1 - smooth(0.3, 0.4, c)) + (c > 0.45 ? Math.sin(this.phase * 1.4) * 0.05 : 0);
+      this.nibble(c, 0.16, 'guest.bite');
     }
+  }
+
+  /** Het geluidje bij een lik, een slok of een hap: op het moment dat de hand bij de mond is (`at`, in de beweging `c`), en niet bij elke. */
+  private nibble(c: number, at: number, kind: GuestCue): void {
+    if (this.chewC < at && c >= at && Math.random() < 0.5) this.cue = kind;
+    this.chewC = c;
   }
 
   /** De houdingen bij een verblijf die erbij zijn gekomen. Geeft true als dit er een van was. */
@@ -3716,6 +4090,9 @@ export class Guest implements Leader {
       const kind = this.shot, t = this.shotT, u = Math.max(0, t / SHOT_TIME[kind]);
       // `e`: het gebaar komt rustig op en gaat rustig weer weg
       const e = smooth(0, 0.2, u) * (1 - smooth(0.8, 1, u));
+      // het geluidje bij het gebaar: één keer, op zijn eigen moment
+      const snd = SHOT_SOUND[kind];
+      if (snd && t >= snd[1] && t - dt < snd[1]) this.cue = snd[0];
       if (u >= 1) this.calm();
       else if (kind === 'shake') {
         // de paraplu naar opzij, half dicht, en de druppels eraf schudden (tot het zover is blijft hij nog even omhoog)
@@ -4142,6 +4519,7 @@ export class GuestManager {
     for (const g of this.guests) if (g.astray > 0) astray++;
     strayRoom = Math.max(STRAY.most, Math.floor(this.guests.length * STRAY.share)) - astray;
     for (const g of this.guests) g.update(dt, this.world, this.list, this.reach);
+    for (const g of this.guests) g.showFace();
     if (this.guests.some(g => g.gone)) this.guests = this.guests.filter(g => !g.gone);
     this.train?.update(dt, this.world, this.reach, this.guests);
     // af en toe maken twee gasten die naast elkaar staan een praatje
@@ -4309,7 +4687,6 @@ const CART_WHEEL_GEO = new THREE.CylinderGeometry(0.07, 0.07, 0.03, 10).rotateZ(
 const CART_BAR_GEO = new THREE.BoxGeometry(0.26, 0.025, 0.025);
 const HAMMER_GEO = new THREE.BoxGeometry(0.03, 0.3, 0.03).translate(0, -0.14, 0.06);
 const HAMMERHEAD_GEO = new THREE.BoxGeometry(0.13, 0.07, 0.07).translate(0, -0.3, 0.06);
-const STRIPE_GEO = new THREE.BoxGeometry(0.21, 0.05, 0.14);
 const BROOM_GEO = new THREE.BoxGeometry(0.025, 0.46, 0.025).translate(0, -0.1, 0.06);
 const BRISTLE_GEO = new THREE.BoxGeometry(0.13, 0.07, 0.05).translate(0, -0.34, 0.06);
 const SACK_GEO = new THREE.BoxGeometry(0.13, 0.16, 0.1).translate(0, -0.2, 0.05);
@@ -4329,6 +4706,9 @@ export class Worker implements Leader {
   /** Heeft de werker dit uur loon gekregen? Zo niet, dan wacht hij. */
   paid = true;
   private limbs: THREE.Mesh[];
+  /** Het hoofd, voor het gezicht (zie faces.ts), en een vast gokgetal: zo knippert niet iedereen tegelijk. */
+  private head: THREE.Mesh;
+  private faceSeed = Math.random();
   private route: number[] = [];
   private job: { key: object; trough?: KeeperTrough; food?: FoodId; mess?: KeeperPoop; fix?: FixJob; heal?: VetJob } | null = null;
   private timer = 0.5;
@@ -4356,6 +4736,7 @@ export class Worker implements Leader {
     const person = makePerson(true, { shirt: 0x4fa35a, hat: ROLE_COLOR[role] });
     this.mesh = person.group;
     this.limbs = person.limbs;
+    this.head = person.head;
     this.shirts = person.shirts;
     this.height = person.height;
     // het schort van een verkoper hoort hier niet bij: dat laatste onderdeel gaat eraf
@@ -4388,8 +4769,8 @@ export class Worker implements Leader {
   /** Het pak een andere kleur geven. */
   setSuit(index: number): void {
     this.suit = index;
-    const m = mat(SUIT_COLORS[index] ?? SUIT_COLORS[0]);
-    for (const mesh of this.shirts) mesh.material = m;
+    // (de handen en de broek houden hun eigen kleur)
+    for (const mesh of this.shirts) dye(mesh, SUIT_COLORS[index] ?? SUIT_COLORS[0]);
   }
 
   /** Een karretje erbij: de werker duwt het voor zich uit, loopt sneller en is sneller klaar. */
@@ -4585,6 +4966,8 @@ export class Worker implements Leader {
     this.limbs[1].rotation.x = -Math.sin(t * 14) * 0.9;
     this.limbs[2].rotation.x = -2.5 + Math.sin(t * 11) * 0.55;
     this.limbs[3].rotation.x = -2.5 + Math.cos(t * 12) * 0.55;
+    // grote ogen en een open mond: hij hangt in de lucht
+    setFace(this.head, faceFor('startle', 'fine', t, 0));
     this.mesh.traverse(o => {
       const m = o as THREE.Mesh;
       if (m.isMesh) (m.material as THREE.MeshStandardMaterial).opacity = ok ? 0.6 : 0.28;
@@ -4599,6 +4982,8 @@ export class Worker implements Leader {
   private dropT = 0;
 
   update(dt: number, w: WorkerWorld, claimed: Set<object>): void {
+    // het gezicht: blij, of sip zolang het loon niet betaald is; knipperen gaat vanzelf
+    setFace(this.head, faceFor(null, this.paid ? 'fine' : 'glum', performance.now() / 1000, this.faceSeed));
     if (this.dropT > 0) {
       // eerst vallen (0,3 tel), dan inveren (0,25 tel)
       this.dropT -= dt;
@@ -4720,6 +5105,9 @@ const VENDOR_ITEM: Partial<Record<ShopKind, number>> = { foodstall: 0xffd23f, dr
 export class Vendor {
   readonly mesh: THREE.Group;
   private limbs: THREE.Mesh[];
+  /** Het hoofd, voor het gezicht (zie faces.ts), en een vast gokgetal voor het knipperen. */
+  private head: THREE.Mesh;
+  private faceSeed = Math.random();
   private phase = Math.random() * 6;
   private wave = 0;
   /** Zo lang is de verkoper al met een klant bezig, en het doosje dat hij aangeeft. */
@@ -4730,6 +5118,7 @@ export class Vendor {
     const person = makePerson(false, outfit);
     this.mesh = person.group;
     this.limbs = person.limbs;
+    this.head = person.head;
     // achter de tafel van de marktkraam, met het gezicht naar de gasten
     this.mesh.position.set(0, 0.03, -0.12);
     this.mesh.scale.setScalar(1.15);
@@ -4753,6 +5142,8 @@ export class Vendor {
   update(dt: number, serving = false): void {
     this.phase += dt * 2;
     this.wave = Math.max(0, this.wave - dt);
+    // het gezicht: een brede lach bij een verkoop en voor een klant, anders een gewone lach; knipperen gaat vanzelf
+    setFace(this.head, faceFor(this.wave > 0 ? 'joy' : serving ? 'ride' : null, 'fine', this.phase / 2, this.faceSeed));
     const sway = Math.sin(this.phase) * 0.14, right = this.limbs[2], left = this.limbs[3];
     // een klant: eerst iets pakken (bukken en rommelen onder de toonbank), dan het ophouden tot de klant betaald heeft
     this.serveT = serving && this.wave <= 0 ? this.serveT + dt : 0;
@@ -4764,4 +5155,71 @@ export class Vendor {
     right.rotation.x = this.wave > 0 ? -2.5 + Math.sin(this.phase * 7) * 0.35 : t > 0 ? (-0.8 + Math.sin(this.phase * 6) * 0.25) * grab - (1.35 + Math.sin(this.phase * 1.5) * 0.06) * hold : sway;
     left.rotation.x = t > 0 ? (-0.7 + Math.cos(this.phase * 6) * 0.25) * grab - 0.3 * hold : -sway;
   }
+}
+
+// ------------------------------------------------------------ voor de modellenpagina
+/** De poppetjes van de modellenpagina (modellen.html, groep 'poppetjes'): [naam, hoe het eruitziet, is het een kind, welk hoedje]. */
+const SAMPLES: [string, PersonLook, boolean?, string?][] = [
+  ['kort', { hair: 'short' }],
+  ['scheiding', { hair: 'side', short: true, stripe: true }],
+  ['stekels', { hair: 'crew', short: true, pack: true }],
+  ['bob', { hair: 'bob', skirt: 1, short: true }],
+  ['lang', { hair: 'long', skirt: 2 }],
+  ['staart, pet', { hair: 'tail', short: true }, false, 'cap_red'],
+  ['knot', { hair: 'bun', skirt: 1 }],
+  ['krullen', { hair: 'curls', stripe: true }],
+  ['krans', { hair: 'ring' }],
+  ['kaal', { hair: 'bald', short: true }],
+  ['lang, strohoed', { hair: 'long', skirt: 1, short: true }, false, 'hat_straw'],
+  ['kind', { hair: 'short', short: true, pack: true }, true],
+  ['kind, staartjes', { hair: 'tails', skirt: 2 }, true],
+  ['kind, feestmuts', { hair: 'curls' }, true, 'hat_party'],
+];
+/** De namen van de poppetjes op de modellenpagina; de laatste twee zijn een werker en een verkoper. */
+export const SAMPLE_PEOPLE = [...SAMPLES.map(s => s[0]), 'werker', 'verkoper'];
+
+/** Poppetje nummer `n` van de modellenpagina: los getekend, naar de camera gedraaid en anderhalf keer zo groot als in het spel. */
+export function samplePerson(n: number): THREE.Group {
+  const holder = new THREE.Group(), real = Math.random, sample = SAMPLES[n];
+  // vaste gokgetallen: zo ziet elk poppetje er elke keer hetzelfde uit
+  let from = n * 7919 + 17, seed = from;
+  Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  // `ok`: geen baard boven een rok of jurk
+  const build = (): { figure: THREE.Group; ok: boolean } => {
+    seed = from;
+    if (!sample) return { figure: n === SAMPLES.length ? new Worker(0, 0, 'feed').mesh : Vendor.of('icecream')!.mesh, ok: true };
+    const [, look, child, hat] = sample;
+    const person = makePerson(false, undefined, { child: !!child, solo: true, look: { skirt: 0, short: false, stripe: false, pack: false, ...look } });
+    if (hat) person.group.add(makeHat(hat));
+    return { figure: person.group, ok: !look.skirt || beardColor(person.head.userData.face as number) === null };
+  };
+  /** Welk gezicht en welke kleuren een poppetje heeft gekregen. */
+  const sign = (figure: THREE.Group): string => {
+    let all = '';
+    figure.traverse(o => (all += `${(o.userData.face as number | undefined) ?? ''}:${((o as THREE.Mesh).material as THREE.Material | undefined)?.id ?? ''},`));
+    return all;
+  };
+  try {
+    // Een nieuw materiaal gebruikt zelf ook gokgetallen, dus de eerste keer valt het anders uit dan daarna: daarom
+    // nog eens bouwen tot het twee keer hetzelfde poppetje is. Klopt het dan niet, dan met andere gokgetallen opnieuw.
+    let made = build();
+    for (let shifts = 0; shifts < 12; shifts++) {
+      for (let tries = 0, was = ''; tries < 6; tries++) {
+        const now = sign(made.figure);
+        if (now === was) break;
+        was = now;
+        made = build();
+      }
+      if (made.ok) break;
+      from += 31;
+      made = build();
+    }
+    made.figure.position.set(0, 0, 0);
+    holder.add(made.figure);
+  } finally {
+    Math.random = real;
+  }
+  holder.rotation.y = Math.PI / 4;
+  holder.scale.setScalar(1.5);
+  return holder;
 }

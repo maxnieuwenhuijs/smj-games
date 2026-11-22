@@ -2,7 +2,7 @@
 // zieke en ontsnapte dieren, figuren, geluid, levels en opslaan.
 import type * as THREE from 'three';
 import { saveSet, t } from '@smj/shared';
-import { Animal, type AnimalWorld, type Trough } from './animal';
+import { Animal, type AnimalWorld, type TrickSound, type Trough } from './animal';
 import { miniOpen, playMini, type MiniOptions } from './minigame';
 import { ambience, animalSound, hasVoice, heard, layer, listen, music, playVoice, reshuffle, sfx } from './audio';
 import {
@@ -22,7 +22,7 @@ import { CHEERS, EVENT_SAYS, NAMED, PRAISE, callText, goalLine, say, textOf, voi
 import { TEACHERS, type TeacherId } from './figures';
 import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStatic, speciesIcon } from './models';
 import { ENTRANCE, GuestManager, Train, Vendor, Worker, edgePose, edgeSides, shopCenter, shopTiles, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type PetSpot, type ShopSpot, type VetJob, type WorkerRole, type WorkerWorld, type FixJob } from './people';
-import { SIGHT, type Sight } from './people';
+import { SIGHT, type GuestCue, type Sight } from './people';
 import { PEN } from './people';
 import { Road } from './road';
 import { EDGE_SHIFT, View, toWorldX, toWorldZ, type TroughMesh } from './view';
@@ -45,6 +45,22 @@ const TOOL_GROUPS: [string, ToolId[]][] = [
 ];
 /** Hoe snel een speeltoestel heen en weer gaat. */
 const PLAY_SPEED: Partial<Record<ShopKind, number>> = { swing: 2.6, seesaw: 3, springer: 6, trampoline: 5 };
+/**
+ * De geluidjes van de gasten: [hoe hard, hoeveel tellen het daarna stil blijft]. Wat vaak gebeurt (een hap, een
+ * sprong op de trampoline) klinkt zacht en met een lange pauze, zodat een vol park niet één groot lawaai wordt.
+ * Wat hier niet staat, klinkt op 0,35 met vijf tellen ertussen.
+ */
+const GUEST_SOUND: Partial<Record<GuestCue, [number, number]>> = {
+  'guest.yum': [0.22, 9], 'guest.slurp': [0.22, 8], 'guest.bite': [0.22, 8], 'guest.aah': [0.3, 6],
+  'guest.uhoh': [0.3, 4], 'guest.shh': [0.3, 7], 'guest.yuck': [0.3, 6], 'guest.aww': [0.3, 6], 'guest.yawn': [0.25, 10], 'guest.sigh': [0.22, 8],
+  'guest.phew': [0.3, 5], 'guest.dizzy': [0.3, 5], 'guest.five': [0.4, 2], 'guest.sniff': [0.3, 5], 'guest.echo': [0.35, 5], 'guest.chat': [0.3, 6],
+  'park.scribble': [0.3, 4], 'park.splash': [0.25, 3], 'park.brolly': [0.25, 3],
+  'guest.whee': [0.3, 4], 'ride.boing': [0.2, 1.8], 'ride.creak': [0.18, 4], 'ride.bump': [0.25, 2.5],
+};
+/** De geluiden bij de kunstjes van de dieren: [welk geluid, hoe hard, hoe snel afgespeeld]. Trappelen is stampen, maar lichter en vlugger. */
+const TRICK_SOUND: Record<TrickSound, [string, number, number]> = {
+  stomp: ['animal.stomp', 0.4, 1], trot: ['animal.stomp', 0.28, 1.35], clap: ['animal.clap', 0.4, 1], slide: ['animal.slide', 0.35, 1], fan: ['animal.fan', 0.4, 1], splash: ['animal.splash', 0.45, 1],
+};
 const PAINT_TOOLS = new Set<ToolId>(['terrain', 'fence', 'erase', 'action']);
 const TROUGH_ICON: Record<TroughKind, IconId> = { wood: 'trough_empty', big: 'trough_big', silo: 'trough_silo' };
 const ROLE_ICON: Record<WorkerRole, IconId> = { feed: 'feed', clean: 'broom', fix: 'hammer', vet: 'vet', guide: 'guide', photo: 'photo' };
@@ -939,8 +955,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.sellPhoto(guest, 0.8);
   }
 
-  guestSound(kind: 'flush' | 'guest.laugh' | 'toilet.pee' | 'toilet.poop' | 'guest.grumble', guest: Guest): void {
-    sfx(kind, { volume: 0.35, every: 5, at: [guest.gx, guest.gy] });
+  guestSound(kind: GuestCue, guest: Guest): void {
+    const [volume, every] = GUEST_SOUND[kind] ?? [0.35, 5];
+    sfx(kind, { volume, every, at: [guest.gx, guest.gy] });
   }
 
   splash(gx: number, gy: number): void {
@@ -1037,6 +1054,14 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   spray(gx: number, gy: number, height: number): void {
     this.view.burst(gx, gy, height, 0xbfe6ff, 2);
+    // dit komt een paar keer per tel langs zolang de olifant spuit: het geluid klinkt één keer per keer spuiten
+    sfx('animal.spray', { volume: 0.4, every: 4, at: [gx, gy] });
+  }
+
+  /** Het geluid bij een kunstje van een dier (stampen, klappen met de vinnen, op de buik glijden, pronken, de plons na een sprong). */
+  trickSound(animal: Animal, kind: TrickSound): void {
+    const [id, volume, rate] = TRICK_SOUND[kind];
+    sfx(id, { volume, rate: rate * (animal.young ? 1.25 : 1), every: 2.5, at: [animal.gx, animal.gy] });
   }
 
   heart(gx: number, gy: number, height: number): void {
@@ -4577,6 +4602,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   binned(bin: ShopSpot): void {
     this.view.flapLid((bin as ShopObj).mesh);
+    // het propje ritselt en ploft in de bak
+    sfx('park.bin', { volume: 0.25, every: 4, at: shopCenter(bin) });
   }
 
   // ------------------------------------------------------------ dingen in het park waar gasten iets mee doen
@@ -4619,7 +4646,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return list;
   }
 
-  /** Een gast doet iets met een ding in het park: het beweegt even mee, net als wanneer de speler erop tikt (maar zonder geluid). */
+  /** Een gast doet iets met een ding in het park: het beweegt even mee, net als wanneer de speler erop tikt (zonder het tikje, wel met het geluid van het ding zelf). */
   sightUsed(sight: Sight): void {
     if (sight.kind === 'bin') {
       if (this.shops.includes(sight.ref as ShopObj)) this.binned(sight.ref as ShopObj);
@@ -4632,6 +4659,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.view.pokeDecor(decor.mesh, kind, this.clock);
     if (kind === 'pond' || kind === 'pump') this.view.splash(sight.x, sight.y);
     else if (kind === 'birdbath') this.view.burst(sight.x, sight.y, 0.7, 0xcfeaff, 3);
+    // de pomp piept en geeft water, de kikker plonst in de vijver, het vuur knettert even op
+    if (kind === 'pump') sfx('park.pump', { volume: 0.3, every: 2.2, at: [sight.x, sight.y] });
+    else if (kind === 'pond') sfx('park.splash', { volume: 0.22, every: 3, at: [sight.x, sight.y] });
+    else if (kind === 'campfire') sfx('park.fire', { volume: 0.3, every: 5, at: [sight.x, sight.y] });
     // een nieuwe tekening in het gastenboek
     if (kind === 'guestbook') this.floatAt(icon('heart'), sight.x, sight.y, 1.1);
   }
@@ -4640,6 +4671,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   plons(gx: number, gy: number, height: number, coin: boolean): void {
     if (height > 0) this.view.burst(gx, gy, height, 0xcfeaff, 4);
     else this.view.splash(gx, gy);
+    // een muntje maakt een klein plopje, een hand of een stukje brood een plons
+    sfx(coin ? 'park.coinplop' : 'park.splash', { volume: coin ? 0.3 : 0.22, every: coin ? 2 : 3, at: [gx, gy] });
     if (!coin) return;
     this.view.burst(gx, gy, height, 0xffd23f, 1);
     if (Math.random() < 0.2) this.earn(1, gx, gy);

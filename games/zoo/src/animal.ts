@@ -99,7 +99,12 @@ export interface AnimalWorld {
   cry(animal: Animal, loud: boolean): void;
   /** Een paar druppels water die vanaf deze plek en hoogte omhoog spuiten (de olifant). */
   spray(gx: number, gy: number, height: number): void;
+  /** Het geluid bij een kunstje, één keer als het begint (de plons: als het dier weer in het water landt). */
+  trickSound(animal: Animal, kind: TrickSound): void;
 }
+
+/** De geluiden bij een kunstje: stampen, trappelen, klappen met de vinnen, op de buik glijden, pronken met de veren en de plons na een sprong. */
+export type TrickSound = 'stomp' | 'trot' | 'clap' | 'slide' | 'fan' | 'splash';
 
 /** Iemand die bij een verblijf staat te kijken of erlangs loopt: een gast. */
 export interface Watcher {
@@ -1433,6 +1438,7 @@ export class Animal {
     } else if (style === 'stomp') {
       this.show('stomp');
       cry = 1.6;
+      w.trickSound(this, 'stomp');
     } else if (style === 'wave') this.show('wave');
     else if (style === 'ape') {
       // op en neer springen, en daarna terugzwaaien
@@ -1447,23 +1453,29 @@ export class Animal {
     } else if (style === 'prance') {
       this.show('prance');
       if (Math.random() < 0.4) cry = 0.5;
+      w.trickSound(this, 'trot');
     } else if (style === 'hop') {
       this.show('hop');
       if (Math.random() < 0.5) this.encore = 'jumpturn';
     } else if (style === 'bob') {
       this.show('bob');
       if (Math.random() < 0.4) cry = 0.4;
-    } else if (style === 'fan') this.show('fan');
-    else if (style === 'lean') this.show('lean');
+    } else if (style === 'fan') {
+      this.show('fan');
+      w.trickSound(this, 'fan');
+    } else if (style === 'lean') this.show('lean');
     else if (style === 'spray') {
       this.show('spray');
       if (Math.random() < 0.5) cry = 0.5;
     } else if (style === 'clap') {
       // glijden kan alleen op het droge en als er een tegel vrij is; de walrus is er te zwaar voor
-      if (this.species !== 'walrus' && !this.sink && Math.random() < 0.5 && this.slide(w)) turn = false;
-      else {
+      if (this.species !== 'walrus' && !this.sink && Math.random() < 0.5 && this.slide(w)) {
+        turn = false;
+        w.trickSound(this, 'slide');
+      } else {
         this.show('clap');
         if (Math.random() < 0.5) cry = 0.4;
+        w.trickSound(this, 'clap');
       }
     } else if (style === 'snap') this.show('snap');
     else if (style === 'jump' && this.sink) {
@@ -1904,6 +1916,8 @@ export class Animal {
     if (this.leap && this.trick?.kind !== 'leap' && this.trick?.kind !== 'breach') {
       this.leap = null;
       w.splash(this.gx, this.gy);
+      // de plons hoor je alleen als het dier in het water landt
+      if (w.grid.terrain[this.tile] === WATER_TILE) w.trickSound(this, 'splash');
     }
     if (this.dash && this.trick?.kind !== 'tunnel' && this.trick?.kind !== 'under' && this.trick?.kind !== 'swing' && this.trick?.kind !== 'slide') this.dash = null;
     // voor de gasten: het geluid bij een kunstje (even na het begin), het water van de olifant, en meedraven met een kind

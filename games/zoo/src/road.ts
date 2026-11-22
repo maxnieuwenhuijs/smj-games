@@ -3,7 +3,9 @@
 // Alles is alleen om naar te kijken: je kunt er niets bouwen en er niet op tikken.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { sfx } from './audio';
 import { H, W } from './grid';
+import { randomFace, soloFace } from './faces';
 
 type Geo = THREE.BufferGeometry;
 type Light = { gx: number; gy: number; r: number };
@@ -28,6 +30,8 @@ const FAR_Z = FRONT_Z + 6.35, FAR_W = 0.7;
 /** Hier staat de neus van de bus of de vrachtwagen als hij stopt: net voor het zebrapad. */
 const STOP_NOSE = GATE_X + 1.2;
 const RACK_X = GATE_X - 1.9;
+/** Zo ver voor de poort (in tegels) belt een fietser. */
+const BELL_AT = 3.5;
 
 /** Voor de bomen rond het park (zie view.ts): voor het park staat er geen een, daar ligt de weg. */
 export const roadside = (gy: number): boolean => gy > H + 0.3;
@@ -292,6 +296,12 @@ function makeFigure(scene: THREE.Scene, kind: number, n: number): Figure {
   const mesh = new THREE.Mesh(body, PAINT);
   mesh.castShadow = true;
   group.add(mesh);
+  // een gezichtje voor het hoofd (zie faces.ts); wie loopt of stept als kind, krijgt een kindergezicht
+  const face = soloFace(skin, randomFace(kind === KID || kind === STEPPER));
+  if (face) {
+    face.position.y = kind === CYCLIST ? 0.76 : kind === STEPPER ? 0.595 : 0.505;
+    group.add(face);
+  }
   group.visible = false;
   scene.add(group);
   return { group, kind, swing, wheels, size, active: false, x: 0, z: 0, speed: 1, phase: n, route: new Float32Array(6), steps: 0, step: 0, vanish: false, out: 0, grow: 1, fresh: false };
@@ -525,6 +535,8 @@ export class Road {
         if (v === this.bus) {
           this.kids = 7;
           this.kidIn = 1;
+          // de deur van de bus gaat sissend open
+          sfx('road.busdoor', { volume: 0.3, at: [v.x - 0.72 + W / 2, LANE_NEAR + H / 2] });
         }
       } else want = Math.min(want, Math.max(0.5, d * 1.6));
     }
@@ -541,7 +553,10 @@ export class Road {
       }
     }
     v.v = want > v.v ? Math.min(want, v.v + 1.8 * dt) : Math.max(want, v.v - 7 * dt);
+    // een auto die de poort nadert, hoor je zachtjes voorbijkomen (niet elke: het blijft rustig bij de poort)
+    const near = GATE_X - v.dir * 3, was = v.x;
     v.x += v.v * v.dir * dt;
+    if (v.halt === 0 && (was - near) * (v.x - near) < 0) sfx('road.car', { volume: 0.15, every: 20, at: [v.x + W / 2, v.group.position.z + H / 2] });
     if (v.x * v.dir > END + v.len / 2 + 0.3) {
       v.active = false;
       v.group.visible = false;
@@ -657,6 +672,7 @@ export class Road {
       g.scale.setScalar(f.size * Math.max(0.01, f.grow));
     }
     const dx = f.route[f.step * 2] - f.x, dz = f.route[f.step * 2 + 1] - f.z, d = Math.hypot(dx, dz), go = f.speed * dt;
+    const was = f.x;
     if (d <= go) {
       f.x += dx;
       f.z += dz;
@@ -683,6 +699,8 @@ export class Road {
     g.position.x = f.x;
     g.position.z = f.z;
     if (f.kind === CYCLIST) {
+      // een fietser die bij de poort aankomt, belt af en toe even (één keer, een paar tegels ervoor)
+      if (Math.abs(was - GATE_X) > BELL_AT && Math.abs(f.x - GATE_X) <= BELL_AT && Math.random() < 0.6) sfx('road.bell', { volume: 0.25, every: 15, at: [f.x + W / 2, f.z + H / 2] });
       // de wielen draaien en de benen trappen om de beurt
       f.phase += dt * f.speed * 3.2;
       const roll = (f.speed * dt) / (0.17 * f.size), push = Math.sin(f.phase) * 0.4;

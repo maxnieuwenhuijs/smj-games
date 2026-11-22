@@ -283,6 +283,13 @@ const ICONS = {
   world_far:
     '<path d="M2 34 Q8 28 14 34 T26 34 T38 34 T50 34 V46 H2Z" fill="#6ec3e8"/><ellipse cx="24" cy="33" rx="14" ry="5" fill="#ecd591"/>' +
     '<path d="M24 31 Q23 22 27 14" fill="none" stroke="#8a5a2c" stroke-width="3.5" stroke-linecap="round"/><path d="M27 14 Q18 8 13 15 M27 14 Q36 8 41 16 M27 14 Q24 6 30 4" fill="none" stroke="#5bab4c" stroke-width="4" stroke-linecap="round"/>',
+  // het beeld draaien: een videocamera met een dikke oranje draaipijl eromheen (de linkerknop is hetzelfde plaatje in
+  // spiegelbeeld). De pijl is het belangrijkst: die moet je in één oogopslag zien.
+  camturn:
+    '<g transform="translate(7 17) scale(0.72)"><circle cx="13" cy="20" r="5" fill="#3d4f5a"/><circle cx="13" cy="20" r="1.8" fill="#b9c2c9"/><circle cx="24.5" cy="19" r="6" fill="#3d4f5a"/><circle cx="24.5" cy="19" r="2.1" fill="#b9c2c9"/>' +
+    '<rect x="5" y="24" width="27" height="19" rx="4" fill="#6f7c87"/><rect x="5" y="24" width="27" height="6" rx="3" fill="#8b98a3"/><path d="M32 30 L44 24 V43 L32 37Z" fill="#5a6670"/><circle cx="11" cy="36" r="2.4" fill="#e0584f"/><rect x="17" y="34" width="10" height="4" rx="1.5" fill="#d6ecfb"/></g>' +
+    '<path d="M6 31 A19 19 0 0 1 39 15" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round"/><path d="M6 31 A19 19 0 0 1 39 15" fill="none" stroke="#f08a24" stroke-width="6" stroke-linecap="round"/>' +
+    '<path d="M45.5 8 L47 24.5 L31.5 20.5Z" fill="#f08a24" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>',
   turn:
     `<path d="M38 24 A14 14 0 1 1 30 11" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><path d="M28 3 L40 10 L29 18Z" fill="${INK}"/>`,
   // meer voor in het park

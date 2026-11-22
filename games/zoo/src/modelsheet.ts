@@ -8,6 +8,8 @@ import * as THREE from 'three';
 import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FERRIS, FOODS, PARK_PROPS, WILD_PROPS, SHOPS, SHOP_SIZE, TERRAINS, TOYS, TROUGHS, bumperCar, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type Terrain, type ToyKind, type TroughKind } from './data';
 import { BASE_LAND, FULL_LAND, Grid, edgeKey, type Edge, type EdgeKind } from './grid';
 import { View, toWorldX, toWorldZ } from './view';
+import { FACES, sampleHead, showSample } from './faces';
+import { SAMPLE_PEOPLE, samplePerson } from './people';
 
 const query = new URLSearchParams(location.search);
 const num = (key: string, fallback: number): number => (query.has(key) ? Number(query.get(key)) : fallback);
@@ -156,6 +158,25 @@ const patch = (kind: Terrain): Item => ({
     for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) grid.setTerrain(x + dx, y + dy, TERRAINS.indexOf(kind));
   },
 });
+/** Een groot los hoofd met gezicht nummer `i`; de uitdrukkingen komen om de beurt langs (zie faces.ts). */
+const face = (i: number): Item => ({
+  name: `${i}`, size: 1,
+  put: (x, y) => {
+    const head = sampleHead(i);
+    head.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
+    view.scene.add(head);
+    live.push(t => showSample(head, i + Math.floor(t / 1.5)));
+  },
+});
+/** Een heel poppetje (zie people.ts): gasten en kinderen met elk ander haar en andere kleren, een werker en een verkoper. */
+const person = (name: string, i: number): Item => ({
+  name, size: 1,
+  put: (x, y) => {
+    const figure = samplePerson(i);
+    figure.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
+    view.scene.add(figure);
+  },
+});
 const train: Item = {
   name: 'trein', size: 3,
   put: (x, y) => {
@@ -190,6 +211,10 @@ const GROUPS: Record<string, Item[]> = {
   ...Object.fromEntries(Object.entries(SHOP_SETS).map(([name, kinds]) => [name, kinds.map(shop)])),
   afval: [0, 1, 2, 3].map(litter),
   trein: [train],
+  // alle gezichten van de poppetjes, elk met een andere uitdrukking (&t=... kiest het moment)
+  gezichten: Array.from({ length: FACES }, (_, i) => face(i)),
+  // hele poppetjes: elk kapsel, kinderen, een paar met een hoedje, een werker en een verkoper
+  poppetjes: SAMPLE_PEOPLE.map(person),
   pad: [path('flowerpath'), path('bridge')],
   // elke soort ondergrond als een veldje, tegen elkaar aan: zo zie je ook de overgangen
   grond: TERRAINS.map(patch),
@@ -217,7 +242,8 @@ const items = (GROUPS[groupName] ?? []).filter(item => !only || only.includes(it
 // Per groep: hoe hoog de modellen ongeveer zijn, hoeveel ruimte ertussen moet en hoeveel er op een rij staan.
 const LOOK: Record<string, { tall?: number; gap?: number; row?: number }> = {
   kramen: { tall: 3.2 }, gebouwen: { tall: 3 }, speeltuin: { tall: 3 }, attracties: { tall: 4.6, gap: 2, row: 3 }, afval: { tall: 0.5 }, klein: { tall: 1.2 },
-  voer: { tall: 1.4 }, hekken: { tall: 1.4 }, trein: { tall: 1.2 }, parkjes: { tall: 0.7, gap: 0, row: 5 }, grond: { tall: 0.4, gap: 0, row: 7 },
+  voer: { tall: 1.4 }, hekken: { tall: 1.4 }, trein: { tall: 1.2 }, parkjes: { tall: 0.7, gap: 0, row: 5 }, grond: { tall: 0.4, gap: 0, row: 7 }, gezichten: { tall: 0.8, gap: 0, row: 8 },
+  poppetjes: { tall: 1.2, gap: 0, row: 8 },
 };
 const look = only ? {} : LOOK[groupName] ?? {};
 const perRow = num('rij', look.row ?? Math.ceil(Math.sqrt(items.length * 1.6)));
