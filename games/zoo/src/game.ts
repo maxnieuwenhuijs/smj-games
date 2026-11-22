@@ -3849,7 +3849,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // de gast zwaait terug
       guest.greet();
       this.floatAt(icon('heart'), guest.gx, guest.gy, guest.height + 0.2);
-    }, header, 'animal');
+    }, header, 'guest');
     const canvas = document.querySelector<HTMLCanvasElement>('#menu canvas.portrait3d');
     this.liveGuest = canvas ? { g: guest, canvas, label: document.querySelector<HTMLElement>('#menu .doing'), was: '', skip: false } : null;
     this.updateLiveGuest();

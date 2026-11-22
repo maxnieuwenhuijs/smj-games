@@ -268,6 +268,23 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 #menu[data-kind='animal'] .row .tool.small .ic { font-size: min(25px, 5vw); }
 #menu[data-kind='animal'] .row .tool.small b { font-size: clamp(7px, 1.6vw, 11px); }
 #menu[data-kind='animal'] .portrait3d { width: 96px; height: 96px; }
+/* het menu van een gast is klein: links de gast zelf met wat hij doet, rechts zijn wensen in een raster van vier breed,
+   en eronder de weetjes naast elkaar in twee kolommen */
+#menu[data-kind='guest'] { max-width: min(330px, calc(100vw - 16px)); padding: 8px 10px 10px; gap: 6px; border-radius: 20px; }
+#menu[data-kind='guest'] .title { font-size: 15px; }
+#menu[data-kind='guest'] .header { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 6px 10px; }
+#menu[data-kind='guest'] .live { gap: 1px; }
+#menu[data-kind='guest'] .portrait3d { width: 72px; height: 72px; border-radius: 15px; }
+#menu[data-kind='guest'] .doing { font-size: 11px; min-height: 13px; }
+#menu[data-kind='guest'] .needs { display: grid; grid-template-columns: repeat(4, max-content); justify-content: start; gap: 4px; font-size: 25px; }
+#menu[data-kind='guest'] .needs .wish { padding: 3px 11px 3px 4px; border-radius: 9px; }
+#menu[data-kind='guest'] .needs .wish .meter { width: 5px; right: 3px; top: 3px; bottom: 3px; }
+#menu[data-kind='guest'] .facts { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 1px 10px; align-items: start; font-size: 11.5px; line-height: 1.2; }
+#menu[data-kind='guest'] .facts .fact { text-align: left; align-items: flex-start; }
+#menu[data-kind='guest'] .facts .fact .ic { font-size: 13px; flex: none; }
+#menu[data-kind='guest'] .row .tool.small { width: min(48px, 11vw); height: min(48px, 11vw); border-radius: 13px; }
+#menu[data-kind='guest'] .row .tool.small .ic { font-size: min(22px, 5vw); }
+#menu[data-kind='guest'] .row .tool.small b { font-size: clamp(7px, 1.6vw, 10px); }
 .wish.no { background: #fbdcd9; }
 .wish.no .ic { opacity: 0.55; }
 
