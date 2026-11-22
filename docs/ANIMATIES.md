@@ -20,10 +20,11 @@ De volledige lijst van de dierentuin: per onderdeel wat je ermee kunt doen (tikk
 | Bankje, bloembak, afvalbak | Het veert even op (omdraaien met een tik kan niet meer); afval in de bak doen. Bij het neerzetten gaat het vanzelf op de rand van het pad staan en kijkt het naar het pad; ligt er geen pad naast, of aan beide kanten, dan kijkt het naar de kant waar je tikt. |
 | Boom, bloemen, vijver, lantaarn en alle andere dingen van de knop Park | Het ding schudt, draait of flitst en er springen blaadjes, druppels of vonkjes uit (**nieuw**). |
 | Gastenboek | Het boek gaat open met de tekeningen van de gasten (**nieuw**). |
+| Natuur (graspol, bloemetjes, varen, struikje, kiezels, steen, boom, den, palm, rots) | Met de knop Natuur zet je ze neer, klein op een kwart tegel, groot op een hele (**nieuw**). De dieren in het verblijf worden blij als het nu klopt en sip als het te vol wordt. |
 | Grond die te koop is | Het koopmenu. |
 | Poepje, afval, versleten hek | De goede actie wordt gekozen en de actieknop licht op. |
 
-Met de twee pijlen rechtsboven draai je het beeld een kwartslag (**nieuw**). Zet je iets neer (voerbak, slaapplek, speelgoed, iets van Park of een winkel), dan staat rechts de gele knop Draai: elke tik draait het ding een kwartslag en het voorbeeld draait mee (**nieuw**; op een toetsenbord de toets R). Heg, rozen, tulpen, zonnebloemen en de bloemenboog zet je op de rand van een tegel, net als een hek (**nieuw**). Met Hek sleep je een heel hok: je ziet het als voorbeeld en de hekken komen bij loslaten (**nieuw**).
+Met de twee pijlen rechtsboven draai je het beeld een kwartslag (**nieuw**). Zet je iets neer (voerbak, slaapplek, speelgoed, iets van Park of een winkel), dan hangt boven het gekozen ding in de balk de gele knop Draai: elke tik draait het ding een kwartslag en het voorbeeld draait mee (**nieuw**; op een toetsenbord de toets R). Heg, rozen, tulpen, zonnebloemen en de bloemenboog zet je op de rand van een tegel, net als een hek (**nieuw**). Met Hek sleep je een heel hok: je ziet het als voorbeeld en de hekken komen bij loslaten (**nieuw**).
 
 Slepen: het beeld schuiven; met grond, hek of gum in de hand verven, bouwen of weghalen; met de veger, prikker of hamer in de hand opruimen en repareren. Knijpen of scrollen: in- en uitzoomen.
 
@@ -45,7 +46,9 @@ Slepen: het beeld schuiven; met grond, hek of gum in de hand verven, bouwen of w
 
 ### Bij kramen en attracties
 - De hand uitsteken naar de toonbank; daarna eten of drinken uit de hand; een kind dat een ijsje, ballon of knuffel krijgt, springt (**nieuw**).
-- Op het bankje zitten; kinderen zwaaien met hun benen (**nieuw**).
+- Op het bankje zitten, acht tellen lang; kinderen zwaaien met hun benen. Wie een beetje moe is of iets te eten heeft, zoekt een bankje in de buurt op en eet daar verder; er passen twee gasten op een bankje (**nieuw**).
+- Wc (**nieuw**): de gast loopt naar een vrij deurtje, de deur zwaait open, hij stapt naar binnen, de deur gaat dicht, je hoort een plasje of een poepje en daarna het doortrekken, de deur gaat open en hij komt weer naar buiten. Er kunnen er twee tegelijk in.
+- De rij (**nieuw**): wachtende gasten staan netjes achter elkaar op het pad voor de deur of de toonbank, schuiven door als er iemand klaar is en bewegen daarbij hun benen.
 - Speeltuin en glijbaan: de trap op, naar beneden glijden met de armen in de lucht (**nieuw: de armen**).
 - Schommel, wipwap, wipkip, trampoline, draaimolen: de gast beweegt mee met het toestel.
 - **Nieuw:** reuzenrad (mee omhoog, bovenin de armen omhoog), botsauto's (in de auto zitten en sturen), uitkijktoren (naar boven klimmen, rondkijken en wijzen), restaurant (op een kruk aan tafel eten), treintje (op het perron wachten, instappen, meerijden en uitstappen), schuilhut (onder het dak staan tot het droog is).
@@ -104,7 +107,10 @@ Kunstjes die er al waren: springen, rondjes draaien, rollen, droogschudden na he
 - **Nieuw:** elke boom is anders: groter of kleiner, breder of smaller, lichter of donkerder, en met een eigen vorm van de kruin.
 
 ## 7. In de verblijven
-- De bal stuitert, de struik ritselt, de boomstam wiebelt, de bloemen wuiven, de hoepel draait naar het dier dat springt.
+- **Nieuw:** de twee ballen zijn losse dingen. Een dier duwt er met zijn neus tegen en de bal rolt echt weg: hij draait mee, stuitert een paar keer, kaatst terug van de rand van het verblijf en botst tegen de andere bal. Het dier rent erachteraan en duwt nog een paar keer; daarna rolt de bal terug naar zijn plek. Op water drijft en dobbert hij.
+- **Nieuw:** de boomstam rolt opzij als een dier ertegen duwt en rolt vanzelf terug; de stronk blijft staan.
+- Een tik van jou op de bal of de boomstam geeft hem ook een zet.
+- De struik ritselt, de bloemen wuiven, de hoepel draait naar het dier dat springt.
 - **Nieuw:** het water van de drinkvijver rimpelt, de waterval stroomt, de warmtelamp gloeit.
 - Voer verdwijnt portie voor portie uit de bak; de bak veert op als een dier eet.
 - Het water in een glazen bak staat hoog; dieren spatten als ze zwemmen.

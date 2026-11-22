@@ -109,6 +109,9 @@ export class Hud {
     this.spinBtn.setAttribute('aria-label', t('spin'));
     this.spinBtn.addEventListener('click', () => this.on.spin());
     document.getElementById('ui')!.append(this.spinBtn);
+    // schuift de keuzerij of verandert het scherm, dan schuift de draaiknop mee
+    this.options.addEventListener('scroll', () => this.placeSpin(), true);
+    addEventListener('resize', () => this.placeSpin());
     const sound = $('sound');
     const showSound = (): void => {
       sound.innerHTML = icon(isMuted() ? 'sound_off' : 'sound_on');
@@ -170,12 +173,30 @@ export class Hud {
     this.overlay.hidden = false;
   }
 
-  private spinBtn = el('button', 'tool', `${icon('turn')}<b>${t('spin')}</b>`);
+  private spinBtn = el('button', 'tool small', `${icon('turn')}<b>${t('spin')}</b>`);
+  /** Het ding in de balk onderaan waar de draaiknop boven hangt. */
+  private spinAt: HTMLElement | null = null;
 
-  /** De draaiknop tonen of verbergen; `quarters`: hoe vaak er al gedraaid is, zodat het pijltje mee draait. */
-  setSpin(show: boolean, quarters = 0): void {
+  /**
+   * De draaiknop tonen of verbergen. Hij hangt in de balk onderaan, recht boven het ding dat je gekozen hebt
+   * (`anchor`: die keuze; zonder keuzerij boven de knop zelf). `quarters`: hoe vaak er al gedraaid is, zodat het
+   * pijltje mee draait.
+   */
+  setSpin(show: boolean, quarters = 0, anchor = ''): void {
     this.spinBtn.hidden = !show;
     this.spinBtn.style.setProperty('--q', String(quarters));
+    this.spinAt = show ? (anchor && this.options.querySelector<HTMLElement>(`[data-option="${anchor}"].on`)) || this.toolbar.querySelector<HTMLElement>('.tool.on') : null;
+    this.placeSpin();
+  }
+
+  /** Zet de draaiknop boven de gekozen knop: boven de keuzerijen, en altijd binnen het scherm. */
+  private placeSpin(): void {
+    const at = this.spinAt;
+    if (!at || !at.isConnected || this.spinBtn.hidden) return;
+    const r = at.getBoundingClientRect(), rows = this.options.getBoundingClientRect(), b = this.spinBtn.getBoundingClientRect();
+    const top = rows.height ? Math.min(r.top, rows.top) : r.top;
+    this.spinBtn.style.left = `${Math.max(6, Math.min(innerWidth - b.width - 6, r.left + r.width / 2 - b.width / 2))}px`;
+    this.spinBtn.style.top = `${top - b.height - 12}px`;
   }
 
   /** `open`: de knop waarvan de keuzerij open blijft staan terwijl het handje aan staat (net iets neergezet). */

@@ -113,6 +113,11 @@ export const T = {
         game.view.scene.remove(b.mesh);
         game.toys = game.toys.filter(k => k !== b);
       }
+      // ook het groen en de stenen van het vorige dier gaan weg
+      if (game.props) {
+        game.props = game.props.filter(p => !((p.sx >> 1) >= slot.x0 && (p.sx >> 1) <= slot.x1 && (p.sy >> 1) >= slot.y0 && (p.sy >> 1) <= slot.y1));
+        game.syncProps();
+      }
     }
     const slot = SLOTS[n];
     this.home[sp] = n;
@@ -150,6 +155,18 @@ export const T = {
     }
   },
 
+  /** Groen en steen: zet neer wat de dieren in dit verblijf vragen, één munt per stuk. */
+  plant(sp) {
+    const game = z();
+    if (!FEATURE.wild || game.level < FEATURE.wild || !game.plantOne || this.home[sp] === undefined) return;
+    const slot = SLOTS[this.home[sp]];
+    const region = game.grid.enclosureAt(slot.x0, slot.y0);
+    for (let i = 0; region && i < 40; i++) {
+      if (game.coins < 1 || !game.plantOne(region)) break;
+      this.pay(1);
+    }
+  },
+
   /** Zorgt dat er minstens `n` volwassen dieren van de soort zijn (om en om jongen en meisje). */
   async stock(sp, n = 2) {
     const game = z();
@@ -163,6 +180,7 @@ export const T = {
       game.addAnimal(sp, sex, slot.x0 + 0.5 + (adults.length % 2), slot.y1 + 0.5 - Math.floor(adults.length / 2));
       adults = this.animalsOf(sp).filter(a => !a.young);
     }
+    this.plant(sp);
     return true;
   },
 

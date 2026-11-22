@@ -330,13 +330,42 @@ const ICONS = {
   trough_silo:
     `<rect x="16" y="12" width="16" height="26" rx="3" fill="#d9dde2" stroke="${INK}" stroke-width="2"/><path d="M13 13 L24 3 L35 13Z" fill="${RED}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><path d="M16 20 H32 M16 28 H32" stroke="#a9adb3" stroke-width="2"/><path d="M10 38 H38 L36 46 H12Z" fill="${WOOD}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`,
   // een kwast met verf: de kleur van het hek kiezen
+  // het hek een kleur geven: een schilderspalet met klodders verf
   paint:
-    `<path d="M41 5 L26 20" stroke="${WOOD_D}" stroke-width="5" stroke-linecap="round"/><path d="M27 16 L32 21 L22 33 Q15 40 6 42 Q9 34 15 27Z" fill="${RED}"/><path d="M25 18 L30 23" stroke="#8a857a" stroke-width="3"/><circle cx="37" cy="35" r="5" fill="#4a90e2"/><circle cx="27" cy="42" r="4" fill="${SUN}"/>`,
+    `<path d="M24 5 C11 5 3 14 3 24 C3 35 12 43 24 43 C29 43 30.5 39.5 28.5 36.5 C26.5 33.5 28.5 30 33 30 L38 30 C43 30 45 26 45 21.5 C45 12 36 5 24 5Z" fill="#f0d6a3" stroke="${WOOD_D}" stroke-width="2.6" stroke-linejoin="round"/>` +
+    `<circle cx="13.5" cy="17" r="4.8" fill="${RED}"/><circle cx="25" cy="12" r="4.8" fill="${SUN}"/><circle cx="36" cy="17.5" r="4.8" fill="#5bab4c"/><circle cx="11" cy="29" r="4.8" fill="#4a90e2"/><circle cx="19.5" cy="36.5" r="4.2" fill="#b06ad9"/>` +
+    `<path d="M11.5 15.5 q1.5 -2 3.5 -1.5 M23 10.5 q1.5 -2 3.5 -1.5 M34 16 q1.5 -2 3.5 -1.5 M9 27.5 q1.5 -2 3.5 -1.5" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".75"/>`,
   // de actieknop: veger, hamer en prikker naast elkaar
   action:
     `<path d="M13 4 L10 25" stroke="${WOOD_D}" stroke-width="3.5" stroke-linecap="round"/><path d="M3 26 H17 L19 41 H1Z" fill="${SUN}"/><path d="M6 31 V40 M10 31 V40 M14 31 V40" stroke="${SUN_D}" stroke-width="1.5"/><path d="M3 26 H17" stroke="${RED}" stroke-width="4" stroke-linecap="round"/>` +
     `<path d="M24 44 V17" stroke="${WOOD_D}" stroke-width="4.5" stroke-linecap="round"/><rect x="16" y="6" width="17" height="11" rx="2.5" fill="#8a857a" stroke="${INK}" stroke-width="1.8"/>` +
     `<path d="M33 31 L44 33 L43 42 L34 40Z" fill="#fff" stroke="${GREY}" stroke-width="1.8" stroke-linejoin="round"/><path d="M39 36 V46" stroke="#8a857a" stroke-width="2.5" stroke-linecap="round"/><path d="M39 5 V36" stroke="${WOOD_D}" stroke-width="3.5" stroke-linecap="round"/><path d="M39 5 V12" stroke="${RED}" stroke-width="5.5" stroke-linecap="round"/>`,
+  // natuur voor in de verblijven: graspol, bloemetjes, varen, struikje, kiezels en een steen
+  tuft:
+    `<ellipse cx="24" cy="42" rx="13" ry="2.6" fill="#000" opacity=".12"/>` +
+    `<path d="M21 42 C20 31 14 21 6 15 C15 18 21 26 23 34 C23 22 24 12 28 4 C29 14 28 24 27 34 C29 26 34 19 42 16 C35 23 31 32 30 42Z" fill="${GRASS}" stroke="${GRASS_D}" stroke-width="2.2" stroke-linejoin="round"/>` +
+    `<path d="M25.5 38 C25 28 26 18 27.5 10" fill="none" stroke="${GRASS_D}" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>`,
+  daisies:
+    `<path d="M17 44 V27 M31 44 V21" stroke="${GRASS_D}" stroke-width="3" stroke-linecap="round"/><path d="M17 38 q-8 -1 -9 -8 q8 0 9 8 M31 35 q8 -1 9 -8 q-8 0 -9 8" fill="${GRASS}"/>` +
+    `<g fill="#fff" stroke="#d5cfc0" stroke-width="1.2"><circle cx="17" cy="12.5" r="4.6"/><circle cx="23.5" cy="17" r="4.6"/><circle cx="21" cy="24.5" r="4.6"/><circle cx="13" cy="24.5" r="4.6"/><circle cx="10.5" cy="17" r="4.6"/>` +
+    `<circle cx="31" cy="7" r="4"/><circle cx="36.7" cy="11" r="4"/><circle cx="34.5" cy="17.5" r="4"/><circle cx="27.5" cy="17.5" r="4"/><circle cx="25.3" cy="11" r="4"/></g>` +
+    `<circle cx="17" cy="19" r="4.4" fill="${SUN}" stroke="${SUN_D}" stroke-width="1.2"/><circle cx="31" cy="12.5" r="3.9" fill="${SUN}" stroke="${SUN_D}" stroke-width="1.2"/>`,
+  fern:
+    `<ellipse cx="24" cy="43" rx="12" ry="2.4" fill="#000" opacity=".12"/>` +
+    `<path d="M24 43 C22 30 14 20 5 17 M24 43 C24 28 24 16 24 5 M24 43 C26 30 34 20 43 17 M24 43 C20 36 12 33 5 35 M24 43 C28 36 36 33 43 35" fill="none" stroke="${GRASS_D}" stroke-width="6.5" stroke-linecap="round"/>` +
+    `<path d="M24 43 C22 30 14 20 5 17 M24 43 C24 28 24 16 24 5 M24 43 C26 30 34 20 43 17 M24 43 C20 36 12 33 5 35 M24 43 C28 36 36 33 43 35" fill="none" stroke="${GRASS}" stroke-width="3" stroke-linecap="round"/>`,
+  shrub:
+    `<ellipse cx="24" cy="42" rx="16" ry="2.8" fill="#000" opacity=".12"/><circle cx="15" cy="30" r="10.5" fill="${GRASS_D}"/><circle cx="33" cy="30" r="11" fill="${GRASS_D}"/><circle cx="24" cy="20" r="12" fill="${GRASS_D}"/>` +
+    `<circle cx="24" cy="20.5" r="9.5" fill="${GRASS}"/><circle cx="16" cy="31" r="8" fill="${GRASS}"/><circle cx="32.5" cy="31" r="8.5" fill="${GRASS}"/>` +
+    `<circle cx="20" cy="21" r="2.4" fill="${RED}"/><circle cx="30" cy="27" r="2.4" fill="${RED}"/><circle cx="14" cy="32" r="2.4" fill="${RED}"/><circle cx="27" cy="15" r="2.4" fill="${RED}"/>`,
+  pebbles:
+    `<ellipse cx="24" cy="41" rx="18" ry="3" fill="#000" opacity=".12"/><ellipse cx="15" cy="32" rx="10.5" ry="7.5" fill="#9aa0a8" stroke="#6f757d" stroke-width="2.2"/>` +
+    `<ellipse cx="34" cy="34" rx="9" ry="6" fill="#b9c2c9" stroke="#6f757d" stroke-width="2.2"/><ellipse cx="26" cy="20" rx="8" ry="5.6" fill="#aab1b9" stroke="#6f757d" stroke-width="2.2"/>` +
+    `<path d="M9 29 q4 -4 9 -3 M29 31.5 q4 -2.5 8 -1 M21 17.5 q4 -2.5 8 -1" fill="none" stroke="#e3e7eb" stroke-width="2" stroke-linecap="round"/>`,
+  stone:
+    `<ellipse cx="24" cy="41" rx="18" ry="3" fill="#000" opacity=".12"/><path d="M7 39 L10 22 L20 11 L33 12 L42 25 L41 39 Z" fill="#9aa0a8" stroke="#6f757d" stroke-width="2.6" stroke-linejoin="round"/>` +
+    `<path d="M20 11 L24 24 L10 22 M24 24 L42 25 M24 24 L22 39" fill="none" stroke="#7d848c" stroke-width="2" stroke-linejoin="round"/><path d="M13.5 21 L20.5 14" stroke="#e3e7eb" stroke-width="2.6" stroke-linecap="round"/>`,
+  minus: disc(RED) + '<path d="M13 24 H35" stroke="#fff" stroke-width="6" stroke-linecap="round"/>',
   // de prikker: een stok met een punt, met een propje papier eraan geprikt
   // de prikker: een stok met een rood handvat en een stalen punt, met een prop papier en een blikje eraan geprikt
   picker:
