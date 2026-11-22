@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import {
   ALSO, AQUATIC, CLIMATE, MIX_TILES, MUD_LOVERS, PETTABLE, TANK_WATER, TOY_DRINK, TOY_LIFT, type Nature, type Rare, type Terrain, type ToyKind,
-  MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, palsOf, type FenceNeed, type SpeciesId, type Variant, type WishId,
+  MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, palsOf, wildWant, type PropGroup, type FenceNeed, type SpeciesId, type Variant, type WishId,
 } from './data';
 import { Grid, tileIndex, tileXY } from './grid';
 import { MODEL_SCALE, modelInfo, spawnModel, type ModelInfo, type Spawned } from './models';
@@ -27,6 +27,11 @@ export interface Toy {
   kind: string;
   /** Hoeveel kwartslagen het gedraaid is; een tunnel ligt dan van boven naar beneden in plaats van links naar rechts. */
   rot?: number;
+  /**
+   * De losse stukken (de ballen, de liggende stam): waar elk nu ligt, in tegels vanaf het midden van de tegel, en
+   * hoe dik het is. `line`: een stam, die rolt uit zichzelf weer terug.
+   */
+  loose?: { ox: number; oy: number; r: number; line?: boolean }[];
 }
 
 /** Wat een dier van het park moet weten en kunnen. */
@@ -41,6 +46,8 @@ export interface AnimalWorld {
   isNight(): boolean;
   /** Een dier speelt zoveel seconden met dit ding: het ding beweegt mee. */
   playWith(toy: Toy, seconds: number, facing?: number): void;
+  /** Een dier op (fromX, fromY) geeft een los stuk van dit ding een duwtje: het rolt van het dier weg. Lukt niet als het ding weg is. */
+  nudgeToy(toy: Toy, piece: number, fromX: number, fromY: number): boolean;
   animals: Animal[];
   poopsIn(regionId: number): number;
   dropPoop(gx: number, gy: number): void;
@@ -66,6 +73,12 @@ export interface AnimalWorld {
   raining(): boolean;
   /** Willen dieren al warmte of kou (vanaf FEATURE.climate)? */
   wantsClimate(): boolean;
+  /** Willen dieren al groen en steen in hun verblijf (vanaf FEATURE.wild)? */
+  wantsWild(): boolean;
+  /** Hoeveel groen en steen er in dit verblijf staat: het deel van alle vakjes (0 tot 1). */
+  wildIn(region: { id: number; tiles: number[] }): Record<PropGroup, number>;
+  /** Staat er op deze tegel een boom of een rots? Daar loopt een dier omheen. */
+  solidAt(tile: number): boolean;
   /** Regenplassen in het park: daar rollen varkens en andere modderliefhebbers in. */
   rainPuddles: { gx: number; gy: number }[];
   /** Is dit verblijf een kinderboerderij (wit hekje)? Daar mogen de boerderijdieren door elkaar. */
@@ -84,7 +97,7 @@ const BED_LIFT: Record<string, number> = { straw: 0.1, shed: 0.1, rock: 0.22, ne
 const WATER_TILE = TERRAINS.indexOf('water');
 /** Kunstjes die een dier zomaar kan doen: hoe lang ze duren en welke animatie uit het model erbij hoort. */
 type Solo = 'hop' | 'spin' | 'roll' | 'shake' | 'wiggle' | 'stretch' | 'sniff' | 'dig' | 'bow' | 'jumpturn' | 'sway' | 'peek' | 'survey';
-type Trick = Solo | 'nuzzle' | 'greet' | 'dance' | 'leap' | 'look' | 'tunnel' | 'peekin';
+type Trick = Solo | 'nuzzle' | 'greet' | 'dance' | 'leap' | 'look' | 'tunnel' | 'peekin' | 'fetch';
 const SHOW: Record<Solo, [number, string]> = {
   hop: [1.6, 'Happy'], spin: [1.1, 'Play'], roll: [2.6, 'Lie'], shake: [0.9, 'Idle'], wiggle: [1.4, 'Idle'], stretch: [2.2, 'Idle'],
   sniff: [2.62, 'Eat'], dig: [2.2, 'Eat'], bow: [1.8, 'Idle'], jumpturn: [1.8, 'Happy'], sway: [2.95, 'Idle'], peek: [2.6, 'Idle'], survey: [5.24, 'Idle'],
@@ -111,7 +124,8 @@ function tint(c: THREE.Color, kind: Rare, floor: number): void {
   else c.multiplyScalar(0.42);
 }
 
-const isTroughTile = (w: AnimalWorld, i: number): boolean => w.troughs.some(t => tileIndex(t.x, t.y) === i);
+/** Een tegel waar een dier niet overheen loopt: daar staat een voerbak, een boom of een rots. */
+const isTroughTile = (w: AnimalWorld, i: number): boolean => w.solidAt(i) || w.troughs.some(t => tileIndex(t.x, t.y) === i);
 
 export class Animal {
   readonly model: Spawned;
@@ -137,6 +151,8 @@ export class Animal {
   escaped = false;
   happy = false;
   unmet: WishId | null = 'enclosure';
+  /** Wat er aan groen of steen niet klopt in het verblijf: te weinig (`more`) of te veel. */
+  wildAsk: { group: PropGroup; more: boolean } | null = null;
   /** Het karakter: verlegen, speels, slaperig of dapper. Je ziet het aan hoe het dier loopt en wat het doet. */
   nature: Nature = 'plain';
   /** Een zeldzame kleur (zie `setRare`). */
@@ -184,6 +200,11 @@ export class Animal {
   private perched = false;
   /** De ren door de tunnel: van waar naar waar. */
   private dash: { fx: number; fy: number; tx: number; ty: number; seconds: number; down?: boolean } | null = null;
+  /**
+   * Spelen met een bal of een stam: achter welk los stuk het dier aan gaat (`i`), hoe vaak het nog duwt, hoe lang
+   * het eerst kijkt hoe het ding rolt (`wait`), de tel van het duwtje zelf (`bump`) en hoe lang het er al niet bij kan.
+   */
+  private fetch: { toy: Toy; i: number; kicks: number; wait: number; bump: number; stuck: number } | null = null;
   /** Het kunstje dat hierna komt (uitrekken na het slapen, een sprong na het eten). */
   private encore: Solo | null = null;
   /** Waar het dier naartoe loopt om te rollen ('roll') of om iemand te begroeten ('come'). */
@@ -410,6 +431,11 @@ export class Animal {
         const s = Math.sin(Math.min(1, u / 2.2) * Math.PI);
         along = s * 0.42;
         sx = sy = sz = 1 - s * 0.45;
+      } else if (k.kind === 'fetch' && this.fetch?.bump) {
+        // het duwtje tegen de bal of de stam: een stootje naar voren, met de neus omlaag
+        const s = Math.sin((1 - this.fetch.bump / 0.3) * Math.PI);
+        along = s * 0.1;
+        pitch = s * 0.12;
       }
       // voorover of achterover: iets optillen, anders zakt de neus of de staart door de grond
       if (pitch && k.kind !== 'leap') y += Math.abs(Math.sin(pitch)) * (pitch > 0 ? this.info.length - this.info.back : this.info.back) * MODEL_SCALE * 0.5;
@@ -617,7 +643,7 @@ export class Animal {
     this.needsFence = region && info.need && w.grid.penKind(region) !== NEED_KIND[info.need] ? info.need : null;
     this.fenceBroken = !!region && w.brokenPen(region.id);
     const result: Record<WishId, boolean> = {
-      health: !this.sick, enclosure: !!region && !this.needsFence && !this.fenceBroken, food: this.hunger < HUNGRY, bed: false, terrain: false, friend: false, clean: false, space: true, fun: true, climate: true,
+      health: !this.sick, enclosure: !!region && !this.needsFence && !this.fenceBroken, food: this.hunger < HUNGRY, bed: false, terrain: false, friend: false, clean: false, space: true, fun: true, climate: true, wild: true,
     };
     if (region && this.tameIn(w, region.id)) {
       // in de kinderboerderij wonen de boerderijdieren door elkaar: een stukje eigen grond, een slaapplek en wat gezelschap is genoeg
@@ -660,6 +686,18 @@ export class Animal {
       // warmte of kou: een lamp of een blok ijs in het verblijf
       const need = CLIMATE[this.species];
       result.climate = !need || !w.wantsClimate() || w.toys.some(t => t.kind === need && w.grid.regionOf[tileIndex(t.x, t.y)] === region.id);
+    }
+    // groen en steen: niet te weinig en niet te veel (in de kinderboerderij hoeft het niet)
+    this.wildAsk = null;
+    const want = wildWant(this.species);
+    if (region && want && w.wantsWild() && !this.tameIn(w, region.id)) {
+      const have = w.wildIn(region);
+      for (const group of ['green', 'stone'] as const) {
+        if (this.wildAsk) break;
+        if (have[group] < want[group][0]) this.wildAsk = { group, more: true };
+        else if (have[group] > want[group][1]) this.wildAsk = { group, more: false };
+      }
+      result.wild = !this.wildAsk;
     }
     this.unmet = WISH_ORDER.find(k => !result[k]) ?? null;
     this.happy = this.unmet === null;
@@ -773,9 +811,90 @@ export class Animal {
       w.splash(this.gx, this.gy);
       return this.doTrick('leap', 1.5, 'Play');
     }
+    if (toy.loose?.length) {
+      // een bal of een stam ligt los: het dier duwt er met zijn neus tegen, het ding rolt weg en het dier gaat erachteraan
+      const log = !!toy.loose[0].line;
+      w.playWith(toy, 3);
+      this.fetch = { toy, i: 0, kicks: log ? 3 : 4 + Math.floor(Math.random() * 2), wait: 0.25, bump: 0, stuck: 0 };
+      return this.doTrick('fetch', log ? 10 : 14, 'Play');
+    }
     const seconds = 4 + Math.random() * 2;
     w.playWith(toy, seconds);
     this.emote('Play', seconds);
+  }
+
+  /** Mag het dier hier los lopen (niet van tegel naar tegel)? In het eigen verblijf, niet waar een voerbak, boom of rots staat, en een zeedier alleen in het water. */
+  private roomAt(w: AnimalWorld, x: number, y: number, regionId: number): boolean {
+    if (!w.grid.inBounds(x, y)) return false;
+    const i = tileIndex(x, y);
+    if (w.grid.regionOf[i] !== regionId || w.solidAt(i) || this.dry(w, i)) return false;
+    for (const t of w.troughs) if (t.x === x && t.y === y) return false;
+    return true;
+  }
+
+  /**
+   * Een los stapje, recht op het doel af. Eerst opzij en dan vooruit: zo schuift het dier langs een hek of een bak
+   * in plaats van erdoorheen te gaan. Geeft terug of het dier echt opschoot.
+   */
+  private stepFree(w: AnimalWorld, mx: number, my: number): boolean {
+    const x = Math.floor(this.gx), y = Math.floor(this.gy), regionId = w.grid.regionOf[tileIndex(x, y)];
+    let gain = 0;
+    // een klein stukje van de rand af blijven, zodat het dier niet met zijn neus in het hek staat
+    const nx = Math.floor(this.gx + mx + Math.sign(mx) * 0.2);
+    if (mx && (nx === x || (w.grid.canStep(x, y, nx - x, 0) && this.roomAt(w, nx, y, regionId)))) {
+      this.gx += mx;
+      gain += Math.abs(mx);
+    }
+    const cx = Math.floor(this.gx), ny = Math.floor(this.gy + my + Math.sign(my) * 0.2);
+    if (my && (ny === y || (w.grid.canStep(cx, y, 0, ny - y) && this.roomAt(w, cx, ny, regionId)))) {
+      this.gy += my;
+      gain += Math.abs(my);
+    }
+    return gain > 0.3 * (Math.abs(mx) + Math.abs(my));
+  }
+
+  /**
+   * Spelen met een bal of een stam: ernaartoe rennen, een duwtje geven met de neus, kijken hoe het ding wegrolt,
+   * en er weer achteraan. Bij twee ballen is daarna de andere aan de beurt.
+   */
+  private chase(dt: number, w: AnimalWorld): void {
+    const f = this.fetch!, p = f.toy.loose?.[f.i];
+    if (!p) {
+      this.timeLeft = 0;
+      return;
+    }
+    f.wait -= dt;
+    f.bump = Math.max(0, f.bump - dt);
+    const dx = f.toy.x + 0.5 + p.ox - this.gx, dy = f.toy.y + 0.5 + p.oy - this.gy, dist = Math.hypot(dx, dy);
+    if (dist > 0.05) this.turnTo(Math.atan2(dx, dy), dt);
+    // even kijken hoe het rolt (een stam komt vanzelf weer terug)
+    if (f.wait > 0 || !f.kicks) return this.play('Play');
+    const reach = clamp((this.info.length - this.info.back) * MODEL_SCALE, 0.2, 0.6) + p.r + 0.05;
+    if (dist <= reach) {
+      if (!w.nudgeToy(f.toy, f.i, this.gx, this.gy)) {
+        this.timeLeft = 0;
+        return;
+      }
+      f.kicks--;
+      f.bump = 0.3;
+      f.wait = p.line ? 1.9 : 0.5;
+      f.stuck = 0;
+      f.i = (f.i + 1) % f.toy.loose!.length;
+      // na het laatste duwtje kijkt het dier het ding nog even na
+      if (!f.kicks) this.timeLeft = Math.min(this.timeLeft, 1.6);
+      return;
+    }
+    const speed = (this.young ? 0.72 : 0.92) * MODEL_SCALE * 2.3 * PACE[this.nature];
+    const step = Math.min(speed * dt, 0.3, dist - reach * 0.9);
+    if (this.stepFree(w, (dx / dist) * step, (dy / dist) * step)) {
+      f.stuck = 0;
+      this.play('Run', this.young ? 2 : 1.5);
+    } else {
+      // het ding ligt waar het dier niet bij kan: even wachten, en dan is het spelen voorbij
+      f.stuck += dt;
+      this.play('Play');
+      if (f.stuck > 1.5) this.timeLeft = 0;
+    }
   }
 
   /** Een zeedier kan niet over het droge: die tegels telt het als versperd. */
@@ -1179,6 +1298,7 @@ export class Animal {
       w.splash(this.gx, this.gy);
     }
     if (this.dash && this.trick?.kind !== 'tunnel') this.dash = null;
+    if (this.fetch && this.trick?.kind !== 'fetch') this.fetch = null;
     const swims = w.grid.terrain[this.tile] === WATER_TILE && !this.lift;
     // in een bak van glas staat het water hoger: daar zwemt het dier in het water, met de rug net boven
     this.sink = swims ? (w.inTank(this.tile) ? this.top * 0.62 - TANK_WATER : this.top * 0.34) : 0;
@@ -1269,6 +1389,8 @@ export class Animal {
       }
     } else {
       this.timeLeft -= dt;
+      // spelen met een bal of een stam: erachteraan en een duwtje geven
+      if (this.fetch) this.chase(dt, w);
       // rustig naar de gast toe draaien (kijken gaat langzamer dan begroeten)
       if (this.faceTo !== null) this.turnTo(this.faceTo, this.trick?.kind === 'look' ? dt * 0.35 : dt);
       if (this.drinkAt && Math.random() < dt * 1.3) w.splash(this.drinkAt.x + 0.5, this.drinkAt.y + 0.5);

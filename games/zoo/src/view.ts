@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
-  BUMPER_CARS, FERRIS, RESTAURANT_TABLES, SEASONAL, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TRAIN, bumperCar, isPath, type Season, type Sky,
+  BUMPER_CARS, FERRIS, RESTAURANT_TABLES, SEASONAL, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TRAIN, bumperCar, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
 } from './data';
 import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type Land, type Side } from './grid';
 
@@ -355,19 +355,16 @@ const TOY_PARTS: Record<ToyKind, Part[]> = {
   icebox: [],
   frame: [],
   tunnel: [],
-  ball: [
-    [ball(0.2, -0.08, 0.2, 0), std(0xe0584f, 0.5)],
-    [tube(0.203, 0.203, 0.07, -0.08, 0.2, 0), WHITE_MAT],
-    [ball(0.12, 0.24, 0.12, 0.18), std(0x4a90e2, 0.5)],
-  ],
+  // de ballen liggen los: die staan in TOY_LOOSE
+  ball: [],
   bush: [
     [mergeGeometries([ball(0.3, 0, 0.27, 0), ball(0.22, 0.24, 0.2, 0.1), ball(0.2, -0.22, 0.19, -0.12)])!, LEAF_MAT],
     [mergeGeometries([ball(0.05, 0.12, 0.42, 0.2), ball(0.05, -0.16, 0.36, 0.14), ball(0.05, 0.02, 0.5, -0.12), ball(0.05, 0.3, 0.3, -0.02)])!, std(0xe0584f, 0.5)],
   ],
+  // de stronk staat vast in de hoek; de liggende stam ligt los (zie TOY_LOOSE) en rolt er net langs
   log: [
-    [new THREE.CylinderGeometry(0.15, 0.15, 0.82, 10).rotateZ(Math.PI / 2).rotateY(0.5).translate(0, 0.15, 0.08), WOOD_MAT],
-    [tube(0.13, 0.15, 0.3, -0.22, 0.15, -0.28), WOOD_MAT],
-    [tube(0.115, 0.115, 0.02, -0.22, 0.31, -0.28), std(0xe3c08a, 1)],
+    [tube(0.11, 0.125, 0.3, -0.37, 0.15, -0.3), WOOD_MAT],
+    [tube(0.095, 0.095, 0.02, -0.37, 0.31, -0.3), std(0xe3c08a, 1)],
   ],
   // hoepel: een rode ring op een paal; een dolfijn springt erdoorheen
   hoop: [
@@ -381,6 +378,30 @@ const TOY_PARTS: Record<ToyKind, Part[]> = {
     [mergeGeometries([boxAt(0.14, 0.1, 0.14, -0.24, 0.3, -0.2), boxAt(0.14, 0.1, 0.14, 0.24, 0.34, 0.22)])!, std(0xe0584f)],
     [mergeGeometries([boxAt(0.14, 0.1, 0.14, 0.2, 0.36, -0.16), boxAt(0.14, 0.1, 0.14, 0, 0.3, 0)])!, std(0xffd23f)],
     [boxAt(0.14, 0.1, 0.14, -0.1, 0.28, 0.22), std(0xf06aa6)],
+  ],
+};
+/**
+ * De losse stukken van speelgoed: de twee ballen en de liggende stam. Elk stuk is rond zijn eigen midden
+ * gemaakt, zodat het echt kan rollen. `x`, `z`: de eigen plek op de tegel. `r`: de straal, zo hoog ligt het
+ * midden. `turn`: zo ligt een stam gedraaid; die rolt alleen dwars op zijn lengte.
+ */
+const TOY_LOOSE: Partial<Record<ToyKind, { x: number; z: number; r: number; turn?: number; parts: Part[] }[]>> = {
+  // de band om elke bal laat zien dat hij rolt
+  ball: [
+    { x: -0.08, z: 0, r: 0.2, parts: [[ball(0.2, 0, 0, 0), std(0xe0584f, 0.5)], [tube(0.203, 0.203, 0.07, 0, 0, 0), WHITE_MAT]] },
+    { x: 0.24, z: 0.18, r: 0.12, parts: [[ball(0.12, 0, 0, 0), std(0x4a90e2, 0.5)], [tube(0.122, 0.122, 0.04, 0, 0, 0), std(0xffd23f, 0.5)]] },
+  ],
+  // de stam ligt langs x; de lichte kopse kanten, een takje en een plukje mos laten zien dat hij rolt
+  log: [
+    {
+      x: 0.08, z: 0, r: 0.14, turn: -0.12,
+      parts: [
+        [new THREE.CylinderGeometry(0.14, 0.14, 0.6, 10).rotateZ(Math.PI / 2), WOOD_MAT],
+        [mergeGeometries([-0.3, 0.3].map(x => new THREE.CylinderGeometry(0.115, 0.115, 0.02, 10).rotateZ(Math.PI / 2).translate(x, 0, 0)))!, std(0xe3c08a, 1)],
+        [tube(0.03, 0.04, 0.1, -0.12, 0.17, 0).rotateX(-0.7), WOOD_MAT],
+        [new THREE.IcosahedronGeometry(0.08, 1).scale(1.5, 0.45, 1).translate(0.1, 0.125, 0).rotateX(2.1), LEAF_MAT],
+      ],
+    },
   ],
 };
 
@@ -1113,6 +1134,53 @@ const PETSIGN_GEO = mergeGeometries([
 /** Een versiering; wat los moet kunnen bewegen (wieken, vlammen, een zwengel, een blad) krijgt hier zijn plek. */
 const PENDULUM_GEO = mergeGeometries([boxAt(0.025, 0.3, 0.02, 0, -0.15, 0), new THREE.CylinderGeometry(0.06, 0.06, 0.025, 12).rotateX(Math.PI / 2).translate(0, -0.32, 0)])!;
 const PAGE_TILT = 0.45;
+// ------------------------------------------------------------ natuur op een kwart tegel
+const blade = (x: number, z: number, h: number, lean: number, turn: number): THREE.BufferGeometry =>
+  new THREE.ConeGeometry(0.036, h, 4).translate(0, h / 2, 0).rotateZ(lean).rotateY(turn).translate(x, 0, z);
+const frond = (turn: number, len: number, lift: number): THREE.BufferGeometry =>
+  new THREE.BoxGeometry(len, 0.016, 0.085).translate(len / 2, 0, 0).rotateZ(lift).rotateY(turn).translate(0, 0.03, 0);
+const lump = (r: number, x: number, z: number, flat = 0.62): THREE.BufferGeometry => new THREE.IcosahedronGeometry(r, 0).scale(1, flat, 1).translate(x, r * flat * 0.8, z);
+const DAISY_SPOTS: [number, number, number][] = [[-0.08, 0.2, -0.05], [0.07, 0.26, 0.04], [0, 0.17, 0.1], [0.1, 0.15, -0.1]];
+/**
+ * Natuur voor in de verblijven. De kleine dingen passen op een kwart tegel (een vakje van een halve tegel breed);
+ * boom, den, palm en rots vullen een hele tegel en gebruiken de vormen van de versieringen uit het park.
+ */
+const PROP_PARTS: Record<PropKind, Part[]> = {
+  tuft: [
+    [mergeGeometries([blade(-0.07, -0.03, 0.26, 0.22, 0), blade(0.06, 0.05, 0.3, -0.2, 1), blade(0, -0.08, 0.22, 0.3, 2.2), blade(0.09, -0.05, 0.2, -0.35, 3)])!, LEAF_MAT],
+    [mergeGeometries([blade(-0.02, 0.06, 0.32, 0.1, 4), blade(0.03, 0, 0.36, -0.06, 5), blade(-0.1, 0.05, 0.18, 0.4, 0.6)])!, LEAF2],
+  ],
+  daisies: [
+    [mergeGeometries(DAISY_SPOTS.map(([x, h, z]) => boxAt(0.022, h, 0.022, x, h / 2, z)))!, STEM_MAT],
+    [mergeGeometries([frond(0.4, 0.14, 0.3), frond(2.6, 0.13, 0.25), frond(4.4, 0.14, 0.3)])!, LEAF2],
+    [mergeGeometries(DAISY_SPOTS.map(([x, h, z]) => boxAt(0.1, 0.03, 0.1, x, h + 0.015, z)))!, WHITE_MAT],
+    [mergeGeometries(DAISY_SPOTS.map(([x, h, z]) => boxAt(0.045, 0.04, 0.045, x, h + 0.03, z)))!, std(0xffd23f)],
+  ],
+  fern: [
+    [mergeGeometries([0, 1.26, 2.5, 3.77, 5.03].map((a, i) => frond(a, 0.24 - (i % 2) * 0.04, 0.55 + (i % 2) * 0.15)))!, LEAF2],
+    [mergeGeometries([0.6, 2.7, 4.6].map(a => frond(a, 0.15, 1)))!, LEAF_MAT],
+  ],
+  shrub: [
+    [mergeGeometries([ball(0.13, -0.05, 0.12, 0.01), ball(0.11, 0.09, 0.1, 0.05), ball(0.1, 0.01, 0.2, -0.04)])!, LEAF_MAT],
+    [mergeGeometries([boxAt(0.045, 0.045, 0.045, -0.12, 0.18, 0.08), boxAt(0.045, 0.045, 0.045, 0.1, 0.2, 0.1), boxAt(0.045, 0.045, 0.045, 0.02, 0.29, -0.02)])!, std(0xd8362e)],
+  ],
+  pebbles: [
+    [mergeGeometries([lump(0.075, -0.09, 0.04), lump(0.055, 0.07, -0.07), lump(0.045, 0.1, 0.09)])!, STONE],
+    [mergeGeometries([lump(0.06, 0, 0), lump(0.04, -0.12, -0.09)])!, ROCK_MAT],
+  ],
+  stone: [
+    [mergeGeometries([new THREE.IcosahedronGeometry(0.17, 0).scale(1.1, 0.8, 0.9).translate(0, 0.11, 0), lump(0.08, 0.15, 0.1)])!, ROCK_MAT],
+    [lump(0.06, -0.15, 0.1), STONE],
+  ],
+  oak: DECOR_PARTS.tree,
+  fir: DECOR_PARTS.pine,
+  coco: DECOR_PARTS.palm,
+  crag: [
+    [mergeGeometries([boxAt(0.6, 0.5, 0.5, -0.06, 0.25, 0), boxAt(0.36, 0.34, 0.38, 0.26, 0.17, 0.14), boxAt(0.34, 0.3, 0.32, -0.1, 0.65, -0.04), boxAt(0.22, 0.2, 0.22, -0.3, 0.1, 0.24)])!, ROCK_MAT],
+    [mergeGeometries([boxAt(0.3, 0.04, 0.28, -0.1, 0.82, -0.04), boxAt(0.2, 0.04, 0.2, 0.3, 0.36, 0.14)])!, STONE],
+  ],
+};
+
 function buildDecor(kind: DecorKind, mat?: THREE.Material): THREE.Group {
   const group = build(DECOR_PARTS[kind], mat);
   const kids = group.children;
@@ -1164,8 +1232,8 @@ function buildShop(kind: ShopKind, mat?: THREE.Material): THREE.Group {
     group.userData.door = [-1, 1].map((side, i) => {
       const door = build([[DOOR_GEOS[i], P_BLUE], [KNOB_GEOS[i], P_YELLOW]], mat);
       door.position.set(side * 0.67, 0, 0.57);
-      // zo ver draait hij open, naar buiten toe
-      door.userData.open = side * 1.25;
+      // zo ver draait hij open, naar buiten toe: bijna haaks, zodat een gast er net langs kan
+      door.userData.open = side * 1.45;
       group.add(door);
       return door;
     });
@@ -1324,6 +1392,29 @@ function build(parts: Part[], mat?: THREE.Material): THREE.Group {
   return group;
 }
 
+/**
+ * Speelgoed, met zijn losse stukken elk in een eigen groepje op hun eigen plek. Het spel vindt ze in
+ * `userData.loose` en laat ze rollen; bij elk stuk staat in `userData` waar het hoort (`x`, `z`), de straal en `turn`.
+ */
+function buildToy(kind: ToyKind, mat?: THREE.Material): THREE.Group {
+  const group = build(TOY_PARTS[kind], mat);
+  const loose: THREE.Object3D[] = [];
+  for (const { x, z, r, turn, parts } of TOY_LOOSE[kind] ?? []) {
+    const piece = build(parts, mat);
+    piece.position.set(x, r, z);
+    // eerst rollen om de eigen lengte, dan pas draaien: zo rolt een stam altijd dwars op hoe hij ligt
+    piece.rotation.order = 'YXZ';
+    piece.rotation.y = turn ?? 0;
+    piece.userData = { x, z, r, turn };
+    group.add(piece);
+    loose.push(piece);
+  }
+  if (loose.length) group.userData.loose = loose;
+  return group;
+}
+/** De as waar een los stuk omheen rolt: één keer gemaakt, elke keer opnieuw gebruikt. */
+const ROLL_AXIS = new THREE.Vector3();
+
 const NIGHT_SKY = new THREE.Color(0x16224a);
 /** De omgeving kleurt mee met de wereld waarin je speelt. */
 const WORLD_LOOK: Record<WorldId, { sky: number; ground: number; leaves: [number, number, number] }> = {
@@ -1417,8 +1508,9 @@ export class View {
   private ghostPicketMesh = new THREE.Mesh(PICKET_GEO, this.ghostMat);
   private ghostPetgateMesh = new THREE.Mesh(PETGATE_GEO, this.ghostMat);
   private ghostBeds = Object.fromEntries(BEDS.map(k => [k, build(BED_PARTS[k], this.ghostMat)])) as Record<BedKind, THREE.Group>;
-  private ghostToys = Object.fromEntries(TOYS.map(k => [k, build(TOY_PARTS[k], this.ghostMat)])) as Record<ToyKind, THREE.Group>;
+  private ghostToys = Object.fromEntries(TOYS.map(k => [k, buildToy(k, this.ghostMat)])) as Record<ToyKind, THREE.Group>;
   private ghostDecors = Object.fromEntries(DECORS.map(k => [k, buildDecor(k, this.ghostMat)])) as Record<DecorKind, THREE.Group>;
+  private ghostProps = Object.fromEntries(PROPS.map(k => [k, build(PROP_PARTS[k], this.ghostMat)])) as Record<PropKind, THREE.Group>;
   private ghostShops = Object.fromEntries(SHOPS.map(k => [k, buildShop(k, this.ghostMat)])) as Record<ShopKind, THREE.Group>;
   private ghostTileMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.75, depthWrite: false });
   private ghostTileMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.94, 0.94).rotateX(-Math.PI / 2), this.ghostTileMat);
@@ -1535,7 +1627,7 @@ export class View {
 
     this.ghostTileMesh.position.y = 0.012;
     this.ghostRing.position.y = 0.014;
-    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostWallMesh, this.ghostNetMesh, this.ghostGlassMesh, this.ghostWindowMesh, this.ghostPicketMesh, this.ghostPetgateMesh, this.ghostTroughMesh, ...Object.values(this.ghostBeds), ...Object.values(this.ghostToys), ...Object.values(this.ghostDecors), ...Object.values(this.ghostShops), this.ghostTileMesh, this.ghostRing];
+    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostWallMesh, this.ghostNetMesh, this.ghostGlassMesh, this.ghostWindowMesh, this.ghostPicketMesh, this.ghostPetgateMesh, this.ghostTroughMesh, ...Object.values(this.ghostBeds), ...Object.values(this.ghostToys), ...Object.values(this.ghostDecors), ...Object.values(this.ghostProps), ...Object.values(this.ghostShops), this.ghostTileMesh, this.ghostRing];
     for (const g of this.ghosts) {
       g.visible = false;
       g.traverse(o => { o.renderOrder = 5; });
@@ -2323,10 +2415,68 @@ export class View {
     });
   }
 
+  private propMeshes = new Map<PropKind, THREE.InstancedMesh[]>();
+
+  /**
+   * Alle natuurdingen in het park (`gx`, `gy`: het midden, in tegels). Per soort wordt alles in één keer getekend:
+   * dat scheelt veel tekenwerk als er honderden graspollen staan. Geen twee zijn precies gelijk: elk krijgt bij zijn
+   * plek een eigen grootte en een eigen kleine draaiing bovenop de kwartslagen van de draaiknop.
+   */
+  syncProps(list: { kind: PropKind; gx: number; gy: number; rot: number }[]): void {
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), pos = new THREE.Vector3(), scale = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+    for (const kind of PROPS) {
+      const items = list.filter(p => p.kind === kind);
+      let meshes = this.propMeshes.get(kind);
+      if (!meshes || items.length > meshes[0].instanceMatrix.count) {
+        for (const old of meshes ?? []) {
+          this.scene.remove(old);
+          old.dispose();
+        }
+        const room = Math.max(32, Math.ceil(items.length * 1.5));
+        meshes = PROP_PARTS[kind].map(([geo, mat, shadow = true]) => {
+          const mesh = new THREE.InstancedMesh(geo, mat, room);
+          mesh.castShadow = shadow;
+          mesh.receiveShadow = !shadow;
+          mesh.frustumCulled = false;
+          this.scene.add(mesh);
+          return mesh;
+        });
+        this.propMeshes.set(kind, meshes);
+      }
+      const big = PROP[kind].size === 2;
+      items.forEach((p, i) => {
+        const a = Math.round(p.gx * 4), b = Math.round(p.gy * 4);
+        const s = 0.85 + hash(a, b, 1) * 0.3;
+        pos.set(toWorldX(p.gx), 0, toWorldZ(p.gy));
+        q.setFromAxisAngle(up, (p.rot * Math.PI) / 2 + (hash(a, b, 2) - 0.5) * 0.7);
+        scale.set(s, s * (big ? 0.9 + hash(a, b, 3) * 0.25 : 1), s);
+        m.compose(pos, q, scale);
+        for (const mesh of meshes!) mesh.setMatrixAt(i, m);
+      });
+      for (const mesh of meshes) {
+        mesh.count = items.length;
+        mesh.instanceMatrix.needsUpdate = true;
+      }
+    }
+  }
+
+  ghostProp(kind: PropKind, gx: number, gy: number, rot: number, ok: boolean): void {
+    this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
+    const ghost = this.ghostProps[kind];
+    ghost.position.set(toWorldX(gx), 0, toWorldZ(gy));
+    ghost.rotation.y = (rot * Math.PI) / 2;
+    ghost.visible = true;
+  }
+
   makeToy(x: number, y: number, kind: ToyKind, rot = 0): THREE.Group {
-    const group = this.at(build(TOY_PARTS[kind]), x, y, rot);
+    const group = this.at(buildToy(kind), x, y, rot);
     this.scene.add(group);
     return group;
+  }
+
+  /** Een losse bal rolt een stukje: `angle` om een as die plat op de grond ligt (`ax`, `az`: in het speelgoed zelf gemeten, lengte 1). */
+  rollLoose(piece: THREE.Object3D, ax: number, az: number, angle: number): void {
+    piece.rotateOnWorldAxis(ROLL_AXIS.set(ax, 0, az), angle);
   }
 
   ghostToy(x: number, y: number, kind: ToyKind, ok: boolean, rot = 0): void {
@@ -2512,10 +2662,11 @@ export class View {
 
   // ------------------------------------------------------------ leven in het park
   /**
-   * Het leven in en om een winkel, elk beeldje opnieuw: wat op het dak staat wiegt, de wc-deuren zwaaien open
-   * zolang er iemand is (`busy` > 0) en daarna weer dicht, het doek van de trampoline veert, het bankje zakt een
-   * haartje in, de deksel van de afvalbak klapt (zie flapLid) en om een vieze kraam cirkelen vliegen. Wat het
-   * spel zelf laat bewegen (`userData.moving` en `userData.cars`) blijft hier met rust.
+   * Het leven in en om een winkel, elk beeldje opnieuw: wat op het dak staat wiegt, de wc-deuren zwaaien elk apart
+   * open als er een gast in of uit stapt (`userData.ajar`, zie de gasten) en daarna weer dicht, het doek van de
+   * trampoline veert, het bankje zakt een haartje in, de deksel van de afvalbak klapt (zie flapLid) en om een
+   * vieze kraam cirkelen vliegen. Wat het spel zelf laat bewegen (`userData.moving` en `userData.cars`) blijft
+   * hier met rust.
    */
   animateShop(group: THREE.Object3D, kind: ShopKind, t: number, busy: number, seed: number): void {
     const u = group.userData;
@@ -2535,8 +2686,14 @@ export class View {
       }
     const doors: THREE.Object3D[] | undefined = u.door;
     if (doors) {
-      const open = use * use * (3 - 2 * use);
-      for (let i = 0; i < doors.length; i++) doors[i].rotation.y = doors[i].userData.open * open;
+      // elke deur gaat apart open en dicht: de gasten zetten in `ajar` welke open moet (een bit per deur)
+      const ajar: number = u.ajar ?? 0;
+      for (let i = 0; i < doors.length; i++) {
+        const d = doors[i].userData;
+        const swing: number = Math.max(0, Math.min(1, (d.swing ?? 0) + ((ajar >> i) & 1 ? dt : -dt) / 0.32));
+        d.swing = swing;
+        doors[i].rotation.y = d.open * swing * swing * (3 - 2 * swing);
+      }
     }
     if (kind === 'trampoline' && u.mat) (u.mat as THREE.Object3D).position.y = -use * (0.05 + 0.035 * Math.sin(t * 11 + seed));
     if (kind === 'bench' && u.seat) (u.seat as THREE.Object3D).scale.y = 1 - 0.04 * use;

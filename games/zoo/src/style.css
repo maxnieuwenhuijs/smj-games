@@ -119,10 +119,10 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
   #turnR { top: auto; bottom: calc(190px + min(70px, 13vw)); right: 8px; }
   #turnL { top: auto; bottom: calc(200px + 2 * min(70px, 13vw)); right: 8px; }
 }
-/* de draaiknop voor wat je gaat neerzetten: rechts in het midden, geel zodat hij opvalt */
-#spin { position: absolute; right: 12px; top: calc(50% - 42px); background: var(--sun); box-shadow: 0 5px 0 var(--sun-shade); }
+/* de draaiknop voor wat je gaat neerzetten: in de balk onderaan, recht boven het gekozen ding; geel zodat hij opvalt */
+#spin { position: fixed; left: 0; top: 0; z-index: 3; background: var(--sun); box-shadow: 0 5px 0 var(--sun-shade); }
 #spin .ic { rotate: calc(var(--q, 0) * 90deg); transition: rotate 0.18s ease-out; }
-@media (max-width: 620px) { #spin { top: auto; right: 8px; bottom: calc(212px + 3 * min(70px, 13vw)); width: min(70px, 13vw); height: min(70px, 13vw); border-radius: 18px; } #spin b { display: none; } }
+#spin::after { content: ''; position: absolute; left: 50%; bottom: -11px; translate: -50% 0; border: 7px solid transparent; border-top-color: var(--sun-shade); border-bottom: 0; }
 #wallet { position: absolute; top: calc(24px + min(70px, 13vw)); right: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .pill {
   display: flex; align-items: center; gap: 5px; background: rgba(255, 255, 255, 0.92); border-radius: 18px; padding: 5px 12px 5px 6px;

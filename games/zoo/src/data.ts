@@ -21,7 +21,7 @@ export type SpeciesId =
   // het aquarium: geen beloning van een level, maar erbij vanaf een bepaald level (zie BONUS)
   | 'dolphin' | 'orca' | 'ray' | 'shark';
 export type Variant = 'male' | 'female' | 'young_m' | 'young_f';
-export type WishId = 'health' | 'enclosure' | 'food' | 'bed' | 'terrain' | 'friend' | 'clean' | 'space' | 'fun' | 'climate';
+export type WishId = 'health' | 'enclosure' | 'food' | 'bed' | 'terrain' | 'friend' | 'clean' | 'space' | 'fun' | 'climate' | 'wild';
 /** Iets leuks in een verblijf: speelgoed of groen. Elk dier is er blij mee. */
 export type ToyKind = 'ball' | 'bush' | 'log' | 'flowerbed' | 'hoop'
   // heuvel, rotsen, drinkvijver, waterval, warmtelamp, ijsblok, klimrek en tunnel
@@ -525,6 +525,35 @@ export function unlockedSpecies(done: number): SpeciesId[] {
  */
 export const BONUS: Partial<Record<SpeciesId, number>> = { dolphin: 20, ray: 23, shark: 27, orca: 35 };
 export const AQUATIC: SpeciesId[] = ['dolphin', 'orca', 'ray', 'shark'];
+
+/**
+ * Natuur voor in de verblijven (en in het park): graspollen, bloemetjes, varens, struikjes, kiezels en stenen. Elke
+ * tegel is in vier vakjes verdeeld: iets kleins neemt één vakje (`size` 1), een boom of rots de hele tegel (`size` 2).
+ */
+export type PropKind = 'tuft' | 'daisies' | 'fern' | 'shrub' | 'pebbles' | 'stone' | 'oak' | 'fir' | 'coco' | 'crag';
+export type PropGroup = 'green' | 'stone';
+export const PROP: Record<PropKind, { group: PropGroup; size: 1 | 2; price: number }> = {
+  tuft: { group: 'green', size: 1, price: 1 }, daisies: { group: 'green', size: 1, price: 1 }, fern: { group: 'green', size: 1, price: 1 }, shrub: { group: 'green', size: 1, price: 1 },
+  pebbles: { group: 'stone', size: 1, price: 1 }, stone: { group: 'stone', size: 1, price: 1 },
+  oak: { group: 'green', size: 2, price: 3 }, fir: { group: 'green', size: 2, price: 3 }, coco: { group: 'green', size: 2, price: 3 }, crag: { group: 'stone', size: 2, price: 3 },
+};
+export const PROPS = Object.keys(PROP) as PropKind[];
+/** Hoeveel vakjes iets vult: zoveel telt het mee als groen of als steen. */
+export const propPoints = (kind: PropKind): number => PROP[kind].size * PROP[kind].size;
+/**
+ * Hoeveel groen en steen een dier in zijn verblijf wil (vanaf FEATURE.wild): het deel van alle vakjes dat ermee
+ * gevuld is, van minstens tot hooguit. Het hangt af van de grond waar het dier van houdt: een bosdier wil veel groen,
+ * een dier van zand of sneeuw wil stenen en weinig groen. Dieren die alleen in het water leven vragen er niet om.
+ */
+export const WILD_WANT: Partial<Record<Terrain, Record<PropGroup, [number, number]>>> = {
+  grass: { green: [0.04, 0.4], stone: [0, 0.15] },
+  mud: { green: [0.04, 0.4], stone: [0, 0.15] },
+  forest: { green: [0.1, 0.6], stone: [0, 0.25] },
+  sand: { green: [0.02, 0.25], stone: [0.04, 0.4] },
+  snow: { green: [0, 0.1], stone: [0.04, 0.4] },
+  water: { green: [0, 0.3], stone: [0, 0.3] },
+};
+export const wildWant = (sp: SpeciesId): Record<PropGroup, [number, number]> | null => (AQUATIC.includes(sp) ? null : WILD_WANT[SPECIES[sp].terrain] ?? null);
 export const bonusSpecies = (done: number): SpeciesId[] => (Object.keys(BONUS) as SpeciesId[]).filter(sp => BONUS[sp]! <= done);
 /** Zo hoog staat het water in een bak van glas. */
 export const TANK_WATER = 0.42;
@@ -543,6 +572,8 @@ export const FEATURE = {
   photo: 18, guide: 21, vet: 23, cart: 15,
   /** Een kinderboerderij maak je van een verblijf met boerderijdieren. */
   petting: 6,
+  /** Vanaf hier willen dieren groen en steen in hun verblijf: niet te weinig en niet te veel. */
+  wild: 8,
   /** Vanaf hier kun je het park mooi maken met bomen, bloemen, water en beelden. */
   decor: 5,
   /** Vanaf hier slijten houten hekken: af en toe moet je er een repareren. */
@@ -583,7 +614,7 @@ export const GOAL_OWNER: Record<GoalType, 'builder' | 'keeper' | 'host' | 'cashi
   coins: 'cashier',
 };
 
-export const WISH_ORDER: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean', 'space', 'fun', 'climate'];
+export const WISH_ORDER: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean', 'space', 'fun', 'climate', 'wild'];
 /** Zoveel poepjes mogen er in een verblijf liggen voordat de dieren het vies vinden. */
 export const MAX_POOPS_CLEAN = 3;
 

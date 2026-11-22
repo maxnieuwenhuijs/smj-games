@@ -41,6 +41,11 @@ export interface ShopSpot {
   /** Hoeveel gasten er nu geholpen worden en hoeveel er in de rij staan (het spel houdt dit elk beeldje bij). */
   busyNow?: number;
   line?: number;
+  /**
+   * Het gebouw in het beeld, als het er is. Bij de wc zetten de gasten in `userData.ajar` welke deur open
+   * moet (een bit per deur); het beeld laat de deuren daarop open- en dichtzwaaien (zie animateShop).
+   */
+  mesh?: THREE.Object3D;
 }
 
 /** Waar een bankje op een rand precies staat en hoe het gedraaid is: [x, y, draaiing]. Zelfde regels als in het beeld. */
@@ -326,9 +331,22 @@ const AT_ONCE: Partial<Record<ShopKind, number>> = {
 };
 /** Zo lang duurt het voor een gast geholpen is. */
 const SERVE_TIME: Partial<Record<ShopKind, number>> = {
-  foodstall: 6, drinkstall: 6, icecream: 6, balloon: 4, hats: 4, souvenir: 4, toilet: 9, bench: 7, playground: 6, carousel: 8, fountain: 4, slide: 6, swing: 7, seesaw: 7, springer: 6, trampoline: 6,
+  foodstall: 6, drinkstall: 6, icecream: 6, balloon: 4, hats: 4, souvenir: 4, toilet: 9, bench: 8, playground: 6, carousel: 8, fountain: 4, slide: 6, swing: 7, seesaw: 7, springer: 6, trampoline: 6,
   tower: 9, restaurant: 11, ferris: 14, bumper: 10, shelter: 4, station: 4, umbrellas: 2,
 };
+const WC_TIME = SERVE_TIME.toilet ?? 9, BENCH_TIME = SERVE_TIME.bench ?? 8;
+/**
+ * Het bezoek aan de wc. `walk`: zo lang loopt de gast naar zijn deur; `step`: zo lang duurt de stap naar binnen
+ * of naar buiten; `back`: zo lang loopt hij daarna terug naar het pad. `door`: zo ver zit een deur uit het
+ * midden van het gebouw; `front`: zo ver voor het midden staat de gast voor de deur; `deep`: zo ver binnen.
+ */
+const WC = { walk: 1.1, step: 0.9, back: 1.1, door: 0.42, front: 1.18, deep: 0.15 };
+/** Zo ver (in tegels) loopt een gast hooguit om voor een bankje om even uit te rusten. */
+const REST_NEAR = 8;
+/** Wie dit wil, gaat niet eerst nog even op een bankje zitten. */
+const PRESSING: Need[] = ['toilet', 'food', 'drink', 'umbrella', 'shelter', 'sit'];
+/** Waar een gast op de wc nu staat, welke kant hij op gaat en de plek voor zijn deur; elke keer opnieuw ingevuld door `wcPose`. */
+const WC_AT = { x: 0, y: 0, dx: 0, dy: 0, fx: 0, fy: 0, hidden: false, moving: false };
 /** Waar een gast op of in gaat zitten of staan (in plaats van iets te kopen aan een toonbank). */
 const SEATED: ShopKind[] = ['bench', ...PLAY, ...LOOKS, ...RIDES, 'restaurant', 'shelter'];
 /**
@@ -531,6 +549,16 @@ export class Guest implements Leader {
   waited = 0;
   joined = 0;
   slot: [number, number] | null = null;
+  /** De tegel voor de kraam waar de gast in de rij ging staan (-1: hij staat niet in de rij). Daar begint de rij. */
+  gate = -1;
+  /** Zet de gast nu een paar passen (opschuiven in de rij, naar de wc-deur)? Dan bewegen zijn benen mee. */
+  private stepping = false;
+  /** Op de wc: 0 = nog buiten, 1 = binnen, 2 = het geluidje is geweest, 3 = doorgetrokken. */
+  private wc = 0;
+  /** Op de wc: zoveel tellen heeft de gast aan het eind nog over als hij weer voor de deur staat. */
+  private wcTail = 0;
+  /** De gast gaat alleen even zitten als er plek is; is het bankje vol, dan loopt hij gewoon door. */
+  private easy = false;
   /** Wat de gast draagt, om te kunnen bewaren. */
   private wornHat: string | null = null;
   private wornBalloon: string | null = null;
@@ -649,6 +677,109 @@ export class Guest implements Leader {
     return this.state === 'queue';
   }
 
+  /** Moet de wc-deur van deze gast nu open staan? Vlak voor hij naar binnen stapt, en als hij weer naar buiten komt. */
+  get doorOpen(): boolean {
+    if (this.state !== 'buy' || this.shop?.kind !== 'toilet') return false;
+    const e = WC_TIME - this.timer, out = WC_TIME - this.wcTail;
+    return (e > WC.walk - 0.45 && e < WC.walk + WC.step - 0.15) || (e > out - WC.step - 0.45 && e < out + 0.1);
+  }
+
+  /**
+   * Waar de gast op de wc nu is: naar zijn deur lopen, naar binnen stappen, binnen zitten (dan zie je hem niet),
+   * naar buiten stappen en terug naar het pad. Vult WC_AT in: de plek, de kant die hij op gaat en of hij loopt.
+   */
+  private wcPose(): void {
+    const shop = this.shop!, p = WC_AT;
+    const e = WC_TIME - this.timer, out = WC_TIME - this.wcTail;
+    // de deur draait mee met het gebouw: links of rechts van het midden, aan de voorkant
+    const turn = ((shop.rot ?? 0) * Math.PI) / 2, cos = Math.cos(turn), sin = Math.sin(turn);
+    const cx = shop.x + shop.size / 2, cy = shop.y + shop.size / 2, lx = this.seat % 2 ? WC.door : -WC.door;
+    const fx = cx + lx * cos + WC.front * sin, fy = cy - lx * sin + WC.front * cos;
+    const ix = cx + lx * cos + WC.deep * sin, iy = cy - lx * sin + WC.deep * cos;
+    let ax = ix, ay = iy, bx = ix, by = iy, k = 0;
+    p.fx = fx;
+    p.fy = fy;
+    p.hidden = false;
+    if (e < WC.walk) {
+      // van het pad naar de deur
+      ax = this.gx;
+      ay = this.gy;
+      bx = fx;
+      by = fy;
+      k = e / WC.walk;
+    } else if (e < WC.walk + WC.step) {
+      ax = fx;
+      ay = fy;
+      k = (e - WC.walk) / WC.step;
+    } else if (e < out - WC.step) p.hidden = true;
+    else if (e < out) {
+      bx = fx;
+      by = fy;
+      k = (e - (out - WC.step)) / WC.step;
+    } else {
+      // weer buiten: terug naar waar de gast op het pad stond
+      ax = fx;
+      ay = fy;
+      bx = this.gx;
+      by = this.gy;
+      k = Math.min(1, (e - out) / WC.back);
+    }
+    p.x = ax + (bx - ax) * k;
+    p.y = ay + (by - ay) * k;
+    p.dx = bx - ax;
+    p.dy = by - ay;
+    p.moving = k < 1 && Math.hypot(p.dx, p.dy) > 0.05;
+    // wie er al is, kijkt van de wc af
+    if (!p.moving) {
+      p.dx = sin;
+      p.dy = cos;
+    }
+  }
+
+  /** Het bezoek aan de wc, stap voor stap: de gast verdwijnt achter de deur, je hoort een geluidje en daarna de spoelbak. */
+  private toiletStep(dt: number, w: GuestWorld, reach: Set<number>): void {
+    const shop = this.shop!;
+    if (!w.shops.includes(shop)) {
+      this.timer = 0; // de wc is weggehaald: de gast staat meteen weer buiten
+      return;
+    }
+    const e = WC_TIME - this.timer;
+    if (this.wc === 0 && e >= WC.walk + WC.step) {
+      this.wc = 1;
+      this.wish = null;
+      // ligt er pad voor de deur, dan loopt de gast daar straks verder; anders terug naar waar hij stond
+      this.wcPose();
+      const tx = Math.floor(WC_AT.fx), ty = Math.floor(WC_AT.fy);
+      if (tx >= 0 && ty >= 0 && tx < W && ty < H && reach.has(tileIndex(tx, ty))) {
+        this.gx = WC_AT.fx;
+        this.gy = WC_AT.fy;
+        this.wcTail = 0.35;
+      }
+    } else if (this.wc === 1 && e >= WC.walk + WC.step + 0.5) {
+      this.wc = 2;
+      w.guestSound(Math.random() < 0.55 ? 'toilet.pee' : 'toilet.poop');
+    } else if (this.wc === 2 && e >= WC_TIME - this.wcTail - WC.step - 2.05) {
+      this.wc = 3;
+      w.guestSound('flush');
+    }
+    this.wcPose();
+    this.stepping = WC_AT.moving;
+    if (!WC_AT.hidden) this.turnTo(WC_AT.dx, WC_AT.dy, dt);
+  }
+
+  /** Een paar passen naar je plek in de rij of aan de toonbank. Geeft true zolang de gast nog loopt. */
+  private shuffle(dt: number, reach: Set<number>): boolean {
+    if (!this.slot) return false;
+    const dx = this.slot[0] - this.gx, dy = this.slot[1] - this.gy, dist = Math.hypot(dx, dy);
+    if (dist <= 0.03 || !reach.has(tileIndex(Math.floor(this.slot[0]), Math.floor(this.slot[1])))) return false;
+    const step = Math.min(0.8 * dt, dist);
+    this.gx += (dx / dist) * step;
+    this.gy += (dy / dist) * step;
+    this.turnTo(dx, dy, dt);
+    this.stepping = true;
+    return true;
+  }
+
   get happy(): boolean {
     return this.fun >= 0.55 && this.hunger < 0.9 && this.thirst < 0.9 && this.bladder < 0.9;
   }
@@ -740,6 +871,15 @@ export class Guest implements Leader {
 
   private place(): void {
     const m = this.mesh;
+    m.visible = true;
+    if (this.state === 'buy' && this.shop?.kind === 'toilet') {
+      // op de wc: naar de deur, naar binnen (achter de deur zie je de gast niet) en weer naar buiten
+      this.wcPose();
+      m.visible = !WC_AT.hidden;
+      m.position.set(toWorldX(WC_AT.x), this.hop, toWorldZ(WC_AT.y));
+      m.rotation.set(0, this.heading, 0);
+      return;
+    }
     if (this.riding) {
       // in het treintje: op het bankje van de wagon, met het gezicht in de rijrichting
       const [x, y, h] = this.riding.seatPos(this.seat);
@@ -752,7 +892,7 @@ export class Guest implements Leader {
     if (kind === 'bench' && this.shop?.edge) {
       // op het bankje: naast elkaar, met het gezicht dezelfde kant op als het bankje
       const [bx, by, rot] = edgePose(this.shop);
-      const k = this.settle(4.5), lx = this.seat % 2 ? 0.2 : -0.2, lz = -0.02;
+      const k = this.settle(BENCH_TIME), lx = this.seat % 2 ? 0.2 : -0.2, lz = -0.02;
       const sx = bx + lx * Math.cos(rot) + lz * Math.sin(rot), sy = by - lx * Math.sin(rot) + lz * Math.cos(rot);
       m.position.set(toWorldX(this.gx + (sx - this.gx) * k), (0.3 - 0.2 * m.scale.y) * k, toWorldZ(this.gy + (sy - this.gy) * k));
       m.rotation.set(0, this.heading + Math.atan2(Math.sin(rot - this.heading), Math.cos(rot - this.heading)) * k, 0);
@@ -987,6 +1127,44 @@ export class Guest implements Leader {
     }
   }
 
+  /**
+   * Even uitrusten als het zo uitkomt: wie iets lekkers in zijn hand heeft of al een beetje moe is, gaat zitten
+   * als er vlakbij een bankje met een vrij plekje staat. Is er geen, dan loopt hij gewoon door: geen wolkje en
+   * niet minder blij. Geeft terug of de gast nu op weg is naar een bankje.
+   */
+  private rest(w: GuestWorld, reach: Set<number>): boolean {
+    if (this.wheels || (w.raining() && !this.umbrella && w.feature('weather'))) return false;
+    if (Math.random() > (this.snack ? 0.8 : this.tired > 0.3 ? this.tired * 2 : 0)) return false;
+    let best: ShopSpot | null = null, tile = -1, near = REST_NEAR;
+    for (const shop of w.shops) {
+      if (shop.kind !== 'bench' || !shop.edge || (shop.busyNow ?? 0) >= (AT_ONCE.bench ?? 1)) continue;
+      for (const n of edgeSides(shop)) {
+        if (!reach.has(n)) continue;
+        const [x, y] = tileXY(n);
+        const d = Math.abs(x + 0.5 - this.gx) + Math.abs(y + 0.5 - this.gy);
+        if (d < near) {
+          near = d;
+          best = shop;
+          tile = n;
+        }
+      }
+    }
+    if (!best || (tile !== this.tile && !this.go(w, reach, tile))) return false;
+    if (this.route.length > REST_NEAR * 2) {
+      // het bankje is dichtbij, maar de weg erheen is een heel eind om
+      this.route = [];
+      this.state = 'idle';
+      return false;
+    }
+    this.shop = best;
+    this.errand = 'sit';
+    this.easy = true;
+    // wat lekkers gaat mee naar het bankje
+    if (this.snack) this.eating = Math.max(this.eating, this.route.length / 0.8 + 4);
+    if (tile === this.tile) this.arrive(w);
+    return true;
+  }
+
   /** Naar huis: door de poort naar buiten. Een blije gast laat een tekening achter in het gastenboek. */
   private leave(w: GuestWorld): void {
     if (this.gone) return;
@@ -1052,6 +1230,8 @@ export class Guest implements Leader {
     this.errand = null;
     this.sees = [];
     this.act = null;
+    this.gate = -1;
+    this.easy = false;
     if (this.tour && !this.leaving) return this.tourStep(w, list, reach);
     if (this.age > this.stay || this.fun < 0.08) this.leaving = true;
     if (this.leaving) {
@@ -1077,6 +1257,9 @@ export class Guest implements Leader {
       this.idle = { kind: 'nod', t: 0, dur: 1.2 };
     }
     const want = this.want(w);
+    // niets dringends, of net iets lekkers gekocht: even gaan zitten als er vlakbij een bankje vrij is
+    const calm = !want || !PRESSING.includes(want) || (!!this.snack && (want === 'food' || want === 'drink'));
+    if (calm && this.rest(w, reach)) return;
     if (want === 'pet') {
       if (this.visitPen(w, reach)) return;
       this.postpone(want);
@@ -1180,22 +1363,27 @@ export class Guest implements Leader {
       if (!w.shops.includes(this.shop)) {
         this.state = 'idle'; // de kraam is intussen weggehaald
         this.timer = 0.2;
-      } else if ((this.shop.busyNow ?? 0) < (AT_ONCE[this.shop.kind] ?? 1)) this.serve(w);
+      } else if ((this.shop.busyNow ?? 0) < (AT_ONCE[this.shop.kind] ?? 1)) this.serve();
       else if (this.shop.kind === 'bench') {
-        // het bankje is vol: voor een bankje ga je niet in de rij staan, je moppert en loopt door
-        this.wish = { kind: 'sit', lacking: true, busy: true };
-        this.grumble(w);
-        this.tired = 0.6;
+        // het bankje is vol: voor een bankje ga je niet in de rij staan. Wie echt moe is, moppert en loopt door;
+        // wie alleen even wilde uitrusten, loopt gewoon verder
+        if (this.easy) this.timer = 0.3;
+        else {
+          this.wish = { kind: 'sit', lacking: true, busy: true };
+          this.grumble(w);
+          this.tired = 0.6;
+          this.timer = 1.6;
+        }
         this.state = 'idle';
-        this.timer = 1.6;
         this.shop = null;
         this.errand = null;
       } else {
-        // bezet: achteraan aansluiten
+        // bezet: achteraan aansluiten; de rij begint op de tegel waar de gast nu staat
         this.state = 'queue';
         this.waited = 0;
         this.joined = this.age;
         this.slot = null;
+        this.gate = this.tile;
       }
     } else if (this.face) {
       this.state = 'watch';
@@ -1248,7 +1436,7 @@ export class Guest implements Leader {
   }
 
   /** Aan de beurt: bestellen, naar de wc, gaan zitten of instappen. */
-  serve(w: GuestWorld): void {
+  serve(): void {
     if (!this.shop) return;
     const kind = this.shop.kind;
     this.state = SEATED.includes(kind) ? 'sit' : 'buy';
@@ -1263,9 +1451,20 @@ export class Guest implements Leader {
     this.rode = false;
     this.shop.busyNow = (this.shop.busyNow ?? 0) + 1;
     this.slot = null;
+    if (this.gate >= 0 && this.state === 'buy' && kind !== 'toilet') {
+      // uit de rij aan de beurt: de gast stapt naar de toonbank, waar de rij begint
+      const [x, y] = tileXY(this.gate);
+      this.slot = [x + 0.5 + this.ox, y + 0.5 + this.oy];
+    }
+    this.gate = -1;
     if (this.wish) this.wish = { ...this.wish, lacking: false, busy: undefined };
-    // op de wc hoor je af en toe wat er achter de deur gebeurt
-    if (kind === 'toilet' && Math.random() < 0.6) w.guestSound(Math.random() < 0.55 ? 'toilet.pee' : 'toilet.poop');
+    if (kind === 'toilet') {
+      // het bezoek begint buiten, op het pad (zie toiletStep)
+      this.wc = 0;
+      this.wcTail = WC.back + 0.1;
+    }
+    // wie met iets lekkers op het bankje gaat zitten, eet het daar rustig op
+    if (kind === 'bench' && this.snack) this.eating = Math.max(this.eating, this.timer - 1.5);
   }
 
   /** Te lang gewacht of nergens plek: de gast moppert, wordt minder blij en laat zien waar het te druk is. */
@@ -1338,16 +1537,17 @@ export class Guest implements Leader {
     } else if (this.state === 'sit' && kind === 'shelter') {
       this.fun = Math.min(1, this.fun + 0.05);
     } else if (this.state === 'sit') {
+      // op het bankje: hoe moeier de gast was, hoe meer hij ervan opknapt
+      this.fun = Math.min(1, this.fun + 0.05 + 0.1 * Math.min(1, this.tired / 0.75));
       this.tired = 0;
-      this.fun = Math.min(1, this.fun + 0.15);
     } else if (this.state === 'buy' && this.shop && kind && w.shops.includes(this.shop)) {
       const asked = this.errand ? this.wanted[this.errand] : undefined;
       const exact = !asked || this.shop.sells.includes(asked);
       const got = exact ? asked : this.shop.sells.length ? pick(this.shop.sells) : undefined;
       if (kind === 'toilet') {
+        // het doortrekken was al te horen toen de gast nog binnen zat (zie toiletStep)
         this.bladder = 0;
         this.fun = Math.min(1, this.fun + 0.08);
-        w.guestSound('flush');
       } else if ((exact || got) && w.buy(this.shop, this, got, exact)) {
         this.bought[kind] = (this.bought[kind] ?? 0) + 1;
         this.purchases++;
@@ -1521,6 +1721,7 @@ export class Guest implements Leader {
 
   update(dt: number, w: GuestWorld, list: number[], reach: Set<number>): void {
     this.age += dt;
+    this.stepping = false;
     const rain = w.raining();
     if (this.brolly) this.brolly.visible = rain;
     if (this.leader) return this.follow(dt);
@@ -1601,15 +1802,7 @@ export class Guest implements Leader {
       // in de rij: opschuiven naar je plek en wachten; wie te lang wacht, loopt mopperend weg
       this.waited += dt;
       this.fun = Math.max(0, this.fun - dt / 150);
-      if (this.slot) {
-        const dx = this.slot[0] - this.gx, dy = this.slot[1] - this.gy, dist = Math.hypot(dx, dy), step = 0.8 * dt;
-        const tile = tileIndex(Math.floor(this.slot[0]), Math.floor(this.slot[1]));
-        if (dist > 0.03 && reach.has(tile)) {
-          this.gx += (dx / dist) * Math.min(step, dist);
-          this.gy += (dy / dist) * Math.min(step, dist);
-          this.turnTo(dx, dy, dt);
-        } else if (this.face) this.turnTo(this.face[0] - this.gx, this.face[1] - this.gy, dt);
-      }
+      if (this.slot && !this.shuffle(dt, reach) && this.face) this.turnTo(this.face[0] - this.gx, this.face[1] - this.gy, dt);
       if (this.waited > PATIENCE / 2 && this.wish && !this.wish.busy) this.wish = { ...this.wish, lacking: true, busy: true };
       if (this.waited > PATIENCE || !this.shop || !w.shops.includes(this.shop)) {
         if (this.shop && w.shops.includes(this.shop)) this.grumble(w);
@@ -1618,12 +1811,15 @@ export class Guest implements Leader {
         this.shop = null;
         this.errand = null;
         this.slot = null;
+        this.gate = -1;
         this.timer = 1.2;
       }
     } else {
       const talk = this.idle?.kind === 'talk' ? this.chatAt : null;
       const face = talk ?? this.face;
-      if (face) this.turnTo(face[0] - this.gx, face[1] - this.gy, dt);
+      if (this.state === 'buy' && this.shop?.kind === 'toilet') this.toiletStep(dt, w, reach);
+      // wie uit de rij aan de beurt is, stapt eerst naar de toonbank
+      else if (!(this.state === 'buy' && this.shuffle(dt, reach)) && face) this.turnTo(face[0] - this.gx, face[1] - this.gy, dt);
       if (this.state === 'sit' && this.shop) {
         // in het treintje blijf je zitten tot de volgende halte; op het perron wacht je tot het komt
         if (this.riding) this.timer = Math.max(this.timer, 1);
@@ -1640,7 +1836,7 @@ export class Guest implements Leader {
     }
     // benen en armen zwaaien tijdens het lopen
     this.phase += dt * 11;
-    swing(this.limbs, this.state === 'walk' ? Math.sin(this.phase * (this.dash > 0 ? 1.5 : 1)) * (this.wheels === 'chair' ? 0 : 0.7) : 0);
+    swing(this.limbs, this.state === 'walk' || this.stepping ? Math.sin(this.phase * (this.dash > 0 ? 1.5 : 1)) * (this.wheels === 'chair' ? 0 : this.stepping ? 0.5 : 0.7) : 0);
     this.gesture(dt, rain && !this.umbrella && w.feature('weather'));
     this.place();
   }
@@ -1769,7 +1965,7 @@ export class Guest implements Leader {
         }
       }
     } else if (this.state === 'walk') this.idle = null;
-    if (this.state === 'buy') right.rotation.x = -1.3; // de hand uitsteken naar de toonbank
+    if (this.state === 'buy' && this.shop?.kind !== 'toilet') right.rotation.x = -1.3; // de hand uitsteken naar de toonbank
     if (this.eating > 0) {
       // een hap of een slok: de hand gaat naar de mond en weer terug
       this.eating -= dt;
@@ -2078,7 +2274,8 @@ export class GuestManager {
 
   /**
    * De rijen: per kraam tellen wie er geholpen wordt en wie er wacht, de wachtenden een plek in de rij
-   * geven (achter elkaar langs het pad) en de voorste laten doorlopen zodra er plek is.
+   * geven (achter elkaar langs het pad) en de voorste laten doorlopen zodra er plek is. Hier wordt ook
+   * bijgehouden welke wc-deur open moet.
    */
   private lines(): void {
     const waiting = new Map<ShopSpot, Guest[]>();
@@ -2086,6 +2283,7 @@ export class GuestManager {
       shop.busyNow = 0;
       shop.line = 0;
       shop.used = 0;
+      if (shop.kind === 'toilet' && shop.mesh) shop.mesh.userData.ajar = 0;
     }
     for (const g of this.guests) {
       const shop = g.using;
@@ -2094,28 +2292,45 @@ export class GuestManager {
       else {
         shop.busyNow = (shop.busyNow ?? 0) + 1;
         shop.used = (shop.used ?? 0) | (1 << g.seat);
+        if (shop.mesh && g.doorOpen) shop.mesh.userData.ajar |= 1 << g.seat;
       }
     }
     for (const [shop, line] of waiting) {
       line.sort((p, q) => p.joined - q.joined);
-      while (line.length && (shop.busyNow ?? 0) < (AT_ONCE[shop.kind] ?? 1)) line.shift()!.serve(this.world);
+      while (line.length && (shop.busyNow ?? 0) < (AT_ONCE[shop.kind] ?? 1)) line.shift()!.serve();
       shop.line = line.length;
       if (!line.length) continue;
-      // de rij loopt langs het pad: de kant op waar het meeste pad ligt
-      const head = line[0].tile;
+      // de rij begint op de tegel voor de kraam waar de gasten aankwamen. Die plek blijft vast: zo schuift de
+      // rij niet steeds verder het pad op als de voorste aan de beurt is.
+      const head = line[0].gate >= 0 ? line[0].gate : line[0].tile;
       const [hx, hy] = tileXY(head);
       const [cx, cy] = shopCenter(shop);
-      const away: [number, number] = Math.abs(hx + 0.5 - cx) > Math.abs(hy + 0.5 - cy) ? [Math.sign(hx + 0.5 - cx), 0] : [0, Math.sign(hy + 0.5 - cy)];
-      const sides: [number, number][] = [[away[1], away[0]], [-away[1], -away[0]], away];
+      const ox = hx + 0.5 - cx, oy = hy + 0.5 - cy;
+      const away: [number, number] = Math.abs(ox) > Math.abs(oy) ? [Math.sign(ox), 0] : [0, Math.sign(oy)];
+      // de rij loopt langs het pad: de kant op waar het meeste pad ligt. Bij gelijke stand eerst langs de gevel
+      // naar het midden van het gebouw toe, zodat de rij voor de deur staat en niet ernaast.
+      const turn = ox * away[1] + oy * away[0] > 0 ? -1 : 1;
+      const sides: [number, number][] = [[away[1] * turn, away[0] * turn], [-away[1] * turn, -away[0] * turn], away];
       const run = (d: [number, number]): number => {
         let n = 0;
         while (n < 4 && this.reach.has(tileIndex(hx + d[0] * (n + 1), hy + d[1] * (n + 1))) && hx + d[0] * (n + 1) >= 0 && hx + d[0] * (n + 1) < W) n++;
         return n;
       };
       const dir = sides.reduce((best, d) => (run(d) > run(best) ? d : best));
-      line.forEach((g, i) => {
-        g.slot = [hx + 0.5 + dir[0] * 0.5 * (i + 1), hy + 0.5 + dir[1] * 0.5 * (i + 1)];
-      });
+      // op de wc is de gast die aan de beurt is binnen: daar begint de rij vooraan. Bij een toonbank staat hij
+      // op de eerste plek en sluit de rij achter hem aan.
+      const first = shop.kind === 'toilet' ? 0 : 1;
+      // niet verder dan het pad reikt; is het pad kort, dan gaat de rij dichter op elkaar staan
+      const room = run(dir) + 0.35, last = first + line.length - 1;
+      const gap = last > 0 ? Math.min(0.5, Math.max(0.3, room / last)) : 0.5;
+      for (let i = 0; i < line.length; i++) {
+        const g = line[i], at = Math.min((first + i) * gap, room);
+        const sx = hx + 0.5 + dir[0] * at, sy = hy + 0.5 + dir[1] * at;
+        if (g.slot) {
+          g.slot[0] = sx;
+          g.slot[1] = sy;
+        } else g.slot = [sx, sy];
+      }
     }
   }
 

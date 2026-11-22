@@ -60,7 +60,9 @@ export function goalLine(tr: Tr, g: Goal): Line {
 }
 
 /** Een dier wacht al een poos op iets. */
-export function wishLine(tr: Tr, wish: WishId, sp: SpeciesId, need: FenceNeed | null, urgent: boolean): Line {
+export function wishLine(tr: Tr, wish: WishId, sp: SpeciesId, need: FenceNeed | null, urgent: boolean, ask?: string): Line {
+  // groen en steen: voor alle dieren dezelfde zin (`ask`: 'green.more', 'green.less', 'stone.more' of 'stone.less')
+  if (wish === 'wild') return { who: 'keeper', mood: 'worried', key: `alert.wild.${ask ?? 'green.more'}` };
   const fence = wish === 'enclosure' && need;
   return {
     who: wish === 'enclosure' || wish === 'space' ? 'builder' : 'keeper',
@@ -123,6 +125,7 @@ export const say = {
   /** Het weetje van een diersoort, verteld door de verzorger. */
   fact: (sp: SpeciesId): Line => ({ who: 'keeper', mood: 'happy', key: `fact.${sp}` }),
   climateNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.climate.new' }),
+  wildNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.wild.new' }),
   rare: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.rare' }),
   pals: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.pals' }),
   season: (season: Season): Line => ({ who: 'director', mood: 'happy', key: `say.season.${season}` }),
@@ -243,7 +246,8 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.tipKeeper());
   for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter', 'product', 'new', 'accident', 'nopath', 'dark', 'rain', 'wide'] as const) add(say.host(key));
   for (const season of SEASONS) add(say.season(season));
-  for (const line of [say.climateNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.visit(), say.party(), say.celeb(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
+  for (const ask of ['green.more', 'green.less', 'stone.more', 'stone.less']) add(wishLine(tr, 'wild', 'pig', null, false, ask));
+  for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.visit(), say.party(), say.celeb(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
     say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate()]) add(line);
   add(say.night());
   add(say.aquaNew());

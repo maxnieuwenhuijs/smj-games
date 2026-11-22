@@ -10,7 +10,7 @@ import {
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
   type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, LIGHT, SPACE, guestsAt, SERVES,
   isPath, PATH_KINDS, PATH_FROM, TOY_FROM, TOY_PRICE, CLIMATE, palsOf, PETTABLE, PETTING_MIN, NATURES, RARES, RARE_CHANCE, MUD_LOVERS, FERRIS, BUMPER_CARS, bumperCar, crowdLoad, CROWD_EASE,
-  EDGE_DECOR, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, SEASONS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
+  EDGE_DECOR, PROP, PROPS, propPoints, wildWant, type PropKind, type PropGroup, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, SEASONS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
 import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region, type Side } from './grid';
 import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
 import { cursor, icon, type IconId } from './icons';
@@ -22,7 +22,7 @@ import { View, toWorldX, toWorldZ, type TroughMesh } from './view';
 
 /** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken. */
 export type ActionId = 'broom' | 'hammer' | 'picker';
-export type ToolId = 'hand' | 'action' | 'terrain' | 'fence' | 'trough' | 'bed' | 'toy' | 'shop' | 'decor' | 'animal' | 'staff' | 'erase';
+export type ToolId = 'hand' | 'action' | 'terrain' | 'fence' | 'trough' | 'bed' | 'toy' | 'prop' | 'shop' | 'decor' | 'animal' | 'staff' | 'erase';
 type Verdict = 'good' | 'ok' | 'bad';
 type Sex = 'male' | 'female';
 
@@ -33,7 +33,7 @@ type Sex = 'male' | 'female';
 const TOOL_GROUPS: [string, ToolId[]][] = [
   ['do', ['hand', 'action', 'erase']],
   ['land', ['terrain', 'fence']],
-  ['animal', ['animal', 'trough', 'bed', 'toy']],
+  ['animal', ['animal', 'trough', 'bed', 'toy', 'prop']],
   ['park', ['shop', 'decor', 'staff']],
 ];
 /** Hoe snel een speeltoestel heen en weer gaat. */
@@ -132,6 +132,8 @@ export interface SaveData {
   beds?: { x: number; y: number; kind: BedKind; rot?: number }[];
   toys?: { x: number; y: number; kind: ToyKind; rot?: number }[];
   decor?: { x: number; y: number; kind: DecorKind; edge?: 'h' | 'v'; rot?: number }[];
+  /** Natuur op een kwart tegel: `x`, `y` in vakjes (twee per tegel), `r` de draaiing in kwartslagen. */
+  props?: { k: PropKind; x: number; y: number; r?: number }[];
   shops?: { x: number; y: number; kind: ShopKind; sells?: string[]; edge?: 'h' | 'v'; turned?: boolean; face?: number; rot?: number; manual?: boolean; dirt?: number }[];
   sold?: Record<string, number>;
   soldAt?: Record<string, number>;
@@ -188,6 +190,15 @@ interface DecorObj {
   mesh: THREE.Object3D;
   rot?: number;
 }
+/** Natuur: een graspol, steen of boom. `sx`, `sy`: het vakje linksboven (twee vakjes per tegel). */
+interface PropObj {
+  kind: PropKind;
+  sx: number;
+  sy: number;
+  rot: number;
+}
+/** Bij elk natuurding het plaatje van de knop; boom, den, palm en rots lenen dat van het park. */
+const PROP_ICON: Record<PropKind, IconId> = { tuft: 'tuft', daisies: 'daisies', fern: 'fern', shrub: 'shrub', pebbles: 'pebbles', stone: 'stone', oak: 'tree', fir: 'pine', coco: 'palm', crag: 'boulder' };
 interface ToyObj {
   x: number;
   y: number;
@@ -198,7 +209,53 @@ interface ToyObj {
   playUntil?: number;
   /** Naar welke kant de hoepel gedraaid staat. */
   facing?: number;
+  /** De losse stukken (de ballen, de liggende stam): die rollen echt door het verblijf. */
+  loose?: LoosePiece[];
+  /** Ligt er een los stuk niet op zijn plek? Alleen dan is er iets te bewegen. */
+  live?: boolean;
 }
+/** Een los stuk van speelgoed: waar het nu ligt en hoe het rolt. Alleen het beeld beweegt; het speelgoed zelf houdt zijn tegel. */
+interface LoosePiece {
+  obj: THREE.Object3D;
+  /** De straal: zo hoog ligt het midden, en zo snel draait het stuk bij het rollen. */
+  r: number;
+  /** De eigen plek, gemeten in het speelgoed zelf (dat draait mee met `rot`). */
+  hx: number;
+  hz: number;
+  /** Een stam: zo ligt hij gedraaid. Hij rolt alleen dwars op zijn lengte; een bal rolt alle kanten op. */
+  turn: number;
+  line: boolean;
+  /** Waar het stuk nu ligt, in tegels vanaf het midden van de eigen tegel, en hoe snel het gaat. */
+  ox: number;
+  oy: number;
+  vx: number;
+  vy: number;
+  /** De bal stuitert: zo hoog is hij nu, en zo snel gaat hij omhoog. */
+  h: number;
+  vh: number;
+  /** De stam: hoe ver hij van zijn plek gerold is, hoe snel, en hoe ver hij naar elke kant kan. */
+  s: number;
+  vs: number;
+  lo: number;
+  hi: number;
+  /** De weg terug naar de eigen tegel (tegel voor tegel) en hoe ver de bal daarop is; null zolang hij vrij rolt. */
+  route: number[] | null;
+  step: number;
+  /** Zoveel seconden is de bal al op weg naar huis. */
+  homing: number;
+  /** Ligt het stuk stil op zijn eigen plek? */
+  home: boolean;
+}
+/**
+ * Hoe een bal rolt: zo hard valt hij na een stuit, zo snel remt hij af (`brake` altijd, `drag` meer naarmate hij
+ * harder gaat), zoveel snelheid houdt hij over tegen het hek (`wall`) en op de grond (`bounce`), en zo snel rolt hij naar huis.
+ */
+const BALL = { gravity: 9, brake: 0.9, drag: 0.7, wall: 0.65, bounce: 0.5, home: 1.1 };
+/**
+ * Hoe een stam rolt: hij wil terug naar zijn plek (`pull`) en remt af (`damp`). Zo ver kan hij op de eigen tegel
+ * (`near`) en met een vrije tegel ernaast (`far`). Met `kick` keer die ruimte als snelheid rolt hij er net niet tegenaan.
+ */
+const LOG = { pull: 4, damp: 2.4, near: 0.3, far: 0.8, kick: 3.8 };
 interface ShopObj extends ShopSpot {
   mesh: THREE.Object3D;
   /** Hoe vies de kraam is (0 tot 1); bij 1 koopt de helft van de gasten er niets meer. */
@@ -266,7 +323,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   stats: Stats = emptyStats();
   tool: ToolId = 'hand';
 
-  private option = { trough: 'wood', action: 'broom', terrain: 'mud', fence: 'fence', bed: 'straw', toy: 'ball', staff: 'feed', decor: 'tree', decorGroup: 'green', shop: 'foodstall', animal: '', sex: 'male', world: 'farm' };
+  private option = { trough: 'wood', action: 'broom', terrain: 'mud', fence: 'fence', bed: 'straw', toy: 'ball', prop: 'tuft', staff: 'feed', decor: 'tree', decorGroup: 'green', shop: 'foodstall', animal: '', sex: 'male', world: 'farm' };
   private puddles: { mesh: THREE.Mesh; life: number }[] = [];
   private bubbles = new Map<Animal, HTMLElement>();
   private guestBubbles = new Map<Guest, HTMLElement>();
@@ -402,6 +459,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.startPath();
     this.view.paintTerrain(this.grid);
     this.syncPens(false);
+    // een ouder spel, van voor de natuur: de tuinman zet in elk verblijf alvast neer wat de dieren willen
+    if (data && data.props === undefined && this.has('wild')) {
+      this.plantAll();
+      this.lines.push(say.wildNew());
+    }
     this.syncWear();
     this.syncLand();
     this.refreshGoals();
@@ -457,6 +519,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     for (const b of d.toys ?? []) this.addToy(b.x + ox, b.y + oy, b.kind, b.rot);
     // iets op een rand ligt langs die rand; een heg of bloemperk uit een ouder spel staat nog midden op zijn tegel
     for (const b of d.decor ?? []) if (DECOR[b.kind]) this.addDecor(b.x + ox, b.y + oy, b.kind, b.edge, b.rot ?? (b.edge === 'v' ? 1 : 0));
+    for (const p of d.props ?? []) if (PROP[p.k]) this.props.push({ kind: p.k, sx: p.x + ox * 2, sy: p.y + oy * 2, rot: p.r ?? 0 });
+    this.syncProps();
     // eerst de losse dingen (bankje, bloemen, afvalbak): die blijven staan waar ze stonden
     const stored = [...(d.shops ?? [])].sort((p, q) => (SHOP_SIZE[p.kind] ?? 1) - (SHOP_SIZE[q.kind] ?? 1));
     for (const sh of stored) {
@@ -544,6 +608,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       beds: this.beds.map(({ x, y, kind, rot }) => ({ x, y, kind, rot: rot || undefined })),
       toys: this.toys.map(({ x, y, kind, rot }) => ({ x, y, kind, rot: rot || undefined })),
       decor: this.decors.map(({ x, y, kind, edge, rot }) => ({ x, y, kind, edge, rot: rot || undefined })),
+      props: this.props.map(p => ({ k: p.kind, x: p.sx, y: p.sy, r: p.rot || undefined })),
       shops: this.shops.map(({ x, y, kind, sells, edge, turned, set, rot, manual, dirt }) => ({ x, y, kind, sells, edge, turned, face: set, rot, manual, dirt: dirt ? Math.round(dirt * 100) / 100 : undefined })),
       gw: W,
       gh: H,
@@ -859,7 +924,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Kun je wat je nu vasthebt draaien? Voerbak, slaapplek, speelgoed, alles van Park en alle winkels. */
   private canSpin(): boolean {
-    return this.tool === 'trough' || this.tool === 'bed' || this.tool === 'toy' || this.tool === 'decor' || this.tool === 'shop';
+    return this.tool === 'trough' || this.tool === 'bed' || this.tool === 'toy' || this.tool === 'prop' || this.tool === 'decor' || this.tool === 'shop';
   }
 
   /** De draaiknop: het ding dat je gaat neerzetten draait een kwartslag; het voorbeeld laat meteen zien hoe het komt te staan. */
@@ -867,7 +932,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!this.canSpin()) return;
     this.quarter = (this.quarter + 1) % 4;
     this.spins++;
-    this.hud.setSpin(true, this.spins);
+    this.hud.setSpin(true, this.spins, (this.option as Record<string, string>)[this.tool] ?? '');
     const box = this.view.renderer.domElement.getBoundingClientRect();
     const [cx, cy] = this.lastHover ?? [box.left + box.width / 2, box.top + box.height / 2];
     this.hover(cx, cy, false);
@@ -964,6 +1029,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         fresh: toys.some(k => this.fresh.has(k)),
         rows: [{ key: 'toy', active: this.option.toy, options: toys.map(k => ({ ...opt(k, k, t(`toy.${k}`), TOY_PRICE[k] ?? PRICE.toy), fresh: this.fresh.has(k) })) }],
       });
+    // natuur voor in de verblijven: graspollen, bloemetjes, stenen en bomen, per kwart tegel
+    if (this.has('wild'))
+      defs.push({
+        ...opt('prop', 'tuft', t('tool.prop')),
+        rows: [{ key: 'prop', active: this.option.prop, options: PROPS.map(k => opt(k, PROP_ICON[k], t(`prop.${k}`), PROP[k].price)) }],
+      });
     if (this.has('decor'))
       defs.push({
         ...opt('decor', 'tree', t('tool.decor')),
@@ -1002,7 +1073,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     defs.push(opt('erase', 'erase', t('tool.erase')));
     const grouped = TOOL_GROUPS.flatMap(([group, ids]) => ids.flatMap(id => defs.filter(d => d.id === id).map(d => ({ ...d, group }))));
     this.hud.setTools(grouped, this.tool, hint, this.linger);
-    this.hud.setSpin(this.canSpin() && !this.moving, this.spins);
+    this.hud.setSpin(this.canSpin() && !this.moving, this.spins, (this.option as Record<string, string>)[this.tool] ?? '');
   }
 
   /** Wat er onder de actieknop zit: de veger altijd, de prikker zodra er afval komt, de hamer zodra hekken slijten. */
@@ -1156,6 +1227,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.level === FEATURE.decor) this.lines.push(say.decorNew());
     if (this.level === FEATURE.petting) this.lines.push(say.pettingNew());
     if (this.level === FEATURE.climate) this.lines.push(say.climateNew());
+    if (this.level === FEATURE.wild) this.lines.push(say.wildNew());
     if (this.level === BONUS.dolphin && hasSpecies('dolphin')) this.lines.push(say.aquaNew());
     // vanaf nu kun je hulp aannemen: de verzorger vertelt hoe
     if (this.level === FEATURE.keeper) this.showStaffGuide();
@@ -1764,6 +1836,18 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   private addToy(x: number, y: number, kind: ToyKind, rot = 0): ToyObj {
     const toy: ToyObj = { x, y, kind, rot, mesh: this.view.makeToy(x, y, kind, rot) };
+    // de losse stukken (de ballen, de liggende stam) kunnen rollen: bij elk stuk hoort waar het ligt en hoe snel het gaat
+    const parts = toy.mesh.userData.loose as THREE.Object3D[] | undefined;
+    if (parts) {
+      const c = Math.cos((rot * Math.PI) / 2), s = Math.sin((rot * Math.PI) / 2);
+      toy.loose = parts.map(obj => {
+        const { x: hx, z: hz, r, turn } = obj.userData as { x: number; z: number; r: number; turn?: number };
+        return {
+          obj, r, hx, hz, turn: turn ?? 0, line: turn !== undefined,
+          ox: hx * c + hz * s, oy: hz * c - hx * s, vx: 0, vy: 0, h: 0, vh: 0, s: 0, vs: 0, lo: 0, hi: 0, route: null, step: 0, homing: 0, home: true,
+        };
+      });
+    }
     this.toys.push(toy);
     return toy;
   }
@@ -1776,8 +1860,168 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (facing !== undefined) obj.facing = facing;
   }
 
+  /** Een dier geeft een los stuk speelgoed een duwtje met zijn neus: het rolt van het dier weg. Lukt niet als het ding weg is. */
+  nudgeToy(toy: { x: number; y: number }, piece: number, fromX: number, fromY: number): boolean {
+    const obj = this.toyAt(toy.x, toy.y), p = obj?.loose?.[piece];
+    if (!obj || !p) return false;
+    this.shove(obj, p, fromX, fromY, 1);
+    return true;
+  }
+
   inTank(tile: number): boolean {
     return this.tankTiles.has(tile);
+  }
+
+  // ------------------------------------------------------------ natuur op een kwart tegel
+  /**
+   * Graspollen, bloemetjes, stenen en bomen. Elke tegel is in vier vakjes verdeeld (twee bij twee): iets kleins neemt
+   * één vakje, een boom of rots de hele tegel. Ze staan in de verblijven en in het park; dieren willen er net genoeg van.
+   */
+  private props: PropObj[] = [];
+  /** Per bezet vakje wat er staat. */
+  private propCells = new Map<number, PropObj>();
+  /** De tegels met een boom of een rots: daar lopen dieren omheen. */
+  private solid = new Set<number>();
+  /** Per verblijf hoeveel groen en steen er staat; elk beeldje opnieuw uitgerekend zodra iemand ernaar vraagt. */
+  private wildCache: Map<number, Record<PropGroup, number>> | null = null;
+
+  private cellKey(sx: number, sy: number): number {
+    return sy * W * 2 + sx;
+  }
+
+  /** Na elke verandering: welke vakjes bezet zijn, waar een boom of rots staat, en het beeld. */
+  private syncProps(): void {
+    this.propCells.clear();
+    this.solid.clear();
+    this.wildCache = null;
+    for (const p of this.props) {
+      const n = PROP[p.kind].size;
+      for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) this.propCells.set(this.cellKey(p.sx + dx, p.sy + dy), p);
+      if (n === 2) this.solid.add(tileIndex(p.sx >> 1, p.sy >> 1));
+    }
+    this.view.syncProps(this.props.map(p => ({ kind: p.kind, gx: this.propCenter(p)[0], gy: this.propCenter(p)[1], rot: p.rot })));
+  }
+
+  /** Het midden van een natuurding, in tegels. */
+  private propCenter(p: { kind: PropKind; sx: number; sy: number }): [number, number] {
+    const n = PROP[p.kind].size;
+    return [(p.sx + n / 2) / 2, (p.sy + n / 2) / 2];
+  }
+
+  /** Het vakje waar dit ding komt als je hier tikt: iets kleins in het kwart onder je vinger, iets groots op de hele tegel. */
+  private propSpot(kind: PropKind, gx: number, gy: number): [number, number] {
+    return PROP[kind].size === 2 ? [Math.floor(gx) * 2, Math.floor(gy) * 2] : [Math.floor(gx * 2), Math.floor(gy * 2)];
+  }
+
+  private propUnder(gx: number, gy: number): PropObj | undefined {
+    return this.propCells.get(this.cellKey(Math.floor(gx * 2), Math.floor(gy * 2)));
+  }
+
+  /** Past het hier? Op vrije vakjes, niet op het pad of in het water, en niet waar al iets groots staat. */
+  private propFits(kind: PropKind, sx: number, sy: number): boolean {
+    const n = PROP[kind].size;
+    for (let dy = 0; dy < n; dy++)
+      for (let dx = 0; dx < n; dx++) {
+        const cx = sx + dx, cy = sy + dy, x = cx >> 1, y = cy >> 1;
+        if (cx < 0 || cy < 0 || !this.grid.inBounds(x, y) || this.taken(x, y) || this.propCells.has(this.cellKey(cx, cy))) return false;
+        const terrain = this.grid.terrain[tileIndex(x, y)];
+        if (isPath(terrain) || terrain === WATER) return false;
+      }
+    return true;
+  }
+
+  private placeProp(gx: number, gy: number): void {
+    const kind = this.option.prop as PropKind;
+    const [sx, sy] = this.propSpot(kind, gx, gy);
+    const [cx, cy] = this.propCenter({ kind, sx, sy });
+    if (!this.propFits(kind, sx, sy)) return this.nope(cx, cy);
+    if (!this.pay(PROP[kind].price, cx, cy)) return;
+    const region = this.grid.enclosureAt(sx >> 1, sy >> 1);
+    const here = region ? this.animalsIn(region.id) : [];
+    const before = here.map(a => a.wildAsk);
+    this.props.push({ kind, sx, sy, rot: this.quarter });
+    this.syncProps();
+    sfx('place');
+    this.floatAt(icon('sparkle'), cx, cy, 0.4);
+    // de dieren laten merken of het zo goed is: blij als het nu klopt, sip als het te vol wordt
+    here.forEach((a, i) => {
+      a.checkWishes(this);
+      if (before[i] && !a.wildAsk) this.react(a, 'good');
+      else if (a.wildAsk && !a.wildAsk.more && a.wildAsk.group === PROP[kind].group) this.react(a, 'bad');
+    });
+  }
+
+  private removeProp(p: PropObj): void {
+    this.props = this.props.filter(k => k !== p);
+    this.syncProps();
+    this.earn(refund(PROP[p.kind].price), ...this.propCenter(p));
+  }
+
+  /** Komt er een voerbak, gebouw, pad of water op de plek van een graspol of steen, dan gaat die weg; je krijgt de munten terug. */
+  private sweepProps(): void {
+    const gone = this.props.filter(p => {
+      const n = PROP[p.kind].size;
+      for (let dy = 0; dy < n; dy++)
+        for (let dx = 0; dx < n; dx++) {
+          const x = (p.sx + dx) >> 1, y = (p.sy + dy) >> 1, terrain = this.grid.terrain[tileIndex(x, y)];
+          if (this.taken(x, y) || isPath(terrain) || terrain === WATER) return true;
+        }
+      return false;
+    });
+    if (!gone.length) return;
+    this.props = this.props.filter(p => !gone.includes(p));
+    for (const p of gone) this.coins = Math.min(COIN_CAP, this.coins + PROP[p.kind].price);
+    this.syncProps();
+  }
+
+  solidAt(tile: number): boolean {
+    return this.solid.has(tile);
+  }
+
+  /** Hoeveel groen en steen er in dit verblijf staat: het deel van alle vakjes op het land (water telt niet mee). */
+  wildIn(region: { id: number; tiles: number[] }): Record<PropGroup, number> {
+    const cache = this.wildCache ?? (this.wildCache = new Map());
+    let rec = cache.get(region.id);
+    if (!rec) {
+      rec = { green: 0, stone: 0 };
+      const inside = new Set(region.tiles);
+      for (const p of this.props) if (inside.has(tileIndex(p.sx >> 1, p.sy >> 1))) rec[PROP[p.kind].group] += propPoints(p.kind);
+      const land = region.tiles.filter(i => this.grid.terrain[i] !== WATER).length;
+      // een verblijf met alleen water: daar kan niets staan, dus daar vraagt geen dier erom (dit is voor elk dier goed)
+      if (!land) rec.green = rec.stone = 0.1;
+      else {
+        rec.green /= land * 4;
+        rec.stone /= land * 4;
+      }
+      cache.set(region.id, rec);
+    }
+    return rec;
+  }
+
+  /**
+   * Zet in dit verblijf één graspol, plantje of steen neer waar een dier om vraagt, op een vrij vakje. Gratis: voor
+   * een ouder spel van voor de natuur (en de speelrobot betaalt er zelf voor). Geeft terug of er iets is neergezet.
+   */
+  plantOne(region: Region): boolean {
+    const animals = this.animalsIn(region.id);
+    for (const a of animals) a.checkWishes(this);
+    const ask = animals.map(a => a.wildAsk).find(q => q?.more);
+    if (!ask) return false;
+    const kinds = PROPS.filter(k => PROP[k].group === ask.group && PROP[k].size === 1);
+    const cells: [number, number][] = [];
+    for (const i of region.tiles) {
+      const [x, y] = tileXY(i);
+      for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) if (this.propFits(kinds[0], x * 2 + dx, y * 2 + dy)) cells.push([x * 2 + dx, y * 2 + dy]);
+    }
+    if (!cells.length) return false;
+    const [sx, sy] = cells[Math.floor(Math.random() * cells.length)];
+    this.props.push({ kind: kinds[Math.floor(Math.random() * kinds.length)], sx, sy, rot: Math.floor(Math.random() * 4) });
+    this.syncProps();
+    return true;
+  }
+
+  private plantAll(): void {
+    for (const pen of this.pens) for (let i = 0; i < 60 && this.plantOne(pen.region); i++);
   }
 
   /** De watertegels in bakken van glas: daar staat het water hoog en zwemmen de dieren erin. */
@@ -1790,10 +2034,19 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.view.syncTanks(tiles.map(i => tileXY(i)), TANK_WATER);
   }
 
-  /** Een tik op speelgoed: het veert op en een dier uit het verblijf komt ermee spelen (het liefst een dier dat er dol op is). */
+  /**
+   * Een tik op speelgoed: het veert op (een bal of een stam rolt weg) en een dier uit het verblijf komt ermee
+   * spelen (het liefst een dier dat er dol op is).
+   */
   private pokeToy(toy: ToyObj): void {
     const region = this.grid.enclosureAt(toy.x, toy.y);
-    this.pulse(toy.mesh, 0.18);
+    if (toy.loose) {
+      // elk los stuk krijgt een duw, een eigen kant op
+      for (const p of toy.loose) {
+        const a = Math.random() * Math.PI * 2;
+        this.shove(toy, p, toy.x + 0.5 + p.ox - Math.cos(a), toy.y + 0.5 + p.oy - Math.sin(a), 0.85);
+      }
+    } else this.pulse(toy.mesh, 0.18);
     sfx('tap');
     if (!region) return;
     const here = this.animalsIn(region.id).sort((p, q) => Number(TOY_OF[q.species] === toy.kind) - Number(TOY_OF[p.species] === toy.kind) || Math.hypot(p.gx - toy.x, p.gy - toy.y) - Math.hypot(q.gx - toy.x, q.gy - toy.y));
@@ -1801,10 +2054,18 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (comer) this.floatAt(icon('heart'), toy.x + 0.5, toy.y + 0.5, 0.9);
   }
 
-  /** Speelgoed waar een dier mee speelt, beweegt: de bal stuitert, de struik ritselt, de stam wiebelt, de bloemen wuiven. */
-  private animateToys(): void {
+  /**
+   * Speelgoed waar een dier mee speelt, beweegt. Wat los ligt, rolt echt: de ballen door het verblijf, de stam een
+   * stukje opzij en terug. Wat geplant is, ritselt of wuift. Wat vast staat (tunnel, vijver), trilt alleen even.
+   */
+  private animateToys(dt: number): void {
     for (const toy of this.toys) {
       const m = toy.mesh;
+      if (toy.loose) {
+        // het ding zelf blijft staan; alleen de losse stukken bewegen, en alleen als er een niet op zijn plek ligt
+        if (toy.live) this.rollToy(toy, dt);
+        continue;
+      }
       if (toy.playUntil === undefined) continue;
       // zo staat het ding gedraaid; het bewegen komt daar bovenop
       const base = ((toy.rot ?? 0) * Math.PI) / 2;
@@ -1820,20 +2081,231 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         // de hoepel staat dwars op de sprong en trilt even na
         m.rotation.y = toy.facing ?? base;
         m.rotation.z = Math.sin(t * 22) * 0.03;
-      } else if (toy.kind === 'ball') {
-        m.position.y = Math.abs(Math.sin(t * 6)) * 0.28;
-        m.rotation.y = t * 3;
       } else if (toy.kind === 'bush') {
         m.rotation.z = Math.sin(t * 16) * 0.07;
         m.scale.y = 1 + Math.sin(t * 9) * 0.05;
-      } else if (toy.kind === 'log') {
-        m.rotation.z = Math.sin(t * 5) * 0.13;
-        m.position.y = Math.abs(Math.sin(t * 5)) * 0.04;
-      } else {
-        m.rotation.y = base + Math.sin(t * 4) * 0.18;
+      } else if (toy.kind === 'flowerbed') {
+        // de bloemen wuiven; het perk zelf draait niet mee
+        m.rotation.z = Math.sin(t * 5) * 0.03;
         m.scale.y = 1 + Math.sin(t * 8) * 0.07;
+      } else {
+        // wat vast staat (de tunnel, de vijver, de waterval) trilt alleen een beetje
+        m.scale.y = 1 + Math.sin(t * 14) * 0.025;
       }
     }
+  }
+
+  /** Mag los speelgoed over deze tegel rollen? Alleen in het eigen verblijf, niet waar iets staat, en een bal op het land niet het water in (een bal in het water blijft daar drijven). */
+  private rollFree(toy: ToyObj, x: number, y: number): boolean {
+    if (x === toy.x && y === toy.y) return true;
+    if (!this.grid.inBounds(x, y)) return false;
+    const i = tileIndex(x, y), home = tileIndex(toy.x, toy.y);
+    if (this.grid.regionOf[i] !== this.grid.regionOf[home] || this.solid.has(i)) return false;
+    if ((this.grid.terrain[i] === WATER) !== (this.grid.terrain[home] === WATER)) return false;
+    // gewone lussen: dit loopt elk beeldje, en dan maken we liever niets nieuws aan
+    for (const tr of this.troughs) if (tr.x === x && tr.y === y) return false;
+    for (const b of this.beds) if (b.x === x && b.y === y) return false;
+    for (const k of this.toys) if (k.x === x && k.y === y) return false;
+    return true;
+  }
+
+  /** Kan los speelgoed van tegel (x, y) een stap (dx, dy) verder rollen? Niet door een hek, en alleen naar een vrije tegel. */
+  private rollPass(toy: ToyObj, x: number, y: number, dx: number, dy: number): boolean {
+    return this.grid.canStep(x, y, dx, dy) && this.rollFree(toy, x + dx, y + dy);
+  }
+
+  /**
+   * Kan een bal van tegel (x, y) een stap (dx, dy) verder? Een bal is breed: hij raakt soms twee rijen of twee
+   * kolommen tegelijk (`a` en `b`). Dan moeten beide vrij zijn, en mag er daar geen hek tussen die twee staan.
+   */
+  private rollOn(toy: ToyObj, x: number, y: number, dx: number, dy: number, a: number, b: number): boolean {
+    if (dx) return this.rollPass(toy, x, a, dx, 0) && (a === b || (this.rollPass(toy, x, b, dx, 0) && this.grid.canStep(x + dx, a, 0, 1)));
+    return this.rollPass(toy, a, y, 0, dy) && (a === b || (this.rollPass(toy, b, y, 0, dy) && this.grid.canStep(a, y + dy, 1, 0)));
+  }
+
+  /**
+   * Een duw tegen een los stuk, weg van het punt (fromX, fromY). Een bal rolt die kant op en maakt een sprongetje.
+   * Een stam rolt dwars op zijn lengte, weg van de duw. Buiten een dicht verblijf blijft het bij een sprongetje.
+   */
+  private shove(toy: ToyObj, p: LoosePiece, fromX: number, fromY: number, power: number): void {
+    const penned = !!this.grid.enclosureAt(toy.x, toy.y);
+    const cx = toy.x + 0.5 + p.ox, cy = toy.y + 0.5 + p.oy, dx = cx - fromX, dy = cy - fromY;
+    toy.live = true;
+    // na de laatste duw blijft het nog even liggen, en dan gaat het terug naar zijn plek
+    toy.playUntil = Math.max(toy.playUntil ?? 0, this.clock + 2.2);
+    p.home = false;
+    p.route = null;
+    if (p.line) {
+      // dwars op de stam, in tegels: die kant en de andere kant kan hij op
+      const base = ((toy.rot ?? 0) * Math.PI) / 2, c = Math.cos(base), s = Math.sin(base);
+      const lx = Math.sin(p.turn), lz = Math.cos(p.turn), nx = lx * c + lz * s, ny = lz * c - lx * s;
+      const sx = Math.round(nx), sy = Math.round(ny);
+      p.hi = penned && this.rollPass(toy, toy.x, toy.y, sx, sy) ? LOG.far : LOG.near;
+      p.lo = penned && this.rollPass(toy, toy.x, toy.y, -sx, -sy) ? -LOG.far : -LOG.near;
+      // een duw tegen het uiteinde: dan rolt hij naar de kant met de meeste ruimte
+      const push = dx * nx + dy * ny;
+      const side = Math.abs(push) > 0.15 ? Math.sign(push) : p.hi > -p.lo ? 1 : p.hi < -p.lo ? -1 : Math.random() < 0.5 ? 1 : -1;
+      // net hard genoeg om bijna tot het eind te rollen
+      p.vs = side * power * LOG.kick * (side > 0 ? p.hi : -p.lo);
+      return;
+    }
+    const wet = this.grid.terrain[tileIndex(toy.x, toy.y)] === WATER;
+    // weg van de duw, met een beetje toeval erin; een kleine bal schiet harder weg dan een grote
+    const a = (dx || dy ? Math.atan2(dy, dx) : Math.random() * Math.PI * 2) + (Math.random() - 0.5) * 0.7;
+    const speed = penned ? power * (2.3 + Math.random() * 0.8) * (p.r < 0.15 ? 1.15 : 1) * (wet ? 0.6 : 1) : 0;
+    p.vx = Math.cos(a) * speed;
+    p.vy = Math.sin(a) * speed;
+    p.vh = wet ? 0.8 : 1.5 + Math.random() * 0.7;
+    if (wet) this.splash(cx, cy);
+  }
+
+  /** De losse stukken van één ding een stapje verder. Is alles weer thuis, dan hoeft er niets meer te bewegen. */
+  private rollToy(toy: ToyObj, dt: number): void {
+    const pieces = toy.loose!, base = ((toy.rot ?? 0) * Math.PI) / 2, c = Math.cos(base), s = Math.sin(base);
+    // uitgespeeld: dan rollen de ballen terug naar hun eigen tegel
+    const over = toy.playUntil === undefined || this.clock > toy.playUntil;
+    const step = Math.min(dt, 0.05);
+    let busy = false;
+    for (const p of pieces) {
+      if (p.home) continue;
+      if (p.line) this.rollLog(p, step, c, s);
+      else this.rollBall(toy, p, step, c, s, over);
+      if (!p.home) busy = true;
+    }
+    if (pieces.length > 1 && !pieces[0].line && !pieces[1].line && this.clack(pieces[0], pieces[1])) busy = true;
+    if (!busy) {
+      toy.live = false;
+      toy.playUntil = undefined;
+    }
+  }
+
+  /** Eén bal een stapje verder: vrij rollen (afremmen, stuiteren, terugkaatsen van het hek), of over zijn weg naar huis. */
+  private rollBall(toy: ToyObj, p: LoosePiece, dt: number, c: number, s: number, over: boolean): void {
+    const wet = this.grid.terrain[tileIndex(toy.x, toy.y)] === WATER;
+    // de eigen plek, in tegels vanaf het midden van de tegel
+    const hx = p.hx * c + p.hz * s, hy = p.hz * c - p.hx * s;
+    let mx = 0, my = 0;
+    if (!p.route) {
+      const speed = Math.hypot(p.vx, p.vy);
+      if (speed > 0) {
+        // in het water remt de bal veel sneller af
+        const k = Math.max(0, speed - (BALL.brake + BALL.drag * (wet ? 3 : 1) * speed) * dt) / speed;
+        p.vx *= k;
+        p.vy *= k;
+      }
+      mx = p.vx * dt;
+      my = p.vy * dt;
+      const cx = toy.x + 0.5 + p.ox, cy = toy.y + 0.5 + p.oy, tx = Math.floor(cx), ty = Math.floor(cy), e = p.r * 0.85;
+      // tegen een hek, een bak, een boom of de rand van het water: terugkaatsen. Eerst van links naar rechts, dan van boven naar beneden.
+      if (mx) {
+        const dir = mx > 0 ? 1 : -1;
+        if (Math.floor(cx + mx + dir * p.r) !== tx && !this.rollOn(toy, tx, ty, dir, 0, Math.floor(cy - e), Math.floor(cy + e))) {
+          p.vx *= -BALL.wall;
+          mx = 0;
+        }
+      }
+      if (my) {
+        const dir = my > 0 ? 1 : -1;
+        if (Math.floor(cy + my + dir * p.r) !== ty && !this.rollOn(toy, tx, ty, 0, dir, Math.floor(cx + mx - e), Math.floor(cx + mx + e))) {
+          p.vy *= -BALL.wall;
+          my = 0;
+        }
+      }
+      if (p.h > 0 || p.vh > 0) {
+        // het sprongetje: neerkomen en nog een paar keer stuiteren, steeds lager (in het water plonst hij meteen)
+        p.vh -= BALL.gravity * dt;
+        p.h += p.vh * dt;
+        if (p.h <= 0) {
+          p.h = 0;
+          p.vh = p.vh < -0.5 && !wet ? -p.vh * BALL.bounce : 0;
+        }
+      }
+      // uitgespeeld en bijna uitgerold, of er is iets neergezet waar hij ligt: naar huis
+      if ((over && speed < 0.3 && p.h === 0) || !this.rollFree(toy, tx, ty)) this.sendHome(toy, p);
+    } else {
+      // naar huis: van tegel naar tegel, en het laatste stukje naar de eigen plek
+      p.homing += dt;
+      const last = p.step >= p.route.length - 1, at = last ? 0 : p.route[p.step];
+      const dx = (last ? hx : (at % W) - toy.x) - p.ox, dy = (last ? hy : Math.floor(at / W) - toy.y) - p.oy, d = Math.hypot(dx, dy);
+      if ((last && d < 0.015) || p.homing > 3 + p.route.length * 1.5) {
+        // thuis (of het duurde te lang: dan ligt hij er meteen)
+        p.ox = hx;
+        p.oy = hy;
+        p.vx = p.vy = p.h = p.vh = 0;
+        p.route = null;
+        p.home = true;
+      } else if (!last && d < 0.3) p.step++;
+      else {
+        // rustig aan, en het laatste stukje steeds langzamer
+        const want = last ? Math.min(BALL.home, 0.25 + d * 2.5) : BALL.home, k = Math.min(1, dt * 6);
+        p.vx += ((dx / d) * want - p.vx) * k;
+        p.vy += ((dy / d) * want - p.vy) * k;
+        mx = p.vx * dt;
+        my = p.vy * dt;
+        p.h = Math.max(0, p.h - dt);
+      }
+    }
+    p.ox += mx;
+    p.oy += my;
+    const moved = Math.hypot(mx, my);
+    if (moved > 1e-5) {
+      // rollen: draaien om de as dwars op de richting, precies zo ver als de bal over de grond gaat (hoek = afstand / straal)
+      const wx = my / moved, wz = -mx / moved;
+      this.view.rollLoose(p.obj, wx * c - wz * s, wx * s + wz * c, (moved / p.r) * (wet ? 0.5 : 1));
+    }
+    // in het water dobbert de bal een beetje
+    const bob = wet && !p.home ? Math.sin(this.clock * 3 + p.r * 40) * 0.015 : 0;
+    p.obj.position.set(p.ox * c - p.oy * s, p.r + p.h + bob, p.ox * s + p.oy * c);
+  }
+
+  /** De bal gaat terug naar zijn eigen tegel: over vrije tegels, om alles heen. Is er geen weg (meer), dan ligt hij er meteen. */
+  private sendHome(toy: ToyObj, p: LoosePiece): void {
+    const x = Math.floor(toy.x + 0.5 + p.ox), y = Math.floor(toy.y + 0.5 + p.oy);
+    const route = this.grid.enclosureAt(toy.x, toy.y) && this.grid.inBounds(x, y)
+      ? this.grid.path(tileIndex(x, y), tileIndex(toy.x, toy.y), i => !this.rollFree(toy, i % W, Math.floor(i / W)))
+      : null;
+    // eerst naar het midden van de tegel waar hij ligt: zo snijdt hij geen hoek af langs een hek
+    p.route = route ?? [];
+    p.step = 0;
+    p.homing = route ? 0 : 99;
+  }
+
+  /** Twee ballen die tegen elkaar rollen, ketsen van elkaar af: de kleine schiet harder weg dan de grote. Geeft terug of het raak was. */
+  private clack(a: LoosePiece, b: LoosePiece): boolean {
+    // op weg naar huis rollen ze gewoon langs elkaar
+    if (a.route || b.route || (a.home && b.home)) return false;
+    const dx = b.ox - a.ox, dy = b.oy - a.oy, d = Math.hypot(dx, dy);
+    if (d >= a.r + b.r || d < 1e-4) return false;
+    const nx = dx / d, ny = dy / d, closing = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
+    if (closing <= 0) return false;
+    const ma = a.r ** 3, mb = b.r ** 3, j = (1.8 * closing) / (ma + mb);
+    a.vx -= j * mb * nx;
+    a.vy -= j * mb * ny;
+    b.vx += j * ma * nx;
+    b.vy += j * ma * ny;
+    a.home = b.home = false;
+    return true;
+  }
+
+  /** De stam een stapje verder: hij rolt dwars op zijn lengte, draait daarbij om zijn lengte, en wil terug naar zijn plek. */
+  private rollLog(p: LoosePiece, dt: number, c: number, s: number): void {
+    p.vs += (-LOG.pull * p.s - LOG.damp * p.vs) * dt;
+    p.s += p.vs * dt;
+    // tegen het hek of de rand van zijn ruimte: een klein stootje terug
+    if (p.s > p.hi || p.s < p.lo) {
+      p.s = p.s > p.hi ? p.hi : p.lo;
+      p.vs *= -0.3;
+    }
+    if (Math.abs(p.s) < 0.004 && Math.abs(p.vs) < 0.03) {
+      p.s = p.vs = 0;
+      p.home = true;
+    }
+    const x = p.hx + Math.sin(p.turn) * p.s, z = p.hz + Math.cos(p.turn) * p.s;
+    p.obj.position.set(x, p.r, z);
+    // rollen zonder schuiven: hoek = afstand / straal
+    p.obj.rotation.x = p.s / p.r;
+    p.ox = x * c + z * s;
+    p.oy = z * c - x * s;
   }
 
   /** Vanaf level 10 willen dieren iets leuks in hun verblijf. */
@@ -2024,6 +2496,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       [p.gx, p.gy] = this.clearSpot(p.gx, p.gy);
       p.mesh.position.set(toWorldX(p.gx), 0, toWorldZ(p.gy));
     }
+    this.sweepProps();
   }
 
   dropPoop(gx: number, gy: number): void {
@@ -2191,6 +2664,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     // zelf gedraaid met de draaiknop? Dan blijft het zo staan; anders kijkt het vanzelf naar het pad
     if (this.quarter) this.addShop(x, y, kind, undefined, undefined, undefined, (this.autoRot(x, y, SHOP_SIZE[kind]) + this.quarter) % 4, true);
     else this.addShop(x, y, kind);
+    this.sweepProps();
     sfx('place');
     this.floatAt(icon('sparkle'), cx, cy, 0.8);
     // één halte: de trein wacht nog; bij de tweede gaat hij rijden
@@ -2473,6 +2947,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       case 'bed': return icon(info.bed);
       case 'fun': return icon(TOY_OF[a.species] ?? 'ball');
       case 'climate': return icon(CLIMATE[a.species] ?? 'lamp');
+      // te weinig groen of steen: een plusje erbij; te veel: een minnetje
+      case 'wild': return icon(a.wildAsk?.group === 'stone' ? 'stone' : 'tuft') + icon(a.wildAsk?.more === false ? 'minus' : 'plus', 'badge');
       case 'space': return icon('grow');
       case 'terrain': return icon(a.missing ?? info.terrain);
       // bij een groepsdier staat erbij hoeveel er nog bij moeten
@@ -2497,6 +2973,16 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.hud.showMenu(s.x, s.y, t('tool.trough'), this.foodOptions(wanted), id => this.feed(tr, id as FoodId), inside);
   }
 
+  /** Groen en steen in het menu van het dier: een vakje voor wat het dier wil hebben, met een plus of min als het niet klopt. */
+  private wildChips(a: Animal): string {
+    const want = wildWant(a.species);
+    if (!want) return '';
+    return (['green', 'stone'] as const).filter(g => want[g][0] > 0 || a.wildAsk?.group === g).map(g => {
+      const bad = a.wildAsk?.group === g;
+      return `<span class="wish ${bad ? 'no' : 'ok'}">${icon(g === 'stone' ? 'stone' : 'tuft')}${bad ? icon(a.wildAsk!.more ? 'plus' : 'minus', 'badge') : ''}</span>`;
+    }).join('');
+  }
+
   private animalMenu(a: Animal): void {
     const s = this.view.toScreen(a.gx, a.gy, a.top);
     const wishes = a.checkWishes(this);
@@ -2505,10 +2991,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       '<span class="live"><canvas class="portrait3d" width="144" height="144"></canvas><b class="doing"></b></span>' +
       icon(sexOf(a) === 'male' ? 'boy' : 'girl') +
       (a.rare ? icon('rare') : '') + (a.nature !== 'plain' ? `<span class="wish ok" title="${t(`nature.${a.nature}`)}">${icon(`nature_${a.nature}` as IconId)}</span>` : '') +
-      WISH_ORDER.filter(k => (k !== 'health' || a.sick) && (k !== 'fun' || (this.has('fun') && !!TOY_OF[a.species])) && (k !== 'space' || !!SPACE[a.species]) && (k !== 'climate' || (this.has('climate') && !!CLIMATE[a.species]))).map(k =>
+      WISH_ORDER.filter(k => (k !== 'health' || a.sick) && (k !== 'fun' || (this.has('fun') && !!TOY_OF[a.species])) && (k !== 'space' || !!SPACE[a.species]) && (k !== 'climate' || (this.has('climate') && !!CLIMATE[a.species])) && (k !== 'wild' || (this.has('wild') && !!wildWant(a.species)))).map(k =>
         // bij de grond staat elk stukje van de mix apart: zo zie je wat er nog bij moet
         k === 'terrain'
           ? [SPECIES[a.species].terrain, ...(ALSO[a.species] ?? [])].map((kind, i) => `<span class="wish ${(i ? !a.lacking.includes(kind) : a.mainOk) ? 'ok' : 'no'}">${icon(kind)}</span>`).join('')
+          : k === 'wild' ? this.wildChips(a)
           : `<span class="wish ${wishes[k] ? 'ok' : 'no'}">${this.wishIcon(a, k)}</span>`).join('');
     const opt = (id: string, ic: IconId, key: string): ToolOption => ({ id, icon: icon(ic), label: t(key) });
     const items = [opt('pet', 'pet', 'animal.pet'), opt('feed', 'feed', 'animal.feed'), opt('fact', 'fact', 'animal.fact'), opt('rename', 'dice', 'animal.rename'), opt('sedate', 'sleep', 'animal.sedate'), opt('move', 'move', 'animal.move'), opt('away', 'empty', 'animal.away')];
@@ -2711,6 +3198,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
           if (e && this.grid.validEdge(e)) this.view.ghostDecor(e.x, e.y, this.option.decor as DecorKind, this.edgeDecorFits(e), e.o, this.edgeRot(e, this.edgeSide(e, g.gx, g.gy)));
         } else if (inside) this.view.ghostDecor(x, y, this.option.decor as DecorKind, this.decorFits(x, y), undefined, this.quarter);
         return this.hud.setCursor(CUR[this.option.decor]);
+      case 'prop': {
+        const kind = this.option.prop as PropKind;
+        const [sx, sy] = this.propSpot(kind, g.gx, g.gy), n = PROP[kind].size;
+        this.view.ghostProp(kind, (sx + n / 2) / 2, (sy + n / 2) / 2, this.quarter, this.propFits(kind, sx, sy));
+        return this.hud.setCursor((CUR[`prop.${kind}`] ??= cursor(PROP_ICON[kind])));
+      }
       case 'staff': {
         const role = this.option.staff as WorkerRole;
         const ok = inside && !this.grid.enclosureAt(x, y) && !this.taken(x, y);
@@ -2759,6 +3252,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         else if (inside && this.toyAt(x, y)) this.view.ghostToy(x, y, this.toyAt(x, y)!.kind, false, this.toyAt(x, y)!.rot ?? 0);
         else if (inside && this.decorAt(x, y)) this.view.ghostDecor(x, y, this.decorAt(x, y)!.kind, false, undefined, this.decorAt(x, y)!.rot ?? 0);
         else if (inside && this.shopAt(x, y)) this.view.ghostShop(this.shopAt(x, y)!.x, this.shopAt(x, y)!.y, this.shopAt(x, y)!.kind, false, undefined, this.shopAt(x, y)!.rot ?? 0);
+        else {
+          const p = this.propUnder(g.gx, g.gy);
+          if (p) this.view.ghostProp(p.kind, ...this.propCenter(p), p.rot, false);
+        }
         return this.hud.setCursor(CUR.erase);
       }
       case 'action':
@@ -2814,6 +3311,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       sfx('paint', { volume: 0.5, every: 0.09 });
       this.view.paintTerrain(this.grid);
       this.faceEdgeItems();
+      this.sweepProps();
       const region = this.grid.enclosureAt(x, y);
       if (region) for (const a of this.animalsIn(region.id)) this.react(a, SPECIES[a.species].terrain === terrain ? 'good' : 'bad');
     } else if (this.tool === 'fence') {
@@ -2841,6 +3339,15 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const tr = this.troughAt(x, y), bed = this.bedAt(x, y), shop = (near && this.edgeItemAt(near)) || this.shopAt(x, y), toy = this.toyAt(x, y);
       const decor = !shop ? (near && this.edgeDecorAt(near)) || this.decorAt(x, y) : undefined;
       if (tr || bed || shop || toy || decor) sfx('erase');
+      else {
+        // niets groots op deze tegel: dan het graspolletje, de steen of de boom onder de gum
+        const p = this.propUnder(g.gx, g.gy);
+        if (p) {
+          sfx('erase');
+          this.removeProp(p);
+        }
+        return;
+      }
       if (decor) {
         this.view.scene.remove(decor.mesh);
         this.decors = this.decors.filter(k => k !== decor);
@@ -3047,6 +3554,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const e = SHOP_SIZE[kind] === 1 ? this.itemEdge(g.gx, g.gy) : null;
       return SHOP_SIZE[kind] === 1 ? this.placeOnEdge(e, e ? this.edgeSide(e, g.gx, g.gy) : 1) : this.placeShop(...this.shopAnchor(g, kind));
     }
+    if (this.tool === 'prop' && g) return this.placeProp(g.gx, g.gy);
     if (!inside) return;
     const tr = this.troughAt(x, y);
     if (tr) return this.troughMenu(tr);
@@ -3186,6 +3694,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   wantsClimate(): boolean {
     return this.has('climate');
+  }
+
+  wantsWild(): boolean {
+    return this.has('wild');
   }
 
   /** Een bui begint: de eerste keer vertelt de gastvrouw wat je kunt doen, en er komen plassen. */
@@ -3673,7 +4185,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // zorgwensen (ziek, verblijf, voer, schoon) tellen zwaarder dan het soort hek, ondergrond, slaapplek en een vriendje
       const care = a.unmet === 'health' || (a.unmet === 'enclosure' && !a.needsFence) || a.unmet === 'food' || a.unmet === 'clean';
       // verveling, te weinig ruimte en een kapot hek maken een dier ongelukkig, maar het wordt er nooit voor opgehaald
-      const calm = a.unmet === 'fun' || a.unmet === 'climate' || a.unmet === 'space' || (a.unmet === 'terrain' && a.mixOnly) || (a.unmet === 'enclosure' && a.fenceBroken && !a.escaped);
+      const calm = a.unmet === 'fun' || a.unmet === 'climate' || a.unmet === 'wild' || a.unmet === 'space' || (a.unmet === 'terrain' && a.mixOnly) || (a.unmet === 'enclosure' && a.fenceBroken && !a.escaped);
       const rate = a.unmet === null ? -2 : calm ? 0 : care ? 1 : 0.4;
       a.neglect = Math.max(0, a.neglect + rate * 0.4);
       if (a.neglect > NEGLECT_GONE) taken.push(a);
@@ -3720,10 +4232,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.hud.setWallet(this.coins, COIN_CAP, this.has('paths') ? crowd.total : null, this.has('night') ? this.hourOfDay() : this.has('keeper') ? 8 + (this.hour % 12) : null, this.has('night') ? (this.night > 0.5 ? 'moon' : 'sun') : null, skyIcon);
 
     // een dier wacht al een poos op iets: de verzorger of de bouwer zegt wat er aan de hand is
-    const light = worst && (worst.wish === 'bed' || worst.wish === 'terrain' || worst.wish === 'friend' || worst.wish === 'fun' || worst.wish === 'climate' || worst.wish === 'space' || (worst.wish === 'enclosure' && !!worst.a.needsFence));
+    const light = worst && (worst.wish === 'bed' || worst.wish === 'terrain' || worst.wish === 'friend' || worst.wish === 'fun' || worst.wish === 'climate' || worst.wish === 'wild' || worst.wish === 'space' || (worst.wish === 'enclosure' && !!worst.a.needsFence));
     if (worst && worst.age > (light ? ALERT_AFTER * 2 : ALERT_AFTER)) {
       const { a, wish } = worst;
-      this.alert(a.escaped ? say.escaped(t, a.species) : wish === 'enclosure' && a.fenceBroken ? say.broken() : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN));
+      this.alert(a.escaped ? say.escaped(t, a.species) : wish === 'enclosure' && a.fenceBroken ? say.broken() : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN, a.wildAsk ? `${a.wildAsk.group}.${a.wildAsk.more ? 'more' : 'less'}` : undefined));
       if (a.neglect > NEGLECT_WARN * 1.5 && !this.hud.speaking) this.callForHelp('name.help.1');
     }
     // de gastvrouw let op de gasten
@@ -3881,6 +4393,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   update(dt: number): void {
+    this.wildCache = null;
     this.clock += dt;
     this.view.update(dt);
     this.updateNight();
@@ -3917,7 +4430,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     else this.view.highlight(lit ? lit.region.tiles : null, lit ? this.grid.borderEdges(lit.region) : [], this.menuPen ? 1 : 0.6, this.clock);
     for (const a of this.animals) a.update(dt, this);
     this.guests.update(dt);
-    this.animateToys();
+    this.animateToys(dt);
     if (this.staffGhost?.worker.mesh.visible) this.staffGhost.worker.dangle(this.staffGhost.gx, this.staffGhost.gy, this.clock, this.staffGhost.ok);
     this.animateProps();
     for (const worker of this.workers) worker.update(dt, this, this.claimed);

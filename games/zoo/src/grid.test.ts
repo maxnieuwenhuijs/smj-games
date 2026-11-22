@@ -5,6 +5,7 @@ import { BASE_LAND, FULL_LAND, Grid, H, PLOT, W, edgeAlong, nearestEdge, tileInd
 import { emptyStats, goalProgress, levelDone } from './levels';
 import { allLines, fill, goalLine, textOf, voiceId, type Tr } from './lines';
 import nl from './nl.json';
+import { AQUATIC, PROP, PROPS, WILD_WANT, propPoints, wildWant } from './data';
 
 /** Zet een hek om het blok tegels van (x0,y0) tot en met (x1,y1). */
 function fenceBox(g: Grid, x0: number, y0: number, x1: number, y1: number): Edge[] {
@@ -318,5 +319,36 @@ describe('paden, kinderboerderij en drukte', () => {
       expect(SPECIES[a], a).toBeTruthy();
       expect(SPECIES[b], b).toBeTruthy();
     }
+  });
+});
+
+describe('natuur in de verblijven', () => {
+  it('elk landdier weet hoeveel groen en steen het wil, en dat kan ook', () => {
+    for (const sp of Object.keys(SPECIES) as SpeciesId[]) {
+      const want = wildWant(sp);
+      if (AQUATIC.includes(sp)) {
+        expect(want).toBeNull();
+        continue;
+      }
+      expect(want, sp).not.toBeNull();
+      for (const group of ['green', 'stone'] as const) expect(want![group][0]).toBeLessThan(want![group][1]);
+    }
+    expect(Object.keys(WILD_WANT).length).toBeGreaterThan(3);
+  });
+
+  it('in het kleinste verblijf is het minimum met een paar kleine dingen te halen zonder dat het te veel wordt', () => {
+    // vier tegels = zestien vakjes
+    const cells = 16;
+    for (const want of Object.values(WILD_WANT)) {
+      for (const group of ['green', 'stone'] as const) {
+        const need = Math.ceil(want![group][0] * cells - 1e-9);
+        expect(need).toBeLessThanOrEqual(2);
+        expect(need / cells).toBeLessThanOrEqual(want![group][1]);
+      }
+    }
+  });
+
+  it('iets kleins telt voor één vakje, een boom of rots voor vier', () => {
+    for (const kind of PROPS) expect(propPoints(kind)).toBe(PROP[kind].size === 2 ? 4 : 1);
   });
 });
