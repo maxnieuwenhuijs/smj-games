@@ -297,6 +297,12 @@ const WILD_ICON: Record<WildKind, IconId> = { tree: 'tree', plant: 'tuft', stone
  * Het plaatje van een natuurwens. Bij de boom en de steen staat er klein het plaatje van de knop Natuur bij, zodat
  * je weet waar je hem vindt: een boom staat ook bij Park, en een rots ook bij Speelgoed en Slaapplek.
  */
+/**
+ * Het plaatje van een speelgoedwens (ook de warmtelamp en het ijsblok). Er staat klein het plaatje van de knop
+ * Speelgoed bij, zodat je weet waar je het vindt: een rots of een vijver staat ook bij Natuur, Park en Slaapplek.
+ * Bij de bal zelf hoeft dat niet: dat is hetzelfde plaatje.
+ */
+const toyIcon = (kind: string): string => icon(kind as IconId) + (kind === 'ball' ? '' : `<i class="from">${icon('ball')}</i>`);
 const wildIcon = (kind: WildKind): string => icon(WILD_ICON[kind]) + (kind === 'plant' ? '' : `<i class="from">${icon('tuft')}</i>`);
 const PROP_ICON: Record<PropKind, IconId> = { tuft: 'tuft', daisies: 'daisies', fern: 'fern', shrub: 'shrub', pebbles: 'pebbles', stone: 'stone', oak: 'tree', fir: 'pine', coco: 'palm', crag: 'boulder',
   // het kleine spul voor het park heeft een plaatje met dezelfde naam
@@ -3675,8 +3681,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       case 'enclosure': return icon(a.needsFence ? NEED_ICON[a.needsFence] : a.fenceBroken ? 'hammer' : 'fence');
       case 'food': return icon(info.food);
       case 'bed': return icon(info.bed);
-      case 'fun': return icon(TOY_OF[a.species] ?? 'ball');
-      case 'climate': return icon(CLIMATE[a.species] ?? 'lamp');
+      case 'fun': return toyIcon(TOY_OF[a.species] ?? 'ball');
+      case 'climate': return toyIcon(CLIMATE[a.species] ?? 'lamp');
       // te weinig bomen, planten of stenen: erbij staat hoeveel er nog bij moeten; te veel: hoeveel eraf
       case 'wild': {
         const ask = a.wildAsk;
