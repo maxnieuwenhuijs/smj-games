@@ -1513,6 +1513,19 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (first) this.lines.push(say.penColor());
   }
 
+  /**
+   * De verblijven waar het feest is als dit level gehaald is: die van de dieren waar het level om ging. Ging het
+   * level niet over een dier (munten, gasten, een kraam), dan het verblijf met dieren het dichtst bij waar je kijkt.
+   */
+  private partyPens(level: Level): Pen[] {
+    const stars = new Set(level.goals.map(g => g.species).filter((sp): sp is SpeciesId => !!sp));
+    const lived = this.pens.filter(pen => this.animalsIn(pen.region.id).length);
+    const named = lived.filter(pen => this.animalsIn(pen.region.id).some(a => stars.has(a.species)));
+    if (named.length) return named;
+    const at = this.view.target, far = (pen: Pen): number => Math.hypot(toWorldX(pen.cx) - at.x, toWorldZ(pen.cy) - at.z);
+    return lived.sort((p, q) => far(p) - far(q)).slice(0, 1);
+  }
+
   private penAt(x: number, y: number): Pen | undefined {
     const region = this.grid.enclosureAt(x, y);
     return region ? this.pens.find(p => p.region.id === region.id) : undefined;
@@ -4346,9 +4359,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (levelDone(level, stats)) {
       this.celebrating = true;
       this.lines = [];
-      // feest: de dieren dansen en de gasten juichen
-      for (const a of this.animals) a.cheer();
-      this.guests.cheer();
+      // feest: de dieren van het verblijf waar het om ging dansen, en de gasten er vlak omheen juichen mee
+      for (const pen of this.partyPens(level)) {
+        for (const a of this.animalsIn(pen.region.id)) a.cheer();
+        const far = Math.max(...pen.region.tiles.map(i => Math.hypot(tileXY(i)[0] + 0.5 - pen.cx, tileXY(i)[1] + 0.5 - pen.cy)));
+        this.guests.cheerNear(pen.cx, pen.cy, far + 2.2);
+      }
       // ook de zeedieren die er nu bij komen, worden alvast geladen
       const extra = (Object.keys(BONUS) as SpeciesId[]).filter(sp => BONUS[sp] === this.level + 1 && hasSpecies(sp));
       const ready = Promise.all([loadSpecies(level.reward), ...extra.map(loadSpecies)]);
