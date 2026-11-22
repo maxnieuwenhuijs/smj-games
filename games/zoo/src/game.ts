@@ -46,6 +46,8 @@ const STAFF_FROM: Record<WorkerRole, keyof typeof FEATURE> = { feed: 'keeper', c
 const CART_ROLES: WorkerRole[] = ['feed', 'clean', 'fix', 'vet'];
 /** Zo lang moet de speler niets doen voor het hulphandje komt, zo lang blijft het, en zo lang duurt het tot het volgende. */
 const HAND_AFTER = 25;
+/** Zoveel tegel mag de rand van een pad verder weg liggen dan de dichtstbijzijnde rand om toch een bankje of bak te krijgen. */
+const PATH_PULL = 0.2;
 const HAND_SECONDS = 7;
 const HAND_GAP = 80;
 /** Verwaarlozing in seconden: eerst waarschuwen, daarna haalt de verzorger het dier op. */
@@ -1546,13 +1548,46 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   /**
-   * Naar welke kant iets op een rand kijkt: de kant die de speler bij het neerzetten koos. Bij iets uit een ouder
-   * spel (zonder gekozen kant): naar het pad, of andersom als het toen was omgedraaid.
+   * Naar welke kant iets op een rand kijkt. Ligt er aan één kant pad, dan staat het op de rand van dat pad en
+   * kijkt het naar het pad (bij iets uit een ouder spel dat toen was omgedraaid: er juist vanaf). Ligt er aan beide
+   * kanten pad, of aan geen van beide, dan telt de kant waar de speler bij het neerzetten tikte (`set`).
    */
   private faceOf(s: { x: number; y: number; edge?: 'h' | 'v'; turned?: boolean; set?: number }): number {
-    if (s.set) return s.set;
-    const auto = this.edgeFace({ o: s.edge!, x: s.x, y: s.y }) || 1;
-    return s.turned ? -auto : auto;
+    const auto = this.edgeFace({ o: s.edge!, x: s.x, y: s.y });
+    if (auto) return s.turned ? -auto : auto;
+    return s.set || (s.turned ? -1 : 1);
+  }
+
+  /**
+   * Op welke rand komt een bankje, bloembak of afvalbak als je hier tikt? De dichtstbijzijnde, maar de rand van
+   * een pad trekt een beetje: tik je op een tegel naast het pad, dan komt het langs het pad te staan en niet
+   * er dwars op of midden in het gras.
+   */
+  private itemEdge(gx: number, gy: number): Edge | null {
+    const near = nearestEdge(gx, gy);
+    if (!near || this.edgeFace(near) !== 0) return near;
+    const tx = Math.max(0, Math.min(W - 1, Math.floor(gx))), ty = Math.max(0, Math.min(H - 1, Math.floor(gy)));
+    const fx = gx - tx, fy = gy - ty;
+    const options: [number, Edge][] = [
+      [Math.abs(fy), { o: 'h', x: tx, y: ty }],
+      [Math.abs(1 - fy), { o: 'h', x: tx, y: ty + 1 }],
+      [Math.abs(fx), { o: 'v', x: tx, y: ty }],
+      [Math.abs(1 - fx), { o: 'v', x: tx + 1, y: ty }],
+    ];
+    const reach = Math.min(...options.map(o => o[0])) + PATH_PULL;
+    let best: Edge | null = null, bestD = reach;
+    for (const [d, e] of options) {
+      if (d <= bestD && this.edgeFace(e) !== 0 && this.edgeFits(e)) {
+        best = e;
+        bestD = d;
+      }
+    }
+    return best ?? near;
+  }
+
+  /** Hoe iets op deze rand komt te staan als je aan kant `side` tikt: naar het pad als dat er aan één kant ligt, anders naar jou toe. */
+  private faceFor(e: Edge, side: 1 | -1): number {
+    return this.edgeFace(e) || side;
   }
 
   /**
@@ -2075,8 +2110,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   /**
-   * Een bankje, bloembak of afvalbak zet je op een rand, net als een hek. Het kijkt naar de kant van de rand waar
-   * je tikt (`side`); wil je het anders, dan haal je het weg en zet je het opnieuw neer.
+   * Een bankje, bloembak of afvalbak zet je op een rand, net als een hek. Langs een pad kijkt het vanzelf naar
+   * het pad; anders naar de kant van de rand waar je tikt (`side`). Wil je het anders, dan haal je het weg en zet
+   * je het opnieuw neer.
    */
   private placeOnEdge(e: Edge | null, side: 1 | -1 = 1): void {
     const kind = this.option.shop as ShopKind;
@@ -2638,9 +2674,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       case 'shop': {
         const kind = this.option.shop as ShopKind;
         if (SHOP_SIZE[kind] === 1) {
-          const e = nearestEdge(g.gx, g.gy);
-          // het voorbeeld kijkt al naar de kant waar je bent: zo zie je hoe het komt te staan
-          if (e) this.view.ghostShop(e.x, e.y, kind, this.edgeFits(e), { o: e.o, face: this.edgeSide(e, g.gx, g.gy) });
+          const e = this.itemEdge(g.gx, g.gy);
+          // het voorbeeld staat al zoals het komt: naar het pad, of anders naar de kant waar je bent
+          if (e) this.view.ghostShop(e.x, e.y, kind, this.edgeFits(e), { o: e.o, face: this.faceFor(e, this.edgeSide(e, g.gx, g.gy)) });
           return this.hud.setCursor(CUR[this.option.shop]);
         }
         const [ax, ay] = this.shopAnchor(g, kind);
@@ -2944,7 +2980,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.tool === 'decor' && g && EDGE_DECOR.includes(this.option.decor as DecorKind)) return this.placeDecorOnEdge(nearestEdge(g.gx, g.gy));
     if (this.tool === 'shop' && g) {
       const kind = this.option.shop as ShopKind;
-      const e = SHOP_SIZE[kind] === 1 ? nearestEdge(g.gx, g.gy) : null;
+      const e = SHOP_SIZE[kind] === 1 ? this.itemEdge(g.gx, g.gy) : null;
       return SHOP_SIZE[kind] === 1 ? this.placeOnEdge(e, e ? this.edgeSide(e, g.gx, g.gy) : 1) : this.placeShop(...this.shopAnchor(g, kind));
     }
     if (!inside) return;

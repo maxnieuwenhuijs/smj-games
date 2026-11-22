@@ -634,7 +634,7 @@ Alles hieronder staat in `games/zoo/src`; de vaste getallen in `data.ts`. De vol
 - **Verblijf kiezen:** het verblijf dat je aanwijst of waarvan het menu open is, licht heel zacht op.
 - **Poep** heeft een bruine ring; met de veger in de hand een gele.
 - **Afvalbak:** aan de voorkant een gleuf, een wit plaatje en een pedaal.
-- **Richting van bankje, bloembak en afvalbak:** die kies je bij het neerzetten: het kijkt naar de kant van de rand waar je tikt, en het voorbeeld laat dat al zien. Een tik erop draait het niet meer om; anders neerzetten doe je door het weg te halen en opnieuw te plaatsen. Wat er al stond, houdt zijn richting.
+- **Richting van bankje, bloembak en afvalbak:** die wordt bij het neerzetten slim gekozen. Ligt er aan één kant van de rand pad, dan staat het op de rand van het pad en kijkt het naar het pad, ook als je vanaf het gras tikt; leg je later pad ernaast, dan draait het mee. Ligt er aan beide kanten pad, of nergens, dan kijkt het naar de kant waar je tikt. De rand van een pad trekt ook een beetje (0,2 tegel): tik je op een tegel naast het pad, dan komt het langs het pad. Het voorbeeld laat steeds zien hoe het komt te staan. Een tik erop draait het niet om; anders neerzetten doe je door het weg te halen en opnieuw te plaatsen.
 - **Opgeslagen spellen:** de naam van de speler staat onder het plaatje.
 - Het zwevende ballonnetje van de prikker (afval, getal, bak) is weg.
 
