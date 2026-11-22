@@ -1359,7 +1359,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
             key: 'terrainGroup', active: this.option.terrainGroup,
             options: [
               { ...opt('pen', 'paw', t('terrain.group.pen')), fresh: grounds.pen.some(k => this.fresh.has(k)) },
-              { ...opt('park', 'tree', t('terrain.group.park')), fresh: grounds.park.some(k => this.fresh.has(k)) },
+              { ...opt('park', 'pathway', t('terrain.group.park')), fresh: grounds.park.some(k => this.fresh.has(k)) },
             ],
           }] : []),
         ],

@@ -283,6 +283,13 @@ const ICONS = {
   world_far:
     '<path d="M2 34 Q8 28 14 34 T26 34 T38 34 T50 34 V46 H2Z" fill="#6ec3e8"/><ellipse cx="24" cy="33" rx="14" ry="5" fill="#ecd591"/>' +
     '<path d="M24 31 Q23 22 27 14" fill="none" stroke="#8a5a2c" stroke-width="3.5" stroke-linecap="round"/><path d="M27 14 Q18 8 13 15 M27 14 Q36 8 41 16 M27 14 Q24 6 30 4" fill="none" stroke="#5bab4c" stroke-width="4" stroke-linecap="round"/>',
+  // de paden bij Grond: een kronkelend zandpad door het gras, met een paar steentjes (geen losse tegel)
+  pathway:
+    '<rect x="3" y="3" width="42" height="42" rx="10" fill="#86c95c"/>' +
+    '<path d="M13 47 C7 34 31 31 25 21 C20 13 30 6 37 1" fill="none" stroke="#b9a482" stroke-width="16" stroke-linecap="round"/>' +
+    '<path d="M13 47 C7 34 31 31 25 21 C20 13 30 6 37 1" fill="none" stroke="#e3d3b4" stroke-width="12" stroke-linecap="round"/>' +
+    '<g fill="#c2b08e"><circle cx="15" cy="38" r="1.6"/><circle cx="23" cy="30" r="1.4"/><circle cx="26" cy="19" r="1.5"/><circle cx="31" cy="9" r="1.3"/></g>' +
+    '<g fill="#6cb146"><circle cx="35" cy="34" r="3.2"/><circle cx="39" cy="38" r="2.6"/><circle cx="10" cy="14" r="3"/></g>',
   // de twee standen van de knop Hek: een heel hok slepen (een vierkant van hekjes met een sleeppijl), of één los stuk hek
   fencebox:
     '<rect x="8" y="10" width="26" height="26" rx="3" fill="#dff0d0" stroke="#a9743f" stroke-width="4" stroke-dasharray="7 3.4"/>' +
