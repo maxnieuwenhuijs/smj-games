@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import {
   ALSO, AQUATIC, CLIMATE, MIX_TILES, MUD_LOVERS, PETTABLE, TANK_WATER, TOY_DRINK, TOY_LIFT, type Nature, type Rare, type Terrain, type ToyKind,
-  MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, palsOf, wildWant, type PropGroup, type FenceNeed, type SpeciesId, type Variant, type WishId,
+  MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, palsOf, wildRange, WILD_KINDS, type PropGroup, type WildKind, type FenceNeed, type SpeciesId, type Variant, type WishId,
 } from './data';
 import { Grid, tileIndex, tileXY } from './grid';
 import { MODEL_SCALE, modelInfo, spawnModel, type ModelInfo, type Spawned } from './models';
@@ -75,8 +75,8 @@ export interface AnimalWorld {
   wantsClimate(): boolean;
   /** Willen dieren al groen en steen in hun verblijf (vanaf FEATURE.wild)? */
   wantsWild(): boolean;
-  /** Hoeveel groen en steen er in dit verblijf staat: het deel van alle vakjes (0 tot 1). */
-  wildIn(region: { id: number; tiles: number[] }): Record<PropGroup, number>;
+  /** Hoeveel bomen, planten en stenen er in dit verblijf staan (in stuks), en hoeveel tegels land het heeft. */
+  wildIn(region: { id: number; tiles: number[] }): Record<WildKind, number> & { land: number };
   /** Staat er op deze tegel een boom of een rots? Daar loopt een dier omheen. */
   solidAt(tile: number): boolean;
   /** Regenplassen in het park: daar rollen varkens en andere modderliefhebbers in. */
@@ -151,8 +151,11 @@ export class Animal {
   escaped = false;
   happy = false;
   unmet: WishId | null = 'enclosure';
-  /** Wat er aan groen of steen niet klopt in het verblijf: te weinig (`more`) of te veel. */
-  wildAsk: { group: PropGroup; more: boolean } | null = null;
+  /**
+   * Wat er aan natuur niet klopt in het verblijf: te weinig (`more`) of te veel bomen, planten of stenen, en
+   * hoeveel stuks het scheelt (`by`). `group` is groen of steen: daar praat de verzorger over.
+   */
+  wildAsk: { kind: WildKind; group: PropGroup; more: boolean; by: number } | null = null;
   /** Het karakter: verlegen, speels, slaperig of dapper. Je ziet het aan hoe het dier loopt en wat het doet. */
   nature: Nature = 'plain';
   /** Een zeldzame kleur (zie `setRare`). */
@@ -687,17 +690,20 @@ export class Animal {
       const need = CLIMATE[this.species];
       result.climate = !need || !w.wantsClimate() || w.toys.some(t => t.kind === need && w.grid.regionOf[tileIndex(t.x, t.y)] === region.id);
     }
-    // groen en steen: niet te weinig en niet te veel (in de kinderboerderij hoeft het niet)
+    // bomen, planten en stenen: van elk niet te weinig en niet te veel (in de kinderboerderij hoeft het niet)
     this.wildAsk = null;
-    const want = wildWant(this.species);
-    if (region && want && w.wantsWild() && !this.tameIn(w, region.id)) {
-      const have = w.wildIn(region);
-      for (const group of ['green', 'stone'] as const) {
-        if (this.wildAsk) break;
-        if (have[group] < want[group][0]) this.wildAsk = { group, more: true };
-        else if (have[group] > want[group][1]) this.wildAsk = { group, more: false };
+    if (region && w.wantsWild() && !this.tameIn(w, region.id)) {
+      const have = w.wildIn(region), want = wildRange(this.species, have.land);
+      // een verblijf met alleen water: daar kan niets staan, dus daar vraagt geen dier erom
+      if (want && have.land) {
+        for (const kind of WILD_KINDS) {
+          if (this.wildAsk) break;
+          const group: PropGroup = kind === 'stone' ? 'stone' : 'green', [min, max] = want[kind];
+          if (have[kind] < min) this.wildAsk = { kind, group, more: true, by: min - have[kind] };
+          else if (have[kind] > max) this.wildAsk = { kind, group, more: false, by: have[kind] - max };
+        }
+        result.wild = !this.wildAsk;
       }
-      result.wild = !this.wildAsk;
     }
     this.unmet = WISH_ORDER.find(k => !result[k]) ?? null;
     this.happy = this.unmet === null;

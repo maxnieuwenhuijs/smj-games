@@ -545,28 +545,49 @@ export const AQUATIC: SpeciesId[] = ['dolphin', 'orca', 'ray', 'shark'];
  */
 export type PropKind = 'tuft' | 'daisies' | 'fern' | 'shrub' | 'pebbles' | 'stone' | 'oak' | 'fir' | 'coco' | 'crag';
 export type PropGroup = 'green' | 'stone';
-export const PROP: Record<PropKind, { group: PropGroup; size: 1 | 2; price: number }> = {
-  tuft: { group: 'green', size: 1, price: 1 }, daisies: { group: 'green', size: 1, price: 1 }, fern: { group: 'green', size: 1, price: 1 }, shrub: { group: 'green', size: 1, price: 1 },
-  pebbles: { group: 'stone', size: 1, price: 1 }, stone: { group: 'stone', size: 1, price: 1 },
-  oak: { group: 'green', size: 2, price: 3 }, fir: { group: 'green', size: 2, price: 3 }, coco: { group: 'green', size: 2, price: 3 }, crag: { group: 'stone', size: 2, price: 3 },
+/** Waar een dier om vraagt: bomen, planten (graspollen, bloemetjes, varens, struikjes) of stenen. */
+export type WildKind = 'tree' | 'plant' | 'stone';
+export const WILD_KINDS: WildKind[] = ['tree', 'plant', 'stone'];
+export const PROP: Record<PropKind, { group: PropGroup; wild: WildKind; size: 1 | 2; price: number }> = {
+  tuft: { group: 'green', wild: 'plant', size: 1, price: 1 }, daisies: { group: 'green', wild: 'plant', size: 1, price: 1 }, fern: { group: 'green', wild: 'plant', size: 1, price: 1 },
+  shrub: { group: 'green', wild: 'plant', size: 1, price: 1 },
+  pebbles: { group: 'stone', wild: 'stone', size: 1, price: 1 }, stone: { group: 'stone', wild: 'stone', size: 1, price: 1 },
+  oak: { group: 'green', wild: 'tree', size: 2, price: 3 }, fir: { group: 'green', wild: 'tree', size: 2, price: 3 }, coco: { group: 'green', wild: 'tree', size: 2, price: 3 },
+  crag: { group: 'stone', wild: 'stone', size: 2, price: 3 },
 };
 export const PROPS = Object.keys(PROP) as PropKind[];
 /** Hoeveel vakjes iets vult: zoveel telt het mee als groen of als steen. */
 export const propPoints = (kind: PropKind): number => PROP[kind].size * PROP[kind].size;
 /**
- * Hoeveel groen en steen een dier in zijn verblijf wil (vanaf FEATURE.wild): het deel van alle vakjes dat ermee
- * gevuld is, van minstens tot hooguit. Het hangt af van de grond waar het dier van houdt: een bosdier wil veel groen,
- * een dier van zand of sneeuw wil stenen en weinig groen. Dieren die alleen in het water leven vragen er niet om.
+ * Hoeveel bomen, planten en stenen een dier in zijn verblijf wil (vanaf FEATURE.wild): per tegel land, van minstens
+ * tot hooguit. Het hangt af van de grond waar het dier van houdt: een bosdier wil veel bomen en planten, een dier
+ * van zand of sneeuw wil stenen en weinig groen. Dieren die alleen in het water leven vragen er niet om. Hoeveel
+ * stuks dat in een verblijf zijn, staat in wildRange: hoe groter het verblijf, hoe meer.
  */
-export const WILD_WANT: Partial<Record<Terrain, Record<PropGroup, [number, number]>>> = {
-  grass: { green: [0.04, 0.4], stone: [0, 0.15] },
-  mud: { green: [0.04, 0.4], stone: [0, 0.15] },
-  forest: { green: [0.1, 0.6], stone: [0, 0.25] },
-  sand: { green: [0.02, 0.25], stone: [0.04, 0.4] },
-  snow: { green: [0, 0.1], stone: [0.04, 0.4] },
-  water: { green: [0, 0.3], stone: [0, 0.3] },
+export const WILD_WANT: Partial<Record<Terrain, Record<WildKind, [number, number]>>> = {
+  grass: { tree: [1 / 16, 1 / 4], plant: [1 / 8, 1], stone: [0, 1 / 4] },
+  mud: { tree: [1 / 16, 1 / 4], plant: [1 / 8, 1], stone: [0, 1 / 4] },
+  forest: { tree: [1 / 8, 1 / 2], plant: [1 / 6, 1.25], stone: [0, 1 / 3] },
+  sand: { tree: [1 / 16, 1 / 5], plant: [1 / 12, 1 / 2], stone: [1 / 8, 2 / 3] },
+  snow: { tree: [0, 1 / 8], plant: [0, 1 / 4], stone: [1 / 8, 2 / 3] },
+  water: { tree: [0, 1 / 5], plant: [0, 1 / 2], stone: [0, 1 / 2] },
 };
-export const wildWant = (sp: SpeciesId): Record<PropGroup, [number, number]> | null => (AQUATIC.includes(sp) ? null : WILD_WANT[SPECIES[sp].terrain] ?? null);
+export const wildWant = (sp: SpeciesId): Record<WildKind, [number, number]> | null => (AQUATIC.includes(sp) ? null : WILD_WANT[SPECIES[sp].terrain] ?? null);
+/**
+ * Hoeveel bomen, planten en stenen dit dier wil in een verblijf met `land` tegels land: [minstens, hooguit], in
+ * stuks. Een klein verblijf vraagt nog geen boom (die neemt een hele tegel in); er mag er altijd minstens één staan.
+ */
+export function wildRange(sp: SpeciesId, land: number): Record<WildKind, [number, number]> | null {
+  const want = wildWant(sp);
+  if (!want) return null;
+  const range = {} as Record<WildKind, [number, number]>;
+  for (const kind of WILD_KINDS) {
+    // een boom vraagt het dier pas als er een hele boom in past: naar beneden afgerond; de rest gewoon afgerond
+    const min = kind === 'tree' ? Math.floor(land * want[kind][0] + 1e-9) : Math.round(land * want[kind][0]);
+    range[kind] = [min, Math.max(min + 1, Math.round(land * want[kind][1]))];
+  }
+  return range;
+}
 export const bonusSpecies = (done: number): SpeciesId[] => (Object.keys(BONUS) as SpeciesId[]).filter(sp => BONUS[sp]! <= done);
 /** Zo hoog staat het water in een bak van glas. */
 export const TANK_WATER = 0.42;

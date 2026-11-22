@@ -10,7 +10,7 @@ import {
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
   type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, LIGHT, SPACE, guestsAt, SERVES,
   isPath, PATH_KINDS, PATH_FROM, TOY_FROM, TOY_PRICE, CLIMATE, palsOf, PETTABLE, PETTING_MIN, NATURES, RARES, RARE_CHANCE, MUD_LOVERS, FERRIS, BUMPER_CARS, bumperCar, crowdLoad, CROWD_EASE,
-  EDGE_DECOR, PROP, PROPS, propPoints, wildWant, type PropKind, type PropGroup, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, SEASONS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
+  EDGE_DECOR, PROP, PROPS, WILD_KINDS, wildRange, wildWant, type PropKind, type WildKind, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, SEASONS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
 import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region, type Side } from './grid';
 import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
 import { cursor, icon, type IconId } from './icons';
@@ -200,6 +200,8 @@ interface PropObj {
   rot: number;
 }
 /** Bij elk natuurding het plaatje van de knop; boom, den, palm en rots lenen dat van het park. */
+/** Het plaatje bij bomen, planten en stenen in de wens van een dier. */
+const WILD_ICON: Record<WildKind, IconId> = { tree: 'tree', plant: 'tuft', stone: 'stone' };
 const PROP_ICON: Record<PropKind, IconId> = { tuft: 'tuft', daisies: 'daisies', fern: 'fern', shrub: 'shrub', pebbles: 'pebbles', stone: 'stone', oak: 'tree', fir: 'pine', coco: 'palm', crag: 'boulder' };
 interface ToyObj {
   x: number;
@@ -1907,7 +1909,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** De tegels met een boom of een rots: daar lopen dieren omheen. */
   private solid = new Set<number>();
   /** Per verblijf hoeveel groen en steen er staat; elk beeldje opnieuw uitgerekend zodra iemand ernaar vraagt. */
-  private wildCache: Map<number, Record<PropGroup, number>> | null = null;
+  private wildCache: Map<number, Record<WildKind, number> & { land: number }> | null = null;
 
   private cellKey(sx: number, sy: number): number {
     return sy * W * 2 + sx;
@@ -1967,11 +1969,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.syncProps();
     sfx('place');
     this.floatAt(icon('sparkle'), cx, cy, 0.4);
-    // de dieren laten merken of het zo goed is: blij als het nu klopt, sip als het te vol wordt
+    // de dieren laten merken of het zo goed is: blij als ze hier juist om vroegen, sip als er nu te veel van staat
+    const wild = PROP[kind].wild;
     here.forEach((a, i) => {
       a.checkWishes(this);
-      if (before[i] && !a.wildAsk) this.react(a, 'good');
-      else if (a.wildAsk && !a.wildAsk.more && a.wildAsk.group === PROP[kind].group) this.react(a, 'bad');
+      const was = before[i], now = a.wildAsk;
+      if (now && !now.more && now.kind === wild) this.react(a, 'bad');
+      else if (was?.more && was.kind === wild) this.react(a, 'good');
     });
   }
 
@@ -2002,28 +2006,21 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return this.solid.has(tile);
   }
 
-  /** Hoeveel groen en steen er in dit verblijf staat: het deel van alle vakjes op het land (water telt niet mee). */
-  wildIn(region: { id: number; tiles: number[] }): Record<PropGroup, number> {
+  /** Hoeveel bomen, planten en stenen er in dit verblijf staan (in stuks), en hoeveel tegels land het heeft (water telt niet mee). */
+  wildIn(region: { id: number; tiles: number[] }): Record<WildKind, number> & { land: number } {
     const cache = this.wildCache ?? (this.wildCache = new Map());
     let rec = cache.get(region.id);
     if (!rec) {
-      rec = { green: 0, stone: 0 };
+      rec = { tree: 0, plant: 0, stone: 0, land: region.tiles.filter(i => this.grid.terrain[i] !== WATER).length };
       const inside = new Set(region.tiles);
-      for (const p of this.props) if (inside.has(tileIndex(p.sx >> 1, p.sy >> 1))) rec[PROP[p.kind].group] += propPoints(p.kind);
-      const land = region.tiles.filter(i => this.grid.terrain[i] !== WATER).length;
-      // een verblijf met alleen water: daar kan niets staan, dus daar vraagt geen dier erom (dit is voor elk dier goed)
-      if (!land) rec.green = rec.stone = 0.1;
-      else {
-        rec.green /= land * 4;
-        rec.stone /= land * 4;
-      }
+      for (const p of this.props) if (inside.has(tileIndex(p.sx >> 1, p.sy >> 1))) rec[PROP[p.kind].wild] += 1;
       cache.set(region.id, rec);
     }
     return rec;
   }
 
   /**
-   * Zet in dit verblijf één graspol, plantje of steen neer waar een dier om vraagt, op een vrij vakje. Gratis: voor
+   * Zet in dit verblijf één boom, plantje of steen neer waar een dier om vraagt, op een vrije plek. Gratis: voor
    * een ouder spel van voor de natuur (en de speelrobot betaalt er zelf voor). Geeft terug of er iets is neergezet.
    */
   plantOne(region: Region): boolean {
@@ -2031,11 +2028,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     for (const a of animals) a.checkWishes(this);
     const ask = animals.map(a => a.wildAsk).find(q => q?.more);
     if (!ask) return false;
-    const kinds = PROPS.filter(k => PROP[k].group === ask.group && PROP[k].size === 1);
+    // een boom neemt een hele tegel; van de stenen alleen de kleine, zodat het verblijf niet dichtslibt
+    const kinds = PROPS.filter(k => PROP[k].wild === ask.kind && PROP[k].size === (ask.kind === 'tree' ? 2 : 1));
+    const step = PROP[kinds[0]].size === 2 ? 2 : 1;
     const cells: [number, number][] = [];
     for (const i of region.tiles) {
       const [x, y] = tileXY(i);
-      for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) if (this.propFits(kinds[0], x * 2 + dx, y * 2 + dy)) cells.push([x * 2 + dx, y * 2 + dy]);
+      for (let dy = 0; dy < 2; dy += step) for (let dx = 0; dx < 2; dx += step) if (this.propFits(kinds[0], x * 2 + dx, y * 2 + dy)) cells.push([x * 2 + dx, y * 2 + dy]);
     }
     if (!cells.length) return false;
     const [sx, sy] = cells[Math.floor(Math.random() * cells.length)];
@@ -2993,8 +2992,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       case 'bed': return icon(info.bed);
       case 'fun': return icon(TOY_OF[a.species] ?? 'ball');
       case 'climate': return icon(CLIMATE[a.species] ?? 'lamp');
-      // te weinig groen of steen: een plusje erbij; te veel: een minnetje
-      case 'wild': return icon(a.wildAsk?.group === 'stone' ? 'stone' : 'tuft') + icon(a.wildAsk?.more === false ? 'minus' : 'plus', 'badge');
+      // te weinig bomen, planten of stenen: erbij staat hoeveel er nog bij moeten; te veel: hoeveel eraf
+      case 'wild': {
+        const ask = a.wildAsk;
+        return icon(WILD_ICON[ask?.kind ?? 'plant']) + (ask ? `<i class="count">${ask.more ? '+' : '−'}${ask.by}</i>` : '');
+      }
       case 'space': return icon('grow');
       case 'terrain': return icon(a.missing ?? info.terrain);
       // bij een groepsdier staat erbij hoeveel er nog bij moeten
@@ -3019,13 +3021,18 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.hud.showMenu(s.x, s.y, t('tool.trough'), this.foodOptions(wanted), id => this.feed(tr, id as FoodId), inside);
   }
 
-  /** Groen en steen in het menu van het dier: een vakje voor wat het dier wil hebben, met een plus of min als het niet klopt. */
+  /**
+   * Natuur in het menu van het dier: een vakje voor bomen, planten en stenen. Eronder staat hoeveel er nu staan en
+   * hoeveel het dier er wil, bijvoorbeeld '0 · 1-5': nu geen, het wil er minstens één en hooguit vijf.
+   */
   private wildChips(a: Animal): string {
-    const want = wildWant(a.species);
-    if (!want) return '';
-    return (['green', 'stone'] as const).filter(g => want[g][0] > 0 || a.wildAsk?.group === g).map(g => {
-      const bad = a.wildAsk?.group === g;
-      return `<span class="wish ${bad ? 'no' : 'ok'}">${icon(g === 'stone' ? 'stone' : 'tuft')}${bad ? icon(a.wildAsk!.more ? 'plus' : 'minus', 'badge') : ''}</span>`;
+    const region = this.grid.regions[this.grid.regionOf[a.tile]];
+    if (!region) return '';
+    const have = this.wildIn(region), want = wildRange(a.species, have.land);
+    if (!want || !have.land) return '';
+    return WILD_KINDS.filter(kind => want[kind][0] > 0 || have[kind] > 0 || a.wildAsk?.kind === kind).map(kind => {
+      const [min, max] = want[kind], ok = have[kind] >= min && have[kind] <= max;
+      return `<span class="wish wild ${ok ? 'ok' : 'no'}">${icon(WILD_ICON[kind])}<i class="range">${have[kind]} · ${min}-${max}</i></span>`;
     }).join('');
   }
 

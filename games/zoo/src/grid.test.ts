@@ -5,7 +5,7 @@ import { BASE_LAND, FULL_LAND, Grid, H, PLOT, W, edgeAlong, nearestEdge, tileInd
 import { emptyStats, goalProgress, levelDone } from './levels';
 import { allLines, fill, goalLine, textOf, voiceId, type Tr } from './lines';
 import nl from './nl.json';
-import { AQUATIC, PROP, PROPS, WILD_WANT, propPoints, wildWant } from './data';
+import { AQUATIC, PROP, PROPS, WILD_KINDS, WILD_WANT, propPoints, wildRange, wildWant } from './data';
 
 /** Zet een hek om het blok tegels van (x0,y0) tot en met (x1,y1). */
 function fenceBox(g: Grid, x0: number, y0: number, x1: number, y1: number): Edge[] {
@@ -323,7 +323,7 @@ describe('paden, kinderboerderij en drukte', () => {
 });
 
 describe('natuur in de verblijven', () => {
-  it('elk landdier weet hoeveel groen en steen het wil, en dat kan ook', () => {
+  it('elk landdier weet hoeveel bomen, planten en stenen het wil, en dat kan ook', () => {
     for (const sp of Object.keys(SPECIES) as SpeciesId[]) {
       const want = wildWant(sp);
       if (AQUATIC.includes(sp)) {
@@ -331,21 +331,39 @@ describe('natuur in de verblijven', () => {
         continue;
       }
       expect(want, sp).not.toBeNull();
-      for (const group of ['green', 'stone'] as const) expect(want![group][0]).toBeLessThan(want![group][1]);
+      for (const kind of WILD_KINDS) expect(want![kind][0]).toBeLessThan(want![kind][1]);
     }
     expect(Object.keys(WILD_WANT).length).toBeGreaterThan(3);
   });
 
-  it('in het kleinste verblijf is het minimum met een paar kleine dingen te halen zonder dat het te veel wordt', () => {
-    // vier tegels = zestien vakjes
-    const cells = 16;
-    for (const want of Object.values(WILD_WANT)) {
-      for (const group of ['green', 'stone'] as const) {
-        const need = Math.ceil(want![group][0] * cells - 1e-9);
-        expect(need).toBeLessThanOrEqual(2);
-        expect(need / cells).toBeLessThanOrEqual(want![group][1]);
+  it('in het kleinste verblijf vraagt geen dier om een boom, en het minimum past er altijd in', () => {
+    for (const sp of Object.keys(SPECIES) as SpeciesId[]) {
+      const small = wildRange(sp, 4);
+      if (!small) continue;
+      // een boom neemt een hele tegel: in vier tegels is daar geen plek voor
+      expect(small.tree[0], sp).toBe(0);
+      expect(small.plant[0] + small.stone[0], sp).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('hoe groter het verblijf, hoe meer het dier wil; er is altijd ruimte tussen minstens en hooguit', () => {
+    for (const sp of Object.keys(SPECIES) as SpeciesId[]) {
+      for (const land of [4, 9, 16, 36, 64]) {
+        const range = wildRange(sp, land);
+        if (!range) continue;
+        for (const kind of WILD_KINDS) {
+          const [min, max] = range[kind];
+          expect(max, `${sp} ${kind} ${land}`).toBeGreaterThan(min);
+          // alles wat het dier minstens wil, past samen in het verblijf (een boom neemt een tegel, de rest een kwart)
+          expect(range.tree[0] + (range.plant[0] + range.stone[0]) / 4).toBeLessThan(land / 2);
+          const bigger = wildRange(sp, land * 2)!;
+          expect(bigger[kind][0]).toBeGreaterThanOrEqual(min);
+          expect(bigger[kind][1]).toBeGreaterThanOrEqual(max);
+        }
       }
     }
+    // een giraf (zand) in een verblijf van zestien tegels: minstens één boom, hooguit drie
+    expect(wildRange('giraffe', 16)!.tree).toEqual([1, 3]);
   });
 
   it('iets kleins telt voor één vakje, een boom of rots voor vier', () => {

@@ -590,9 +590,14 @@ const TOY_PARTS: Record<ToyKind, Part[]> = {
   // de ballen liggen los: die staan in TOY_LOOSE
   ball: [],
   bush: [
-    [merge([ball(0.3, 0, 0.27, 0), ball(0.17, 0.08, 0.5, -0.04), ball(0.16, 0.2, 0.36, 0.14)]), LEAF_MAT],
-    [merge([ball(0.22, 0.24, 0.2, 0.1), ball(0.2, -0.22, 0.19, -0.12), ball(0.16, -0.06, 0.16, 0.24)]), LEAF2],
-    [merge([[0.12, 0.44, 0.22], [-0.17, 0.38, 0.15], [0.02, 0.56, -0.12], [0.32, 0.32, 0], [-0.04, 0.3, 0.3], [0.3, 0.24, 0.24], [-0.3, 0.3, -0.02]].map(([x, y, z]) => dot(0.05, x, y, z))), std(0xe0584f, 0.5)],
+    // een bessenstruik in een houten kuip: daaraan zie je dat het speelgoed is en geen natuur
+    [merge([ball(0.28, 0, 0.42, 0), ball(0.17, 0.08, 0.66, -0.04), ball(0.16, 0.2, 0.52, 0.12)]), LEAF_MAT],
+    [merge([ball(0.2, 0.2, 0.36, 0.08), ball(0.19, -0.2, 0.36, -0.1), ball(0.15, -0.06, 0.32, 0.2)]), LEAF2],
+    [painted(
+      [0xe0584f, ...[[0.12, 0.58, 0.2], [-0.17, 0.52, 0.15], [0.02, 0.72, -0.12], [0.3, 0.46, 0], [-0.04, 0.44, 0.28], [0.28, 0.4, 0.22], [-0.3, 0.44, -0.02]].map(([x, y, z]) => dot(0.065, x, y, z))],
+      [0xa8743f, tube(0.29, 0.25, 0.18, 0, 0.09, 0)],
+      [0x80552c, tube(0.305, 0.305, 0.035, 0, 0.165, 0), tube(0.275, 0.275, 0.03, 0, 0.06, 0)],
+    ), PAINT_MAT],
   ],
   // de stronk staat vast in de hoek; de liggende stam ligt los (zie TOY_LOOSE) en rolt er net langs
   log: [
@@ -1677,16 +1682,20 @@ const PROP_PARTS: Record<PropKind, Part[]> = {
   daisies: [
     [mergeGeometries(DAISY_SPOTS.map(([x, h, z]) => boxAt(0.022, h, 0.022, x, h / 2, z)))!, STEM_MAT],
     [mergeGeometries([frond(0.4, 0.14, 0.3), frond(2.6, 0.13, 0.25), frond(4.4, 0.14, 0.3)])!, LEAF2],
-    [mergeGeometries(DAISY_SPOTS.map(([x, h, z]) => boxAt(0.1, 0.03, 0.1, x, h + 0.015, z)))!, WHITE_MAT],
-    [mergeGeometries(DAISY_SPOTS.map(([x, h, z]) => boxAt(0.045, 0.04, 0.045, x, h + 0.03, z)))!, std(0xffd23f)],
+    [mergeGeometries(DAISY_SPOTS.map(([x, h, z]) => new THREE.CylinderGeometry(0.058, 0.04, 0.026, 7).translate(x, h + 0.013, z)))!, WHITE_MAT],
+    [merge(DAISY_SPOTS.map(([x, h, z]) => dot(0.027, x, h + 0.03, z))), std(0xffd23f)],
   ],
   fern: [
     [mergeGeometries([0, 1.26, 2.5, 3.77, 5.03].map((a, i) => frond(a, 0.24 - (i % 2) * 0.04, 0.55 + (i % 2) * 0.15)))!, LEAF2],
     [mergeGeometries([0.6, 2.7, 4.6].map(a => frond(a, 0.15, 1)))!, LEAF_MAT],
   ],
   shrub: [
-    [mergeGeometries([ball(0.13, -0.05, 0.12, 0.01), ball(0.11, 0.09, 0.1, 0.05), ball(0.1, 0.01, 0.2, -0.04)])!, LEAF_MAT],
-    [mergeGeometries([boxAt(0.045, 0.045, 0.045, -0.12, 0.18, 0.08), boxAt(0.045, 0.045, 0.045, 0.1, 0.2, 0.1), boxAt(0.045, 0.045, 0.045, 0.02, 0.29, -0.02)])!, std(0xd8362e)],
+    // een laag, stekelig heidestruikje met paarse bloemetjes (de bessenstruik in zijn kuip is het speelgoed)
+    [merge([
+      blob(0.12, 1.15, 0.6, 1, -0.04, 0.07, 0.01, 0), blob(0.09, 1, 0.6, 1.1, 0.1, 0.06, 0.06, 0),
+      ...[[-0.1, 0.02, 0.24, -0.35], [0, -0.06, 0.3, 0.1], [0.09, 0.03, 0.26, 0.3], [-0.02, 0.09, 0.22, -0.1], [0.14, -0.05, 0.2, 0.45]].map(([x, z, h, lean], i) => blade(x, z, h, lean, i * 1.3)),
+    ]), LEAF2],
+    [merge([[-0.12, 0.2, 0.05], [0, 0.27, -0.06], [0.12, 0.23, 0.06], [-0.02, 0.19, 0.11], [0.17, 0.17, -0.02], [0.05, 0.14, 0.13]].map(([x, y, z]) => dot(0.026, x, y, z))), std(0xb06ad9)],
   ],
   pebbles: [
     [mergeGeometries([lump(0.075, -0.09, 0.04), lump(0.055, 0.07, -0.07), lump(0.045, 0.1, 0.09)])!, STONE],
@@ -1700,8 +1709,8 @@ const PROP_PARTS: Record<PropKind, Part[]> = {
   fir: DECOR_PARTS.pine,
   coco: DECOR_PARTS.palm,
   crag: [
-    [mergeGeometries([boxAt(0.6, 0.5, 0.5, -0.06, 0.25, 0), boxAt(0.36, 0.34, 0.38, 0.26, 0.17, 0.14), boxAt(0.34, 0.3, 0.32, -0.1, 0.65, -0.04), boxAt(0.22, 0.2, 0.22, -0.3, 0.1, 0.24)])!, ROCK_MAT],
-    [mergeGeometries([boxAt(0.3, 0.04, 0.28, -0.1, 0.82, -0.04), boxAt(0.2, 0.04, 0.2, 0.3, 0.36, 0.14)])!, STONE],
+    [merge([stone(0.62, 0.58, 0.52, -0.06, -0.06, 0, 0.3), stone(0.4, 0.4, 0.4, 0.26, -0.05, 0.14, 1.1), stone(0.36, 0.38, 0.34, -0.1, 0.44, -0.04, 2), stone(0.24, 0.24, 0.24, -0.3, -0.04, 0.24, 0.6)]), ROCK_MAT],
+    [merge([stone(0.24, 0.14, 0.22, -0.1, 0.76, -0.04, 0.8), stone(0.2, 0.14, 0.18, 0.3, 0.3, 0.14, 1.7), stone(0.14, 0.1, 0.12, 0.1, -0.02, 0.36, 0.2)]), STONE],
   ],
 };
 

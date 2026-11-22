@@ -238,6 +238,10 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 #menu .row:has(.tool:nth-child(7)):not(:has(.swatch)) { max-width: calc(6 * min(70px, 13vw) + 5 * min(10px, 1vw) + 2px); }
 .wish { position: relative; display: flex; padding: 3px; border-radius: 10px; background: #e2f4d8; }
 .wish.no { background: #fbdcd9; }
+/* natuur: onder het plaatje staat hoeveel er nu staan en hoeveel het dier er wil */
+.wish.wild { flex-direction: column; align-items: center; padding-bottom: 1px; }
+.wish .range { font: 800 11px/13px system-ui, sans-serif; color: #2f4a26; white-space: nowrap; }
+.wish.no .range { color: #a23a30; }
 .wish.no .ic { opacity: 0.55; }
 
 /* ---------- praatvenster ---------- */
