@@ -292,7 +292,7 @@ const meter = (level: number): string => {
   return `<i class="meter ${['low', 'mid', 'good', 'full'][step]}"><b style="height:${(step + 1) * 25}%"></b></i>`;
 };
 /** Het plaatje bij bomen, planten en stenen in de wens van een dier. */
-const WILD_ICON: Record<WildKind, IconId> = { tree: 'tree', plant: 'tuft', stone: 'stone' };
+const WILD_ICON: Record<WildKind, IconId> = { tree: 'oak', plant: 'tuft', stone: 'stone' };
 /**
  * Het plaatje van een natuurwens. Bij de boom en de steen staat er klein het plaatje van de knop Natuur bij, zodat
  * je weet waar je hem vindt: een boom staat ook bij Park, en een rots ook bij Speelgoed en Slaapplek.
@@ -304,7 +304,7 @@ const WILD_ICON: Record<WildKind, IconId> = { tree: 'tree', plant: 'tuft', stone
  */
 const toyIcon = (kind: string): string => icon(kind as IconId) + (kind === 'ball' ? '' : `<i class="from">${icon('ball')}</i>`);
 const wildIcon = (kind: WildKind): string => icon(WILD_ICON[kind]) + (kind === 'plant' ? '' : `<i class="from">${icon('tuft')}</i>`);
-const PROP_ICON: Record<PropKind, IconId> = { tuft: 'tuft', daisies: 'daisies', fern: 'fern', shrub: 'shrub', pebbles: 'pebbles', stone: 'stone', oak: 'tree', fir: 'pine', coco: 'palm', crag: 'boulder',
+const PROP_ICON: Record<PropKind, IconId> = { tuft: 'tuft', daisies: 'daisies', fern: 'fern', shrub: 'shrub', pebbles: 'pebbles', stone: 'stone', oak: 'oak', fir: 'pine', coco: 'palm', crag: 'boulder',
   // het kleine spul voor het park heeft een plaatje met dezelfde naam
   pot: 'pot', gnome: 'gnome', pinwheel: 'pinwheel', ducky: 'ducky', birdhouse: 'birdhouse', can: 'can', bucket: 'bucket', snail: 'snail', crate: 'crate' };
 interface ToyObj {
@@ -1406,7 +1406,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
           : (SHOPS as string[]).includes(k) ? opt(k, k as IconId, t(`shop.${k}`), SHOP_PRICE[k as ShopKind])
             : opt(k, k as IconId, t(`decor.${k}`), DECOR[k as DecorKind].price);
       defs.push({
-        ...opt('decor', 'tree', t('tool.decor')),
+        ...opt('decor', 'parkgate', t('tool.decor')),
         fresh: decorGroups.some(g => parkIds(g).some(k => this.fresh.has(k))),
         rows: [
           // van onder naar boven: de knop Park, de groepen, en daarboven wat je uit die groep neerzet
@@ -3679,7 +3679,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     switch (wish) {
       case 'health': return icon('sick');
       case 'enclosure': return icon(a.needsFence ? NEED_ICON[a.needsFence] : a.fenceBroken ? 'hammer' : 'fence');
-      case 'food': return icon(info.food);
+      // bij het voer staat klein het plaatje van de knop Voerbak: daar zet je het neer
+      case 'food': return icon(info.food) + `<i class="from">${icon('trough_empty')}</i>`;
       case 'bed': return icon(info.bed);
       case 'fun': return toyIcon(TOY_OF[a.species] ?? 'ball');
       case 'climate': return toyIcon(CLIMATE[a.species] ?? 'lamp');
@@ -4145,7 +4146,19 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       this.faceEdgeItems();
       this.sweepProps();
       const region = this.grid.enclosureAt(x, y);
-      if (region) for (const a of this.animalsIn(region.id)) this.react(a, SPECIES[a.species].terrain === terrain ? 'good' : 'bad');
+      if (region)
+        for (const a of this.animalsIn(region.id)) {
+          // wat miste het dier, en wat mist het nu? Veel dieren willen een mix: naast hun eigen grond ook een stukje
+          // van iets anders (een giraf wil zand met wat droog gras). Groen: dit miste het dier, of zijn grond klopt nu.
+          // Rood: nu klopt er iets niet meer wat eerst goed was. Geel: prima, maar het maakt geen verschil.
+          const was = a.missing;
+          a.checkWishes(this);
+          const now = a.missing;
+          const wanted = SPECIES[a.species].terrain === terrain || (ALSO[a.species] ?? []).includes(terrain);
+          const better = (wanted && was === terrain) || (was !== null && now === null);
+          const worse = now !== null && (was === null || (now !== was && !wanted));
+          this.react(a, better ? 'good' : worse ? 'bad' : wanted && SPECIES[a.species].terrain === terrain ? 'good' : 'ok');
+        }
     } else if (this.tool === 'fence') {
       const e = along ? edgeAlong(g.gx, g.gy, along) : nearestEdge(g.gx, g.gy);
       if (!e || (along && !this.covered(e, g.gx, g.gy))) return;

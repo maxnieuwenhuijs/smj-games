@@ -283,6 +283,21 @@ const ICONS = {
   world_far:
     '<path d="M2 34 Q8 28 14 34 T26 34 T38 34 T50 34 V46 H2Z" fill="#6ec3e8"/><ellipse cx="24" cy="33" rx="14" ry="5" fill="#ecd591"/>' +
     '<path d="M24 31 Q23 22 27 14" fill="none" stroke="#8a5a2c" stroke-width="3.5" stroke-linecap="round"/><path d="M27 14 Q18 8 13 15 M27 14 Q36 8 41 16 M27 14 Q24 6 30 4" fill="none" stroke="#5bab4c" stroke-width="4" stroke-linecap="round"/>',
+  // de boom van de natuur (voor in een verblijf): een brede eik met een dikke stam en takken, anders dan de ronde boom van Park
+  oak:
+    '<ellipse cx="24" cy="44.5" rx="12" ry="2.6" fill="#000" opacity=".12"/><path d="M20 45 Q22 36 21 28 H27 Q26 36 28 45Z" fill="#7a5230"/>' +
+    '<path d="M23 33 L14 26 M25 31 L35 25" stroke="#7a5230" stroke-width="3.2" stroke-linecap="round"/>' +
+    '<circle cx="12" cy="21" r="9.5" fill="#3f8f3a"/><circle cx="36" cy="21" r="9.5" fill="#3f8f3a"/><circle cx="24" cy="12" r="11" fill="#4fa446"/><circle cx="24" cy="22" r="9.5" fill="#4fa446"/>' +
+    '<g fill="#7cc35f"><circle cx="17" cy="13" r="2.2"/><circle cx="29" cy="8.5" r="2"/><circle cx="33" cy="20" r="1.9"/><circle cx="14" cy="23" r="1.7"/></g>' +
+    '<g fill="#a9743f"><ellipse cx="21" cy="19" rx="1.6" ry="2"/><ellipse cx="29" cy="25" rx="1.6" ry="2"/></g>',
+  // de knop Park: de poort van het park met een vlaggetje, een pad eronderdoor, en een boom en een lantaarn erachter
+  parkgate:
+    '<ellipse cx="24" cy="43" rx="22" ry="4.5" fill="#86c95c"/><path d="M17 45 Q24 33 31 45Z" fill="#e3d3b4"/>' +
+    '<rect x="5.5" y="26" width="3.4" height="14" rx="1" fill="#7a5230"/><circle cx="7.2" cy="22" r="7" fill="#4fa446"/><circle cx="5" cy="19.5" r="1.8" fill="#7cc35f"/>' +
+    '<rect x="39.4" y="22" width="2.6" height="19" fill="#3d4f5a"/><rect x="36.8" y="14.5" width="7.8" height="8.5" rx="2" fill="#fff1a8" stroke="#3d4f5a" stroke-width="1.8"/><path d="M36 14.5 L40.7 11 L45.4 14.5Z" fill="#3d4f5a"/>' +
+    '<rect x="12.5" y="20" width="5.5" height="24" rx="1.8" fill="#a9743f"/><rect x="30" y="20" width="5.5" height="24" rx="1.8" fill="#a9743f"/>' +
+    '<path d="M9 23 Q24 4 39 23 L35.5 25.5 Q24 12 12.5 25.5Z" fill="#e0584f" stroke="#b83a32" stroke-width="1.2" stroke-linejoin="round"/>' +
+    '<circle cx="24" cy="15.2" r="2.6" fill="#ffd23f"/><path d="M24 9.5 V2.5" stroke="#7a5230" stroke-width="1.8" stroke-linecap="round"/><path d="M24 2.5 L31.5 5 L24 7.8Z" fill="#4a90e2"/>',
   // de paden bij Grond: een kronkelend zandpad door het gras, met een paar steentjes (geen losse tegel)
   pathway:
     '<rect x="3" y="3" width="42" height="42" rx="10" fill="#86c95c"/>' +
