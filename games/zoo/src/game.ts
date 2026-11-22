@@ -5,7 +5,7 @@ import { saveSet, t } from '@smj/shared';
 import { Animal, type AnimalWorld, type Trough } from './animal';
 import { ambience, animalSound, hasVoice, layer, music, playVoice, reshuffle, sfx } from './audio';
 import {
-  BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
+  BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, SHOP_DEEP, shopSpan, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
   type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, DECOR_GROUPS, type DecorKind, type DecorGroup, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, LIGHT, SPACE, guestsAt, SERVES,
@@ -17,7 +17,7 @@ import { cursor, icon, type IconId } from './icons';
 import { emptyStats, goalProgress, levelDone, type Stats } from './levels';
 import { CHEERS, NAMED, PRAISE, callText, goalLine, say, textOf, voiceId, wishLine, type Line } from './lines';
 import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStatic, speciesIcon } from './models';
-import { ENTRANCE, GuestManager, Train, Vendor, Worker, edgePose, edgeSides, shopCenter, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type PetSpot, type ShopSpot, type VetJob, type WorkerRole, type WorkerWorld, type FixJob } from './people';
+import { ENTRANCE, GuestManager, Train, Vendor, Worker, edgePose, edgeSides, shopCenter, shopTiles, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type PetSpot, type ShopSpot, type VetJob, type WorkerRole, type WorkerWorld, type FixJob } from './people';
 import { View, toWorldX, toWorldZ, type TroughMesh } from './view';
 
 /** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken. */
@@ -81,6 +81,8 @@ const WATER = TERRAINS.indexOf('water');
 /** In welke wereld hoort een soort thuis? Dat volgt uit het level waarin je hem krijgt. */
 const HOME = Object.fromEntries(LEVELS.map((l, i) => [l.reward, worldOf(i)])) as Record<SpeciesId, WorldId>;
 const between = ([lo, hi]: [number, number]): number => lo + Math.random() * (hi - lo);
+/** Het midden van het blok tegels waar een winkel op staat (bij iets op een rand: het midden van zijn tegel). */
+const blockCenter = (shop: ShopSpot): [number, number] => [shop.x + shopTiles(shop)[0] / 2, shop.y + shopTiles(shop)[1] / 2];
 /** Bij welke winkel hoort een wens van een gast? */
 const NEED_KIND: Record<string, ShopKind> = {
   food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', hat: 'hats', souvenir: 'souvenir', play: 'playground', sit: 'bench', look: 'fountain', ride: 'carousel',
@@ -114,7 +116,7 @@ for (const id of ['window', 'picket', 'petgate'] as const) CUR[id] = cursor(id);
 
 export interface SaveData {
   /** 1 = het spel met veertien levels, 2 = vijftig levels. */
-  v: 1 | 2 | 3;
+  v: 1 | 2 | 3 | 4;
   level: number;
   fed: number;
   cleaned: number;
@@ -541,14 +543,25 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         for (let dy = -6; dy <= 5; dy++) for (let dx = -6; dx <= 5; dx++) near.push([x + dx, y + dy]);
         near.sort((p, q) => Math.abs(p[0] + 0.5 - x) + Math.abs(p[1] + 0.5 - y) - Math.abs(q[0] + 0.5 - x) - Math.abs(q[1] + 0.5 - y));
         const fits = near.filter(([ax, ay]) => this.shopFits(ax, ay, sh.kind));
-        const spot = fits.find(([ax, ay]) => this.touchesPath(ax, ay, size)) ?? fits[0];
+        const spot = fits.find(([ax, ay]) => this.touchesPath(ax, ay, ...shopSpan(sh.kind))) ?? fits[0];
         if (!spot) {
           this.coins = Math.min(COIN_CAP, this.coins + SHOP_PRICE[sh.kind]);
           continue;
         }
         [x, y] = spot;
       }
-      this.addShop(x, y, sh.kind, sh.sells, undefined, undefined, sh.manual ? sh.rot : undefined, sh.manual).dirt = sh.dirt;
+      let rot = sh.manual ? sh.rot : undefined;
+      if (SHOP_DEEP[sh.kind]) {
+        const was = sh.rot ?? 0;
+        if ((d.v ?? 1) === 3) {
+          // marktkramen waren eerst 2 bij 2: de kraam komt in de helft waar zijn voorkant was
+          if (was === 0) y += 1;
+          else if (was === 1) x += 1;
+        }
+        // een kraam draait uit zichzelf alleen een halve slag: zo blijft hij op zijn eigen tegels staan
+        rot = sh.manual ? was : this.autoRot(x, y, sh.kind, was);
+      }
+      this.addShop(x, y, sh.kind, sh.sells, undefined, undefined, rot, sh.manual).dirt = sh.dirt;
     }
     for (const a of d.animals) {
       if (!modelReady(`${a.species}_${a.variant}`)) continue;
@@ -576,7 +589,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   serialize(): SaveData {
     return {
-      v: 3,
+      v: 4,
       player: this.player || undefined,
       // wie al verder was dan de levels die er nu zijn, houdt dat level voor later
       level: this.level >= this.maxLevel ? Math.max(this.level, this.savedLevel) : this.level,
@@ -735,7 +748,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Een gast koopt alleen iets als hij het naar zijn zin heeft. Elke koop is één munt. */
   buy(shop: ShopSpot, guest: Guest, product: string | undefined, exact: boolean): boolean {
     if (guest.fun < 0.35) return false;
-    const cx = shop.x + shop.size / 2, cy = shop.y + shop.size / 2;
+    const [cx, cy] = blockCenter(shop);
     const stall = shop as ShopObj;
     // een vieze kraam verkoopt minder: een derde van de gasten loopt door
     if (this.has('upkeep') && (STALLS.includes(shop.kind) || shop.kind === 'restaurant')) {
@@ -1343,7 +1356,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private grime = new Map<ShopObj, { gx: number; gy: number; shop: ShopObj }>();
   cleanJobs(): KeeperPoop[] {
     for (const shop of [...this.grime.keys()]) if (!this.shops.includes(shop) || (shop.dirt ?? 0) < 1) this.grime.delete(shop);
-    for (const shop of this.shops) if ((shop.dirt ?? 0) >= 1 && !this.grime.has(shop)) this.grime.set(shop, { gx: shop.x + shop.size / 2, gy: shop.y + shop.size / 2, shop });
+    for (const shop of this.shops) if ((shop.dirt ?? 0) >= 1 && !this.grime.has(shop)) this.grime.set(shop, { gx: blockCenter(shop)[0], gy: blockCenter(shop)[1], shop });
     return [...this.poops, ...this.litter, ...this.grime.values()];
   }
 
@@ -1639,7 +1652,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   private shopAt(x: number, y: number): ShopObj | undefined {
-    return this.shops.find(s => !s.edge && x >= s.x && x < s.x + s.size && y >= s.y && y < s.y + s.size);
+    return this.shops.find(s => !s.edge && x >= s.x && x < s.x + shopTiles(s)[0] && y >= s.y && y < s.y + shopTiles(s)[1]);
   }
 
   /** Het bankje, de bloembak of de afvalbak op deze rand. */
@@ -1718,24 +1731,35 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /**
    * Naar welke kant een gebouw het best kan kijken: de kant waar het meeste pad tegenaan ligt. Bij gelijk
    * spel het liefst naar het zuiden of oosten, want dan zie je de voorkant. 0 = zuid, 1 = oost, 2 = noord, 3 = west.
+   * Een marktkraam is niet vierkant: die kijkt alleen over een lange kant, dus hij draait uit zichzelf hooguit
+   * een halve slag. `like`: zo staat hij nu (of zo komt hij te staan).
    */
-  private autoRot(x: number, y: number, size: number): number {
+  private autoRot(x: number, y: number, kind: ShopKind, like = 0): number {
+    const sides = this.pathSides(x, y, ...shopSpan(kind, like));
+    const turns = SHOP_DEEP[kind] ? [like % 2, (like % 2) + 2] : [0, 1, 2, 3];
+    return turns.reduce((best, r) => (sides[r] > sides[best] ? r : best), turns[0]);
+  }
+
+  /** Hoeveel tegels pad er tegen elke kant van een blok aan liggen: [zuid, oost, noord, west]. */
+  private pathSides(x: number, y: number, w: number, h: number): number[] {
     const onPath = (tx: number, ty: number): number => (this.grid.inBounds(tx, ty) && isPath(this.grid.terrain[tileIndex(tx, ty)]) ? 1 : 0);
     const sides = [0, 0, 0, 0];
-    for (let i = 0; i < size; i++) {
-      sides[0] += onPath(x + i, y + size);
-      sides[1] += onPath(x + size, y + i);
+    for (let i = 0; i < w; i++) {
+      sides[0] += onPath(x + i, y + h);
       sides[2] += onPath(x + i, y - 1);
+    }
+    for (let i = 0; i < h; i++) {
+      sides[1] += onPath(x + w, y + i);
       sides[3] += onPath(x - 1, y + i);
     }
-    return sides.indexOf(Math.max(...sides));
+    return sides;
   }
 
   /** Het pad is veranderd: bankjes, bakken en gebouwen draaien hun gezicht naar het pad. */
   private faceEdgeItems(): void {
     for (const s of this.shops) {
       if (!s.edge) {
-        if (!s.manual) s.rot = this.autoRot(s.x, s.y, s.size);
+        if (!s.manual) s.rot = this.autoRot(s.x, s.y, s.kind, s.rot ?? 0);
         this.view.poseShop(s.mesh, s.x, s.y, s.kind, undefined, s.rot ?? 0);
         continue;
       }
@@ -2343,7 +2367,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (d.kind === 'lantern' || d.kind === 'campfire') list.push({ gx, gy, r: LIGHT[d.kind] });
       else if (d.kind === 'lightstring') list.push({ gx, gy, r: 2.4 });
     }
-    for (const s of this.shops) if (!s.edge) list.push({ gx: s.x + s.size / 2, gy: s.y + s.size / 2, r: LIGHT.shop });
+    for (const s of this.shops) if (!s.edge) list.push({ gx: blockCenter(s)[0], gy: blockCenter(s)[1], r: LIGHT.shop });
     return list;
   }
 
@@ -2393,9 +2417,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private addShop(x: number, y: number, kind: ShopKind, sells?: string[], edge?: 'h' | 'v', turned?: boolean, rot?: number, manual?: boolean, set?: number): ShopObj {
     const face = edge ? this.faceOf({ x, y, edge, turned, set }) : undefined;
     // een gebouw kijkt vanzelf naar het pad, tenzij de speler het zelf heeft gedraaid
-    const turn = edge ? undefined : rot ?? this.autoRot(x, y, SHOP_SIZE[kind]);
+    const turn = edge ? undefined : rot ?? this.autoRot(x, y, kind);
+    const [w, h] = edge ? [1, 1] : shopSpan(kind, turn ?? 0);
     const shop: ShopObj = {
-      x, y, kind, size: SHOP_SIZE[kind], sells: sells?.length ? [...sells] : this.products(kind).slice(0, slotsOf(kind)),
+      x, y, kind, size: SHOP_SIZE[kind], w, h, sells: sells?.length ? [...sells] : this.products(kind).slice(0, slotsOf(kind)),
       mesh: this.view.makeShop(x, y, kind, edge && { o: edge, face: face! }, turn), vendor: Vendor.of(kind), edge, face, turned: turned || undefined, set: edge ? set : undefined, rot: turn, manual: manual || undefined,
     };
     if (shop.vendor) shop.mesh.add(shop.vendor.mesh);
@@ -2606,10 +2631,14 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.backToHand();
   }
 
-  /** Een winkel mag overal buiten de verblijven staan, behalve op het pad of in het water. Een gebouw heeft 2 bij 2 tegels nodig. */
-  private shopFits(x: number, y: number, kind: ShopKind): boolean {
-    for (let ty = y; ty < y + SHOP_SIZE[kind]; ty++)
-      for (let tx = x; tx < x + SHOP_SIZE[kind]; tx++) {
+  /**
+   * Een winkel mag overal buiten de verblijven staan, behalve op het pad of in het water. Een gebouw heeft 2 bij 2
+   * tegels nodig; een marktkraam 2 bij 1, of 1 bij 2 als hij een kwartslag gedraaid staat (`rot`).
+   */
+  private shopFits(x: number, y: number, kind: ShopKind, rot = 0): boolean {
+    const [w, h] = shopSpan(kind, rot);
+    for (let ty = y; ty < y + h; ty++)
+      for (let tx = x; tx < x + w; tx++) {
         if (!this.grid.inBounds(tx, ty) || this.grid.enclosureAt(tx, ty) || this.taken(tx, ty)) return false;
         const terrain = this.grid.terrain[tileIndex(tx, ty)];
         if (isPath(terrain) || terrain === WATER) return false;
@@ -2617,24 +2646,37 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return true;
   }
 
-  /** De tegels rondom een blok van `size` bij `size` tegels. */
-  private around(x: number, y: number, size: number): number[] {
-    const out: number[] = [];
-    for (let i = 0; i < size; i++)
-      for (const [tx, ty] of [[x + i, y - 1], [x + i, y + size], [x - 1, y + i], [x + size, y + i]]) if (this.grid.inBounds(tx, ty)) out.push(tileIndex(tx, ty));
-    return out;
+  /** De tegels rondom een blok van `w` bij `h` tegels. */
+  private around(x: number, y: number, w: number, h: number): number[] {
+    const spots: [number, number][] = [];
+    for (let i = 0; i < w; i++) spots.push([x + i, y - 1], [x + i, y + h]);
+    for (let i = 0; i < h; i++) spots.push([x - 1, y + i], [x + w, y + i]);
+    return spots.filter(([tx, ty]) => this.grid.inBounds(tx, ty)).map(([tx, ty]) => tileIndex(tx, ty));
   }
 
-  /** Ligt er pad tegen dit blok van `size` bij `size` tegels aan? Dan kunnen gasten erbij. */
-  private touchesPath(x: number, y: number, size: number): boolean {
-    for (let ty = y; ty < y + size; ty++)
-      for (let tx = x; tx < x + size; tx++) if (this.grid.neighbors(tileIndex(tx, ty)).some(i => isPath(this.grid.terrain[i]))) return true;
+  /** Ligt er pad tegen dit blok van `w` bij `h` tegels aan? Dan kunnen gasten erbij. */
+  private touchesPath(x: number, y: number, w: number, h: number): boolean {
+    for (let ty = y; ty < y + h; ty++)
+      for (let tx = x; tx < x + w; tx++) if (this.grid.neighbors(tileIndex(tx, ty)).some(i => isPath(this.grid.terrain[i]))) return true;
     return false;
   }
 
-  /** De linkerbovenhoek van een winkel die je onder de vinger neerzet: een gebouw komt met zijn midden onder de vinger. */
-  private shopAnchor(g: { gx: number; gy: number }, kind: ShopKind): [number, number] {
-    return SHOP_SIZE[kind] === 1 ? [Math.floor(g.gx), Math.floor(g.gy)] : [Math.round(g.gx) - 1, Math.round(g.gy) - 1];
+  /**
+   * Waar een gebouw komt dat je onder de vinger neerzet: [linkerbovenhoek x, y, draaiing]. Het komt met zijn midden
+   * onder de vinger en kijkt naar het pad. Een marktkraam is niet vierkant: die gaat zo staan dat er het meeste
+   * pad voor zijn lange kant ligt. De draaiknop draait daar nog kwartslagen bovenop.
+   */
+  private shopPose(g: { gx: number; gy: number }, kind: ShopKind): [number, number, number] {
+    const at = (rot: number): [number, number, number] => {
+      const [w, h] = shopSpan(kind, rot);
+      return [Math.round(g.gx - w / 2), Math.round(g.gy - h / 2), rot];
+    };
+    let best = 0;
+    if (SHOP_DEEP[kind]) {
+      const front = [0, 1, 2, 3].map(rot => this.pathSides(at(rot)[0], at(rot)[1], ...shopSpan(kind, rot))[rot]);
+      best = front.indexOf(Math.max(...front));
+    } else best = this.autoRot(at(0)[0], at(0)[1], kind);
+    return at((best + this.quarter) % 4);
   }
 
   /**
@@ -2656,14 +2698,17 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.backToHand();
   }
 
-  private placeShop(x: number, y: number): void {
+  private placeShop(x: number, y: number, rot?: number): void {
     const kind = this.option.shop as ShopKind;
-    const cx = x + SHOP_SIZE[kind] / 2, cy = y + SHOP_SIZE[kind] / 2;
-    if (!this.shopFits(x, y, kind)) return this.nope(cx, cy);
+    const turn = rot ?? this.autoRot(x, y, kind);
+    const [w, h] = shopSpan(kind, turn);
+    const cx = x + w / 2, cy = y + h / 2;
+    if (!this.shopFits(x, y, kind, turn)) return this.nope(cx, cy);
     if (!this.pay(SHOP_PRICE[kind], cx, cy)) return;
     // zelf gedraaid met de draaiknop? Dan blijft het zo staan; anders kijkt het vanzelf naar het pad
-    if (this.quarter) this.addShop(x, y, kind, undefined, undefined, undefined, (this.autoRot(x, y, SHOP_SIZE[kind]) + this.quarter) % 4, true);
-    else this.addShop(x, y, kind);
+    // (een marktkraam houdt de stand waarin je hem neerzet, en draait uit zichzelf hooguit een halve slag)
+    if (this.quarter) this.addShop(x, y, kind, undefined, undefined, undefined, turn, true);
+    else this.addShop(x, y, kind, undefined, undefined, undefined, SHOP_DEEP[kind] ? turn : undefined);
     this.sweepProps();
     sfx('place');
     this.floatAt(icon('sparkle'), cx, cy, 0.8);
@@ -2678,15 +2723,16 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Tik op een kraam: kies wat hij verkoopt. Er passen maar een paar dingen tegelijk in; een keuze te veel vervangt de oudste. */
   private shopMenu(shop: ShopObj): void {
     const options = [...new Set([...this.products(shop.kind), ...shop.sells])];
-    const s = this.view.toScreen(shop.x + shop.size / 2, shop.y + shop.size / 2, 1.5);
+    const s = this.view.toScreen(...blockCenter(shop), 1.5);
     const items: ToolOption[] = [
       { id: '__turn', icon: icon('turn'), label: t('shop.turn') },
       ...options.map(id => ({ id, icon: this.productIcon(id), label: this.productName(id), on: shop.sells.includes(id) })),
     ];
     this.hud.showMenu(s.x, s.y, t(`shop.${shop.kind}`), items, id => {
       if (id === '__turn') {
-        // een kwartslag draaien; daarna draait het gebouw niet meer vanzelf
-        shop.rot = ((shop.rot ?? 0) + 1) % 4;
+        // een kwartslag draaien; daarna draait het gebouw niet meer vanzelf. Een marktkraam draait een halve slag:
+        // hij is niet vierkant en moet op zijn eigen tegels blijven staan.
+        shop.rot = ((shop.rot ?? 0) + (SHOP_DEEP[shop.kind] ? 2 : 1)) % 4;
         shop.manual = true;
         this.view.poseShop(shop.mesh, shop.x, shop.y, shop.kind, undefined, shop.rot);
         sfx('place');
@@ -3232,8 +3278,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
           if (e) this.view.ghostShop(e.x, e.y, kind, this.edgeFits(e), { o: e.o, face: this.faceFor(e, this.edgeSide(e, g.gx, g.gy)) * this.flip });
           return this.hud.setCursor(CUR[this.option.shop]);
         }
-        const [ax, ay] = this.shopAnchor(g, kind);
-        this.view.ghostShop(ax, ay, kind, this.shopFits(ax, ay, kind), undefined, (this.autoRot(ax, ay, SHOP_SIZE[kind]) + this.quarter) % 4);
+        const [ax, ay, rot] = this.shopPose(g, kind);
+        this.view.ghostShop(ax, ay, kind, this.shopFits(ax, ay, kind, rot), undefined, rot);
         return this.hud.setCursor(CUR[this.option.shop]);
       }
       case 'animal': {
@@ -3552,7 +3598,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.tool === 'shop' && g) {
       const kind = this.option.shop as ShopKind;
       const e = SHOP_SIZE[kind] === 1 ? this.itemEdge(g.gx, g.gy) : null;
-      return SHOP_SIZE[kind] === 1 ? this.placeOnEdge(e, e ? this.edgeSide(e, g.gx, g.gy) : 1) : this.placeShop(...this.shopAnchor(g, kind));
+      return SHOP_SIZE[kind] === 1 ? this.placeOnEdge(e, e ? this.edgeSide(e, g.gx, g.gy) : 1) : this.placeShop(...this.shopPose(g, kind));
     }
     if (this.tool === 'prop' && g) return this.placeProp(g.gx, g.gy);
     if (!inside) return;
@@ -4059,7 +4105,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private cleanShop(shop: ShopObj, mine: boolean): void {
     if ((shop.dirt ?? 0) < 1) return;
     shop.dirt = 0;
-    const cx = shop.x + shop.size / 2, cy = shop.y + shop.size / 2;
+    const [cx, cy] = blockCenter(shop);
     sfx('sweep', { every: 0.1 });
     for (let k = 0; k < 4; k++) this.floatAt(icon('sparkle'), cx - 0.6 + Math.random() * 1.2, cy - 0.6 + Math.random() * 1.2, 0.3 + Math.random());
     this.pulse(shop.mesh, 0.06);
@@ -4158,9 +4204,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     stats.keepers = this.workers.length;
     // een kraam telt pas als hij aan het pad staat, anders kan er niemand bij
     for (const s of this.shops) {
-      const atPath = s.edge ? edgeSides(s).some(i => isPath(this.grid.terrain[i])) : this.touchesPath(s.x, s.y, s.size);
+      const atPath = s.edge ? edgeSides(s).some(i => isPath(this.grid.terrain[i])) : this.touchesPath(s.x, s.y, ...shopTiles(s));
       // werkt het ook echt? Alleen als gasten erbij kunnen: het pad ernaast moet aan de ingang vastzitten
-      const around = s.edge ? edgeSides(s) : this.around(s.x, s.y, s.size);
+      const around = s.edge ? edgeSides(s) : this.around(s.x, s.y, ...shopTiles(s));
       s.off = this.has('paths') && this.guests.open && !around.some(i => this.guests.reaches(i));
       if (atPath) stats.shops[s.kind] = (stats.shops[s.kind] ?? 0) + 1;
       // een kraam verkoopt altijd iets: staat er niets aan, dan het eerste wat kan
@@ -4412,7 +4458,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     } else if (this.tool === 'action') {
       // de veger: alle poepjes; de prikker: al het afval, en de afvalbakken zodra je iets bij je hebt
       for (const p of this.option.action === 'broom' ? this.poops : this.litter) spots.push({ gx: p.gx, gy: p.gy, hot: p === hot, r: p === hot ? 1.5 : 1 });
-      if (this.option.action === 'broom') for (const sh of this.shops) if ((sh.dirt ?? 0) >= 1) spots.push({ gx: sh.x + sh.size / 2, gy: sh.y + sh.size / 2, hot: true, r: 3 });
+      if (this.option.action === 'broom') for (const sh of this.shops) if ((sh.dirt ?? 0) >= 1) spots.push({ gx: blockCenter(sh)[0], gy: blockCenter(sh)[1], hot: true, r: 3 });
       if (this.option.action === 'picker' && this.carry)
         for (const bin of this.shops) if (bin.kind === 'bin') spots.push({ gx: edgePose(bin)[0], gy: edgePose(bin)[1], hot: true, r: 1.6 });
     } else if (hot) spots.push({ gx: hot.gx, gy: hot.gy, hot: true, r: 1.4 });

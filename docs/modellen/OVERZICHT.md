@@ -126,16 +126,23 @@ Het blad kleurt nog steeds mee met de seizoenen:
 | --- | --- |
 | ![voor](voor/kramen.jpg) | ![na](na/kramen.jpg) |
 
-Elke kraam heeft een geschulpte luifel, een toonbank met vakken en eigen spullen op de toonbank. Wat op het dak
-staat, zie je nu in één oogopslag:
+Een kraam is nu een echte marktkraam: vier palen, een schuin gestreept zeil met een geschulpte rand, een tafel met
+een kleed en eigen spullen, een doek achterlangs en een paar kratten. Muren heeft hij niet meer, dus er loopt ook
+geen muur meer raar door. Hij is 2 tegels breed en 1 tegel diep (eerst 2 bij 2); de verkoper staat achter de
+tafel. Wat op het dak staat, zie je in één oogopslag:
 
-- **Eten**: een rode bak friet met een witte band. Op de toonbank puntzakken en twee flessen saus.
-- **Drinken**: een rood-wit gestreepte beker met een deksel en een geknikt rietje. Op de toonbank bekers en flessen.
-- **IJs**: een wafelhoorn met twee bollen, saus en een kers. Op de toonbank ijsjes in een rekje en bakken ijs.
-- **Ballonnen**: ballonnen met een knoopje, een glimlichtje en een touwtje naar de paal.
-- **Hoedjes**: een strohoed met een strik; op de toonbank petjes, een kroontje en een feesthoedje.
-- **Knuffels**: een beer met armen, poten, een snuit, oogjes en een strik; op de toonbank een varkentje, een
+- **Eten**: een rode bak friet met een witte band. Op de tafel puntzakken en twee flessen saus.
+- **Drinken**: een rood-wit gestreepte beker met een deksel en een geknikt rietje. Op de tafel bekers en flessen.
+- **IJs**: een wafelhoorn met twee bollen, saus en een kers. Op de tafel ijsjes in een rekje en bakken ijs.
+- **Ballonnen**: ballonnen met een knoopje, een glimlichtje en een touwtje naar de paal rechtsvoor. Op de tafel
+  ballonnen op een stokje en een fles gas.
+- **Hoedjes**: een strohoed met een strik; op de tafel petjes, een kroontje en een feesthoedje.
+- **Knuffels**: een beer met armen, poten, een snuit, oogjes en een strik; op de tafel een varkentje, een
   eendje en een olifantje.
+
+Van achteren zie je het doek en de bovenkant van het zeil:
+
+![achter](na/kramen-achter.jpg)
 
 Het doorzichtige voorbeeld bij het neerzetten werkt nog gewoon:
 

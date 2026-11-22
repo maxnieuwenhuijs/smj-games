@@ -233,6 +233,19 @@ export const SHOP_SIZE: Record<ShopKind, number> = {
   foodstall: 2, drinkstall: 2, toilet: 2, playground: 2, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2, icecream: 2, balloon: 2, hats: 2, souvenir: 2, bench: 1, flowers: 1, bin: 1, fountain: 2, carousel: 2,
   tower: 2, restaurant: 2, ferris: 2, bumper: 2, shelter: 2, station: 2, umbrellas: 1,
 };
+/**
+ * Een marktkraam is twee tegels breed maar maar één tegel diep: zijn lange kant is de voorkant. Alle andere
+ * gebouwen zijn vierkant.
+ */
+export const SHOP_DEEP: Partial<Record<ShopKind, number>> = { foodstall: 1, drinkstall: 1, icecream: 1, balloon: 1, hats: 1, souvenir: 1 };
+/**
+ * Hoeveel tegels een gebouw beslaat, [van west naar oost, van noord naar zuid], als het zo gedraaid staat
+ * (0 = voorkant naar het zuiden, 1 = oosten, 2 = noorden, 3 = westen).
+ */
+export const shopSpan = (kind: ShopKind, rot = 0): [number, number] => {
+  const wide = SHOP_SIZE[kind], deep = SHOP_DEEP[kind] ?? wide;
+  return rot % 2 ? [deep, wide] : [wide, deep];
+};
 
 // ------------------------------------------------------------ wat een kraam verkoopt
 /** Eén ding dat een kraam kan verkopen. `from`: vanaf hoeveel gehaalde levels gasten erom vragen. */

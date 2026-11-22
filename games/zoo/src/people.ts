@@ -15,6 +15,12 @@ export interface ShopSpot {
   y: number;
   kind: ShopKind;
   size: number;
+  /**
+   * Zoveel tegels beslaat het echt, van west naar oost en van noord naar zuid. Alleen bij een marktkraam is dat
+   * anders dan `size`: die is 2 bij 1, of 1 bij 2 als hij een kwartslag gedraaid staat.
+   */
+  w?: number;
+  h?: number;
   /** Wat deze kraam verkoopt (zie PRODUCTS; knuffels heten 'plush_' + soort). */
   sells: string[];
   /** De stand van de draaimolen, in radialen: wie erin zit, draait mee. */
@@ -56,9 +62,12 @@ export function edgePose(shop: ShopSpot): [number, number, number] {
     : [shop.x - 0.2 * face, shop.y + 0.5, face < 0 ? -Math.PI / 2 : Math.PI / 2];
 }
 
+/** Hoeveel tegels een winkel beslaat: [van west naar oost, van noord naar zuid]. */
+export const shopTiles = (shop: ShopSpot): [number, number] => [shop.w ?? shop.size, shop.h ?? shop.size];
+
 /** Het midden van een winkel, in rastercoördinaten. */
 export const shopCenter = (shop: ShopSpot): [number, number] =>
-  shop.edge === 'h' ? [shop.x + 0.5, shop.y] : shop.edge === 'v' ? [shop.x, shop.y + 0.5] : [shop.x + shop.size / 2, shop.y + shop.size / 2];
+  shop.edge === 'h' ? [shop.x + 0.5, shop.y] : shop.edge === 'v' ? [shop.x, shop.y + 0.5] : [shop.x + shopTiles(shop)[0] / 2, shop.y + shopTiles(shop)[1] / 2];
 
 /** De twee tegels aan weerszijden van iets wat op een rand staat (alleen wat binnen het park ligt). */
 export function edgeSides(shop: { x: number; y: number; edge?: 'h' | 'v' }): number[] {
@@ -385,7 +394,9 @@ const SNACK_GEO = new THREE.BoxGeometry(0.06, 0.08, 0.06).translate(0, -0.2, 0.0
 function doorOf(w: GuestWorld, reach: Set<number>, shop: ShopSpot): number | null {
   const turn = ((shop.rot ?? 0) * Math.PI) / 2;
   const [cx, cy] = shopCenter(shop);
-  const fx = cx + Math.sin(turn) * (shop.size / 2 + 0.5), fy = cy + Math.cos(turn) * (shop.size / 2 + 0.5);
+  // zo diep is het gebouw gezien vanaf zijn voorkant: een marktkraam is maar één tegel diep
+  const deep = shopTiles(shop)[(shop.rot ?? 0) % 2 ? 0 : 1];
+  const fx = cx + Math.sin(turn) * (deep / 2 + 0.5), fy = cy + Math.cos(turn) * (deep / 2 + 0.5);
   let best: number | null = null, bestD = Infinity;
   const own = footprint(shop);
   for (const t of own)
@@ -403,7 +414,8 @@ function doorOf(w: GuestWorld, reach: Set<number>, shop: ShopSpot): number | nul
 
 const footprint = (shop: ShopSpot): number[] => {
   const tiles: number[] = [];
-  for (let y = shop.y; y < shop.y + shop.size; y++) for (let x = shop.x; x < shop.x + shop.size; x++) tiles.push(tileIndex(x, y));
+  const [wide, tall] = shopTiles(shop);
+  for (let y = shop.y; y < shop.y + tall; y++) for (let x = shop.x; x < shop.x + wide; x++) tiles.push(tileIndex(x, y));
   return tiles;
 };
 
@@ -2837,8 +2849,8 @@ export class Vendor {
     const person = makePerson(false, outfit);
     this.mesh = person.group;
     this.limbs = person.limbs;
-    this.mesh.position.set(0.18, 0.05, 0.2);
-    this.mesh.rotation.y = Math.PI / 4;
+    // achter de tafel van de marktkraam, met het gezicht naar de gasten
+    this.mesh.position.set(0, 0.03, -0.12);
     this.mesh.scale.setScalar(1.15);
   }
 

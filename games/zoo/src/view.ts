@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
-  FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
+  FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, SHOP_DEEP, shopSpan, TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
   BUMPER_CARS, FERRIS, RESTAURANT_TABLES, SEASONAL, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TRAIN, bumperCar, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
 } from './data';
 import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type Land, type Side } from './grid';
@@ -324,140 +324,178 @@ const BENCH_GEO = mergeGeometries([
   ...[-0.385, 0.385].flatMap(x => [boxAt(0.055, 0.035, 0.3, x, 0.4, 0.01), boxAt(0.05, 0.16, 0.05, x, 0.31, 0.13)]),
 ])!;
 /**
- * Een winkelgebouw van 2 bij 2 tegels. De camera kijkt van rechtsvoor: daarom staan de wanden links en
- * achter, de toonbank rechts en voor, en ligt het dak alleen boven de achterste helft. Zo zie je de
- * verkoper achter de toonbank staan. Het midden van het gebouw is (0, 0).
+ * Een marktkraam van 2 tegels breed en 1 tegel diep; het midden is (0, 0). De lange kant aan de voorkant (+z) is
+ * waar de gasten staan: daar staat de tafel met de spullen. Vier palen dragen een schuin zeil in banen, voor hoog
+ * en achter laag, zodat je de verkoper van elke kant ziet staan. Achterlangs hangt een laag doek in de kleur van
+ * de kraam en staan een paar kratten. Muren heeft hij niet. `sign`: of er een plankje op het dak ligt.
  */
-function booth(wall: number, roofA: number, roofB: number, counter: number, floor = 0xd8c7ab): Part[] {
-  // een baan van het dak, met aan de voorkant een ronde flap
+function booth(cloth: number, roofA: number, roofB: number, counter: number, sign = true, floor = 0xd8c7ab): Part[] {
+  // een baan van het zeil, met aan de voorkant een ronde flap
   const stripes = (from: number): THREE.BufferGeometry =>
     merge([0, 1, 2].flatMap(i => {
       const x = -0.82 + (from + i * 2) * 0.33;
-      return [boxAt(0.33, 0.09, 1.25, x, 1.34, -0.36), new THREE.CylinderGeometry(0.165, 0.165, 0.03, 10, 1, false, -Math.PI / 2, Math.PI).rotateX(Math.PI / 2).translate(x, 1.3, 0.25)];
+      return [
+        new THREE.BoxGeometry(0.33, 0.05, 1.1).rotateX(-0.36).translate(x, 1.42, 0),
+        new THREE.CylinderGeometry(0.165, 0.165, 0.03, 10, 1, false, -Math.PI / 2, Math.PI).rotateX(Math.PI / 2).translate(x, 1.6, 0.52),
+      ];
     }));
   return [
-    [boxAt(1.84, 0.05, 1.84, 0, 0.025, 0), std(floor, 1), false],
-    // de wanden, met een donkere plint
+    [boxAt(1.84, 0.03, 0.9, 0, 0.015, 0), std(floor, 1), false],
+    // achterlangs: het doek met een donkere zoom, en kratten met spullen
     [painted(
-      [wall, boxAt(1.84, 1.3, 0.1, 0, 0.65, -0.87), boxAt(0.1, 1.3, 1.74, -0.87, 0.65, 0.05)],
-      [shade(wall, 0.72), boxAt(1.74, 0.12, 0.03, 0.05, 0.11, -0.81), boxAt(0.03, 0.12, 1.64, -0.81, 0.11, 0.05)],
+      [cloth, boxAt(1.7, 0.6, 0.03, 0, 0.36, -0.43)],
+      [shade(cloth, 0.72), boxAt(1.7, 0.05, 0.036, 0, 0.66, -0.43), boxAt(1.7, 0.05, 0.036, 0, 0.08, -0.43)],
+      [0xc58a4b, boxAt(0.3, 0.2, 0.24, -0.62, 0.13, -0.24), boxAt(0.3, 0.2, 0.24, 0.6, 0.13, -0.24), boxAt(0.26, 0.18, 0.22, 0.62, 0.32, -0.25)],
+      [0x97673a, ...[-0.62, 0.6].flatMap(x => [boxAt(0.31, 0.03, 0.25, x, 0.09, -0.24), boxAt(0.31, 0.03, 0.25, x, 0.18, -0.24)])],
+      [roofA, boxAt(0.24, 0.05, 0.18, -0.62, 0.25, -0.24)],
     ), MATTE_MAT],
-    // de toonbank, met lichte vakken aan de buitenkant en een donkere voet
+    // de tafel: een kleed tot op de grond, met lichte banen en een donkere zoom
     [painted(
-      [counter, boxAt(1.5, 0.36, 0.26, 0.12, 0.18, 0.74), boxAt(0.26, 0.36, 1.36, 0.74, 0.18, -0.07)],
-      [shade(counter, 1.3), ...[-0.34, 0.12, 0.58].map(x => boxAt(0.34, 0.2, 0.006, x, 0.2, 0.871)), ...[-0.5, -0.07, 0.36].map(z => boxAt(0.006, 0.2, 0.34, 0.871, 0.2, z))],
-      [shade(counter, 0.7), boxAt(1.52, 0.05, 0.28, 0.12, 0.025, 0.74), boxAt(0.28, 0.05, 1.38, 0.74, 0.025, -0.07)],
+      [counter, boxAt(1.72, 0.34, 0.32, 0, 0.19, 0.3)],
+      [shade(counter, 1.3), ...[-0.645, -0.215, 0.215, 0.645].map(x => boxAt(0.3, 0.22, 0.006, x, 0.2, 0.463)), boxAt(0.006, 0.22, 0.2, 0.863, 0.2, 0.3), boxAt(0.006, 0.22, 0.2, -0.863, 0.2, 0.3)],
+      [shade(counter, 0.7), boxAt(1.74, 0.04, 0.34, 0, 0.04, 0.3)],
     ), MATTE_MAT],
-    [mergeGeometries([boxAt(1.56, 0.05, 0.32, 0.12, 0.385, 0.74), boxAt(0.32, 0.05, 1.42, 0.74, 0.385, -0.07)])!, WHITE_MAT],
-    [mergeGeometries([boxAt(0.09, 1.3, 0.09, 0.84, 0.65, -0.87), boxAt(0.09, 1.3, 0.09, -0.87, 0.65, 0.84)])!, std(wall)],
+    [boxAt(1.78, 0.05, 0.38, 0, 0.385, 0.3), WHITE_MAT],
+    // het houten frame: vier palen, de latten waar het zeil op ligt, en een plankje op het dak voor het uithangbord
+    [merge([
+      ...[-0.88, 0.88].flatMap(x => [boxAt(0.07, 1.56, 0.07, x, 0.78, 0.42), boxAt(0.07, 1.25, 0.07, x, 0.625, -0.42), beam(0.05, [x, 1.25, -0.42], [x, 1.57, 0.42])]),
+      boxAt(1.76, 0.05, 0.05, 0, 1.56, 0.42), boxAt(1.76, 0.05, 0.05, 0, 1.25, -0.42),
+      ...(sign ? [boxAt(0.66, 0.16, 0.5, 0, 1.47, -0.05)] : []),
+    ]), WOOD_MAT],
     [stripes(0), std(roofA)],
     [stripes(1), std(roofB)],
   ];
 }
+/**
+ * Zet het grote uithangbord van een kraam op het plankje op het dak. De vormen zijn gemaakt rond z = -0.4 met
+ * hun voet op hoogte base; k maakt ze kleiner.
+ */
+const onRoof = (parts: Part[], base = 1.39, k = 1): Part[] =>
+  parts.map(([g, m, shadow]): Part => [g.translate(0, -base, 0.4).scale(k, k, k).translate(0, 1.55, -0.05), m, shadow]);
 /** Een kleur een stuk donkerder (k onder 1) of lichter (k boven 1). */
 function shade(hex: number, k: number): number {
   return new THREE.Color(hex).multiplyScalar(k).getHex();
 }
+/** De ballonnen van de ballonnenkraam zitten vast aan de paal rechtsvoor. */
+const STALL_TIE: P3 = [0.88, 1.9, 0.42];
 /** Een ballon met een knoopje, een glimlichtje en een touwtje naar de top van de paal. */
 const balloon = (x: number, y: number, z: number, r: number, color: number): Part => [painted(
   [color, blob(r, 1, 1.18, 1, x, y, z), cone(r * 0.16, r * 0.22, x, y - r * 1.24, z, 5)],
   [0xffffff, blob(r * 0.22, 1, 1.5, 0.5, x + r * 0.42, y + r * 0.5, z + r * 0.62)],
-  [0xf7f4ec, rod(0.008, [0.84, 1.9, 0.84], [x, y - r * 1.3, z], 4)],
+  [0xf7f4ec, rod(0.008, STALL_TIE, [x, y - r * 1.3, z], 4)],
 ), PAINT_MAT];
-/** Een petje op de toonbank. */
+/** Een petje op de tafel. */
 const cap = (x: number, z: number): THREE.BufferGeometry[] =>
   [new THREE.SphereGeometry(0.1, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2).translate(x, 0.41, z), boxAt(0.13, 0.016, 0.09, x, 0.42, z + 0.12)];
 /** Een bestaand bouwsel groter maken (de speeltuin). */
 const scaled = (parts: Part[], k: number): Part[] => parts.map(([g, m, shadow]) => [g.clone().scale(k, k, k), m, shadow] as Part);
 
 const SHOP_PARTS: Record<ShopKind, Part[]> = {
-  // eetkraam: houten kraam met rood-wit dak en een grote bak friet erop
+  // eetkraam: een rood-wit zeil en een grote bak friet erop
   foodstall: [
-    ...booth(0xc58a4b, 0xe0584f, 0xf7f4ec, 0xa8743f),
-    // op de toonbank: drie puntzakken friet, en opzij een rode en een gele fles
+    ...booth(0xe9c27a, 0xe0584f, 0xf7f4ec, 0xa8743f),
+    // op de tafel: drie puntzakken friet, en een rode en een gele fles
     [painted(
-      [0xd8362e, ...[-0.3, 0, 0.3].map(x => new THREE.CylinderGeometry(0.075, 0.045, 0.13, 4).rotateY(Math.PI / 4).translate(x, 0.475, 0.74)), tube(0.035, 0.04, 0.14, 0.74, 0.48, -0.36), cone(0.03, 0.06, 0.74, 0.58, -0.36)],
-      [0xffd23f, ...[-0.3, 0, 0.3].flatMap(x => [boxAt(0.025, 0.09, 0.025, x - 0.03, 0.56, 0.74), boxAt(0.025, 0.12, 0.025, x, 0.57, 0.75), boxAt(0.025, 0.08, 0.025, x + 0.03, 0.555, 0.73)]), tube(0.035, 0.04, 0.14, 0.74, 0.48, -0.2), cone(0.03, 0.06, 0.74, 0.58, -0.2)],
+      [0xd8362e, ...[-0.6, -0.3, 0].map(x => new THREE.CylinderGeometry(0.075, 0.045, 0.13, 4).rotateY(Math.PI / 4).translate(x, 0.475, 0.3)), tube(0.035, 0.04, 0.14, 0.5, 0.48, 0.3), cone(0.03, 0.06, 0.5, 0.58, 0.3)],
+      [0xffd23f, ...[-0.6, -0.3, 0].flatMap(x => [boxAt(0.025, 0.09, 0.025, x - 0.03, 0.56, 0.3), boxAt(0.025, 0.12, 0.025, x, 0.57, 0.31), boxAt(0.025, 0.08, 0.025, x + 0.03, 0.555, 0.29)]), tube(0.035, 0.04, 0.14, 0.66, 0.48, 0.3), cone(0.03, 0.06, 0.66, 0.58, 0.3)],
     ), PAINT_MAT],
     // op het dak (wiegt, zie SHOP_BOB): de rode bak met een witte band, en de frietjes
-    [painted(
-      [0xd8362e, new THREE.CylinderGeometry(0.37, 0.27, 0.44, 4).rotateY(Math.PI / 4).scale(1, 1, 0.5).translate(0, 1.61, -0.4)],
-      [0xf7f4ec, boxAt(0.46, 0.09, 0.27, 0, 1.62, -0.4)],
-    ), PAINT_MAT],
-    [merge([[-0.2, 0.5, -0.45], [-0.1, 0.62, -0.44], [0, 0.56, -0.46], [0.1, 0.66, -0.44], [0.2, 0.5, -0.45], [-0.15, 0.44, -0.35], [-0.05, 0.52, -0.34], [0.05, 0.46, -0.36], [0.15, 0.54, -0.35]]
-      .map(([x, h, z]) => boxAt(0.075, h, 0.075, x, 1.75 + h / 2, z))), std(0xffd23f, 0.7)],
+    ...onRoof([
+      [painted(
+        [0xd8362e, new THREE.CylinderGeometry(0.37, 0.27, 0.44, 4).rotateY(Math.PI / 4).scale(1, 1, 0.5).translate(0, 1.61, -0.4)],
+        [0xf7f4ec, boxAt(0.46, 0.09, 0.27, 0, 1.62, -0.4)],
+      ), PAINT_MAT],
+      [merge([[-0.2, 0.5, -0.45], [-0.1, 0.62, -0.44], [0, 0.56, -0.46], [0.1, 0.66, -0.44], [0.2, 0.5, -0.45], [-0.15, 0.44, -0.35], [-0.05, 0.52, -0.34], [0.05, 0.46, -0.36], [0.15, 0.54, -0.35]]
+        .map(([x, h, z]) => boxAt(0.075, h, 0.075, x, 1.75 + h / 2, z))), std(0xffd23f, 0.7)],
+    ]),
   ],
-  // drinkkraam: wit met blauw dak en een grote gestreepte beker met rietje erop
+  // drinkkraam: een blauw zeil en een grote gestreepte beker met rietje erop
   drinkstall: [
     ...booth(0xf4f1e8, 0x4a90e2, 0x9fd8f5, 0x4a90e2),
-    // op de toonbank: drie bekers met een gekleurd deksel en een rietje, en opzij twee flessen
+    // op de tafel: drie bekers met een gekleurd deksel en een rietje, en twee flessen
     [painted(
-      [0xf7f4ec, ...[-0.3, 0, 0.3].map(x => tube(0.06, 0.045, 0.14, x, 0.48, 0.74))],
-      [0xe0584f, tube(0.064, 0.064, 0.022, -0.3, 0.56, 0.74), boxAt(0.014, 0.1, 0.014, 0.02, 0.61, 0.74), boxAt(0.014, 0.1, 0.014, 0.32, 0.61, 0.74)],
-      [0xf08a24, tube(0.064, 0.064, 0.022, 0, 0.56, 0.74), boxAt(0.014, 0.1, 0.014, -0.28, 0.61, 0.74), tube(0.045, 0.05, 0.16, 0.74, 0.49, -0.2), tube(0.02, 0.03, 0.06, 0.74, 0.6, -0.2)],
-      [0x6cc04a, tube(0.064, 0.064, 0.022, 0.3, 0.56, 0.74), tube(0.045, 0.05, 0.16, 0.74, 0.49, -0.36), tube(0.02, 0.03, 0.06, 0.74, 0.6, -0.36)],
+      [0xf7f4ec, ...[-0.6, -0.3, 0].map(x => tube(0.06, 0.045, 0.14, x, 0.48, 0.3))],
+      [0xe0584f, tube(0.064, 0.064, 0.022, -0.6, 0.56, 0.3), boxAt(0.014, 0.1, 0.014, -0.28, 0.61, 0.3), boxAt(0.014, 0.1, 0.014, 0.02, 0.61, 0.3)],
+      [0xf08a24, tube(0.064, 0.064, 0.022, -0.3, 0.56, 0.3), boxAt(0.014, 0.1, 0.014, -0.58, 0.61, 0.3), tube(0.045, 0.05, 0.16, 0.5, 0.49, 0.3), tube(0.02, 0.03, 0.06, 0.5, 0.6, 0.3)],
+      [0x6cc04a, tube(0.064, 0.064, 0.022, 0, 0.56, 0.3), tube(0.045, 0.05, 0.16, 0.66, 0.49, 0.3), tube(0.02, 0.03, 0.06, 0.66, 0.6, 0.3)],
     ), PAINT_MAT],
-    [striped(new THREE.CylinderGeometry(0.24, 0.17, 0.5, 10), [0xf7f4ec, 0xe0584f], 10).translate(0, 1.64, -0.4), PAINT_MAT],
-    [merge([tube(0.26, 0.26, 0.05, 0, 1.91, -0.4), tube(0.19, 0.24, 0.05, 0, 1.96, -0.4)]), std(0x4a90e2)],
-    [mergeGeometries([boxAt(0.06, 0.4, 0.06, 0.07, 2.16, -0.4), new THREE.BoxGeometry(0.06, 0.2, 0.06).translate(0, 0.1, 0).rotateZ(-0.9).translate(0.07, 2.34, -0.4)])!, std(0xe0584f)],
+    ...onRoof([
+      [striped(new THREE.CylinderGeometry(0.24, 0.17, 0.5, 10), [0xf7f4ec, 0xe0584f], 10).translate(0, 1.64, -0.4), PAINT_MAT],
+      [merge([tube(0.26, 0.26, 0.05, 0, 1.91, -0.4), tube(0.19, 0.24, 0.05, 0, 1.96, -0.4)]), std(0x4a90e2)],
+      [mergeGeometries([boxAt(0.06, 0.4, 0.06, 0.07, 2.16, -0.4), new THREE.BoxGeometry(0.06, 0.2, 0.06).translate(0, 0.1, 0).rotateZ(-0.9).translate(0.07, 2.34, -0.4)])!, std(0xe0584f)],
+    ]),
   ],
-  // ijskraam: roze met een reuzenijsje op het dak: een wafelhoorn, twee bollen, saus en een kers
+  // ijskraam: een roze zeil met een reuzenijsje op het dak: een wafelhoorn, twee bollen, saus en een kers
   icecream: [
     ...booth(0xffd9e6, 0xf48fb1, 0xf7f4ec, 0xf48fb1),
-    // op de toonbank: drie ijsjes in een rekje, en opzij drie bakken ijs
+    // op de tafel: drie ijsjes in een rekje, en drie bakken ijs
     [painted(
-      [0xe3b778, ...[-0.3, 0, 0.3].map(x => cone(0.05, 0.14, x, 0.5, 0.74, 6, true))],
-      [0xf7f4ec, boxAt(0.8, 0.03, 0.14, 0, 0.455, 0.74), ball(0.055, 0, 0.6, 0.74), tube(0.07, 0.06, 0.06, 0.74, 0.44, -0.04)],
-      [0xffc1d6, ball(0.055, -0.3, 0.6, 0.74), tube(0.07, 0.06, 0.06, 0.74, 0.44, -0.2)],
-      [0x8a5a3c, ball(0.055, 0.3, 0.6, 0.74), tube(0.07, 0.06, 0.06, 0.74, 0.44, -0.36)],
+      [0xe3b778, ...[-0.6, -0.3, 0].map(x => cone(0.05, 0.14, x, 0.5, 0.3, 6, true))],
+      [0xf7f4ec, boxAt(0.8, 0.03, 0.14, -0.3, 0.455, 0.3), dot(0.055, -0.3, 0.6, 0.3), tube(0.07, 0.06, 0.06, 0.78, 0.44, 0.3)],
+      [0xffc1d6, dot(0.055, -0.6, 0.6, 0.3), tube(0.07, 0.06, 0.06, 0.62, 0.44, 0.3)],
+      [0x8a5a3c, dot(0.055, 0, 0.6, 0.3), tube(0.07, 0.06, 0.06, 0.46, 0.44, 0.3)],
     ), PAINT_MAT],
-    [striped(new THREE.ConeGeometry(0.26, 0.6, 8).rotateX(Math.PI), [0xe3b778, 0xd29f5e], 8).translate(0, 1.68, -0.4), PAINT_MAT],
-    [merge([ball(0.3, 0, 2.1, -0.4), blob(0.33, 1, 0.3, 1, 0, 1.98, -0.4)]), std(0xffc1d6, 0.6)],
-    [painted([0xfff0c9, ball(0.22, 0, 2.45, -0.4)], [0x8a5a3c, blob(0.17, 1, 0.5, 1, 0, 2.6, -0.4)], [0xe0453a, ball(0.065, 0, 2.72, -0.4)]), PAINT_MAT],
+    ...onRoof([
+      [striped(new THREE.ConeGeometry(0.26, 0.6, 8).rotateX(Math.PI), [0xe3b778, 0xd29f5e], 8).translate(0, 1.68, -0.4), PAINT_MAT],
+      [merge([ball(0.3, 0, 2.1, -0.4), blob(0.33, 1, 0.3, 1, 0, 1.98, -0.4)]), std(0xffc1d6, 0.6)],
+      [painted([0xfff0c9, ball(0.22, 0, 2.45, -0.4)], [0x8a5a3c, blob(0.17, 1, 0.5, 1, 0, 2.6, -0.4)], [0xe0453a, ball(0.065, 0, 2.72, -0.4)]), PAINT_MAT],
+    ], 1.38, 0.9),
   ],
-  // ballonnenkraam: paars met een tros ballonnen aan een paal op de hoek; elke ballon wiegt los (zie SHOP_BOB)
+  // ballonnenkraam: een paars zeil met een tros ballonnen aan de paal rechtsvoor; elke ballon wiegt los (zie SHOP_BOB)
   balloon: [
-    ...booth(0xc9a3e8, 0xb06ad9, 0xffd23f, 0xb06ad9),
-    [boxAt(0.05, 1.12, 0.05, 0.84, 1.34, 0.84), WHITE_MAT],
-    balloon(0.56, 2.36, 0.84, 0.27, 0xe0584f),
-    balloon(1.06, 2.42, 0.7, 0.27, 0x4a90e2),
-    balloon(0.84, 2.76, 0.9, 0.27, 0xffd23f),
-    balloon(0.8, 2.3, 1.12, 0.22, 0x6cc04a),
+    ...booth(0xc9a3e8, 0xb06ad9, 0xffd23f, 0xb06ad9, false),
+    [boxAt(0.04, 0.36, 0.04, 0.88, 1.73, 0.42), WHITE_MAT],
+    balloon(0.6, 2.36, 0.42, 0.27, 0xe0584f),
+    balloon(1.1, 2.42, 0.28, 0.27, 0x4a90e2),
+    balloon(0.88, 2.76, 0.48, 0.27, 0xffd23f),
+    balloon(0.84, 2.3, 0.7, 0.22, 0x6cc04a),
+    // op de tafel: drie ballonnen op een stokje en een fles gas
+    [painted(
+      [0xe0584f, blob(0.07, 1, 1.15, 1, -0.6, 0.63, 0.3)],
+      [0x4a90e2, blob(0.07, 1, 1.15, 1, -0.3, 0.63, 0.3)],
+      [0xffd23f, blob(0.07, 1, 1.15, 1, 0, 0.63, 0.3)],
+      [0xf7f4ec, ...[-0.6, -0.3, 0].map(x => boxAt(0.012, 0.15, 0.012, x, 0.485, 0.3))],
+      [0x8a8f98, tube(0.065, 0.065, 0.26, 0.6, 0.54, 0.3), dot(0.05, 0.6, 0.69, 0.3)],
+    ), PAINT_MAT],
   ],
-  // hoedjeskraam: groen met een grote strohoed op het dak en hoedjes op de toonbank
+  // hoedjeskraam: een groen zeil met een grote strohoed op het dak en hoedjes op de tafel
   hats: [
     ...booth(0xbfe3a8, 0x6cc04a, 0xf7f4ec, 0x5fa544),
-    [merge([tube(0.5, 0.46, 0.05, 0, 1.44, -0.4), new THREE.TorusGeometry(0.5, 0.03, 5, 16).rotateX(Math.PI / 2).translate(0, 1.455, -0.4)]), std(0xe9d05a, 1)],
-    [merge([tube(0.25, 0.28, 0.26, 0, 1.59, -0.4), blob(0.25, 1, 0.3, 1, 0, 1.72, -0.4)]), std(0xdcc24e, 1)],
-    [merge([tube(0.285, 0.285, 0.08, 0, 1.52, -0.4), blob(0.08, 1.5, 0.8, 0.5, 0.2, 1.53, -0.18), ball(0.04, 0.22, 1.53, -0.15)]), std(0xe0584f)],
-    // op de toonbank: een rode en een blauwe pet, een kroontje en opzij een feesthoedje
+    ...onRoof([
+      [merge([tube(0.5, 0.46, 0.05, 0, 1.44, -0.4), new THREE.TorusGeometry(0.5, 0.03, 5, 16).rotateX(Math.PI / 2).translate(0, 1.455, -0.4)]), std(0xe9d05a, 1)],
+      [merge([tube(0.25, 0.28, 0.26, 0, 1.59, -0.4), blob(0.25, 1, 0.3, 1, 0, 1.72, -0.4)]), std(0xdcc24e, 1)],
+      [merge([tube(0.285, 0.285, 0.08, 0, 1.52, -0.4), blob(0.08, 1.5, 0.8, 0.5, 0.2, 1.53, -0.18), dot(0.04, 0.22, 1.53, -0.15)]), std(0xe0584f)],
+    ], 1.415, 0.8),
+    // op de tafel: een rode en een blauwe pet, een kroontje en een feesthoedje
     [painted(
-      [0xe0584f, ...cap(-0.3, 0.72)],
-      [0x4a90e2, ...cap(0.3, 0.72)],
-      [0xffd23f, tube(0.09, 0.09, 0.07, 0, 0.445, 0.74), ...[0, 1, 2, 3, 4].map(i => cone(0.03, 0.06, Math.sin(i * 1.257) * 0.075, 0.51, 0.74 + Math.cos(i * 1.257) * 0.075, 4)), dot(0.03, 0.74, 0.64, -0.3)],
-      [0xf06aa6, cone(0.09, 0.22, 0.74, 0.52, -0.3)],
+      [0xe0584f, ...cap(-0.6, 0.28)],
+      [0x4a90e2, ...cap(0, 0.28)],
+      [0xffd23f, tube(0.09, 0.09, 0.07, -0.3, 0.445, 0.3), ...[0, 1, 2, 3, 4].map(i => cone(0.03, 0.06, -0.3 + Math.sin(i * 1.257) * 0.075, 0.51, 0.3 + Math.cos(i * 1.257) * 0.075, 4)), dot(0.03, 0.56, 0.64, 0.3)],
+      [0xf06aa6, cone(0.09, 0.22, 0.56, 0.52, 0.3)],
     ), PAINT_MAT],
   ],
-  // knuffelkraam: geel met paars dak en een grote beer erop, met een strikje
+  // knuffelkraam: een paars zeil met een grote beer erop, met een strikje
   souvenir: [
     ...booth(0xffe08a, 0x7a5cc9, 0xb99be8, 0x7a5cc9),
-    [merge([
-      ball(0.3, 0, 1.66, -0.4), ball(0.23, 0, 2.08, -0.4), ball(0.09, -0.2, 2.28, -0.4), ball(0.09, 0.2, 2.28, -0.4),
-      blob(0.1, 1, 1.5, 1, -0.3, 1.74, -0.34), blob(0.1, 1, 1.5, 1, 0.3, 1.74, -0.34), blob(0.12, 1, 1, 1.3, -0.17, 1.47, -0.2), blob(0.12, 1, 1, 1.3, 0.17, 1.47, -0.2),
-    ]), std(0xb07a4a)],
+    ...onRoof([
+      [merge([
+        ball(0.3, 0, 1.66, -0.4), ball(0.23, 0, 2.08, -0.4), ball(0.09, -0.2, 2.28, -0.4), ball(0.09, 0.2, 2.28, -0.4),
+        blob(0.1, 1, 1.5, 1, -0.3, 1.74, -0.34), blob(0.1, 1, 1.5, 1, 0.3, 1.74, -0.34), blob(0.12, 1, 1, 1.3, -0.17, 1.47, -0.2), blob(0.12, 1, 1, 1.3, 0.17, 1.47, -0.2),
+      ]), std(0xb07a4a)],
+      [painted(
+        [0xe3bf94, ball(0.1, 0, 2.03, -0.2), blob(0.2, 1, 1.1, 0.4, 0, 1.64, -0.14), dot(0.05, -0.2, 2.28, -0.34), dot(0.05, 0.2, 2.28, -0.34), blob(0.07, 1, 1, 0.4, -0.17, 1.47, -0.05), blob(0.07, 1, 1, 0.4, 0.17, 1.47, -0.05)],
+        [0x3a2a1a, dot(0.035, 0, 2.06, -0.105), dot(0.028, -0.09, 2.14, -0.195), dot(0.028, 0.09, 2.14, -0.195)],
+        [0xe0584f, blob(0.07, 1.3, 0.9, 0.6, -0.08, 1.9, -0.17), blob(0.07, 1.3, 0.9, 0.6, 0.08, 1.9, -0.17), dot(0.04, 0, 1.9, -0.15)],
+      ), PAINT_MAT],
+    ], 1.36, 0.85),
+    // op de tafel: een roze varkentje, een geel eendje en een grijs olifantje
     [painted(
-      [0xe3bf94, ball(0.1, 0, 2.03, -0.2), blob(0.2, 1, 1.1, 0.4, 0, 1.64, -0.14), dot(0.05, -0.2, 2.28, -0.34), dot(0.05, 0.2, 2.28, -0.34), blob(0.07, 1, 1, 0.4, -0.17, 1.47, -0.05), blob(0.07, 1, 1, 0.4, 0.17, 1.47, -0.05)],
-      [0x3a2a1a, dot(0.035, 0, 2.06, -0.105), dot(0.028, -0.09, 2.14, -0.195), dot(0.028, 0.09, 2.14, -0.195)],
-      [0xe0584f, blob(0.07, 1.3, 0.9, 0.6, -0.08, 1.9, -0.17), blob(0.07, 1.3, 0.9, 0.6, 0.08, 1.9, -0.17), dot(0.04, 0, 1.9, -0.15)],
-    ), PAINT_MAT],
-    // op de toonbank: een roze varkentje, een geel eendje en een grijs olifantje
-    [painted(
-      [0xf3a6b8, ball(0.1, -0.3, 0.5, 0.74), dot(0.035, -0.37, 0.59, 0.74), dot(0.035, -0.23, 0.59, 0.74)],
-      [0xe58aa0, new THREE.CylinderGeometry(0.04, 0.04, 0.03, 8).rotateX(Math.PI / 2).translate(-0.3, 0.49, 0.835)],
-      [0xffd23f, ball(0.09, 0, 0.49, 0.74), ball(0.06, 0, 0.61, 0.77)],
-      [0xf08a24, boxAt(0.05, 0.02, 0.05, 0, 0.6, 0.84)],
-      [0x9aa0a6, ball(0.1, 0.3, 0.5, 0.74), new THREE.CylinderGeometry(0.07, 0.07, 0.02, 8).rotateX(Math.PI / 2).translate(0.2, 0.53, 0.74), new THREE.CylinderGeometry(0.07, 0.07, 0.02, 8).rotateX(Math.PI / 2).translate(0.4, 0.53, 0.74), boxAt(0.035, 0.1, 0.035, 0.3, 0.45, 0.85)],
-      [0x22201c, dot(0.014, -0.34, 0.53, 0.83), dot(0.014, -0.26, 0.53, 0.83), dot(0.012, -0.03, 0.63, 0.82), dot(0.012, 0.03, 0.63, 0.82), dot(0.014, 0.26, 0.54, 0.83), dot(0.014, 0.34, 0.54, 0.83)],
+      [0xf3a6b8, ball(0.1, -0.55, 0.5, 0.3), dot(0.035, -0.62, 0.59, 0.3), dot(0.035, -0.48, 0.59, 0.3)],
+      [0xe58aa0, new THREE.CylinderGeometry(0.04, 0.04, 0.03, 8).rotateX(Math.PI / 2).translate(-0.55, 0.49, 0.395)],
+      [0xffd23f, ball(0.09, -0.1, 0.49, 0.3), ball(0.06, -0.1, 0.61, 0.33)],
+      [0xf08a24, boxAt(0.05, 0.02, 0.05, -0.1, 0.6, 0.4)],
+      [0x9aa0a6, ball(0.1, 0.4, 0.5, 0.3), new THREE.CylinderGeometry(0.07, 0.07, 0.02, 8).rotateX(Math.PI / 2).translate(0.3, 0.53, 0.3), new THREE.CylinderGeometry(0.07, 0.07, 0.02, 8).rotateX(Math.PI / 2).translate(0.5, 0.53, 0.3), boxAt(0.035, 0.1, 0.035, 0.4, 0.45, 0.41)],
+      [0x22201c, dot(0.014, -0.59, 0.53, 0.39), dot(0.014, -0.51, 0.53, 0.39), dot(0.012, -0.13, 0.63, 0.38), dot(0.012, -0.07, 0.63, 0.38), dot(0.014, 0.36, 0.54, 0.39), dot(0.014, 0.44, 0.54, 0.39)],
     ), PAINT_MAT],
   ],
   // wc-gebouw met twee deuren; de deuren zelf zijn los en draaien om hun scharnier (zie buildShop)
@@ -1053,12 +1091,12 @@ interface Bob {
   yaw?: number;
 }
 const SHOP_BOB: Partial<Record<ShopKind, Bob[]>> = {
-  foodstall: [{ parts: [8, 9], at: [0, 1.39, -0.4] }],
-  drinkstall: [{ parts: [8, 9, 10], at: [0, 1.39, -0.4] }],
-  icecream: [{ parts: [8, 9, 10], at: [0, 1.39, -0.4] }],
-  balloon: [8, 9, 10, 11].map((i): Bob => ({ parts: [i], at: [0.84, 1.9, 0.84], amp: 0.03, sway: 0.09 })),
-  hats: [{ parts: [7, 8, 9], at: [0, 1.41, -0.4] }],
-  souvenir: [{ parts: [7, 8], at: [0, 1.39, -0.4] }],
+  foodstall: [{ parts: [8, 9], at: [0, 1.55, -0.05] }],
+  drinkstall: [{ parts: [8, 9, 10], at: [0, 1.55, -0.05] }],
+  icecream: [{ parts: [8, 9, 10], at: [0, 1.55, -0.05] }],
+  balloon: [8, 9, 10, 11].map((i): Bob => ({ parts: [i], at: STALL_TIE, amp: 0.03, sway: 0.09 })),
+  hats: [{ parts: [7, 8, 9], at: [0, 1.55, -0.05] }],
+  souvenir: [{ parts: [7, 8], at: [0, 1.55, -0.05] }],
   flowers: [0, 1, 2].map((i): Bob => ({ parts: [2 + i * 2, 3 + i * 2], at: [-0.22 + i * 0.22, 0.22, 0], amp: 0, sway: 0.1 })),
   playground: [{ parts: [3], at: [-0.39, 1.79, -0.31], amp: 0.02, sway: 0.03 }],
   tower: [{ parts: [6], at: [0, TOWER_ROOF + 0.72, 0], amp: 0, sway: 0, yaw: 0.5 }],
@@ -1768,33 +1806,39 @@ function garland(a: THREE.Vector3, b: THREE.Vector3, kind: 'bunting' | 'lightstr
 const ROPE_MAT = std(0x5a4a3a, 1);
 
 // Verjaardag bij een gebouw: vier dunne palen met slingers ertussen, ballonnen aan de paal rechtsvoor en een taart
-// op een tafeltje. Eén keer gemaakt, door alle gebouwen gedeeld.
-let partyGeos: { white: THREE.BufferGeometry; colors: THREE.BufferGeometry; balloons: THREE.BufferGeometry } | null = null;
-const PARTY_POLE = 1.7, PARTY_AT: P3 = [0.9, PARTY_POLE, 0.9];
-function partyParts(): NonNullable<typeof partyGeos> {
-  if (partyGeos) return partyGeos;
+// op een tafeltje. Eén keer gemaakt per diepte, door alle gebouwen gedeeld. Bij een marktkraam (één tegel diep)
+// staan de palen net voor en achter het zeil en is er geen plek voor de taart.
+const partyGeos = new Map<number, { white: THREE.BufferGeometry; colors: THREE.BufferGeometry; balloons: THREE.BufferGeometry; at: P3 }>();
+const PARTY_POLE = 1.7;
+function partyParts(deep: number): { white: THREE.BufferGeometry; colors: THREE.BufferGeometry; balloons: THREE.BufferGeometry; at: P3 } {
+  const made = partyGeos.get(deep);
+  if (made) return made;
+  const far = deep === 1 ? 0.56 : 0.9, cake = deep !== 1;
   const rope: THREE.BufferGeometry[] = [], flags: THREE.BufferGeometry[] = [];
-  const top = (i: number): THREE.Vector3 => new THREE.Vector3(CORNERS[i][0] * 0.9, PARTY_POLE, CORNERS[i][1] * 0.9);
+  const top = (i: number): THREE.Vector3 => new THREE.Vector3(CORNERS[i][0] * 0.9, PARTY_POLE, CORNERS[i][1] * far);
   for (const [i, j] of [[0, 1], [1, 3], [3, 2], [2, 0]]) garland(top(i), top(j), 'bunting', rope, flags);
   const white = merge([
-    ...CORNERS.map(([x, z]) => tube(0.022, 0.028, PARTY_POLE, x * 0.9, PARTY_POLE / 2, z * 0.9)),
+    ...CORNERS.map(([x, z]) => tube(0.022, 0.028, PARTY_POLE, x * 0.9, PARTY_POLE / 2, z * far)),
     ...rope,
     // het tafeltje en het glazuur van de taart
-    boxAt(0.3, 0.04, 0.3, 0.74, 0.5, 0.74), ...CORNERS.map(([x, z]) => boxAt(0.035, 0.48, 0.035, 0.74 + x * 0.12, 0.24, 0.74 + z * 0.12)),
-    tube(0.115, 0.115, 0.03, 0.74, 0.625, 0.74),
+    ...(cake ? [boxAt(0.3, 0.04, 0.3, 0.74, 0.5, 0.74), ...CORNERS.map(([x, z]) => boxAt(0.035, 0.48, 0.035, 0.74 + x * 0.12, 0.24, 0.74 + z * 0.12)), tube(0.115, 0.115, 0.03, 0.74, 0.625, 0.74)] : []),
   ]);
   const colors = merge([
     ...flags,
-    paint(tube(0.11, 0.11, 0.1, 0.74, 0.57, 0.74), 0xf48fb1),
-    ...[[-0.05, 0.03], [0.05, 0.02], [0, -0.05]].flatMap(([x, z], i) => [
-      paint(boxAt(0.018, 0.07, 0.018, 0.74 + x, 0.675, 0.74 + z), PENNANTS[i]),
-      paint(boxAt(0.024, 0.03, 0.024, 0.74 + x, 0.725, 0.74 + z), 0xffc21f),
-    ]),
+    ...(cake ? [
+      paint(tube(0.11, 0.11, 0.1, 0.74, 0.57, 0.74), 0xf48fb1),
+      ...[[-0.05, 0.03], [0.05, 0.02], [0, -0.05]].flatMap(([x, z], i) => [
+        paint(boxAt(0.018, 0.07, 0.018, 0.74 + x, 0.675, 0.74 + z), PENNANTS[i]),
+        paint(boxAt(0.024, 0.03, 0.024, 0.74 + x, 0.725, 0.74 + z), 0xffc21f),
+      ]),
+    ] : []),
   ]);
   // de ballonnen: om de top van de paal, zodat ze kunnen wiegen
   const spots: P3[] = [[0.02, 0.36, 0], [-0.17, 0.26, 0.05], [0.14, 0.24, -0.1]];
   const balloons = merge(spots.flatMap((p, i) => [paint(ball(0.13, ...p), PENNANTS[i]), paint(beam(0.008, [0, 0, 0], [p[0], p[1] - 0.12, p[2]]), 0xf7f4ec)]));
-  return (partyGeos = { white, colors, balloons });
+  const geos = { white, colors, balloons, at: [0.9, PARTY_POLE, far] as P3 };
+  partyGeos.set(deep, geos);
+  return geos;
 }
 // Een vieze kraam: bruine vlekken op de vloer (en bij een kraam ook op de toonbank), en twee vliegen.
 const GRIME_MAT = std(0x6b4a2a, 1);
@@ -1803,10 +1847,7 @@ const FLY_GEO = mergeGeometries([boxAt(0.035, 0.03, 0.05, 0, 0, 0), boxAt(0.07, 
 const grime = (w: number, d: number, x: number, z: number, turn: number): THREE.BufferGeometry =>
   new THREE.CylinderGeometry(0.5, 0.5, 0.008, 9).scale(w, 1, d).rotateY(turn).translate(x, 0.056, z);
 const GRIME_FLOOR_GEO = mergeGeometries([grime(0.34, 0.22, -0.3, 0.2, 0.4), grime(0.24, 0.16, 0.26, -0.3, -0.6), grime(0.2, 0.14, -0.52, -0.5, 1.1), grime(0.16, 0.12, 0.1, 0.36, 0.2)])!;
-const GRIME_FRONT_GEO = mergeGeometries([
-  boxAt(0.26, 0.15, 0.012, -0.22, 0.2, 0.874), boxAt(0.14, 0.2, 0.012, 0.32, 0.14, 0.874), boxAt(0.012, 0.14, 0.24, 0.874, 0.2, -0.3),
-  boxAt(0.2, 0.01, 0.12, 0.5, 0.413, 0.74),
-])!;
+const GRIME_FRONT_GEO = mergeGeometries([boxAt(0.26, 0.15, 0.012, -0.3, 0.2, 0.468), boxAt(0.14, 0.2, 0.012, 0.42, 0.14, 0.468), boxAt(0.2, 0.01, 0.12, 0.3, 0.413, 0.3)])!;
 
 // Het weer: één stel deeltjes voor regen, sneeuw, bladeren en bloesem.
 const WEATHER_MAX = 500;
@@ -3010,7 +3051,8 @@ export class View {
   poseShop(group: THREE.Object3D, x: number, y: number, kind: ShopKind, edge?: EdgePose, rot = 0): void {
     if (!edge) {
       // een gebouw draait in kwartslagen: 0 = voorkant naar het zuiden, 1 = oosten, 2 = noorden, 3 = westen
-      group.position.set(toWorldX(x + SHOP_SIZE[kind] / 2), 0, toWorldZ(y + SHOP_SIZE[kind] / 2));
+      const [w, h] = shopSpan(kind, rot);
+      group.position.set(toWorldX(x + w / 2), 0, toWorldZ(y + h / 2));
       group.rotation.y = (rot * Math.PI) / 2;
       return;
     }
@@ -3359,10 +3401,11 @@ export class View {
     let party: THREE.Group | undefined = group.userData.party;
     if (!party) {
       if (!on) return;
-      const geos = partyParts();
+      const kind: ShopKind = group.userData.kind;
+      const geos = partyParts(SHOP_DEEP[kind] ?? SHOP_SIZE[kind]);
       party = new THREE.Group();
       const balloons = new THREE.Mesh(geos.balloons, PAINT_MAT);
-      balloons.position.set(...PARTY_AT);
+      balloons.position.set(...geos.at);
       party.add(new THREE.Mesh(geos.white, WHITE_MAT), new THREE.Mesh(geos.colors, PAINT_MAT), balloons);
       party.traverse(o => { o.castShadow = true; });
       party.userData.balloons = balloons;
@@ -3382,7 +3425,13 @@ export class View {
       if (!dirty) return;
       const made = new THREE.Group();
       const kind: ShopKind = group.userData.kind;
-      made.add(new THREE.Mesh(GRIME_FLOOR_GEO, GRIME_MAT));
+      const floor = new THREE.Mesh(GRIME_FLOOR_GEO, GRIME_MAT);
+      if (SHOP_DEEP[kind]) {
+        // een marktkraam is maar één tegel diep en heeft een dun matje
+        floor.scale.z = 0.42;
+        floor.position.y = -0.024;
+      }
+      made.add(floor);
       if (STALLS.includes(kind)) made.add(new THREE.Mesh(GRIME_FRONT_GEO, GRIME_MAT));
       group.userData.flies = [[0.25, 0.8, 0.55], [-0.3, 1, 0.2]].map(([x, y, z]) => {
         const fly = new THREE.Mesh(FLY_GEO, FLY_MAT);
