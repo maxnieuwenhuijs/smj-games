@@ -20,7 +20,10 @@ export const FACES = ADULTS + KIDS;
 const CW = 64, CH = 32, PAD = 2;
 /** Waar de naad tussen ogen en mond ligt: het gezicht loopt van -1 (boven) tot 1 (onder). */
 const SEAM = 0.25;
-/** Het halve hoofd (zie HEAD_GEO in people.ts) en hoe ver het vlakje voor het hoofd zit. */
+/**
+ * De helft van het platte voorvlak van het hoofd (zie HEAD_GEO in people.ts: dat vlak is 0,17 bij 0,17 en ligt 0,085
+ * voor het midden van het hoofd) en hoe ver het vlakje daarvoor zit. Wordt het hoofd groter gemaakt, dan groeit het gezicht mee.
+ */
 const HALF = 0.085, OUT = 0.0012;
 
 const INK = '#2a1c16', WHITE = '#ffffff', LIP = '#c23b4a', INSIDE = '#6b1d26', TONGUE = '#f0767a', TEAR = '#58b7ee';

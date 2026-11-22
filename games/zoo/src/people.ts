@@ -557,7 +557,7 @@ function makePerson(keeper = false, outfit?: { shirt: number; hat: number }, for
   // een gezicht (zie faces.ts): gasten krijgen het via Crowd, een werker of verkoper wordt los getekend en heeft zijn eigen vlakje
   giveFace(head, child, staff || !!force.solo);
   // een kind heeft een groter hoofd; het gezicht en het haar groeien mee
-  if (child) head.scale.setScalar(1.12);
+  if (child) head.scale.setScalar(1.1);
   // wie een baard of snor heeft, krijgt haar in dezelfde kleur
   const beard = beardColor(head.userData.face as number);
   // de kleren: een broek, een rok (in een eigen kleur) of een jurk (in de kleur van het shirt)
