@@ -208,10 +208,22 @@ met een servet en een klokhuis. Elk soort is nu één onderdeel in plaats van dr
 De bomen rond het park hadden blokken als blad; dat zijn nu bollen, met een ronde stam. De bloemetjes langs het
 bloemenpad zijn rond in plaats van vierkant. De brug is gelijk gebleven.
 
+## Natuur in de verblijven
+
+![natuur](na/natuur.jpg)
+
+De natuurdingen op een kwart tegel zijn tegelijk met deze ronde door iemand anders gemaakt. De **eik**, de
+**spar** en de **kokospalm** gebruiken de vormen van de boom, de den en de palm, en zijn dus vanzelf mee
+veranderd. De kleine dingen (graspol, madeliefjes, varen, struikje, kiezels, steen en rotspunt) zijn in deze
+ronde met rust gelaten. De madeliefjes en de besjes zijn nog vierkant en de rotspunt is nog van blokken: die
+kunnen in een volgende ronde dezelfde beurt krijgen.
+
 ## Niet veranderd
 
 - De **dieren** en de **mensen**: die horen niet bij deze ronde.
-- De **bal**, de **boomstam** en de **wc-deuren**: daar werkte tegelijk iemand anders aan.
+- De **bal**, de **boomstam** en de **wc-deuren**: daar werkte tegelijk iemand anders aan. (Op de foto van de
+  speeltjes zie je rechts al hun nieuwe bal en boomstam.)
+- De kleine **natuurdingen** op een kwart tegel: zie hierboven.
 - De **trein**, de **schuilhut**, de **treinhalte**, de **paraplubak**, de **brug**, het **net**, het **glas** en
   het **witte hekje**: die waren al goed genoeg.
 

@@ -5,7 +5,7 @@
 // &bos=1 (de bomen rond het park), &seizoen=winter, &nacht=1, &spook=1 (het doorzichtige voorbeeld), &draai=1 (kwartslagen), &druk=1 (alsof er
 // gasten zijn), &t=2.5 (het moment van de foto), &zoom=6 (tegels in beeld).
 import * as THREE from 'three';
-import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FERRIS, FOODS, SHOPS, SHOP_SIZE, TERRAINS, TOYS, TROUGHS, bumperCar, type BedKind, type DecorKind, type FoodId, type Season, type ShopKind, type ToyKind, type TroughKind } from './data';
+import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FERRIS, FOODS, PROPS, SHOPS, SHOP_SIZE, TERRAINS, TOYS, TROUGHS, bumperCar, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type ToyKind, type TroughKind } from './data';
 import { BASE_LAND, FULL_LAND, Grid, edgeKey, type Edge, type EdgeKind } from './grid';
 import { View, toWorldX, toWorldZ } from './view';
 
@@ -33,6 +33,8 @@ view.setSeason(season);
 /** Wat elk beeldje moet bewegen. */
 const live: ((t: number) => void)[] = [];
 const wear = new Map<string, number>();
+/** De natuurdingen: die tekent het beeld allemaal in een keer (zie View.syncProps). */
+const props: { kind: PropKind; gx: number; gy: number; rot: number }[] = [];
 
 const bed = (kind: BedKind): Item => ({
   name: kind, size: 1,
@@ -113,6 +115,13 @@ const litter = (i: number): Item => ({
     Math.random = real;
   },
 });
+const prop = (kind: PropKind): Item => ({
+  name: kind, size: 1,
+  put: (x, y) => {
+    if (ghost) view.ghostProp(kind, x + 0.5, y + 0.5, rot, true);
+    else props.push({ kind, gx: x + 0.5, gy: y + 0.5, rot });
+  },
+});
 /** Drie tegels pad naast elkaar (het bloemenpad heeft bloemetjes langs de rand). */
 const path = (kind: 'flowerpath' | 'bridge' | 'planks'): Item => ({
   name: kind, size: 3,
@@ -155,6 +164,7 @@ const GROUPS: Record<string, Item[]> = {
   afval: [0, 1, 2, 3].map(litter),
   trein: [train],
   pad: [path('flowerpath'), path('bridge')],
+  natuur: PROPS.map(prop),
 };
 // niets vergeten: wat in geen enkel rijtje staat, komt in 'rest'
 const listed = new Set([...Object.values(DECOR_SETS).flat(), ...Object.values(SHOP_SETS).flat()] as string[]);
@@ -192,6 +202,7 @@ items.forEach((item, i) => {
 });
 view.paintTerrain(grid);
 view.syncFences(grid, wear);
+view.syncProps(props);
 
 // De camera: midden boven de modellen, en zo ver uitgezoomd dat alles past.
 const wide = maxX - x0, deep = maxY - y0, tall = num('hoog', look.tall ?? 1.9);
