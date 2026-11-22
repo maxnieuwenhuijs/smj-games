@@ -1,7 +1,9 @@
 // Alle spelinhoud als gegevens: soorten, voer, ondergrond, slaapplekken, winkels, prijzen en levels.
 export type Terrain = 'grass' | 'mud' | 'sand' | 'water' | 'path' | 'snow' | 'forest' | 'stones' | 'ice' | 'swamp' | 'meadow' | 'steppe'
   // soorten pad: gasten lopen over allemaal; de brug leg je over water
-  | 'gravel' | 'planks' | 'flowerpath' | 'bridge';
+  | 'gravel' | 'planks' | 'flowerpath' | 'bridge'
+  // nog drie paden om later vrij te spelen: rode klinkers, grijze keien en wit marmer
+  | 'brick' | 'cobble' | 'marble';
 export type FoodId = 'veg' | 'hay' | 'fruit' | 'grain' | 'meat' | 'leaves' | 'fish' | 'bamboo';
 export type BedKind = 'straw' | 'shed' | 'rock' | 'shade' | 'nest' | 'cave' | 'climb' | 'coral';
 export type ShopKind = 'foodstall' | 'drinkstall' | 'bench' | 'toilet' | 'icecream' | 'balloon' | 'flowers' | 'bin' | 'souvenir' | 'playground' | 'hats' | 'fountain' | 'carousel'
@@ -28,7 +30,7 @@ export type ToyKind = 'ball' | 'bush' | 'log' | 'flowerbed' | 'hoop'
   | 'hill' | 'rocks' | 'drink' | 'fall' | 'lamp' | 'icebox' | 'frame' | 'tunnel';
 
 /** De volgorde is ook de waarde in het opslagbestand: nieuwe soorten komen achteraan. */
-export const TERRAINS: Terrain[] = ['grass', 'mud', 'sand', 'water', 'path', 'snow', 'forest', 'stones', 'ice', 'swamp', 'meadow', 'steppe', 'gravel', 'planks', 'flowerpath', 'bridge'];
+export const TERRAINS: Terrain[] = ['grass', 'mud', 'sand', 'water', 'path', 'snow', 'forest', 'stones', 'ice', 'swamp', 'meadow', 'steppe', 'gravel', 'planks', 'flowerpath', 'bridge', 'brick', 'cobble', 'marble'];
 export const TERRAIN_INFO: Record<Terrain, { colors: [number, number] }> = {
   grass: { colors: [0x86c95c, 0x7cc053] },
   mud: { colors: [0x9c6b44, 0x8f6039] },
@@ -48,10 +50,13 @@ export const TERRAIN_INFO: Record<Terrain, { colors: [number, number] }> = {
   planks: { colors: [0xc79a63, 0xb98a55] },
   flowerpath: { colors: [0xe6d3b3, 0xdcc7a2] },
   bridge: { colors: [0x6ec3e8, 0x62b7dd] },
+  brick: { colors: [0xc9795a, 0xb9694b] },
+  cobble: { colors: [0x9fa6ae, 0x8d949c] },
+  marble: { colors: [0xf1f3f5, 0xdfe4e8] },
 };
 /** Alles waar gasten over lopen. `PATH_FROM`: na hoeveel gehaalde levels je het vrijspeelt. */
-export const PATH_KINDS: Terrain[] = ['path', 'gravel', 'planks', 'flowerpath', 'bridge'];
-export const PATH_FROM: Partial<Record<Terrain, number>> = { path: 3, gravel: 10, bridge: 13, planks: 17, flowerpath: 24 };
+export const PATH_KINDS: Terrain[] = ['path', 'gravel', 'planks', 'flowerpath', 'bridge', 'brick', 'cobble', 'marble'];
+export const PATH_FROM: Partial<Record<Terrain, number>> = { path: 3, gravel: 10, bridge: 13, planks: 17, brick: 21, flowerpath: 24, cobble: 30, marble: 37 };
 const PATH_IDS = new Set(PATH_KINDS.map(k => TERRAINS.indexOf(k)));
 /** Is dit (het nummer van) een soort pad? */
 export const isPath = (terrain: number): boolean => PATH_IDS.has(terrain);

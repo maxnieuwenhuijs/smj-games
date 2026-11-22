@@ -2369,7 +2369,8 @@ export class View {
     if (!ctx) return;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalCompositeOperation = 'copy';
-    ctx.fillStyle = `rgba(8, 12, 40, ${0.9 * dark})`;
+    // zonder lampen is het bijna zwart: alleen bij een lantaarn, een kampvuur, een winkel of de ingang zie je iets
+    ctx.fillStyle = `rgba(6, 9, 30, ${0.95 * dark})`;
     ctx.fillRect(0, 0, w, h);
     const perTile = (innerHeight / this.zoom) * k;
     const spots = lights

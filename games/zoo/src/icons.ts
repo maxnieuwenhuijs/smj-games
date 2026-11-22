@@ -505,6 +505,10 @@ const ICONS = {
   balloon_heart:
     `<path d="M24 34 C6 22 8 7 17 6 C21 6 24 9 24 12 C24 9 27 6 31 6 C40 7 42 22 24 34Z" fill="#f06aa6"/><path d="M24 34 Q19 39 26 46" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/><ellipse cx="16" cy="13" rx="3" ry="4" fill="#fff" opacity=".55"/>`,
   // meer paden: kiezels, planken, een bloemenpad en een brug over water
+  // rode klinkers in een visgraat, grijze keien en wit marmer met een ader
+  brick: tile('#c9795a') + '<g stroke="#a85a3f" stroke-width="2" stroke-linecap="round"><path d="M14 20 l10 7 M24 13 l10 7 M12 27 l10 7 M24 27 l10 -7 M17 24 l7 -5"/></g>',
+  cobble: tile('#9fa6ae') + '<g fill="#7f868e"><ellipse cx="16" cy="22" rx="4.5" ry="2.8"/><ellipse cx="27" cy="18" rx="4.5" ry="2.8"/><ellipse cx="31" cy="27" rx="4.5" ry="2.8"/><ellipse cx="20" cy="30" rx="4.5" ry="2.8"/><ellipse cx="24" cy="24" rx="3" ry="2"/></g>',
+  marble: tile('#f1f3f5', '#dfe4e8') + '<path d="M12 22 q6 4 10 0 t10 4 M20 31 q4 -3 8 0" fill="none" stroke="#b9c2ca" stroke-width="1.8" stroke-linecap="round"/><path d="M24 9 L45 24 L24 39 L3 24Z" fill="none" stroke="#c5ccd3" stroke-width="2"/>',
   gravel:
     tile('#c3c6cb', '#b7bbc1') +
     '<g fill="#8a8f98"><ellipse cx="14" cy="24" rx="3" ry="2"/><ellipse cx="24" cy="16" rx="2.6" ry="1.8"/><ellipse cx="32" cy="27" rx="3" ry="2"/><ellipse cx="21" cy="31" rx="2.6" ry="1.8"/><ellipse cx="27" cy="22" rx="2.2" ry="1.5"/></g>' +

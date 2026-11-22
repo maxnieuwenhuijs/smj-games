@@ -336,7 +336,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   stats: Stats = emptyStats();
   tool: ToolId = 'hand';
 
-  private option = { trough: 'wood', action: 'broom', terrain: 'mud', fence: 'fence', bed: 'straw', toy: 'ball', prop: 'tuft', staff: 'feed', decor: 'tree', decorGroup: 'green', shop: 'foodstall', animal: '', sex: 'male', world: 'farm' };
+  private option = { trough: 'wood', action: 'broom', terrain: 'mud', fence: 'fence', bed: 'straw', toy: 'ball', prop: 'tuft', staff: 'feed', decor: 'tree', decorGroup: 'green', terrainGroup: 'pen', shop: 'foodstall', animal: '', sex: 'male', world: 'farm' };
   private puddles: { mesh: THREE.Mesh; life: number }[] = [];
   private bubbles = new Map<Animal, HTMLElement>();
   private guestBubbles = new Map<Guest, HTMLElement>();
@@ -680,8 +680,17 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const list = this.unlocked(TERRAINS.filter(k => !PATH_KINDS.includes(k)), ['grass', 'mud'], sp => SPECIES[sp].terrain);
     for (const k of TERRAINS) if (mix.has(k) && !list.includes(k)) list.push(k);
     list.sort((p, q) => TERRAINS.indexOf(p) - TERRAINS.indexOf(q));
-    // de paden komen er een voor een bij: eerst het gewone pad, later kiezels, een brug, planken en bloemen
+    // de paden komen er een voor een bij: eerst het gewone pad, later kiezels, een brug, planken, klinkers en meer
     return [...list, ...PATH_KINDS.filter(k => (PATH_FROM[k] ?? 0) <= this.level)];
+  }
+
+  /**
+   * Grond staat in twee groepen: grond voor in de verblijven (waar de dieren van houden) en paden voor het park
+   * (waar de gasten over lopen). Zolang er nog geen pad is, is er maar één groep.
+   */
+  private terrainGroups(): { pen: Terrain[]; park: Terrain[] } {
+    const all = this.terrainOptions();
+    return { pen: all.filter(k => !PATH_KINDS.includes(k)), park: all.filter(k => PATH_KINDS.includes(k)) };
   }
 
   private foodList(): FoodId[] {
@@ -989,7 +998,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     // eerst kies je de wereld (schuur, savanneboom, ...), daarboven staan de dieren van die wereld
     const shown = species.filter(sp => (HOME[sp] ?? 'aqua') === this.option.world);
     pickFrom('animal', shown);
-    pickFrom('terrain', this.terrainOptions());
+    const grounds = this.terrainGroups();
+    if (this.option.terrainGroup === 'park' && !grounds.park.length) this.option.terrainGroup = 'pen';
+    // het gekozen stuk grond hoort bij de groep die open staat; wissel je van groep, dan komt het eerste van die groep
+    const ground = this.option.terrainGroup === 'park' ? grounds.park : grounds.pen;
+    if (!ground.includes(this.option.terrain as Terrain)) this.option.terrain = ground[0] ?? 'grass';
     pickFrom('bed', this.bedOptions());
     // voor het park speel je bijna elk level iets vrij
     const decors = DECORS.filter(k => DECOR[k].from <= this.level);
@@ -1029,7 +1042,17 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       {
         ...opt('terrain', 'terrain', t('tool.terrain')),
         fresh: this.terrainOptions().some(k => this.fresh.has(k)),
-        rows: [{ key: 'terrain', active: this.option.terrain, options: this.terrainOptions().map(k => ({ ...opt(k, k, t(`terrain.${k}`)), fresh: this.fresh.has(k) })) }],
+        rows: [
+          // eerst de groep (voor dieren of paden), daaronder de soorten grond van die groep
+          ...(grounds.park.length ? [{
+            key: 'terrainGroup', active: this.option.terrainGroup,
+            options: [
+              { ...opt('pen', 'grass', t('terrain.group.pen')), fresh: grounds.pen.some(k => this.fresh.has(k)) },
+              { ...opt('park', 'path', t('terrain.group.park')), fresh: grounds.park.some(k => this.fresh.has(k)) },
+            ],
+          }] : []),
+          { key: 'terrain', active: this.option.terrain, options: ground.map(k => ({ ...opt(k, k, t(`terrain.${k}`)), fresh: this.fresh.has(k) })) },
+        ],
       },
       {
         ...opt('fence', 'fence', t('tool.fence')),
