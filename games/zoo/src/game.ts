@@ -2704,10 +2704,15 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return phase < cycle - DUSK_SECONDS ? 1 : (cycle - phase) / DUSK_SECONDS;
   }
 
-  /** Het uur op de klok: de dag loopt van 7 tot 21 uur, de nacht van 21 tot 7. */
-  private hourOfDay(): number {
-    const phase = this.now() % (DAY_SECONDS + NIGHT_SECONDS);
-    return phase < DAY_SECONDS ? 7 + Math.floor((phase / DAY_SECONDS) * 14) : (21 + Math.floor(((phase - DAY_SECONDS) / NIGHT_SECONDS) * 10)) % 24;
+  /** De tijd op de klok rechtsboven, digitaal (12:05). De minuten springen per vijf, zodat de klok rustig blijft. */
+  private clockText(): string {
+    let hours = 8 + ((this.clock / HOUR_SECONDS) % 12);
+    if (this.has('night')) {
+      const phase = this.now() % (DAY_SECONDS + NIGHT_SECONDS);
+      hours = phase < DAY_SECONDS ? 7 + (phase / DAY_SECONDS) * 14 : (21 + ((phase - DAY_SECONDS) / NIGHT_SECONDS) * 10) % 24;
+    }
+    const h = Math.floor(hours), m = Math.floor(((hours - h) * 60) / 5) * 5;
+    return `${h}:${String(m).padStart(2, '0')}`;
   }
 
   /** Alles wat licht geeft: lantaarns, kampvuren, winkels en speeltoestellen, en de ingang. */
@@ -4840,7 +4845,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.checkBirths();
     // naast het uur: een plaatje van het seizoen, of een wolkje als het regent
     const skyIcon = this.rainLeft > 0 ? icon(this.season === 'winter' ? 'winter' : 'rain') : this.has('season') ? icon(this.season) : '';
-    this.hud.setWallet(this.coins, COIN_CAP, this.has('paths') ? crowd.total : null, this.has('night') ? this.hourOfDay() : this.has('keeper') ? 8 + (this.hour % 12) : null, this.has('night') ? (this.night > 0.5 ? 'moon' : 'sun') : null, skyIcon);
+    this.hud.setWallet(this.coins, COIN_CAP, this.has('paths') ? crowd.total : null, this.has('night') || this.has('keeper') ? this.clockText() : null, this.has('night') ? (this.night > 0.5 ? 'moon' : 'sun') : null, skyIcon);
 
     // een dier wacht al een poos op iets: de verzorger of de bouwer zegt wat er aan de hand is
     const light = worst && (worst.wish === 'bed' || worst.wish === 'terrain' || worst.wish === 'friend' || worst.wish === 'fun' || worst.wish === 'climate' || worst.wish === 'wild' || worst.wish === 'space' || (worst.wish === 'enclosure' && !!worst.a.needsFence));

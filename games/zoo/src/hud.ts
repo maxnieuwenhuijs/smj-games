@@ -313,7 +313,7 @@ export class Hud {
   /** De kas (munten) en het aantal gasten in het park. */
   /** `sky`: zon of maan naast het uur (vanaf het level waarin het ook nacht wordt); anders een klokje. */
   /** `extra`: kant-en-klaar plaatje (het seizoen, het weer) dat als laatste vakje onder het uur komt. */
-  setWallet(coins: number, cap: number, guests: number | null, hour: number | null = null, sky: 'sun' | 'moon' | null = null, extra = ''): void {
+  setWallet(coins: number, cap: number, guests: number | null, hour: number | string | null = null, sky: 'sun' | 'moon' | null = null, extra = ''): void {
     const key = `${coins}/${guests}/${hour}/${sky}/${extra}`;
     if (key === this.walletKey) return;
     this.walletKey = key;
