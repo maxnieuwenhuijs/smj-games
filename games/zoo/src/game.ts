@@ -437,7 +437,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   stats: Stats = emptyStats();
   tool: ToolId = 'hand';
 
-  private option = { trough: 'wood', action: 'broom', terrain: 'mud', fence: 'fence', bed: 'straw', toy: 'ball', prop: 'tuft', ride: 'slide', rideGroup: 'play', staff: 'feed', decor: 'tree', decorGroup: 'green', terrainGroup: 'pen', shop: 'foodstall', animal: '', sex: 'male', world: 'farm' };
+  private option = { trough: 'wood', action: 'broom', terrain: 'mud', fence: 'fence', fenceMode: 'box', bed: 'straw', toy: 'ball', prop: 'tuft', ride: 'slide', rideGroup: 'play', staff: 'feed', decor: 'tree', decorGroup: 'green', terrainGroup: 'pen', shop: 'foodstall', animal: '', sex: 'male', world: 'farm' };
   private puddles: { mesh: THREE.Mesh; life: number }[] = [];
   private bubbles = new Map<Animal, HTMLElement>();
   private guestBubbles = new Map<Guest, HTMLElement>();
@@ -1366,7 +1366,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       },
       {
         ...opt('fence', 'fence', t('tool.fence')),
-        rows: [{ key: 'fence', active: this.option.fence, options: this.fenceOptions().map(k => opt(k, k as IconId, t(`fence.${k}`))) }],
+        rows: [
+          { key: 'fence', active: this.option.fence, options: this.fenceOptions().map(k => opt(k, k as IconId, t(`fence.${k}`))) },
+          // daaronder kies je hoe je bouwt: een heel hok slepen, of losse hekken (tikken, of langs een rand vegen)
+          { key: 'fenceMode', active: this.option.fenceMode, options: [opt('box', 'fencebox', t('fence.mode.box')), opt('loose', 'fenceloose', t('fence.mode.loose'))] },
+        ],
       },
       // eerst is er alleen de houten bak; komen er grotere bij, dan kies je in de rij erboven
       troughs.length > 1
@@ -4214,6 +4218,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!g || !L) return;
     const kind = FENCE_KIND[this.option.fence];
     if (kind === 2 || kind === 6 || kind === 8) return;
+    // met losse hekken sleep je geen hok
+    if (this.option.fenceMode !== 'box') return;
     const land = this.grid.land;
     const tx = (v: number): number => Math.max(land.x0, Math.min(land.x1 - 1, Math.floor(v)));
     const ty = (v: number): number => Math.max(land.y0, Math.min(land.y1 - 1, Math.floor(v)));
@@ -4228,6 +4234,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     for (let y = box.y0; y <= box.y1; y++) for (let x = box.x0; x <= box.x1; x++) this.rectTiles.push(tileIndex(x, y));
     this.view.ghostRun(this.boxEdges(box), kind, true);
     sfx('tap', { volume: 0.3, every: 0.07 });
+  }
+
+  /** Staat de knop Hek op losse hekken, en is het een gewoon hek (geen poort of kijkruit, die zet je met een tik)? */
+  private looseFence(): boolean {
+    const kind = FENCE_KIND[this.option.fence];
+    return this.option.fenceMode === 'loose' && kind !== 2 && kind !== 6 && kind !== 8;
   }
 
   private clearRect(): void {
@@ -4456,7 +4468,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const d = this.drag;
       if (!d || d.id !== e.pointerId) return;
       if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) > 8) d.moved = true;
-      if (d.paint && this.tool === 'fence') this.fenceDrag(e.clientX, e.clientY);
+      // een hek: een heel hok slepen, of (stand Los hek) hekken langs de rand waar je overheen veegt; een poort of
+      // kijkruit zet je altijd los neer met een tik
+      if (d.paint && this.tool === 'fence' && !this.looseFence()) this.fenceDrag(e.clientX, e.clientY);
       else if (d.paint) this.paintStroke(prev.x, prev.y, e.clientX, e.clientY);
       else if (d.pan || d.moved) this.view.pan(dx, dy);
       this.hover(e.clientX, e.clientY, d.moved);
@@ -4471,7 +4485,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // een heel kort veegje met het hek telt als een tik op die rand
       // een hok gesleept: nu pas komen de hekken. Een heel kort veegje met het hek telt als een tik op die rand
       const box = d.paint && this.tool === 'fence' && e.type === 'pointerup' ? this.rect : null;
-      const flick = d.paint && this.tool === 'fence' && d.moved && !!this.line && !box;
+      const flick = d.paint && this.tool === 'fence' && d.moved && !!this.line && !box && !this.looseFence();
       this.line = null;
       this.clearRect();
       if (box) this.buildRect(box);

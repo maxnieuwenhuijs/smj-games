@@ -72,6 +72,8 @@
   "need": "Go to the animal that needs help",
   "tool.terrain": "Ground",
   "tool.fence": "Fence",
+  "fence.mode.box": "Drag a pen",
+  "fence.mode.loose": "Single fence",
   "tool.trough": "Trough",
   "trough.wood": "Wooden trough",
   "trough.big": "Big trough",

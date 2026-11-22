@@ -72,6 +72,8 @@
   "need": "Ga naar het dier dat hulp nodig heeft",
   "tool.terrain": "Grond",
   "tool.fence": "Hek",
+  "fence.mode.box": "Hok slepen",
+  "fence.mode.loose": "Los hek",
   "tool.trough": "Voerbak",
   "trough.wood": "Houten bak",
   "trough.big": "Grote bak",
