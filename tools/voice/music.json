@@ -27,6 +27,31 @@
       "id": "far",
       "seconds": 75,
       "prompt": "A peaceful lakeside in a faraway land: add a soft harp."
+    },
+    {
+      "id": "meadow",
+      "seconds": 75,
+      "prompt": "A lazy afternoon in a flower meadow: add a soft clarinet melody."
+    },
+    {
+      "id": "pond",
+      "seconds": 75,
+      "prompt": "Ducks drifting on a quiet pond: add a gentle felt piano."
+    },
+    {
+      "id": "evening",
+      "seconds": 75,
+      "prompt": "A peaceful evening as the sun goes down: add a warm nylon guitar and a soft vibraphone."
+    },
+    {
+      "id": "lullaby",
+      "seconds": 75,
+      "prompt": "A sleepy lullaby for baby animals: add a music box and soft strings, a little slower."
+    },
+    {
+      "id": "stroll",
+      "seconds": 75,
+      "prompt": "A relaxed stroll along the park paths: add a soft whistling melody and a gentle upright bass."
     }
   ]
 }
