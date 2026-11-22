@@ -122,6 +122,9 @@ export class Hud {
     this.spinBtn.setAttribute('aria-label', t('spin'));
     this.spinBtn.addEventListener('click', () => this.on.spin());
     document.getElementById('ui')!.append(this.spinBtn);
+    this.pick.id = 'pick';
+    this.pick.hidden = true;
+    document.getElementById('ui')!.append(this.pick);
     // schuift de keuzerij of verandert het scherm, dan schuift de draaiknop mee
     this.options.addEventListener('scroll', () => this.placeSpin(), true);
     addEventListener('resize', () => this.placeSpin());
@@ -209,6 +212,38 @@ export class Hud {
   }
 
   private spinBtn = el('button', 'tool small', `${icon('turn')}<b>${t('spin')}</b>`);
+  /** Een paar keuzeknoppen die boven het gekozen ding hangen, net als de draaiknop (bij een hek: hok slepen of los). */
+  private pick = el('div', '');
+  private pickAt = '';
+
+  /**
+   * Keuzeknoppen boven het gekozen ding in de balk tonen (`anchor`: die keuze), of weghalen (`options` leeg).
+   * Een tik op een knop geeft zijn id door aan `choose`.
+   */
+  setPick(options: { id: string; icon: string; label: string; on: boolean }[] | null, anchor = '', choose: (id: string) => void = () => undefined): void {
+    this.pick.replaceChildren();
+    this.pick.hidden = !options?.length;
+    this.pickAt = anchor;
+    for (const o of options ?? []) {
+      const b = el('button', `tool small${o.on ? ' on' : ''}`, `${o.icon}<b>${o.label}</b>`);
+      b.type = 'button';
+      b.addEventListener('click', () => choose(o.id));
+      this.pick.append(b);
+    }
+    this.placePick();
+  }
+
+  /** Zet de keuzeknoppen recht boven het gekozen ding, boven de bovenste rij. */
+  private placePick(): void {
+    if (this.pick.hidden) return;
+    const at = this.options.querySelector<HTMLElement>(`[data-option="${this.pickAt}"].on`) ?? this.toolbar.querySelector<HTMLElement>('.tool.on');
+    if (!at) return;
+    const b = this.pick.getBoundingClientRect(), r = at.getBoundingClientRect();
+    const tops = [...this.options.querySelectorAll<HTMLElement>('.tool')].map(k => k.getBoundingClientRect()).filter(k => k.width > 0).map(k => k.top);
+    const top = tops.length ? Math.min(...tops) : r.top;
+    this.pick.style.left = `${Math.max(6, Math.min(innerWidth - b.width - 6, r.left + r.width / 2 - b.width / 2))}px`;
+    this.pick.style.top = `${Math.max(6, top - b.height - 10)}px`;
+  }
   /** Het ding in de balk onderaan waar de draaiknop boven hangt. */
   private spinAt: HTMLElement | null = null;
 
@@ -230,6 +265,7 @@ export class Hud {
    * het park. Zonder keuzerijen staat hij recht boven de gekozen knop.
    */
   private placeSpin(): void {
+    this.placePick();
     const at = this.spinAt;
     if (!at || !at.isConnected || this.spinBtn.hidden) return;
     const b = this.spinBtn.getBoundingClientRect();

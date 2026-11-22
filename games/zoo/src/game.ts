@@ -1366,11 +1366,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       },
       {
         ...opt('fence', 'fence', t('tool.fence')),
-        rows: [
-          { key: 'fence', active: this.option.fence, options: this.fenceOptions().map(k => opt(k, k as IconId, t(`fence.${k}`))) },
-          // daaronder kies je hoe je bouwt: een heel hok slepen, of losse hekken (tikken, of langs een rand vegen)
-          { key: 'fenceMode', active: this.option.fenceMode, options: [opt('box', 'fencebox', t('fence.mode.box')), opt('loose', 'fenceloose', t('fence.mode.loose'))] },
-        ],
+        rows: [{ key: 'fence', active: this.option.fence, options: this.fenceOptions().map(k => opt(k, k as IconId, t(`fence.${k}`))) }],
       },
       // eerst is er alleen de houten bak; komen er grotere bij, dan kies je in de rij erboven
       troughs.length > 1
@@ -1459,6 +1455,18 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const grouped = TOOL_GROUPS.flatMap(([group, ids]) => ids.flatMap(id => defs.filter(d => d.id === id).map(d => ({ ...d, group }))));
     this.hud.setTools(grouped, this.tool, hint, this.linger);
     this.hud.setSpin(this.canSpin() && !this.moving, this.spins, (this.option as Record<string, string>)[this.tool] ?? '');
+    // boven het gekozen hek hangen twee knoppen met het plaatje van dat hek: een heel hok slepen, of los plaatsen
+    // (een poort, kijkruit of poortje zet je altijd los neer: daar valt niets te kiezen)
+    const fenceKind = FENCE_KIND[this.option.fence], fenceIcon = icon(this.option.fence as IconId);
+    const choice = this.tool === 'fence' && !this.moving && fenceKind !== 2 && fenceKind !== 6 && fenceKind !== 8;
+    this.hud.setPick(choice ? [
+      { id: 'box', icon: fenceIcon + icon('fencebox', 'mark'), label: t('fence.mode.box'), on: this.option.fenceMode === 'box' },
+      { id: 'loose', icon: fenceIcon, label: t('fence.mode.loose'), on: this.option.fenceMode !== 'box' },
+    ] : null, this.option.fence, id => {
+      this.option.fenceMode = id;
+      sfx('tap');
+      this.refreshTools(true);
+    });
   }
 
   /** Wat er onder de actieknop zit: de veger altijd, de prikker zodra er afval komt, de hamer zodra hekken slijten. */

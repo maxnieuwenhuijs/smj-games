@@ -290,14 +290,11 @@ const ICONS = {
     '<path d="M13 47 C7 34 31 31 25 21 C20 13 30 6 37 1" fill="none" stroke="#e3d3b4" stroke-width="12" stroke-linecap="round"/>' +
     '<g fill="#c2b08e"><circle cx="15" cy="38" r="1.6"/><circle cx="23" cy="30" r="1.4"/><circle cx="26" cy="19" r="1.5"/><circle cx="31" cy="9" r="1.3"/></g>' +
     '<g fill="#6cb146"><circle cx="35" cy="34" r="3.2"/><circle cx="39" cy="38" r="2.6"/><circle cx="10" cy="14" r="3"/></g>',
-  // de twee standen van de knop Hek: een heel hok slepen (een vierkant van hekjes met een sleeppijl), of één los stuk hek
+  // bij de knop Hek: een heel hok slepen (een vierkant van hekjes met een sleeppijl); dit hangt als merkje op het plaatje van het hek
   fencebox:
     '<rect x="8" y="10" width="26" height="26" rx="3" fill="#dff0d0" stroke="#a9743f" stroke-width="4" stroke-dasharray="7 3.4"/>' +
     '<g fill="#7a5230"><rect x="5" y="7" width="7" height="7" rx="2"/><rect x="30" y="7" width="7" height="7" rx="2"/><rect x="5" y="32" width="7" height="7" rx="2"/><rect x="30" y="32" width="7" height="7" rx="2"/></g>' +
     '<path d="M22 22 L41 41" stroke="#f08a24" stroke-width="5" stroke-linecap="round"/><path d="M45 45 L33 43 L43 33Z" fill="#f08a24"/>',
-  fenceloose:
-    '<g fill="#a9743f"><rect x="6" y="20" width="36" height="5" rx="2"/><rect x="6" y="31" width="36" height="5" rx="2"/></g>' +
-    '<g fill="#7a5230"><rect x="9" y="12" width="7" height="30" rx="2.5"/><rect x="32" y="12" width="7" height="30" rx="2.5"/></g>',
   // het beeld draaien: een videocamera met een dikke oranje draaipijl eromheen (de linkerknop is hetzelfde plaatje in
   // spiegelbeeld). De pijl is het belangrijkst: die moet je in één oogopslag zien.
   camturn:

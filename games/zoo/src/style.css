@@ -120,6 +120,10 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
   #turnL { top: auto; bottom: calc(200px + 2 * min(70px, 13vw)); right: 8px; }
 }
 /* de draaiknop voor wat je gaat neerzetten: in de balk onderaan, recht boven het gekozen ding; geel zodat hij opvalt */
+/* keuzeknoppen boven het gekozen ding (bij een hek: een hok slepen of los plaatsen) */
+#pick { position: fixed; left: 0; top: 0; z-index: 3; display: flex; gap: 8px; }
+#pick[hidden] { display: none; }
+#pick .tool .mark { position: absolute; right: 1px; top: 1px; width: 24px; height: 24px; font-size: 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15); }
 #spin { position: fixed; left: 0; top: 0; z-index: 3; background: var(--sun); box-shadow: 0 5px 0 var(--sun-shade); }
 #spin .ic { rotate: calc(var(--q, 0) * 90deg); transition: rotate 0.18s ease-out; }
 /* (de knop staat in de rij zelf, dus er hoeft geen pijltje naar beneden meer aan) */
