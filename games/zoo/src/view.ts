@@ -391,7 +391,7 @@ const cap = (x: number, z: number): THREE.BufferGeometry[] =>
 const scaled = (parts: Part[], k: number): Part[] => parts.map(([g, m, shadow]) => [g.clone().scale(k, k, k), m, shadow] as Part);
 
 const SHOP_PARTS: Record<ShopKind, Part[]> = {
-  // eetkraam: een rood-wit zeil en een grote bak friet erop
+  // eetkraam: een rood-wit zeil en een grote hamburger erop
   foodstall: [
     ...booth(0xe9c27a, 0xe0584f, 0xf7f4ec, 0xa8743f),
     // op de tafel: drie puntzakken friet, en een rode en een gele fles
@@ -399,14 +399,21 @@ const SHOP_PARTS: Record<ShopKind, Part[]> = {
       [0xd8362e, ...[-0.6, -0.3, 0].map(x => new THREE.CylinderGeometry(0.075, 0.045, 0.13, 4).rotateY(Math.PI / 4).translate(x, 0.475, 0.3)), tube(0.035, 0.04, 0.14, 0.5, 0.48, 0.3), cone(0.03, 0.06, 0.5, 0.58, 0.3)],
       [0xffd23f, ...[-0.6, -0.3, 0].flatMap(x => [boxAt(0.025, 0.09, 0.025, x - 0.03, 0.56, 0.3), boxAt(0.025, 0.12, 0.025, x, 0.57, 0.31), boxAt(0.025, 0.08, 0.025, x + 0.03, 0.555, 0.29)]), tube(0.035, 0.04, 0.14, 0.66, 0.48, 0.3), cone(0.03, 0.06, 0.66, 0.58, 0.3)],
     ), PAINT_MAT],
-    // op het dak (wiegt, zie SHOP_BOB): de rode bak met een witte band, en de frietjes
+    // op het dak (wiegt, zie SHOP_BOB): de hamburger. Eerst het onderste broodje met vlees, kaas, tomaat en sla,
+    // dan het bolle broodje met sesamzaadjes erbovenop.
     ...onRoof([
       [painted(
-        [0xd8362e, new THREE.CylinderGeometry(0.37, 0.27, 0.44, 4).rotateY(Math.PI / 4).scale(1, 1, 0.5).translate(0, 1.61, -0.4)],
-        [0xf7f4ec, boxAt(0.46, 0.09, 0.27, 0, 1.62, -0.4)],
+        [0xe2a85a, tube(0.3, 0.27, 0.1, 0, 1.44, -0.4)],
+        [0x7a4a22, tube(0.33, 0.33, 0.09, 0, 1.535, -0.4)],
+        [0xffd23f, new THREE.BoxGeometry(0.5, 0.02, 0.5).rotateY(Math.PI / 4).translate(0, 1.59, -0.4)],
+        [0xe0453a, tube(0.29, 0.29, 0.04, 0, 1.62, -0.4)],
+        [0x6cc04a, new THREE.CylinderGeometry(0.36, 0.33, 0.035, 9).translate(0, 1.657, -0.4)],
       ), PAINT_MAT],
-      [merge([[-0.2, 0.5, -0.45], [-0.1, 0.62, -0.44], [0, 0.56, -0.46], [0.1, 0.66, -0.44], [0.2, 0.5, -0.45], [-0.15, 0.44, -0.35], [-0.05, 0.52, -0.34], [0.05, 0.46, -0.36], [0.15, 0.54, -0.35]]
-        .map(([x, h, z]) => boxAt(0.075, h, 0.075, x, 1.75 + h / 2, z))), std(0xffd23f, 0.7)],
+      [painted(
+        [0xe2a85a, new THREE.SphereGeometry(0.31, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.72, 1).translate(0, 1.675, -0.4)],
+        [0xfff3d0, ...[[0, 0], [0.9, 0.5], [2.2, 0.55], [3.5, 0.5], [4.8, 0.55], [5.6, 0.95], [1.6, 1.0], [3.0, 1.05]].map(([turn, down]) =>
+          blob(0.026, 1.5, 0.5, 0.8, 0, 0, 0, 0).rotateY(-turn).translate(Math.cos(turn) * Math.sin(down) * 0.3, 1.675 + Math.cos(down) * 0.31 * 0.72, -0.4 + Math.sin(turn) * Math.sin(down) * 0.3))],
+      ), PAINT_MAT],
     ]),
   ],
   // drinkkraam: een blauw zeil en een grote gestreepte beker met rietje erop
@@ -1994,10 +2001,11 @@ const FOOD_GEOS: Record<FoodId, THREE.BufferGeometry> = {
     [0xd9a441, blob(0.035, 0.9, 0.9, 1.9, -0.04, 0.005, 0.1, 0), blob(0.035, 0.9, 0.9, 1.9, 0.04, 0.005, 0.1, 0), blob(0.035, 0.9, 0.9, 1.9, 0, 0.03, 0.12, 0)],
     [0xb5562b, along(new THREE.CylinderGeometry(0.043, 0.043, 0.03, 6), 0, 0, -0.07)],
   ),
-  // een stuk vlees aan een bot
+  // een lap vlees met een vetrandje en een rond botje (net als het plaatje)
   meat: painted(
-    [0xc9553f, blob(0.075, 1, 0.82, 1.3, 0, 0, -0.04)],
-    [0xf7f4ec, rod(0.02, [0, 0, 0.04], [0, 0, 0.17], 6), dot(0.028, -0.022, 0, 0.18), dot(0.028, 0.022, 0, 0.18)],
+    [0xf4d9c6, blob(0.085, 1, 0.42, 1.5, 0, -0.012, 0)],
+    [0xc9553f, blob(0.074, 1, 0.5, 1.5, 0, 0, 0)],
+    [0xf4ead8, blob(0.026, 1, 0.5, 1, -0.012, 0.03, -0.045, 0)],
   ),
   // een takje met blaadjes
   leaves: painted(

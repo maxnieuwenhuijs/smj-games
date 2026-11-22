@@ -85,20 +85,25 @@ const ICONS = {
   grain:
     '<path d="M12 16 Q24 22 36 16 L40 38 Q24 46 8 38Z" fill="#e3c88f"/><path d="M14 12 Q24 6 34 12 Q24 20 14 12Z" fill="#cfae6e"/>' +
     '<path d="M24 23 V37 M24 27 l-5 -4 M24 27 l5 -4 M24 32 l-5 -4 M24 32 l5 -4" fill="none" stroke="#b08a45" stroke-width="2.5" stroke-linecap="round"/>',
+  // een lap vlees met een vetrandje en een rond botje erin (het oude plaatje, een bol met een steel, leek op een paddenstoel)
   meat:
-    '<path d="M29 29 L39 39" stroke="#f4ead8" stroke-width="6" stroke-linecap="round"/><circle cx="40" cy="36" r="4" fill="#f4ead8"/><circle cx="36" cy="40" r="4" fill="#f4ead8"/>' +
-    '<ellipse cx="20" cy="20" rx="15" ry="12" fill="#c9553f" transform="rotate(-35 20 20)"/><ellipse cx="16" cy="16" rx="6" ry="3.5" fill="#e0806a" transform="rotate(-35 16 16)"/>',
+    '<path d="M10 14 Q20 4 34 9 Q46 14 42 28 Q39 42 24 42 Q8 42 6 28 Q5 19 10 14Z" fill="#f4d9c6"/><path d="M12.5 16.5 Q21 8.5 33 12.5 Q42 17 39 28 Q36.5 38.5 24 38.5 Q11 38.5 9.5 28 Q9 21 12.5 16.5Z" fill="#c9553f"/>' +
+    '<circle cx="19" cy="21" r="5.5" fill="#f4ead8"/><circle cx="19" cy="21" r="2.2" fill="#d9a08c"/><path d="M27 26 q5 -3.5 9 -0.5 M21 32.5 q6 -2.5 10 1" fill="none" stroke="#e58f7c" stroke-width="2.4" stroke-linecap="round"/>',
   leaves:
     `<path d="M8 41 Q24 30 41 8" fill="none" stroke="${WOOD_D}" stroke-width="3" stroke-linecap="round"/>` +
     `<g fill="${GRASS_D}"><ellipse cx="14" cy="28" rx="8" ry="4.5" transform="rotate(-60 14 28)"/><ellipse cx="27" cy="33" rx="8" ry="4.5" transform="rotate(15 27 33)"/><ellipse cx="24" cy="17" rx="8" ry="4.5" transform="rotate(-65 24 17)"/><ellipse cx="37" cy="21" rx="8" ry="4.5" transform="rotate(10 37 21)"/></g>`,
   coin: `<circle cx="24" cy="24" r="19" fill="${SUN}" stroke="${SUN_D}" stroke-width="4"/><circle cx="24" cy="24" r="10" fill="none" stroke="${SUN_D}" stroke-width="2.5"/>`,
   guest: `<path d="M6 45 Q6 29 24 29 Q42 29 42 45Z" fill="#4a90e2"/><circle cx="24" cy="17" r="11" fill="${SKIN}"/><path d="M13 15 Q24 1 35 15 Q24 10 13 15Z" fill="#7a4a22"/><circle cx="20" cy="18" r="1.8" fill="${INK}"/><circle cx="28" cy="18" r="1.8" fill="${INK}"/>`,
+  // een hamburger: wat je bij de eetkraam haalt (dezelfde als op het dak van de kraam)
   foodstall:
-    `<rect x="8" y="24" width="32" height="18" rx="2" fill="${WOOD}"/><path d="M4 10 H44 L46 23 H2Z" fill="#fff"/><path d="M4 10 H12 L10.5 23 H2Z M20 10 H28 L28.5 23 H19.5Z M36 10 H44 L46 23 H37.5Z" fill="${RED}"/>` +
-    `<path d="M17 36 Q24 26 31 36Z" fill="#e9a23b"/><rect x="16" y="36" width="16" height="3" rx="1.5" fill="#7a4a22"/>`,
+    '<path d="M7 22 Q7 7 24 7 Q41 7 41 22Z" fill="#e9a23b"/><g fill="#fff3d0"><ellipse cx="16" cy="13" rx="1.8" ry="1.1"/><ellipse cx="24" cy="10.5" rx="1.8" ry="1.1"/><ellipse cx="32" cy="13" rx="1.8" ry="1.1"/><ellipse cx="20" cy="17" rx="1.8" ry="1.1"/><ellipse cx="29" cy="17.5" rx="1.8" ry="1.1"/></g>' +
+    `<path d="M4 25 Q8 20.5 12 24 T20 24 T28 24 T36 24 T44 25 V28 H4Z" fill="${GREEN}"/><rect x="6" y="27" width="36" height="4" fill="${RED}"/>` +
+    `<path d="M4 30 H44 L37 36 L31 30.5Z" fill="${SUN}"/><rect x="5" y="31" width="38" height="7.5" rx="3.7" fill="#7a4a22"/><path d="M7 39 H41 Q41 45.5 35 45.5 H13 Q7 45.5 7 39Z" fill="#e9a23b"/>`,
+  // een beker met een deksel en een rietje: wat je bij de drinkkraam haalt
   drinkstall:
-    `<rect x="8" y="24" width="32" height="18" rx="2" fill="${WOOD}"/><path d="M4 10 H44 L46 23 H2Z" fill="#fff"/><path d="M4 10 H12 L10.5 23 H2Z M20 10 H28 L28.5 23 H19.5Z M36 10 H44 L46 23 H37.5Z" fill="#4a90e2"/>` +
-    '<path d="M19 28 H29 L27.5 40 H20.5Z" fill="#cfeaff"/><path d="M26 28 L29 22" stroke="#e0584f" stroke-width="2" stroke-linecap="round"/>',
+    '<path d="M12 17 H36 L33 45 H15Z" fill="#fff" stroke="#9fb8c9" stroke-width="2"/>' +
+    `<path d="M17.5 18 H22.5 L22 44 H18.5Z M26 18 H31 L29.6 44 H26.4Z" fill="${RED}"/><rect x="9" y="12" width="30" height="6" rx="2.5" fill="#4a90e2"/>` +
+    `<path d="M25 12 L28 3 H35" fill="none" stroke="${RED}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`,
   bench:
     `<g fill="${WOOD_D}"><rect x="9" y="18" width="5" height="24" rx="1.5"/><rect x="34" y="18" width="5" height="24" rx="1.5"/></g><rect x="5" y="26" width="38" height="6" rx="2" fill="${WOOD}"/><rect x="5" y="12" width="38" height="9" rx="2" fill="${WOOD}"/>`,
   born: `${HEART}<g transform="translate(25 25) scale(.46)"><circle cx="24" cy="24" r="22" fill="#6cc04a" stroke="#fff" stroke-width="4"/><path d="M24 13 V35 M13 24 H35" stroke="#fff" stroke-width="6" stroke-linecap="round"/></g>`,
@@ -736,6 +741,14 @@ const ICONS = {
     `<path d="M29 22 q2 4 5 -2" fill="none" stroke="${GREY}" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="1.5 2.5"/>` +
     `<ellipse cx="35" cy="10.5" rx="3.4" ry="2.6" fill="#cfeaff" stroke="${GREY}" stroke-width="1" transform="rotate(-30 35 10.5)"/><ellipse cx="41" cy="10.5" rx="3.4" ry="2.6" fill="#cfeaff" stroke="${GREY}" stroke-width="1" transform="rotate(30 41 10.5)"/><ellipse cx="38" cy="15" rx="4" ry="3" fill="${INK}"/>`,
 } satisfies Record<string, string>;
+
+// Slaapplekken krijgen een zzz in de hoek: zo zie je dat de rots bij de slaapplekken iets anders is dan de rotsen
+// bij het speelgoed of de steen bij de natuur. Eerst een witte rand, dan de blauwe letters eroverheen.
+const ZZZ_PATH = 'M27 4 H35 L27 13 H35 M38 12 H44 L38 19 H44';
+const ZZZ =
+  `<path d="${ZZZ_PATH}" fill="none" stroke="#fff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>` +
+  `<path d="${ZZZ_PATH}" fill="none" stroke="#3d6fd6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+for (const bed of ['straw', 'shed', 'rock', 'shade', 'nest', 'cave', 'climb', 'coral'] as const) ICONS[bed] += ZZZ;
 
 export type IconId = keyof typeof ICONS;
 export const ICON_IDS = Object.keys(ICONS) as IconId[];
