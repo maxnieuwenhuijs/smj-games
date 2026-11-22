@@ -753,7 +753,7 @@ const PRESSING: Need[] = ['toilet', 'food', 'drink', 'umbrella', 'shelter', 'sit
  * daarna gebeurt het hem niet nog eens; `most` en `share`: zoveel gasten zijn hooguit tegelijk de weg kwijt (een vast
  * aantal, of in een vol park dit deel van alle gasten). `doubt` en `pause`: zo vaak en zo lang twijfelt de juf.
  */
-const STRAY = { chance: 0.07, time: [10, 15], fun: 0.04, rest: 70, most: 3, share: 0.06, doubt: 0.3, pause: [3, 5] };
+const STRAY = { chance: 0.03, time: [8, 12], fun: 0.02, rest: 120, most: 2, share: 0.04, doubt: 0.2, pause: [2, 4] };
 /** Zoveel gasten mogen er nu nog de weg kwijtraken: de GuestManager telt het elk beeldje opnieuw. */
 let strayRoom = 0;
 /** Waar een gast op de wc nu staat, welke kant hij op gaat en de plek voor zijn deur; elke keer opnieuw ingevuld door `wcPose`. */

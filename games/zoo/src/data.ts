@@ -418,14 +418,14 @@ export const DARK_FUN = 0.25;
  * De weg wijzen: een wegwijzer, een plattegrond en de poort laten gasten zien waar ze zijn, tot zoveel tegels ver
  * (hemelsbreed). Buiten het bereik van elk bord raakt een gast in een groot park weleens de weg kwijt.
  */
-export const WAYFIND = { signpost: 7, mapboard: 11, entrance: 9 };
+export const WAYFIND = { signpost: 10, mapboard: 16, entrance: 14 };
 /**
  * Zo ver kijkt een gast om zich heen als hij iets zoekt (een wc, eten, een bankje) en er geen wegwijzer of plattegrond
  * in de buurt staat. Staat hij binnen het bereik van een bord, dan weet hij de weg door het hele park.
  */
-export const SEEK_REACH = 14;
+export const SEEK_REACH = 24;
 /** Pas bij meer padtegels dan dit is een park groot genoeg om in te verdwalen. */
-export const WAYFIND_PATHS = 40;
+export const WAYFIND_PATHS = 80;
 export interface WaySign {
   gx: number;
   gy: number;
