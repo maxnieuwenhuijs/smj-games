@@ -201,8 +201,14 @@ interface PropObj {
 }
 /** Bij elk natuurding het plaatje van de knop; boom, den, palm en rots lenen dat van het park. */
 /** Het staande balkje naast een wens in het menu van het dier: hoe voller, hoe beter het gaat. */
-const meter = (level: number): string =>
-  `<i class="meter ${level >= 0.6 ? '' : level >= 0.3 ? 'mid' : 'low'}"><b style="height:${Math.round(Math.max(0, Math.min(1, level)) * 100)}%"></b></i>`;
+/**
+ * Het staande balkje naast een wens in het menu van het dier. Het heeft vier standen, zodat je het in één oogopslag
+ * ziet: slecht (rood, een kwart), matig (oranje, half), goed (lichtgroen, driekwart) en vol (groen).
+ */
+const meter = (level: number): string => {
+  const step = level >= 0.9 ? 3 : level >= 0.6 ? 2 : level >= 0.3 ? 1 : 0;
+  return `<i class="meter ${['low', 'mid', 'good', 'full'][step]}"><b style="height:${(step + 1) * 25}%"></b></i>`;
+};
 /** Het plaatje bij bomen, planten en stenen in de wens van een dier. */
 const WILD_ICON: Record<WildKind, IconId> = { tree: 'tree', plant: 'tuft', stone: 'stone' };
 const PROP_ICON: Record<PropKind, IconId> = { tuft: 'tuft', daisies: 'daisies', fern: 'fern', shrub: 'shrub', pebbles: 'pebbles', stone: 'stone', oak: 'tree', fir: 'pine', coco: 'palm', crag: 'boulder' };
@@ -3066,8 +3072,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   /**
-   * Natuur in het menu van het dier: een vakje voor bomen, planten en stenen. Eronder staat hoeveel er nu staan en
-   * hoeveel het dier er wil, bijvoorbeeld '0 · 1-5': nu geen, het wil er minstens één en hooguit vijf.
+   * Natuur in het menu van het dier: een vakje voor bomen, planten en stenen, elk met een balkje dat laat zien of
+   * het er genoeg zijn (geen getallen: hoeveel er nog bij of af moeten, staat in het wolkje boven het dier).
    */
   private wildChips(a: Animal): string {
     const region = this.grid.regions[this.grid.regionOf[a.tile]];
@@ -3076,9 +3082,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!want || !have.land) return '';
     return WILD_KINDS.filter(kind => want[kind][0] > 0 || have[kind] > 0 || a.wildAsk?.kind === kind).map(kind => {
       const [min, max] = want[kind], ok = have[kind] >= min && have[kind] <= max;
-      // het balkje: vol als het klopt; te weinig of te veel maakt het leger
-      const level = ok ? 1 : have[kind] < min ? have[kind] / min : max / have[kind];
-      return `<span class="wish wild ${ok ? 'ok' : 'no'}">${icon(WILD_ICON[kind])}<i class="range">${have[kind]} · ${min}-${max}</i>${meter(ok ? 1 : Math.min(0.7, level))}</span>`;
+      // het balkje: vol als het ruim klopt, goed als het net klopt (op het randje), matig als het bijna klopt
+      // (er staat al iets, of er staat er één te veel) en slecht als er niets staat of veel te veel
+      const n = have[kind];
+      const level = ok ? (n > min && n < max ? 1 : 0.75) : n < min ? (n > 0 ? 0.5 : 0.1) : n - max <= 1 ? 0.5 : 0.1;
+      return `<span class="wish wild ${ok ? 'ok' : 'no'}">${icon(WILD_ICON[kind])}${meter(level)}</span>`;
     }).join('');
   }
 
