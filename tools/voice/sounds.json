@@ -1037,6 +1037,236 @@
       "seconds": 1.5,
       "influence": 0.4,
       "prompt": "Soft underwater bubbles and a gentle flapping swish, like a ray gliding by. Calm, cartoon, clean recording."
+    },
+    {
+      "id": "guest.slurp",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A child slurping a drink through a straw, one short happy slurp. Cute, soft, clean recording with no background noise."
+    },
+    {
+      "id": "guest.bite",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "One crunchy bite of a crispy snack followed by a little soft munching. Short, soft, clean recording with no background noise."
+    },
+    {
+      "id": "guest.aah",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "prompts": [
+        "A child's happy, satisfied 'aah' after eating something tasty. No words, no speech. Short, soft, clean recording with no background noise.",
+        "An adult's contented 'aah' sigh after a good meal. No words, no speech. Short, soft, clean recording with no background noise."
+      ]
+    },
+    {
+      "id": "guest.shh",
+      "seconds": 0.8,
+      "influence": 0.5,
+      "prompts": [
+        "A child whispering one gentle 'shh' to keep quiet near a sleeping animal. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A woman's soft, gentle 'shhh' asking for quiet. No words, no speech. Short, soft, clean recording with no background noise."
+      ]
+    },
+    {
+      "id": "guest.yuck",
+      "seconds": 0.9,
+      "influence": 0.5,
+      "prompts": [
+        "A child's playful 'eww' with a pinched nose, nasal and funny. No words, no speech. Short, soft, clean recording with no background noise.",
+        "An adult's short amused 'ugh' at a bad smell, with a pinched nose, nasal and funny. No words, no speech. Short, soft, clean recording with no background noise."
+      ]
+    },
+    {
+      "id": "guest.aww",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "prompts": [
+        "A small child's soft, sad 'ohh' of disappointment, gentle, not crying. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A woman's soft, sympathetic 'aww'. No words, no speech. Short, soft, clean recording with no background noise."
+      ]
+    },
+    {
+      "id": "guest.yawn",
+      "seconds": 1.5,
+      "influence": 0.5,
+      "prompts": [
+        "A sleepy child's big soft yawn. No words, no speech. Short, soft, clean recording with no background noise.",
+        "An adult's soft sleepy yawn. No words, no speech. Short, soft, clean recording with no background noise."
+      ]
+    },
+    {
+      "id": "guest.sigh",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "prompts": [
+        "An adult's soft bored sigh while waiting in a queue. No words, no speech. Short, soft, clean recording with no background noise.",
+        "A woman's quiet, patient little sigh. No words, no speech. Short, soft, clean recording with no background noise."
+      ]
+    },
+    {
+      "id": "guest.phew",
+      "seconds": 1.0,
+      "influence": 0.5,
+      "prompts": [
+        "A child's relieved 'phew', a happy breath out. No words, no speech. Short, soft, clean recording with no background noise.",
+        "An adult's relieved 'phew' sigh. No words, no speech. Short, soft, clean recording with no background noise."
+      ]
+    },
+    {
+      "id": "guest.dizzy",
+      "seconds": 1.2,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A child's wobbly, giggly 'woooah' after spinning around, dizzy and happy. No words, no speech. Short, soft, clean recording with no background noise."
+    },
+    {
+      "id": "guest.five",
+      "seconds": 0.5,
+      "variants": 2,
+      "prompt": "A single soft high-five: two small hands clapping together once. Short, dry, clean."
+    },
+    {
+      "id": "guest.sniff",
+      "seconds": 1.2,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "Two short sniffs at a flower followed by a soft, pleased 'mmm'. No words, no speech. Short, soft, clean recording with no background noise."
+    },
+    {
+      "id": "guest.echo",
+      "seconds": 1.5,
+      "influence": 0.5,
+      "variants": 2,
+      "prompt": "A child calling a playful wordless 'oo-oo' down a deep stone well, and a soft echo answering. No words, no speech. Short, soft, clean recording with no background noise."
+    },
+    {
+      "id": "guest.whee",
+      "seconds": 1.2,
+      "influence": 0.5,
+      "variants": 3,
+      "prompt": "A small child's joyful 'wheee' while going down a slide. No words, no speech. Short, soft, clean recording with no background noise."
+    },
+    {
+      "id": "park.scribble",
+      "seconds": 1.2,
+      "variants": 2,
+      "prompt": "A pencil scribbling a quick little drawing on paper, a few short strokes. Soft, dry, clean."
+    },
+    {
+      "id": "park.splash",
+      "seconds": 0.8,
+      "variants": 3,
+      "prompt": "A small playful splash of water, like a child's hand patting the surface of a fountain. Short, soft, clean recording with no background noise."
+    },
+    {
+      "id": "park.coinplop",
+      "seconds": 0.7,
+      "variants": 2,
+      "prompt": "A small coin dropping into a fountain with one tiny bright plop. Short, clean."
+    },
+    {
+      "id": "park.pump",
+      "seconds": 1.5,
+      "variants": 2,
+      "prompt": "An old hand water pump: one squeaky pull of the handle and a short gush of water. Soft, friendly, clean recording with no background noise."
+    },
+    {
+      "id": "park.fire",
+      "seconds": 1.5,
+      "variants": 2,
+      "prompt": "A small cosy campfire crackling softly, with a few gentle pops. Warm and calm, no background noise."
+    },
+    {
+      "id": "park.bin",
+      "seconds": 0.9,
+      "variants": 2,
+      "prompt": "A crumpled paper wrapper dropped into a litter bin: a short rustle, a soft thud and the lid flapping shut. Short, dry, cartoon."
+    },
+    {
+      "id": "park.brolly",
+      "seconds": 1.0,
+      "variants": 2,
+      "prompt": "A wet umbrella being shaken out: two quick soft flaps of fabric and a few drops. Short, soft, clean."
+    },
+    {
+      "id": "ride.boing",
+      "seconds": 0.6,
+      "variants": 3,
+      "prompt": "A soft springy trampoline bounce, a gentle cartoon 'boing'. Short and friendly."
+    },
+    {
+      "id": "ride.creak",
+      "seconds": 1.0,
+      "variants": 2,
+      "prompt": "A wooden playground seesaw creaking gently once as it tips over. Short, soft, clean."
+    },
+    {
+      "id": "ride.bump",
+      "seconds": 0.7,
+      "variants": 3,
+      "prompt": "Two toy bumper cars bumping softly: one dull rubber thud with a tiny rattle. Short, friendly, not harsh."
+    },
+    {
+      "id": "animal.spray",
+      "seconds": 1.5,
+      "influence": 0.4,
+      "variants": 2,
+      "prompt": "An elephant spraying a shower of water from its trunk: a soft whoosh and droplets pattering down. Friendly, cartoon, clean recording with no background noise."
+    },
+    {
+      "id": "animal.clap",
+      "seconds": 1.2,
+      "influence": 0.4,
+      "variants": 2,
+      "prompt": "A seal clapping its wet flippers together a few times. Playful, soft, clean recording with no background noise."
+    },
+    {
+      "id": "animal.slide",
+      "seconds": 1.0,
+      "influence": 0.4,
+      "variants": 2,
+      "prompt": "A penguin sliding on its belly over smooth ice: one short soft swoosh. Cute, cartoon, clean recording with no background noise."
+    },
+    {
+      "id": "animal.splash",
+      "seconds": 1.2,
+      "influence": 0.4,
+      "variants": 2,
+      "prompt": "A dolphin landing back in the water after a jump: one big, round, friendly splash. Clean recording with no background noise."
+    },
+    {
+      "id": "animal.stomp",
+      "seconds": 1.2,
+      "influence": 0.4,
+      "variants": 2,
+      "prompt": "A big farm animal stomping its hooves on soft ground, three dull thuds. Friendly, not scary, clean recording with no background noise."
+    },
+    {
+      "id": "animal.fan",
+      "seconds": 1.5,
+      "influence": 0.4,
+      "variants": 2,
+      "prompt": "A peacock spreading its tail and shaking it proudly: a soft rustle and shimmer of feathers. Clean recording with no background noise."
+    },
+    {
+      "id": "road.bell",
+      "seconds": 0.8,
+      "variants": 2,
+      "prompt": "A bicycle bell ringing twice, 'ring ring'. Bright, friendly, clean recording with no background noise."
+    },
+    {
+      "id": "road.car",
+      "seconds": 2.0,
+      "variants": 2,
+      "prompt": "A small car driving past on a quiet street: one soft, gentle whoosh passing by. Calm, no horn, no engine roar."
+    },
+    {
+      "id": "road.busdoor",
+      "seconds": 1.2,
+      "prompt": "A bus door opening with a short, soft hiss of air. Gentle, clean recording with no background noise."
     }
   ]
 }

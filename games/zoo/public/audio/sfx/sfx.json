@@ -66,6 +66,10 @@
   "animal.chicken-2-262539.mp3",
   "animal.chicken-3-262539.mp3"
  ],
+ "animal.clap": [
+  "animal.clap-1-0520be.mp3",
+  "animal.clap-2-0520be.mp3"
+ ],
  "animal.cow": [
   "animal.cow-1-d1a31b.mp3",
   "animal.cow-2-d1a31b.mp3",
@@ -93,6 +97,10 @@
   "animal.elephant-1-3be60a.mp3",
   "animal.elephant-2-3be60a.mp3",
   "animal.elephant-3-3be60a.mp3"
+ ],
+ "animal.fan": [
+  "animal.fan-1-560896.mp3",
+  "animal.fan-2-560896.mp3"
  ],
  "animal.flamingo": [
   "animal.flamingo-1-b5cd9d.mp3",
@@ -248,10 +256,26 @@
   "animal.sheep-2-52d43d.mp3",
   "animal.sheep-3-52d43d.mp3"
  ],
+ "animal.slide": [
+  "animal.slide-1-4ce1fd.mp3",
+  "animal.slide-2-4ce1fd.mp3"
+ ],
  "animal.sloth": [
   "animal.sloth-1-36c62e.mp3",
   "animal.sloth-2-36c62e.mp3",
   "animal.sloth-3-36c62e.mp3"
+ ],
+ "animal.splash": [
+  "animal.splash-1-09003d.mp3",
+  "animal.splash-2-09003d.mp3"
+ ],
+ "animal.spray": [
+  "animal.spray-1-0be782.mp3",
+  "animal.spray-2-0be782.mp3"
+ ],
+ "animal.stomp": [
+  "animal.stomp-1-1c790c.mp3",
+  "animal.stomp-2-1c790c.mp3"
  ],
  "animal.tiger": [
   "animal.tiger-1-6d6ecc.mp3",
@@ -329,6 +353,18 @@
   "flush-2-5c0550.mp3",
   "flush-3-5c0550.mp3"
  ],
+ "guest.aah": [
+  "guest.aah-1-ce0580.mp3",
+  "guest.aah-2-08395a.mp3"
+ ],
+ "guest.aww": [
+  "guest.aww-1-5d7ce5.mp3",
+  "guest.aww-2-7c9f8f.mp3"
+ ],
+ "guest.bite": [
+  "guest.bite-1-e2371b.mp3",
+  "guest.bite-2-e2371b.mp3"
+ ],
  "guest.chat": [
   "guest.chat-1-4d618e.mp3",
   "guest.chat-2-c829ac.mp3",
@@ -338,6 +374,18 @@
   "guest.chat-6-a5b626.mp3",
   "guest.chat-7-e25a82.mp3",
   "guest.chat-8-bfc4a1.mp3"
+ ],
+ "guest.dizzy": [
+  "guest.dizzy-1-7ec58d.mp3",
+  "guest.dizzy-2-7ec58d.mp3"
+ ],
+ "guest.echo": [
+  "guest.echo-1-d06a45.mp3",
+  "guest.echo-2-d06a45.mp3"
+ ],
+ "guest.five": [
+  "guest.five-1-09e3bc.mp3",
+  "guest.five-2-09e3bc.mp3"
  ],
  "guest.grumble": [
   "guest.grumble-1-5186cd.mp3",
@@ -379,9 +427,42 @@
   "guest.laugh-5-f90c31.mp3",
   "guest.laugh-6-f90c31.mp3"
  ],
+ "guest.phew": [
+  "guest.phew-1-4d57c7.mp3",
+  "guest.phew-2-238a71.mp3"
+ ],
+ "guest.shh": [
+  "guest.shh-1-e0cd6d.mp3",
+  "guest.shh-2-5038e5.mp3"
+ ],
+ "guest.sigh": [
+  "guest.sigh-1-5c1240.mp3",
+  "guest.sigh-2-f3177f.mp3"
+ ],
+ "guest.slurp": [
+  "guest.slurp-1-1aaf6f.mp3",
+  "guest.slurp-2-1aaf6f.mp3"
+ ],
+ "guest.sniff": [
+  "guest.sniff-1-4b8c69.mp3",
+  "guest.sniff-2-4b8c69.mp3"
+ ],
  "guest.uhoh": [
   "guest.uhoh-1-9fd16b.mp3",
   "guest.uhoh-2-9fd16b.mp3"
+ ],
+ "guest.whee": [
+  "guest.whee-1-4123a2.mp3",
+  "guest.whee-2-4123a2.mp3",
+  "guest.whee-3-4123a2.mp3"
+ ],
+ "guest.yawn": [
+  "guest.yawn-1-1e2b79.mp3",
+  "guest.yawn-2-860243.mp3"
+ ],
+ "guest.yuck": [
+  "guest.yuck-1-4a20f8.mp3",
+  "guest.yuck-2-0eed8c.mp3"
  ],
  "guest.yum": [
   "guest.yum-1-dcfd9a.mp3",
@@ -404,6 +485,35 @@
  "paint": [
   "paint-1-b35234.mp3"
  ],
+ "park.bin": [
+  "park.bin-1-055863.mp3",
+  "park.bin-2-055863.mp3"
+ ],
+ "park.brolly": [
+  "park.brolly-1-a56085.mp3",
+  "park.brolly-2-a56085.mp3"
+ ],
+ "park.coinplop": [
+  "park.coinplop-1-d0f7a6.mp3",
+  "park.coinplop-2-d0f7a6.mp3"
+ ],
+ "park.fire": [
+  "park.fire-1-728844.mp3",
+  "park.fire-2-728844.mp3"
+ ],
+ "park.pump": [
+  "park.pump-1-d961b0.mp3",
+  "park.pump-2-d961b0.mp3"
+ ],
+ "park.scribble": [
+  "park.scribble-1-18d65b.mp3",
+  "park.scribble-2-18d65b.mp3"
+ ],
+ "park.splash": [
+  "park.splash-1-830756.mp3",
+  "park.splash-2-830756.mp3",
+  "park.splash-3-830756.mp3"
+ ],
  "party": [
   "party-1-4b7d92.mp3"
  ],
@@ -421,6 +531,31 @@
  ],
  "pour": [
   "pour-1-b9eb8e.mp3"
+ ],
+ "ride.boing": [
+  "ride.boing-1-25cdb8.mp3",
+  "ride.boing-2-25cdb8.mp3",
+  "ride.boing-3-25cdb8.mp3"
+ ],
+ "ride.bump": [
+  "ride.bump-1-0ed647.mp3",
+  "ride.bump-2-0ed647.mp3",
+  "ride.bump-3-0ed647.mp3"
+ ],
+ "ride.creak": [
+  "ride.creak-1-35ca0f.mp3",
+  "ride.creak-2-35ca0f.mp3"
+ ],
+ "road.bell": [
+  "road.bell-1-1f618b.mp3",
+  "road.bell-2-1f618b.mp3"
+ ],
+ "road.busdoor": [
+  "road.busdoor-1-21cfb2.mp3"
+ ],
+ "road.car": [
+  "road.car-1-388c86.mp3",
+  "road.car-2-388c86.mp3"
  ],
  "rooster": [
   "rooster-1-0444a8.mp3"
