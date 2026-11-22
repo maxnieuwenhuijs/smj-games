@@ -162,6 +162,11 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
   transform: translateX(-50%) rotate(45deg); border-radius: 2px;
 }
 .bubble .ic { position: relative; z-index: 1; }
+/* het kleine plaatje van de knop Natuur bij een boom of steen: zo weet je waar je hem vindt */
+.bubble .from, .wish .from { position: absolute; left: -6px; bottom: -6px; width: 18px; height: 18px; border-radius: 50%; background: #fff; display: grid; place-items: center; box-shadow: 0 1px 0 rgba(0, 0, 0, 0.22); }
+.bubble .from .ic, .wish .from .ic { width: 13px; height: 13px; font-size: 13px; }
+#menu .needs .wish .from { left: -5px; bottom: -5px; width: 22px; height: 22px; }
+#menu .needs .wish .from .ic { width: 16px; height: 16px; font-size: 16px; }
 .bubble .count, .wish .count { position: absolute; right: -8px; bottom: -6px; min-width: 20px; padding: 0 3px; border-radius: 10px; background: #4a90e2; color: #fff; font: 800 12px/18px system-ui, sans-serif; font-style: normal; text-align: center; }
 /* grond te koop: een wit kaartje met de prijs, waar je op kunt tikken */
 .bubble.forsale { display: flex; align-items: center; gap: 4px; width: auto; padding: 0 12px; pointer-events: auto; cursor: pointer; font: 800 20px system-ui, sans-serif; color: var(--ink); }

@@ -221,6 +221,11 @@ const meter = (level: number): string => {
 };
 /** Het plaatje bij bomen, planten en stenen in de wens van een dier. */
 const WILD_ICON: Record<WildKind, IconId> = { tree: 'tree', plant: 'tuft', stone: 'stone' };
+/**
+ * Het plaatje van een natuurwens. Bij de boom en de steen staat er klein het plaatje van de knop Natuur bij, zodat
+ * je weet waar je hem vindt: een boom staat ook bij Park, en een rots ook bij Speelgoed en Slaapplek.
+ */
+const wildIcon = (kind: WildKind): string => icon(WILD_ICON[kind]) + (kind === 'plant' ? '' : `<i class="from">${icon('tuft')}</i>`);
 const PROP_ICON: Record<PropKind, IconId> = { tuft: 'tuft', daisies: 'daisies', fern: 'fern', shrub: 'shrub', pebbles: 'pebbles', stone: 'stone', oak: 'tree', fir: 'pine', coco: 'palm', crag: 'boulder',
   // het kleine spul voor het park heeft een plaatje met dezelfde naam
   pot: 'pot', gnome: 'gnome', pinwheel: 'pinwheel', ducky: 'ducky', balls: 'balls', birdhouse: 'birdhouse', can: 'can', bucket: 'bucket', snail: 'snail', crate: 'crate' };
@@ -2144,19 +2149,21 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!this.pay(PROP[kind].price, cx, cy)) return;
     const region = this.grid.enclosureAt(sx >> 1, sy >> 1);
     const here = region ? this.animalsIn(region.id) : [];
-    const before = here.map(a => a.wildAsk);
     this.props.push({ kind, sx, sy, rot: this.quarter });
     this.syncProps();
     sfx('place');
     this.floatAt(icon('sparkle'), cx, cy, 0.4);
-    // de dieren laten merken of het zo goed is: blij als ze hier juist om vroegen, sip als er nu te veel van staat
+    // elk dier laat met een smiley zien wat het ervan vindt: groen als het hier juist om vroeg, geel als het prima
+    // is maar niet nodig was, rood als er nu te veel van staat
     const wild = PROP[kind].wild;
-    here.forEach((a, i) => {
+    const have = region ? this.wildIn(region) : null;
+    for (const a of here) {
       a.checkWishes(this);
-      const was = before[i], now = a.wildAsk;
-      if (now && !now.more && now.kind === wild) this.react(a, 'bad');
-      else if (was?.more && was.kind === wild) this.react(a, 'good');
-    });
+      const want = wild && have && this.wantsWild() && !this.petRegions.has(region!.id) ? wildRange(a.species, have.land) : null;
+      if (!want || !wild || !have) continue;
+      const [min, max] = want[wild], n = have[wild];
+      this.react(a, n > max ? 'bad' : n - 1 < min ? 'good' : 'ok', true);
+    }
   }
 
   private removeProp(p: PropObj): void {
@@ -2843,11 +2850,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!region) return this.nope(x + 0.5, y + 0.5);
     const kind = this.option.trough as TroughKind;
     if (this.taken(x, y) || !this.pay(TROUGH[kind].price, x + 0.5, y + 0.5)) return;
+    // de eerste voerbak in een verblijf is precies wat de dieren nodig hebben (groen); een bak extra is prima (geel)
+    const first = !this.troughs.some(tr => this.grid.regionOf[tileIndex(tr.x, tr.y)] === region.id);
     this.addTrough(x, y, null, 0, kind, this.quarter);
     this.uncover(x, y);
     sfx('place');
     this.floatAt(icon('sparkle'), x + 0.5, y + 0.5);
-    for (const a of this.animalsIn(region.id)) this.react(a, 'good');
+    for (const a of this.animalsIn(region.id)) this.react(a, first ? 'good' : 'ok', true);
     this.backToHand();
   }
 
@@ -2872,7 +2881,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.uncover(x, y);
     sfx('place');
     this.floatAt(icon('sparkle'), x + 0.5, y + 0.5);
-    for (const a of this.animalsIn(region.id)) this.react(a, SPECIES[a.species].bed === kind ? 'good' : 'ok');
+    // de slaapplek waar het dier van houdt: groen; een andere: geel
+    for (const a of this.animalsIn(region.id)) this.react(a, SPECIES[a.species].bed === kind ? 'good' : 'ok', true);
     this.backToHand();
   }
 
@@ -2886,11 +2896,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.uncover(x, y);
     sfx('place');
     this.floatAt(icon('sparkle'), x + 0.5, y + 0.5);
-    // de dieren voor wie dit het lievelingsding is, zijn er meteen blij mee
+    // elk dier laat zien wat het ervan vindt: groen als dit zijn lievelingsding is (dan speelt het meteen), anders geel
     for (const a of this.animalsIn(region.id)) {
-      if (!likesToy(a.species, kind) && CLIMATE[a.species] !== kind) continue;
-      a.emote('Play', 2);
-      this.react(a, 'good');
+      const fav = likesToy(a.species, kind) || CLIMATE[a.species] === kind;
+      if (fav) a.emote('Play', 2);
+      this.react(a, fav ? 'good' : 'ok', true);
     }
     this.backToHand();
   }
@@ -3270,7 +3280,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // te weinig bomen, planten of stenen: erbij staat hoeveel er nog bij moeten; te veel: hoeveel eraf
       case 'wild': {
         const ask = a.wildAsk;
-        return icon(WILD_ICON[ask?.kind ?? 'plant']) + (ask ? `<i class="count">${ask.more ? '+' : '−'}${ask.by}</i>` : '');
+        return wildIcon(ask?.kind ?? 'plant') + (ask ? `<i class="count">${ask.more ? '+' : '−'}${ask.by}</i>` : '');
       }
       case 'space': return icon('grow');
       case 'terrain': return icon(a.missing ?? info.terrain);
@@ -3311,7 +3321,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // (er staat al iets, of er staat er één te veel) en slecht als er niets staat of veel te veel
       const n = have[kind];
       const level = ok ? (n > min && n < max ? 1 : 0.75) : n < min ? (n > 0 ? 0.5 : 0.1) : n - max <= 1 ? 0.5 : 0.1;
-      return `<span class="wish wild ${ok ? 'ok' : 'no'}">${icon(WILD_ICON[kind])}${meter(level)}</span>`;
+      return `<span class="wish wild ${ok ? 'ok' : 'no'}">${wildIcon(kind)}${meter(level)}</span>`;
     }).join('');
   }
 
