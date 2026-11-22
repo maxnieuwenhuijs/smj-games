@@ -512,6 +512,9 @@ const ICONS = {
     '<rect x="9" y="4" width="4" height="42" rx="2" fill="#9aa0a6"/><path d="M13 7 H40 L34 15 L40 23 H13Z" fill="#e0584f"/><rect x="13" y="13" width="23" height="4" fill="#ffd23f"/>',
   signpost:
     '<rect x="21" y="6" width="6" height="40" rx="2" fill="#a8743f"/><path d="M14 10 H38 L44 16 L38 22 H14Z" fill="#fff7e0" stroke="#8a857a" stroke-width="1.5"/><path d="M34 26 H10 L4 32 L10 38 H34Z" fill="#9fd8f5" stroke="#8a857a" stroke-width="1.5"/>',
+  // een vraagteken: boven een gast die de weg kwijt is
+  question:
+    '<path d="M14 17 Q14 6 24 6 Q34 6 34 16 Q34 22 28 25 Q24 27 24 32" fill="none" stroke="#4a90e2" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="24" cy="42" r="4" fill="#4a90e2"/>',
   boulder:
     '<path d="M5 40 L10 22 L22 14 L36 20 L43 40Z" fill="#8f949c"/><path d="M22 14 L26 28 L36 20" fill="none" stroke="#6f747c" stroke-width="2"/>',
   picnic:
@@ -802,6 +805,13 @@ const ICONS = {
     `<path d="M12 46 Q12 30 24 30 Q36 30 36 46Z" fill="${SUN}"/><circle cx="24" cy="19" r="9" fill="${SKIN}"/><path d="M15 18 Q15.5 8 24 8 Q32.5 8 33 18 Q24 13 15 18Z" fill="#e9a23b"/>` +
     `<g fill="${INK}"><circle cx="7.5" cy="25" r="1.2"/><circle cx="12.5" cy="25" r="1.2"/><circle cx="35.5" cy="25" r="1.2"/><circle cx="40.5" cy="25" r="1.2"/><circle cx="21" cy="20.5" r="1.5"/><circle cx="27" cy="20.5" r="1.5"/></g>` +
     `<path d="M21 24 Q24 26.5 27 24" fill="none" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/>`,
+  // de burgemeester: grijs haar, een snor en een gouden ketting om
+  mayor:
+    `<path d="M5 46 Q5 31 24 31 Q43 31 43 46Z" fill="#3d4f8a"/><path d="M13 33.5 Q24 46 35 33.5" fill="none" stroke="${SUN}" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="0.5 4.6"/>` +
+    `<circle cx="24" cy="41.5" r="4" fill="${SUN}" stroke="${SUN_D}" stroke-width="1.6"/><circle cx="24" cy="18.5" r="11.5" fill="${SKIN}"/>` +
+    '<path d="M12 18 Q12.5 5 24 5 Q35.5 5 36 18 Q31 10.5 24 11.5 Q17 10.5 12 18Z" fill="#c9cdd2"/>' +
+    `<circle cx="19.5" cy="18" r="1.8" fill="${INK}"/><circle cx="28.5" cy="18" r="1.8" fill="${INK}"/><path d="M17 23 Q20.5 20.5 24 22.5 Q27.5 20.5 31 23 Q27.5 25 24 23.8 Q20.5 25 17 23Z" fill="#c9cdd2"/>` +
+    `<path d="M20.5 26 Q24 28.5 27.5 26" fill="none" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/>`,
   celeb:
     `<path d="${STAR_PATH}" fill="${SUN}" stroke="${SUN_D}" stroke-width="2.5" stroke-linejoin="round"/>` +
     `<path d="M10 20.5 H38" stroke="${INK}" stroke-width="2"/><rect x="14" y="19.5" width="9" height="7.5" rx="3" fill="${INK}"/><rect x="25" y="19.5" width="9" height="7.5" rx="3" fill="${INK}"/>` +

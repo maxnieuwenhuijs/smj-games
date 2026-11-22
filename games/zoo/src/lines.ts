@@ -2,7 +2,7 @@
 // (tools/voice) vraagt hier de volledige lijst op, zodat elke zin ook ingesproken kan worden.
 // Geen DOM en geen Three.js in dit bestand: het draait ook buiten de browser.
 import { ALSO, CLIMATE, GOAL_OWNER, LEVELS, SEASONS, SPECIES, type FenceNeed, type Goal, type Season, type SpeciesId, type WishId, TOY_OF, SPACE, herdOf, SERVES } from './data';
-import { FIGURES, type FigureId, type Mood } from './figures';
+import { STAFF, TEACHERS, type FigureId, type Mood, type TeacherId } from './figures';
 
 export type Vars = Record<string, string | number>;
 export type Tr = (key: string, vars?: Vars) => string;
@@ -92,6 +92,35 @@ export const NAMED: Record<string, FigureId> = {
   'name.help.2': 'keeper',
 };
 
+/** De drie soorten zinnen bij een evenement: de vraag om hulp, goed afgelopen en niet gelukt. */
+export type EventPart = 'ask' | 'good' | 'bad';
+/**
+ * Wie er bij een evenement praat, en hoeveel verschillende zinnen er zijn voor de vraag (ask), voor goed afgelopen
+ * (good) en voor niet gelukt (bad). Het spel kiest er elke keer een andere uit. Staat er geen `who`, dan praat de juf
+ * of de meester van de klas. De teksten heten say.event.<id>.1, say.event.<id>.good.1, say.event.<id>.bad.1, ...
+ *   class.sum, class.count, class.draw, class.line, class.guide: wat de klas kan vragen
+ *   class.go: de klas laat zien welk dier ze zoekt; class: hoe het puzzeltje afliep; class.bye: de klas gaat naar huis
+ */
+export const EVENT_SAYS: Record<string, { who?: FigureId; ask: number; good: number; bad: number }> = {
+  'class.sum': { ask: 2, good: 0, bad: 0 },
+  'class.count': { ask: 2, good: 0, bad: 0 },
+  'class.draw': { ask: 2, good: 0, bad: 0 },
+  'class.line': { ask: 2, good: 0, bad: 0 },
+  'class.guide': { ask: 2, good: 2, bad: 0 },
+  'class.go': { ask: 1, good: 0, bad: 0 },
+  class: { ask: 0, good: 3, bad: 2 },
+  'class.bye': { ask: 0, good: 3, bad: 2 },
+  party: { who: 'host', ask: 2, good: 2, bad: 2 },
+  celeb: { who: 'host', ask: 2, good: 2, bad: 2 },
+  delivery: { who: 'host', ask: 2, good: 2, bad: 2 },
+  photo: { who: 'host', ask: 2, good: 2, bad: 2 },
+  build: { who: 'builder', ask: 2, good: 2, bad: 2 },
+  bedtime: { who: 'keeper', ask: 2, good: 2, bad: 2 },
+  crates: { who: 'keeper', ask: 2, good: 2, bad: 2 },
+  till: { who: 'cashier', ask: 2, good: 2, bad: 2 },
+  mayor: { who: 'director', ask: 2, good: 2, bad: 2 },
+};
+
 export const say = {
   praise: (i: number): Line => ({ who: PRAISE[i % PRAISE.length], mood: 'happy', key: `praise.${(i % PRAISE.length) + 1}` }),
   named: (key: string, name: string): Line => ({ who: NAMED[key], mood: key.includes('help') ? 'urgent' : 'happy', key, vars: { name } }),
@@ -124,7 +153,7 @@ export const say = {
   staffHow: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.staff.how' }),
   broken: (): Line => ({ who: 'builder', mood: 'worried', key: 'alert.broken' }),
   funNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.fun.new' }),
-  host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident' | 'nopath' | 'dark' | 'rain' | 'wide', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
+  host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident' | 'nopath' | 'dark' | 'astray' | 'rain' | 'wide', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
   busy: (kind: string): Line => ({ who: 'host', mood: 'worried', key: `host.busy.${kind}` }),
   cash: (key: 'short' | 'full' | 'wage'): Line => ({ who: 'cashier', mood: key === 'full' ? 'happy' : 'worried', key: `cash.${key}` }),
   hiredAs: (role: 'feed' | 'clean' | 'fix' | 'vet' | 'guide' | 'photo'): Line => ({ who: 'keeper', mood: 'happy', key: `say.hired.${role}` }),
@@ -138,16 +167,16 @@ export const say = {
   season: (season: Season): Line => ({ who: 'director', mood: 'happy', key: `say.season.${season}` }),
   rain: (): Line => ({ who: 'host', mood: 'worried', key: 'say.rain' }),
   rainbow: (): Line => ({ who: 'director', mood: 'happy', key: 'say.rainbow' }),
-  visit: (): Line => ({ who: 'host', mood: 'happy', key: 'say.class' }),
-  party: (): Line => ({ who: 'host', mood: 'happy', key: 'say.party' }),
-  celeb: (): Line => ({ who: 'host', mood: 'happy', key: 'say.celeb' }),
   celebHappy: (): Line => ({ who: 'host', mood: 'happy', key: 'say.celeb.happy' }),
   lost: (): Line => ({ who: 'host', mood: 'urgent', key: 'say.lost' }),
-  // evenementen: de uitleg bij het eerste kaartje, de vraag om hulp, en hoe het afliep (goed of niet)
+  // evenementen: de uitleg bij het eerste kaartje, en per evenement de vraag om hulp en hoe het afliep (goed of niet)
   eventNew: (): Line => ({ who: 'host', mood: 'happy', key: 'say.event.new' }),
-  event: (kind: string): Line => ({ who: 'host', mood: 'happy', key: `say.event.${kind}` }),
-  eventEnd: (kind: string, good: boolean): Line => ({ who: 'host', mood: good ? 'happy' : 'worried', key: `say.event.${kind}.${good ? 'good' : 'bad'}` }),
-  classBye: (good: boolean): Line => ({ who: 'host', mood: good ? 'happy' : 'worried', key: `say.class.bye.${good ? 'good' : 'bad'}` }),
+  /** Zin nummer `n` (vanaf 0) van een evenement uit EVENT_SAYS. `teacher`: wie er praat als het de klas is. */
+  event: (id: string, part: EventPart, n: number, teacher: TeacherId = 'teacher'): Line => ({
+    who: EVENT_SAYS[id].who ?? teacher,
+    mood: part === 'bad' ? 'worried' : 'happy',
+    key: `say.event.${id}${part === 'ask' ? '' : `.${part}`}.${n + 1}`,
+  }),
   found: (): Line => ({ who: 'host', mood: 'happy', key: 'say.found' }),
   trainOne: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.train.one' }),
   trainGo: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.train.go' }),
@@ -184,7 +213,7 @@ export function namedLines(tr: Tr, name: string): { who: FigureId; text: string 
     return { who: line.who, text: textOf(tr, line) };
   });
   // elk figuur kan de speler ook alleen bij zijn naam roepen, vlak voor een gewone melding: "Senna, ..."
-  return [...lines, ...FIGURES.map(who => ({ who, text: callText(tr, name) }))];
+  return [...lines, ...STAFF.map(who => ({ who, text: callText(tr, name) }))];
 }
 
 /** De aanroep vóór een melding: alleen de naam. */
@@ -257,14 +286,17 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   CHEERS.forEach((_, i) => add(say.cheer(i)));
   add(say.tipKeeper());
   add(say.tapAnimal());
-  for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter', 'product', 'new', 'accident', 'nopath', 'dark', 'rain', 'wide'] as const) add(say.host(key));
+  for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter', 'product', 'new', 'accident', 'nopath', 'dark', 'astray', 'rain', 'wide'] as const) add(say.host(key));
   for (const season of SEASONS) add(say.season(season));
   for (const ask of ['green.more', 'green.less', 'stone.more', 'stone.less']) add(wishLine(tr, 'wild', 'pig', null, false, ask));
-  for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.visit(), say.party(), say.celeb(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
+  for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
     say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate()]) add(line);
-  for (const kind of ['delivery', 'photo', 'guide']) add(say.event(kind));
-  for (const kind of ['schoolclass', 'party', 'celeb', 'delivery', 'photo']) for (const good of [true, false]) add(say.eventEnd(kind, good));
-  for (const line of [say.eventNew(), say.eventEnd('guide', true), say.classBye(true), say.classBye(false)]) add(line);
+  add(say.eventNew());
+  // elke variant van elk evenement; wat de klas zegt, is er in de stem van de juf en in die van de meester
+  for (const [id, e] of Object.entries(EVENT_SAYS))
+    for (const who of e.who ? [undefined] : TEACHERS)
+      for (const part of ['ask', 'good', 'bad'] as const)
+        for (let n = 0; n < e[part]; n++) add(say.event(id, part, n, who));
   add(say.night());
   add(say.nightNew());
   add(say.aquaNew());

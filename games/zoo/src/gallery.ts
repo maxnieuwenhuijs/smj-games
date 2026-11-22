@@ -17,6 +17,8 @@ const SAMPLES: Record<FigureId, string[]> = {
   builder: [t('goal.enclosure'), t('goal.trough'), t('alert.enclosure')],
   host: [t('host.first'), t('host.food'), t('host.toilet'), t('goal.guests', { n: 3 })],
   cashier: [t('cash.short'), t('cash.full'), t('goal.coins', { n: 8 })],
+  teacher: [t('say.event.class.count.1'), t('say.event.class.good.1'), t('say.event.class.bad.1'), t('say.event.class.bye.good.1')],
+  master: [t('say.event.class.guide.1'), t('say.event.class.good.2'), t('say.event.class.bad.2'), t('say.event.class.bye.good.2')],
 };
 
 async function json<T>(url: string, fallback: T): Promise<T> {

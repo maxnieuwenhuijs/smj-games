@@ -2,10 +2,12 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
-  FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, SHOP_DEEP, shopSpan, TERRAINS, TERRAIN_INFO, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
-  BUMPER_CARS, FERRIS, RESTAURANT_TABLES, SEASONAL, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, bumperCar, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
+  FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, SHOP_DEEP, shopSpan, TERRAINS, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
+  BUMPER_CARS, FERRIS, RESTAURANT_TABLES, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, bumperCar, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
 } from './data';
 import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type Land, type Side } from './grid';
+import { roadside } from './road';
+import { Ground, aroundTexture } from './ground';
 
 const SQRT2 = Math.SQRT2;
 const SQRT3 = Math.sqrt(3);
@@ -821,14 +823,16 @@ function leafColor(out: THREE.Color, summer: number, season: Season, n: number, 
   if (season === 'winter') return out.lerp(MIX.setHex(0xe9f2f5), 0.62);
   return out;
 }
-/** De kleur van gras en bosgrond in dit seizoen: geel in de herfst, bijna wit in de winter. `out` heeft de zomerkleur al. */
+/**
+ * De kleur van het grasland rond het park in dit seizoen: geel in de herfst, bijna wit in de winter. `out` heeft de
+ * zomerkleur al. De tegels in het park kleuren op dezelfde manier mee (zie SEASON_TINT in ground.ts).
+ */
 function groundColor(out: THREE.Color, season: Season): THREE.Color {
   if (season === 'spring') return out.lerp(MIX.setHex(0x92dc5e), 0.22);
   if (season === 'autumn') return out.lerp(MIX.setHex(0xd9b84a), 0.45);
   if (season === 'winter') return out.lerp(MIX.setHex(0xf4f8fc), 0.82);
   return out;
 }
-const SEASONAL_IDS = new Set(SEASONAL.map(k => TERRAINS.indexOf(k)));
 /**
  * Vier tinten van hetzelfde blad: gewoon, iets lichter, iets donkerder en iets geler. Eén keer gemaakt en door
  * alle bomen gedeeld, zodat er niet per boom een materiaal bij komt.
@@ -2390,7 +2394,8 @@ export class View {
   /** Hoeveel tegels er verticaal in beeld passen. */
   zoom = 11;
 
-  private ground: THREE.InstancedMesh;
+  /** De tegels van het park, elk met het plaatje van zijn ondergrond (zie ground.ts). */
+  private ground: Ground;
   private fences = new Map<string, THREE.Object3D>();
   /** Het water in de bakken van glas. */
   private tank: THREE.InstancedMesh | null = null;
@@ -2514,17 +2519,11 @@ export class View {
     this.addTrees();
     this.addEntrance();
 
-    // tegels
-    const tileGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
-    this.ground = new THREE.InstancedMesh(tileGeo, new THREE.MeshStandardMaterial({ roughness: 1 }), W * H);
-    this.ground.receiveShadow = true;
-    const m = new THREE.Matrix4();
-    for (let y = 0; y < H; y++)
-      for (let x = 0; x < W; x++) {
-        m.makeTranslation(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
-        this.ground.setMatrixAt(x + y * W, m);
-      }
-    this.scene.add(this.ground);
+    // tegels: elk met het plaatje van zijn ondergrond; het land eromheen (120 breed) krijgt pollen in de kleur van de wereld
+    const sharp = this.renderer.capabilities.getMaxAnisotropy();
+    this.outerMat.map = aroundTexture(120, sharp);
+    this.ground = new Ground(sharp);
+    this.scene.add(this.ground.mesh);
     this.addPlots();
     this.setLand(BASE_LAND, SIDES);
 
@@ -2573,7 +2572,8 @@ export class View {
       const s = 0.8 + rnd() * 0.7, rot = rnd() * Math.PI;
       // niet in het park waar je mee begint, en niet op de weg naar de ingang
       const inBase = gx > BASE_LAND.x0 - 1.2 && gx < BASE_LAND.x1 + 1.2 && gy > BASE_LAND.y0 - 1.2 && gy < BASE_LAND.y1 + 1.2;
-      if (inBase || (Math.abs(gx - mid) < 2.6 && gy > H - 2)) continue;
+      // en niet voor het park: daar ligt de weg met het verkeer
+      if (inBase || (Math.abs(gx - mid) < 2.6 && gy > H - 2) || roadside(gy)) continue;
       // elke boom is anders: hoger of breder, een loofboom of een spar, en soms met bloesem in de lente
       const fir = hash(gx, gy, 1) < 0.34;
       this.treeSpots.push({ gx, gy, s, rot, tall: 0.82 + hash(gx, gy, 2) * 0.5, wide: 0.85 + hash(gx, gy, 3) * 0.35, fir, bloom: !fir && hash(gx, gy, 4) < 0.3 });
@@ -2639,12 +2639,7 @@ export class View {
   setLand(land: Land, forSale: Side[], plotOf: (side: Side) => Land = side => new Grid(land).plot(side)): void {
     const m = new THREE.Matrix4();
     const none = new THREE.Matrix4().makeScale(0, 0, 0);
-    for (let y = 0; y < H; y++)
-      for (let x = 0; x < W; x++) {
-        const mine = x >= land.x0 && x < land.x1 && y >= land.y0 && y < land.y1;
-        this.ground.setMatrixAt(x + y * W, mine ? m.makeTranslation(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5)) : none);
-      }
-    this.ground.instanceMatrix.needsUpdate = true;
+    this.ground.setLand(land);
     const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), at = new THREE.Vector3(), size = new THREE.Vector3();
     this.treeSpots.forEach((spot, i) => {
       const inside = spot.gx > land.x0 - 0.9 && spot.gx < land.x1 + 0.9 && spot.gy > land.y0 - 0.9 && spot.gy < land.y1 + 0.9;
@@ -2783,8 +2778,13 @@ export class View {
   /** Laat ringen zien op deze plekken; `hot` is feller en `r` maakt de ring groter. `pulse` laat ze ademen. */
   private brownMat = new THREE.MeshBasicMaterial({ color: 0x8a5a2e, transparent: true, opacity: 0.8, depthWrite: false });
 
-  /** `brown`: een bruine ring (om een poepje, zodat je het goed ziet liggen). */
-  showMarks(spots: { gx: number; gy: number; r?: number; hot?: boolean; brown?: boolean }[], pulse: number): void {
+  // een dunne, zachte ring die precies `r` tegels groot is: zo ver reikt een wegwijzer of plattegrond
+  private softGeo = new THREE.RingGeometry(0.965, 1, 72).rotateX(-Math.PI / 2);
+  private softMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false });
+  private softHotMat = new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0.8, depthWrite: false });
+
+  /** `brown`: een bruine ring (om een poepje, zodat je het goed ziet liggen). `soft`: een dunne ring van `r` tegels groot. */
+  showMarks(spots: { gx: number; gy: number; r?: number; hot?: boolean; brown?: boolean; soft?: boolean }[], pulse: number): void {
     while (this.marks.length < spots.length) {
       const m = new THREE.Mesh(this.markGeo, this.markMat);
       m.renderOrder = 2;
@@ -2795,9 +2795,10 @@ export class View {
       const s = spots[i];
       m.visible = !!s;
       if (!s) return;
-      m.material = s.hot ? this.hotMat : s.brown ? this.brownMat : this.markMat;
+      m.geometry = s.soft ? this.softGeo : this.markGeo;
+      m.material = s.soft ? (s.hot ? this.softHotMat : this.softMat) : s.hot ? this.hotMat : s.brown ? this.brownMat : this.markMat;
       m.position.set(toWorldX(s.gx), 0.03, toWorldZ(s.gy));
-      const k = (s.r ?? 1) * (1 + 0.12 * Math.sin(pulse + i));
+      const k = (s.r ?? 1) * (s.soft ? 1 : 1 + 0.12 * Math.sin(pulse + i));
       m.scale.set(k, 1, k);
     });
   }
@@ -3018,25 +3019,21 @@ export class View {
   }
 
   /**
-   * Kleurt de tegels: gras, bos, wei en steppe kleuren mee met het seizoen. Op een brug komen planken met een
-   * leuning en langs een bloemenpad een rand met bloemetjes; die worden alleen opnieuw gebouwd als er zo'n
-   * tegel bij is gekomen of weg is.
+   * Geeft elke tegel het plaatje van zijn ondergrond: gras, bos, wei en steppe kleuren mee met het seizoen (zie
+   * ground.ts). Op een brug komen planken met een leuning en langs een bloemenpad een rand met bloemetjes; die
+   * worden alleen opnieuw gebouwd als er zo'n tegel bij is gekomen of weg is.
    */
   paintTerrain(grid: Grid): void {
     this.grid = grid;
-    const c = new THREE.Color();
+    this.ground.paint(grid.terrain, seasonNow);
     const bridges: number[] = [], flowers: number[] = [];
     for (let y = 0; y < H; y++)
       for (let x = 0; x < W; x++) {
-        const id = grid.terrain[x + y * W], kind = TERRAINS[id];
-        c.setHex(TERRAIN_INFO[kind].colors[(x + y) % 2]);
-        if (SEASONAL_IDS.has(id)) groundColor(c, seasonNow);
-        this.ground.setColorAt(x + y * W, c);
+        const kind = TERRAINS[grid.terrain[x + y * W]];
         // onthoud de tegel en zijn richting: langs y als daar het pad verder loopt, anders langs x
         if (kind === 'bridge') bridges.push((x + y * W) * 2 + (this.pathAlongY(grid, x, y) ? 1 : 0));
         else if (kind === 'flowerpath') flowers.push((x + y * W) * 2 + (this.pathAlongY(grid, x, y) ? 1 : 0));
       }
-    this.ground.instanceColor!.needsUpdate = true;
     const key = `${bridges.join(',')};${flowers.join(',')}`;
     if (key === this.pathKey) return;
     this.pathKey = key;
@@ -3939,6 +3936,7 @@ export class View {
       this.angle = Math.abs(d) < 0.004 ? want : this.angle + d * Math.min(1, dt * 7);
       this.resize();
     }
+    this.ground.update(dt);
     this.stepWeather(dt);
     this.placeRainbow();
     for (const d of this.drops) {

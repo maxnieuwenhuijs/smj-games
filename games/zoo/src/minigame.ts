@@ -15,6 +15,12 @@ export interface MiniOptions {
   rounds?: number;
   /** Klein plaatje bovenaan (al HTML, bijvoorbeeld een svg van icon()); mag ontbreken. */
   picture?: string;
+  /** Woord: alleen woorden van dieren (koe, aap, kip), als er daar genoeg van zijn. */
+  animals?: boolean;
+  /** Volgorde: waarmee het begint, plaatjes van klein naar groot ('size') of getallen ('count'). Anders is dat een gok. */
+  first?: 'size' | 'count';
+  /** Volgorde: deze plaatjes van klein naar groot, in plaats van de gewone. */
+  sizeIcons?: IconId[];
   /** Eén keer aangeroepen: als het puzzeltje klaar is of met het kruisje is weggeklikt. */
   onDone: (result: MiniResult) => void;
 }
@@ -31,6 +37,8 @@ const WORDS_NL: Word[] = [
   { word: 'aap', species: 'monkey' },
   { word: 'kip', species: 'chicken' },
   { word: 'uil', species: 'owl' },
+  { word: 'jak', species: 'yak' },
+  { word: 'rog', species: 'ray' },
   { word: 'vis', icon: 'fish' },
   { word: 'bal', icon: 'ball' },
   { word: 'hek', icon: 'fence' },
@@ -47,6 +55,8 @@ const WORDS_EN: Word[] = [
   { word: 'pig', species: 'pig' },
   { word: 'owl', species: 'owl' },
   { word: 'hen', species: 'chicken' },
+  { word: 'yak', species: 'yak' },
+  { word: 'ray', species: 'ray' },
   { word: 'sun', icon: 'sun' },
   { word: 'net', icon: 'net' },
   { word: 'cap', icon: 'cap_red' },
@@ -291,10 +301,13 @@ function sumRound(s: Session): void {
 
 // ------------------------------------------------------------ woord
 function spellRound(s: Session): void {
-  const all = (dutch() ? WORDS_NL : WORDS_EN).flatMap(w => {
+  const known = (dutch() ? WORDS_NL : WORDS_EN).flatMap(w => {
     const pic = wordPicture(w);
-    return pic ? [{ word: w.word, pic }] : [];
+    return pic ? [{ word: w.word, pic, animal: !!w.species || w.icon === 'fish' }] : [];
   });
+  // alleen dieren, als daar genoeg plaatjes van zijn voor alle vragen
+  const beasts = s.opts.animals ? known.filter(w => w.animal) : [];
+  const all = beasts.length >= s.rounds ? beasts : known;
   const fresh = all.filter(w => !s.seen.has(w.word));
   const { word, pic } = pick(fresh.length ? fresh : all);
   s.seen.add(word);
@@ -345,8 +358,9 @@ function orderRound(s: Session): void {
   let items: { rank: number; html: string }[];
   if (sizes) {
     // hetzelfde plaatje in drie maten
-    const fresh = SIZE_ICONS.filter(id => !s.seen.has(id));
-    const id = pick(fresh.length ? fresh : SIZE_ICONS);
+    const pool = s.opts.sizeIcons?.length ? s.opts.sizeIcons : SIZE_ICONS;
+    const fresh = pool.filter(id => !s.seen.has(id));
+    const id = pick(fresh.length ? fresh : pool);
     s.seen.add(id);
     items = [0, 1, 2].map(rank => ({ rank, html: `<span class="mg-size s${rank}">${icon(id)}</span>` }));
   } else {
@@ -401,7 +415,7 @@ export function playMini(opts: MiniOptions): void {
     since: 0,
     timer: 0,
     seen: new Set(),
-    sizes: Math.random() < 0.5,
+    sizes: opts.first ? opts.first === 'size' : Math.random() < 0.5,
   };
   session = s;
   part('mg-close').setAttribute('aria-label', t('mini.close'));

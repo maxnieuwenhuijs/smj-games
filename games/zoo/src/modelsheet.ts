@@ -5,7 +5,7 @@
 // &bos=1 (de bomen rond het park), &seizoen=winter, &nacht=1, &spook=1 (het doorzichtige voorbeeld), &draai=1 (kwartslagen), &druk=1 (alsof er
 // gasten zijn), &t=2.5 (het moment van de foto), &zoom=6 (tegels in beeld).
 import * as THREE from 'three';
-import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FERRIS, FOODS, PARK_PROPS, WILD_PROPS, SHOPS, SHOP_SIZE, TERRAINS, TOYS, TROUGHS, bumperCar, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type ToyKind, type TroughKind } from './data';
+import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FERRIS, FOODS, PARK_PROPS, WILD_PROPS, SHOPS, SHOP_SIZE, TERRAINS, TOYS, TROUGHS, bumperCar, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type Terrain, type ToyKind, type TroughKind } from './data';
 import { BASE_LAND, FULL_LAND, Grid, edgeKey, type Edge, type EdgeKind } from './grid';
 import { View, toWorldX, toWorldZ } from './view';
 
@@ -21,8 +21,11 @@ const forest = query.get('bos') === '1';
 interface Item {
   name: string;
   size: number;
+  /** Hoeveel tegels het diep is, als dat anders is dan gewoon (iets van drie breed is anders één diep). */
+  deep?: number;
   put: (x: number, y: number) => void;
 }
+const deepOf = (item: Item): number => item.deep ?? (item.size === 3 ? 1 : item.size);
 
 const view = new View(document.body);
 view.renderer.setPixelRatio(1);
@@ -146,6 +149,13 @@ const path = (kind: 'flowerpath' | 'bridge' | 'planks'): Item => ({
     for (let i = 0; i < 3; i++) grid.setTerrain(x + i, y, TERRAINS.indexOf(kind));
   },
 });
+/** Een veldje van drie bij drie tegels van één soort grond. */
+const patch = (kind: Terrain): Item => ({
+  name: kind, size: 3, deep: 3,
+  put: (x, y) => {
+    for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) grid.setTerrain(x + dx, y + dy, TERRAINS.indexOf(kind));
+  },
+});
 const train: Item = {
   name: 'trein', size: 3,
   put: (x, y) => {
@@ -181,6 +191,8 @@ const GROUPS: Record<string, Item[]> = {
   afval: [0, 1, 2, 3].map(litter),
   trein: [train],
   pad: [path('flowerpath'), path('bridge')],
+  // elke soort ondergrond als een veldje, tegen elkaar aan: zo zie je ook de overgangen
+  grond: TERRAINS.map(patch),
   natuur: WILD_PROPS.map(prop),
   // het kleine spul voor het park, elk in het midden van een eigen tegel
   parkjes: PARK_PROPS.map(prop),
@@ -205,7 +217,7 @@ const items = (GROUPS[groupName] ?? []).filter(item => !only || only.includes(it
 // Per groep: hoe hoog de modellen ongeveer zijn, hoeveel ruimte ertussen moet en hoeveel er op een rij staan.
 const LOOK: Record<string, { tall?: number; gap?: number; row?: number }> = {
   kramen: { tall: 3.2 }, gebouwen: { tall: 3 }, speeltuin: { tall: 3 }, attracties: { tall: 4.6, gap: 2, row: 3 }, afval: { tall: 0.5 }, klein: { tall: 1.2 },
-  voer: { tall: 1.4 }, hekken: { tall: 1.4 }, trein: { tall: 1.2 }, parkjes: { tall: 0.7, gap: 0, row: 5 },
+  voer: { tall: 1.4 }, hekken: { tall: 1.4 }, trein: { tall: 1.2 }, parkjes: { tall: 0.7, gap: 0, row: 5 }, grond: { tall: 0.4, gap: 0, row: 7 },
 };
 const look = only ? {} : LOOK[groupName] ?? {};
 const perRow = num('rij', look.row ?? Math.ceil(Math.sqrt(items.length * 1.6)));
@@ -221,9 +233,9 @@ items.forEach((item, i) => {
     rowDeep = 0;
   }
   item.put(cx, cy);
-  labels.push({ name: item.name, gx: cx + item.size + 0.1, gy: cy + (item.size === 3 ? 1 : item.size) + 0.1 });
+  labels.push({ name: item.name, gx: cx + item.size + 0.1, gy: cy + deepOf(item) + 0.1 });
   lights.push({ gx: cx + item.size / 2, gy: cy + item.size / 2, r: 2.2 });
-  rowDeep = Math.max(rowDeep, item.size === 3 ? 1 : item.size);
+  rowDeep = Math.max(rowDeep, deepOf(item));
   maxX = Math.max(maxX, cx + item.size);
   maxY = Math.max(maxY, cy + rowDeep);
   cx += item.size + gap;

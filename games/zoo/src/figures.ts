@@ -1,10 +1,16 @@
-// De vijf figuren als 2D-portret. Elk portret is opgebouwd uit laagjes:
-// een vaste basis, drie gezichten (blij, bezorgd, dringend) en drie mondjes (dicht, half, open).
-export type FigureId = 'director' | 'keeper' | 'builder' | 'host' | 'cashier';
+// De figuren als 2D-portret: de vijf van het park, en de juf en de meester die met een schoolklas meekomen.
+// Elk portret is opgebouwd uit laagjes: een vaste basis, drie gezichten (blij, bezorgd, dringend) en drie
+// mondjes (dicht, half, open).
+export type FigureId = 'director' | 'keeper' | 'builder' | 'host' | 'cashier' | 'teacher' | 'master';
 export type Mood = 'happy' | 'worried' | 'urgent';
 export type Mouth = 0 | 1 | 2;
+/** Wie er met een schoolklas meekomt: de juf of de meester. */
+export type TeacherId = 'teacher' | 'master';
 
-export const FIGURES: FigureId[] = ['director', 'keeper', 'builder', 'host', 'cashier'];
+/** De mensen van het park zelf. Alleen zij roepen de speler bij zijn naam. */
+export const STAFF: FigureId[] = ['director', 'keeper', 'builder', 'host', 'cashier'];
+export const TEACHERS: TeacherId[] = ['teacher', 'master'];
+export const FIGURES: FigureId[] = [...STAFF, ...TEACHERS];
 export const MOODS: Mood[] = ['happy', 'worried', 'urgent'];
 
 const INK = '#3a2a1a';
@@ -78,6 +84,36 @@ const LOOKS: Record<FigureId, Look> = {
       '<path d="M33 54 Q31 27 60 27 Q89 27 87 54 Q83 40 60 40 Q37 40 33 54Z" fill="#3a2a1a"/>' +
       '<path d="M32 45 Q60 33 88 45 L88 50 Q60 39 32 50Z" fill="#2bb5a8"/>',
     face: '<g fill="none" stroke="#3a2a1a" stroke-width="2.2"><circle cx="50" cy="58" r="8.5"/><circle cx="70" cy="58" r="8.5"/><path d="M58.5 58 L61.5 58"/></g>',
+  },
+  // de juf: blond haar in een knot met een potlood erdoor, een rode bril en een oranje vest over een witte blouse
+  teacher: {
+    bg: '#cfe6ff', skin: '#f3cba8', shirt: '#f08a24', hair: '#e6b446', mouthY: 71,
+    back:
+      '<path d="M41 9 L80 25" stroke="#4a90e2" stroke-width="4.5" stroke-linecap="round"/><path d="M41 9 L46.5 11.3" stroke="#3a2a1a" stroke-width="4.5" stroke-linecap="round"/>' +
+      '<circle cx="60" cy="18" r="11.5" fill="#e6b446"/><path d="M52 14 Q60 9 68 14" fill="none" stroke="#c9972f" stroke-width="2" stroke-linecap="round"/>',
+    outfit:
+      '<path d="M48 91 L60 113 L72 91Z" fill="#fff"/><path d="M48 91 L60 113 L72 91" fill="none" stroke="#c96f14" stroke-width="3" stroke-linejoin="round"/>' +
+      '<circle cx="60" cy="116" r="2.4" fill="#fff3d6"/><path d="M53 92 Q60 99 67 92" fill="none" stroke="#e0584f" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="0.5 4"/>',
+    top:
+      '<path d="M33 56 Q30 27 60 27 Q90 27 87 56 Q84 42 68 38 Q50 42 33 56Z" fill="#e6b446"/>' +
+      '<path d="M40 40 Q52 31 68 36" fill="none" stroke="#c9972f" stroke-width="2" stroke-linecap="round"/>',
+    face:
+      '<g fill="none" stroke="#d9483b" stroke-width="2.6"><circle cx="50" cy="58" r="8.5"/><circle cx="70" cy="58" r="8.5"/><path d="M58.5 58 L61.5 58"/></g>' +
+      '<circle cx="33.5" cy="67" r="2.6" fill="#ffd23f"/><circle cx="86.5" cy="67" r="2.6" fill="#ffd23f"/>',
+  },
+  // de meester: kort bruin haar, een baard en een groene trui met een geel randje
+  master: {
+    bg: '#f6e6c8', skin: '#e9b98f', shirt: '#4f9a5a', hair: '#a85f2a', mouthY: 73,
+    back: '',
+    outfit:
+      '<path d="M51 90 L60 100 L69 90Z" fill="#fff"/><path d="M47 92 Q60 106 73 92" fill="none" stroke="#3c7f47" stroke-width="4" stroke-linecap="round"/>' +
+      '<path d="M27.5 113 l6.5 -5 l6.5 5 l6.5 -5 l6.5 5 l6.5 -5 l6.5 5 l6.5 -5 l6.5 5 l6.5 -5 l6.5 5" fill="none" stroke="#ffd23f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>',
+    top:
+      '<rect x="32" y="45" width="6.5" height="17" rx="3" fill="#a85f2a"/><rect x="81.5" y="45" width="6.5" height="17" rx="3" fill="#a85f2a"/>' +
+      '<path d="M33 52 Q31 25 60 25 Q89 25 87 52 Q82 39 66 38 Q60 33 52 38 Q38 40 33 52Z" fill="#a85f2a"/>',
+    face:
+      '<path d="M34 58 Q33 90 60 92 Q87 90 86 58 Q84 68 76 66.5 Q60 61 44 66.5 Q36 68 34 58Z" fill="#a85f2a"/>' +
+      '<ellipse cx="60" cy="75.5" rx="12.5" ry="9" fill="#e9b98f"/>',
   },
 };
 

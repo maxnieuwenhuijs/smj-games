@@ -87,6 +87,29 @@ export interface AnimalWorld {
   rainPuddles: { gx: number; gy: number }[];
   /** Is dit verblijf een kinderboerderij (wit hekje)? Daar mogen de boerderijdieren door elkaar. */
   pettingPen(regionId: number): boolean;
+  /** De gasten die naar dit verblijf staan te kijken (of er in de kinderboerderij in staan). Steeds dezelfde lijst: niet bewaren. */
+  watchers(regionId: number): readonly Watcher[];
+  /** De kinderen die nu langs dit verblijf lopen. Steeds dezelfde lijst: niet bewaren. */
+  passers(regionId: number): readonly Watcher[];
+  /** Mag er in dit verblijf weer een dier iets voor de gasten doen? Zo ja, dan duurt het een poosje tot het volgende. */
+  showTurn(regionId: number): boolean;
+  /** Een dier begint aan een kunstje voor de gasten: wie staat te kijken, heeft er plezier van. */
+  showOff(animal: Animal): void;
+  /** Een dier laat zich horen. `loud`: het brult, en daar schrikken de gasten bij het hek even van. */
+  cry(animal: Animal, loud: boolean): void;
+  /** Een paar druppels water die vanaf deze plek en hoogte omhoog spuiten (de olifant). */
+  spray(gx: number, gy: number, height: number): void;
+}
+
+/** Iemand die bij een verblijf staat te kijken of erlangs loopt: een gast. */
+export interface Watcher {
+  readonly gx: number;
+  readonly gy: number;
+  readonly child: boolean;
+  /** Staat in het verblijf zelf (in de kinderboerderij). */
+  readonly inside: boolean;
+  /** Is het park uit. */
+  readonly gone: boolean;
 }
 
 type State = 'idle' | 'walk' | 'eat' | 'poop' | 'pee' | 'rest' | 'emote';
@@ -100,14 +123,48 @@ const NEED_KIND: Record<FenceNeed, number> = { wall: 3, net: 4, glass: 5 };
 const BED_LIFT: Record<string, number> = { straw: 0.1, shed: 0.1, rock: 0.22, nest: 0.07, cave: 0.03 };
 const WATER_TILE = TERRAINS.indexOf('water');
 /** Kunstjes die een dier zomaar kan doen: hoe lang ze duren en welke animatie uit het model erbij hoort. */
-type Solo = 'hop' | 'spin' | 'roll' | 'shake' | 'wiggle' | 'stretch' | 'sniff' | 'dig' | 'bow' | 'jumpturn' | 'sway' | 'peek' | 'survey';
+type Solo = 'hop' | 'spin' | 'roll' | 'shake' | 'wiggle' | 'stretch' | 'sniff' | 'dig' | 'bow' | 'jumpturn' | 'sway' | 'peek' | 'survey'
+  // voor de gasten bij het hek: brullen, huilen, stampen, zwaaien, de poten op het hek, bedelen, trappelen, knikken,
+  // pronken, de nek buigen, spuiten, klappen en happen
+  | 'roar' | 'howl' | 'stomp' | 'wave' | 'hoof' | 'beg' | 'prance' | 'bob' | 'fan' | 'lean' | 'spray' | 'clap' | 'snap';
 type Trick = Solo | 'nuzzle' | 'greet' | 'dance' | 'leap' | 'look' | 'tunnel' | 'peekin' | 'fetch'
   // bij het speelgoed dat zelf beweegt: schommelen, wippen, stootjes geven, klimmen en ergens onderdoor lopen
-  | 'swing' | 'rock' | 'punch' | 'climb' | 'under';
+  | 'swing' | 'rock' | 'punch' | 'climb' | 'under'
+  // voor de gasten: uit het water springen (een zeedier) en op de buik glijden
+  | 'breach' | 'slide';
 const SHOW: Record<Solo, [number, string]> = {
   hop: [1.6, 'Happy'], spin: [1.1, 'Play'], roll: [2.6, 'Lie'], shake: [0.9, 'Idle'], wiggle: [1.4, 'Idle'], stretch: [2.2, 'Idle'],
   sniff: [2.62, 'Eat'], dig: [2.2, 'Eat'], bow: [1.8, 'Idle'], jumpturn: [1.8, 'Happy'], sway: [2.95, 'Idle'], peek: [2.6, 'Idle'], survey: [5.24, 'Idle'],
+  roar: [2.2, 'Idle'], howl: [3, 'Sit'], stomp: [2.6, 'Idle'], wave: [2.6, 'Idle'], hoof: [3, 'Idle'], beg: [2.2, 'Idle'], prance: [2.6, 'Run'],
+  bob: [2.2, 'Idle'], fan: [3.4, 'Idle'], lean: [3.6, 'Idle'], spray: [2.8, 'Idle'], clap: [2.4, 'Idle'], snap: [2.07, 'Idle'],
 };
+/**
+ * Wat een dier laat zien als er gasten bij het hek staan. Elke soort heeft zijn eigen manier:
+ * `roar` brullen met de kop omhoog, `howl` kwispelen en huilen, `stomp` stampen en loeien, `wave` rechtop gaan staan
+ * en zwaaien, `ape` op en neer springen en dan terugzwaaien, `fence` met de voorpoten tegen het hek, `roll` rollen,
+ * `prance` steigeren en trappelen, `run` langs het hek rennen, `hop` springen op de plaats, `bob` knikken met de kop,
+ * `fan` pronken met een trotse draai, `lean` de nek naar de gast buigen, `spray` water spuiten, `clap` met de vinnen
+ * klappen of op de buik glijden, `snap` happen met de bek, `jump` uit het water springen.
+ */
+export type ShowStyle = 'roar' | 'howl' | 'stomp' | 'wave' | 'ape' | 'fence' | 'roll' | 'prance' | 'run' | 'hop' | 'bob' | 'fan' | 'lean' | 'spray' | 'clap' | 'snap' | 'jump';
+export const SHOW_OF: Record<SpeciesId, ShowStyle> = {
+  // boerderij
+  pig: 'roll', cow: 'stomp', sheep: 'fence', horse: 'prance', donkey: 'stomp', goat: 'fence', alpaca: 'fence', chicken: 'bob', duck: 'bob', rabbit: 'hop',
+  // savanne
+  lion: 'roar', elephant: 'spray', giraffe: 'lean', zebra: 'prance', rhino: 'stomp', hippo: 'roar', cheetah: 'run', gazelle: 'prance', ostrich: 'run', camel: 'stomp',
+  // jungle
+  monkey: 'ape', parrot: 'bob', tiger: 'roar', gorilla: 'ape', crocodile: 'snap', panda: 'wave', peacock: 'fan', toucan: 'bob', sloth: 'wave', panther: 'roar',
+  // ijs
+  penguin: 'clap', seal: 'clap', polarbear: 'wave', reindeer: 'prance', wolf: 'howl', arcticfox: 'howl', bear: 'wave', yak: 'stomp', owl: 'bob', walrus: 'clap',
+  // verre landen
+  flamingo: 'fan', turtle: 'lean', otter: 'roll', beaver: 'wave', pelican: 'snap', koala: 'wave', redpanda: 'wave', lemur: 'ape', bison: 'stomp', kangaroo: 'hop',
+  // aquarium
+  dolphin: 'jump', orca: 'jump', ray: 'jump', shark: 'jump',
+};
+/** Hoe graag een dier iets voor de gasten doet als het aan de beurt is, naar zijn karakter. */
+const KEEN: Record<Nature, number> = { plain: 0.5, shy: 0.12, playful: 0.8, sleepy: 0.25, brave: 0.7 };
+/** De vier tegels om een tegel heen. */
+const AROUND: [number, number][] = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 const SEEK_FOOD = 0.4;
 const HUNGRY = 0.6;
 /** Hoe snel een dier loopt, naar zijn karakter. */
@@ -121,6 +178,11 @@ const WHITE = new THREE.Color(0xffffff);
 const TINT = new THREE.Color();
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
+/** Zacht aanzwellen en weer afnemen: 0 aan het begin en het eind van `len` tellen, 1 ertussen; `edge`: zo lang duurt het op- en afbouwen. */
+const swell = (u: number, len: number, edge: number): number => {
+  const s = clamp(Math.min(u, len - u) / edge, 0, 1);
+  return s * s * (3 - 2 * s);
+};
 const luminance = (c: THREE.Color): number => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
 /** De gekke felle kleuren: roze, geel, groen en blauw. */
 const FUNNY: Partial<Record<Rare, THREE.Color>> = { pink: new THREE.Color(0xff6fb8), yellow: new THREE.Color(0xffdc3a), green: new THREE.Color(0x4fd662), blue: new THREE.Color(0x45aeff) };
@@ -233,8 +295,11 @@ export class Animal {
   private fetch: { toy: Toy; i: number; kicks: number; wait: number; bump: number; stuck: number } | null = null;
   /** Het kunstje dat hierna komt (uitrekken na het slapen, een sprong na het eten). */
   private encore: Solo | null = null;
-  /** Waar het dier naartoe loopt om te rollen ('roll') of om iemand te begroeten ('come'). */
-  private goal: 'roll' | 'come' | null = null;
+  /**
+   * Waar het dier naartoe loopt om te rollen ('roll') of om iemand te begroeten ('come'); en naar een gast bij het
+   * hek om hem aan te kijken ('look'), zijn kunstje te laten zien ('show') of te bedelen ('beg').
+   */
+  private goal: 'roll' | 'come' | 'look' | 'show' | 'beg' | null = null;
   private spotX = 0;
   private spotY = 0;
   /** Tikkertje: het dier rent naar zijn vriendje, en dat rent dan weg. */
@@ -249,6 +314,19 @@ export class Animal {
   private mud = false;
   /** De kant waar het dier rustig naartoe draait (naar een gast), of null. */
   private faceTo: number | null = null;
+  /** Het dier doet iets voor de gasten bij het hek (een kunstje, langs het hek rennen, met een kind meedraven). */
+  private acting = false;
+  /** Over zoveel tellen laat het dier zich horen (0: niet), en of het dan brult. */
+  private cryIn = 0;
+  private cryLoud = false;
+  /** Het kind waar het dier langs het hek mee meedraaft, hoe lang nog, en wanneer het weer kijkt waar het kind is. */
+  private tail: Watcher | null = null;
+  private tailLeft = 0;
+  private tailCheck = 0;
+  /** Zo lang draaft het dier niet opnieuw met iemand mee. */
+  private tailRest = 0;
+  /** Zo plat gaat het dier bij het glijden op de buik: een dier dat rechtop staat (pinguïn) kantelt helemaal voorover. */
+  private flat = 0;
   /** Verdoofd: het dier wordt niet wakker van de zon. */
   private drugged = false;
   /** Voor de zeldzame kleur: de eigen kleuren van dit ene dier, en de gewone om terug te zetten. */
@@ -414,8 +492,8 @@ export class Animal {
         sx = sz = 1 - (h - 0.5) * 0.08;
         if (k.kind === 'dance') yaw += Math.sin(u * 5) * 0.6;
         if (k.kind === 'greet') yaw += Math.sin(u * 12) * 0.12;
-      } else if (k.kind === 'leap' && this.leap) {
-        // door de hoepel: een boog van de ene kant naar de andere, neus eerst omhoog en dan omlaag
+      } else if ((k.kind === 'leap' || k.kind === 'breach') && this.leap) {
+        // door de hoepel (of zomaar uit het water): een boog van de ene kant naar de andere, neus eerst omhoog en dan omlaag
         const p = Math.min(1, u / this.leap.seconds);
         this.gx = this.leap.fx + (this.leap.tx - this.leap.fx) * p;
         this.gy = this.leap.fy + (this.leap.ty - this.leap.fy) * p;
@@ -527,9 +605,98 @@ export class Animal {
         const low = clamp(Math.min(p - 0.2, 0.8 - p) / 0.12, 0, 1);
         sy = 1 - low * (1 - clamp(UNDER.clear / tall, 0.6, 0.92));
         pitch = low * 0.1;
+      } else if (k.kind === 'roar') {
+        // brullen: de kop omhoog, een stapje naar voren, en trillen van het geluid
+        const s = swell(u, 2.2, 0.3);
+        pitch = -0.3 * s;
+        along = 0.08 * s;
+        roll = Math.sin(u * 38) * 0.035 * s;
+        sy = 1 + 0.05 * s;
+      } else if (k.kind === 'howl') {
+        // huilen: eerst kwispelen, dan de neus recht omhoog
+        const s = swell(u - 0.7, 2.3, 0.4);
+        if (u < 0.8) yaw += Math.sin(u * 20) * 0.14;
+        pitch = -0.55 * s;
+        roll = Math.sin(u * 2.6) * 0.05 * s;
+      } else if (k.kind === 'stomp') {
+        // stampen: de kop omlaag en met de poten op de grond, daarna de kop omhoog (en loeien)
+        const down = swell(u, 1.5, 0.25), up = swell(u - 1.5, 1.1, 0.25), beat = Math.sin(u * 10);
+        pitch = 0.14 * down - 0.22 * up;
+        y += Math.abs(beat) * tall * 0.05 * down;
+        along = beat * 0.04 * down;
+      } else if (k.kind === 'wave') {
+        // rechtop op de achterpoten en zwaaien: het lijf wiebelt heen en weer
+        const s = swell(u, 2.6, 0.4);
+        pitch = -0.95 * s;
+        yaw += Math.sin(u * 9) * 0.2 * s;
+        roll = Math.sin(u * 9 + 1) * 0.06 * s;
+      } else if (k.kind === 'hoof') {
+        // met de voorpoten tegen het hek: half overeind, zo ver naar voren als kan, en nieuwsgierig knikken
+        const s = swell(u, 3, 0.4);
+        pitch = (-0.62 + Math.sin(u * 5) * 0.05) * s;
+        along = 0.14 * s;
+      } else if (k.kind === 'beg') {
+        // bedelen: de neus omhoog naar de hand, met kleine duwtjes naar voren
+        const s = swell(u, 2.2, 0.3);
+        pitch = -0.2 * s;
+        along = Math.abs(Math.sin(u * 5)) * 0.1 * s;
+        yaw += Math.sin(u * 11) * 0.06 * s;
+      } else if (k.kind === 'prance') {
+        // steigeren en trappelen: hoog op de poten, huppend, en de flank laten zien
+        const s = swell(u, 2.6, 0.3), beat = Math.sin(u * 9), turn = Math.sin(u * 2.4);
+        y += Math.abs(beat) * tall * 0.14 * s;
+        pitch = (-0.16 + beat * 0.1) * s;
+        yaw += turn * 0.55 * s;
+        aside = turn * 0.12 * s;
+      } else if (k.kind === 'bob') {
+        // knikken met de kop, met kleine sprongetjes en een beetje heen en weer draaien
+        const s = swell(u, 2.2, 0.25);
+        pitch = Math.max(0, Math.sin(u * 11)) * 0.24 * s;
+        y += Math.abs(Math.sin(u * 5.5)) * tall * 0.1 * s;
+        yaw += Math.sin(u * 2.8) * 0.3 * s;
+      } else if (k.kind === 'fan') {
+        // pronken: zich groot maken, langzaam een hele draai, en aan het eind de veren schudden
+        const s = swell(u, 3.4, 0.4), p = clamp((u - 0.4) / 2.2, 0, 1);
+        sy = 1 + 0.12 * s;
+        sx = 1 + 0.08 * s;
+        pitch = -0.1 * s;
+        yaw += p * p * (3 - 2 * p) * Math.PI * 2;
+        if (u > 2.6) roll = Math.sin(u * 32) * 0.05 * s;
+      } else if (k.kind === 'lean') {
+        // de nek naar beneden buigen, naar de gast toe, en even knikken
+        const s = swell(u, 3.6, 0.8);
+        pitch = (0.36 + Math.sin(u * 4) * 0.03) * s;
+        along = 0.12 * s;
+        sy = 1 - 0.05 * s;
+      } else if (k.kind === 'spray') {
+        // de kop (en de slurf) omhoog, en spuiten
+        const s = swell(u, 2.8, 0.45);
+        pitch = -0.3 * s;
+        sy = 1 + 0.05 * s;
+        roll = Math.sin(u * 3) * 0.04 * s;
+      } else if (k.kind === 'clap') {
+        // klappen met de vinnen: half overeind en snel wiebelen van links naar rechts
+        const s = swell(u, 2.4, 0.3);
+        pitch = -0.45 * s;
+        roll = Math.sin(u * 17) * 0.13 * s;
+        y += Math.abs(Math.sin(u * 8.5)) * tall * 0.05 * s;
+      } else if (k.kind === 'snap') {
+        // happen: de bek gaat langzaam open (de kop omhoog) en klapt met een rukje naar voren dicht
+        const f = (u * 1.45) % 1, open = f < 0.7 ? f / 0.7 : 0, shut = f < 0.7 ? 0 : Math.sin(((f - 0.7) / 0.3) * Math.PI);
+        pitch = -0.24 * open + 0.06 * shut;
+        along = shut * 0.14;
+        sy = 1 + 0.07 * open;
+      } else if (k.kind === 'slide' && this.dash) {
+        // op de buik glijden: plat voorover, een tegel ver (eerst snel, dan uitglijden), en weer overeind
+        const d = this.dash, p = Math.min(1, u / d.seconds), q = 1 - (1 - p) * (1 - p);
+        this.gx = d.fx + (d.tx - d.fx) * q;
+        this.gy = d.fy + (d.ty - d.fy) * q;
+        pitch = this.flat * clamp(Math.min(p / 0.15, (1 - p) / 0.2), 0, 1);
+        // het lijf ligt dan op de grond, niet erin
+        y += Math.sin(pitch) * this.info.back * MODEL_SCALE * 0.5;
       }
       // voorover of achterover: iets optillen, anders zakt de neus of de staart door de grond (niet op de schommel of de wipplank: daar kantelt het dier mee)
-      if (pitch && k.kind !== 'leap' && k.kind !== 'swing' && k.kind !== 'rock') y += Math.abs(Math.sin(pitch)) * (pitch > 0 ? this.info.length - this.info.back : this.info.back) * MODEL_SCALE * 0.5;
+      if (pitch && k.kind !== 'leap' && k.kind !== 'breach' && k.kind !== 'swing' && k.kind !== 'rock') y += Math.abs(Math.sin(pitch)) * (pitch > 0 ? this.info.length - this.info.back : this.info.back) * MODEL_SCALE * 0.5;
     } else if (this.anim === 'Sleep') {
       sy = 1 + Math.sin(this.bob * 1.7) * 0.035; // ademen in de slaap
       // af en toe een schokje: het dier droomt
@@ -607,7 +774,9 @@ export class Animal {
     if (this.anim === 'Sleep') return 'sleep';
     const k = this.trick?.kind;
     if (k) {
-      if (k === 'hop' || k === 'jumpturn' || k === 'dance' || k === 'spin') return 'jump';
+      if (k === 'hop' || k === 'jumpturn' || k === 'dance' || k === 'spin' || k === 'breach' || k === 'prance' || k === 'bob') return 'jump';
+      if (k === 'wave' || k === 'hoof' || k === 'beg' || k === 'lean' || k === 'roar' || k === 'howl' || k === 'stomp') return 'greet';
+      if (k === 'fan') return 'watch';
       if (k === 'roll') return 'roll';
       if (k === 'shake') return 'shake';
       if (k === 'stretch' || k === 'bow') return 'stretch';
@@ -631,6 +800,11 @@ export class Animal {
 
   get sleeping(): boolean {
     return this.anim === 'Sleep';
+  }
+
+  /** Is het dier nu iets aan het doen voor de gasten bij het hek (een kunstje, rennen langs het hek, meedraven)? */
+  get showing(): boolean {
+    return this.acting && (!!this.trick || this.state === 'walk');
   }
 
   get hungry(): boolean {
@@ -665,11 +839,13 @@ export class Animal {
     this.drinkAt = null;
     this.mud = false;
     this.faceTo = null;
+    this.acting = false;
+    this.tail = null;
   }
 
   /** Is het dier ergens mee bezig dat eerst af moet? */
   private get busy(): boolean {
-    return !!this.trick || this.state === 'eat' || this.state === 'poop' || this.state === 'pee' || !!this.eatAt || !!this.playAt || !!this.pal || this.napFor > 0 || !!this.goal || !!this.drinkAt || this.drugged;
+    return !!this.trick || this.state === 'eat' || this.state === 'poop' || this.state === 'pee' || !!this.eatAt || !!this.playAt || !!this.pal || this.napFor > 0 || !!this.goal || !!this.drinkAt || this.drugged || !!this.tail;
   }
 
   /** Slaapt een poosje, wat er ook gebeurt. */
@@ -1129,7 +1305,8 @@ export class Animal {
     return !!region && this.goNear(w, region.tiles, gx, gy, i => isTroughTile(w, i));
   }
 
-  private goNear(w: AnimalWorld, tiles: number[], gx: number, gy: number, blocked: (i: number) => boolean): boolean {
+  /** De vrije tegel van het verblijf die het dichtst bij dit punt ligt (-1: geen). */
+  private nearest(tiles: number[], gx: number, gy: number, blocked: (i: number) => boolean): number {
     // niet boven op de gast gaan staan (in de kinderboerderij loopt die in het verblijf)
     const at = tileIndex(Math.floor(gx), Math.floor(gy));
     let best = -1, bestD = Infinity;
@@ -1142,14 +1319,256 @@ export class Animal {
         best = i;
       }
     }
+    return best;
+  }
+
+  /**
+   * Naar de tegel het dichtst bij dit punt lopen. `goal`: wat het dier daar doet. `most`: hooguit zoveel tegels ver;
+   * is het verder, dan loopt het dier een eind die kant op en draaft het (anders is de gast al weg).
+   */
+  private goNear(w: AnimalWorld, tiles: number[], gx: number, gy: number, blocked: (i: number) => boolean, goal: 'come' | 'look' | 'show' | 'beg' = 'come', most = 0): boolean {
+    const best = this.nearest(tiles, gx, gy, blocked);
     const route = best < 0 ? null : w.grid.path(this.tile, best, blocked);
     if (!route) return false;
     this.drop();
-    this.startWalk(route);
-    this.goal = 'come';
+    this.startWalk(most && route.length > most ? route.slice(0, most) : route);
+    if (most && route.length > 3) {
+      this.fast = true;
+      this.play('Run', this.young ? 2 : 1.5);
+    }
+    this.goal = goal;
     this.spotX = gx;
     this.spotY = gy;
     return true;
+  }
+
+  /**
+   * Er staan gasten bij het hek, of er loopt een kind in de kinderboerderij: het dier loopt ernaartoe en kijkt, laat
+   * zijn kunstje zien of bedelt om voer. Niet elk dier en niet steeds: per verblijf is er om de zoveel tellen één
+   * aan de beurt (`showTurn`). Geeft terug of het dier iets ging doen.
+   */
+  private heedGuests(w: AnimalWorld, region: { id: number; tiles: number[] }, tame: boolean, blocked: (i: number) => boolean): boolean {
+    const crowd = w.watchers(region.id);
+    if (!crowd.length) return false;
+    if (tame) {
+      // in de kinderboerderij: naar de gast toe die het dichtst bij staat, en met de neus naar zijn hand
+      let who: Watcher | null = null, near = 3.5;
+      for (const g of crowd) {
+        const d = Math.hypot(g.gx - this.gx, g.gy - this.gy);
+        if (g.inside && d < near) {
+          near = d;
+          who = g;
+        }
+      }
+      if (who && Math.random() < 0.5) {
+        // niet met zijn allen tegelijk: twee dieren bij één gast is genoeg
+        let there = 0;
+        for (const a of w.animals) if (a !== this && Math.abs(a.gx - who.gx) < 1.3 && Math.abs(a.gy - who.gy) < 1.3) there++;
+        if (there < 2 && this.goNear(w, region.tiles, who.gx, who.gy, blocked, 'beg')) return true;
+      }
+    }
+    if (Math.random() > (KEEN[this.nature] + (this.young ? 0.15 : 0)) * (this.happy ? 1 : 0.5) || !w.showTurn(region.id)) return false;
+    // het liefst naar een kind
+    let who = crowd[Math.floor(Math.random() * crowd.length)];
+    const other = crowd[Math.floor(Math.random() * crowd.length)];
+    if (other.child && !who.child) who = other;
+    if (this.nature === 'shy' && !tame) {
+      // een verlegen dier komt niet dichterbij: het kijkt alleen, van waar het staat
+      this.doTrick('look', 2.6, 'Idle');
+      this.face(who.gx, who.gy);
+      return true;
+    }
+    // een dier dat iets mist, komt alleen kijken; een blij dier laat meestal zijn kunstje zien
+    const show = this.happy && Math.random() < 0.7;
+    if (show && SHOW_OF[this.species] === 'run' && this.parade(w, region, who.gx, who.gy, blocked)) return true;
+    return this.goNear(w, region.tiles, who.gx, who.gy, blocked, show ? 'show' : 'look', 7);
+  }
+
+  /** Langs het hek rennen, voor de gast langs: heen, terug, en dan naar hem toe. Lukt dat (is er ruimte)? */
+  private parade(w: AnimalWorld, region: { id: number; tiles: number[] }, gx: number, gy: number, blocked: (i: number) => boolean): boolean {
+    const mid = this.nearest(region.tiles, gx, gy, blocked);
+    if (mid < 0) return false;
+    const [mx, my] = tileXY(mid);
+    // het hek loopt dwars op de lijn van de gast naar die tegel
+    const dx = Math.floor(gx) === mx ? 1 : 0, dy = 1 - dx;
+    const reach = (dir: number): number => {
+      let n = 0;
+      while (n < 4) {
+        const x = mx + dx * dir * n, y = my + dy * dir * n, next = tileIndex(x + dx * dir, y + dy * dir);
+        if (!w.grid.canStep(x, y, dx * dir, dy * dir) || w.grid.regionOf[next] !== region.id || blocked(next)) break;
+        n++;
+      }
+      return n;
+    };
+    const a = reach(1), b = reach(-1);
+    if (a + b < 2) return false;
+    const route = w.grid.path(this.tile, tileIndex(mx + dx * a, my + dy * a), blocked);
+    if (!route || route.length > 12) return false;
+    for (let n = a - 1; n >= -b; n--) route.push(tileIndex(mx + dx * n, my + dy * n));
+    for (let n = -b + 1; n <= 0; n++) route.push(tileIndex(mx + dx * n, my + dy * n));
+    this.drop();
+    this.startWalk(route);
+    this.fast = true;
+    this.rush = this.species === 'cheetah';
+    this.play('Run', this.young ? 2 : 1.5);
+    this.goal = 'look';
+    this.spotX = gx;
+    this.spotY = gy;
+    this.acting = true;
+    w.showOff(this);
+    return true;
+  }
+
+  /** Bij de gast aangekomen: het kunstje van deze soort laten zien (zie SHOW_OF), met de neus naar de gast. */
+  private perform(w: AnimalWorld, gx: number, gy: number): void {
+    const style = SHOW_OF[this.species];
+    let cry = 0, loud = false, turn = true;
+    if (style === 'roar') {
+      this.show('roar');
+      cry = 0.3;
+      loud = true;
+    } else if (style === 'howl') {
+      this.show('howl');
+      cry = 1;
+    } else if (style === 'stomp') {
+      this.show('stomp');
+      cry = 1.6;
+    } else if (style === 'wave') this.show('wave');
+    else if (style === 'ape') {
+      // op en neer springen, en daarna terugzwaaien
+      this.show('hop');
+      this.encore = 'wave';
+    } else if (style === 'fence') {
+      this.show('hoof');
+      if (Math.random() < 0.5) cry = 0.8;
+    } else if (style === 'roll') {
+      this.show('roll');
+      turn = false;
+    } else if (style === 'prance') {
+      this.show('prance');
+      if (Math.random() < 0.4) cry = 0.5;
+    } else if (style === 'hop') {
+      this.show('hop');
+      if (Math.random() < 0.5) this.encore = 'jumpturn';
+    } else if (style === 'bob') {
+      this.show('bob');
+      if (Math.random() < 0.4) cry = 0.4;
+    } else if (style === 'fan') this.show('fan');
+    else if (style === 'lean') this.show('lean');
+    else if (style === 'spray') {
+      this.show('spray');
+      if (Math.random() < 0.5) cry = 0.5;
+    } else if (style === 'clap') {
+      // glijden kan alleen op het droge en als er een tegel vrij is; de walrus is er te zwaar voor
+      if (this.species !== 'walrus' && !this.sink && Math.random() < 0.5 && this.slide(w)) turn = false;
+      else {
+        this.show('clap');
+        if (Math.random() < 0.5) cry = 0.4;
+      }
+    } else if (style === 'snap') this.show('snap');
+    else if (style === 'jump' && this.sink) {
+      this.breach(w);
+      turn = false;
+    } else this.show('spin'); // geen ruimte om langs het hek te rennen, of niet in het water: een rondje om de eigen as
+    if (turn) this.face(gx, gy);
+    this.cryIn = cry;
+    this.cryLoud = loud;
+    this.acting = true;
+    w.showOff(this);
+  }
+
+  /** Een vrije tegel naast het dier, in het eigen verblijf, om naartoe te springen of te glijden (-1: geen). `water`: moet daar water liggen? */
+  private sideTile(w: AnimalWorld, water: boolean): number {
+    const [x, y] = tileXY(this.tile), regionId = w.grid.regionOf[this.tile], from = Math.floor(Math.random() * 4);
+    for (let n = 0; n < 4; n++) {
+      const [dx, dy] = AROUND[(from + n) % 4], i = tileIndex(x + dx, y + dy);
+      if (w.grid.canStep(x, y, dx, dy) && this.roomAt(w, x + dx, y + dy, regionId) && (w.grid.terrain[i] === WATER_TILE) === water) return i;
+    }
+    return -1;
+  }
+
+  /** Een zeedier springt uit het water: een boog naar een tegel water ernaast, of anders recht omhoog. */
+  private breach(w: AnimalWorld): void {
+    const to = this.sideTile(w, true);
+    let tx = this.gx, ty = this.gy;
+    if (to >= 0) {
+      [tx, ty] = tileXY(to);
+      tx += 0.5 + this.ox;
+      ty += 0.5 + this.oy;
+      this.heading = Math.atan2(tx - this.gx, ty - this.gy);
+    }
+    this.leap = { fx: this.gx, fy: this.gy, tx, ty, top: Math.max(0.55, this.top * 0.9), seconds: 1.4 };
+    w.splash(this.gx, this.gy);
+    this.doTrick('breach', 1.4, 'Play');
+  }
+
+  /** Op de buik naar een tegel ernaast glijden (pinguïn, zeehond). Lukt dat? */
+  private slide(w: AnimalWorld): boolean {
+    const to = this.sideTile(w, false);
+    if (to < 0) return false;
+    const [x, y] = tileXY(to);
+    this.dash = { fx: this.gx, fy: this.gy, tx: x + 0.5 + this.ox, ty: y + 0.5 + this.oy, seconds: 1.7 };
+    this.heading = Math.atan2(this.dash.tx - this.gx, this.dash.ty - this.gy);
+    this.flat = this.info.height > this.info.length ? 1.25 : 0.14;
+    this.doTrick('slide', 1.7, 'Idle');
+    return true;
+  }
+
+  /** Een kind loopt langs het verblijf: een jong of speels dier dat niets te doen heeft, draaft een stukje mee langs het hek. */
+  private spotPasser(w: AnimalWorld): void {
+    if (!this.happy || this.perched || (this.state !== 'idle' && this.state !== 'walk' && !(this.state === 'rest' && this.anim === 'Sit'))) return;
+    const region = this.freePen(w);
+    if (!region) return;
+    let kid: Watcher | null = null, near = 4;
+    for (const g of w.passers(region.id)) {
+      const d = Math.hypot(g.gx - this.gx, g.gy - this.gy);
+      if (d < near) {
+        near = d;
+        kid = g;
+      }
+    }
+    if (!kid) return;
+    this.drop();
+    this.tail = kid;
+    this.tailLeft = 5 + Math.random() * 3;
+    this.tailCheck = 0;
+    this.acting = true;
+  }
+
+  /** Meedraven met het kind: steeds naar de tegel het dichtst bij hem. Is hij weg of is het mooi geweest, dan kijkt het dier hem na. */
+  private trail(dt: number, w: AnimalWorld): void {
+    const kid = this.tail!;
+    if (this.trick || (this.state !== 'idle' && this.state !== 'walk' && this.state !== 'rest')) {
+      // er kwam iets tussen (het dier werd geaaid of geroepen)
+      this.tail = null;
+      return;
+    }
+    this.tailLeft -= dt;
+    this.tailCheck -= dt;
+    if (this.tailCheck > 0) return;
+    this.tailCheck = 0.45;
+    const [x, y] = tileXY(this.tile);
+    const region = w.grid.enclosureAt(x, y), blocked = (i: number): boolean => isTroughTile(w, i) || this.dry(w, i);
+    const to = region ? this.nearest(region.tiles, kid.gx, kid.gy, blocked) : -1;
+    const route = to < 0 || kid.gone || this.tailLeft <= 0 || Math.hypot(tileXY(to)[0] + 0.5 - kid.gx, tileXY(to)[1] + 0.5 - kid.gy) > 1.8 ? null : w.grid.path(this.tile, to, blocked);
+    if (!route || route.length > 8) {
+      this.tail = null;
+      this.tailRest = 18 + Math.random() * 10;
+      this.fast = false;
+      if (this.nature === 'playful' && Math.random() < 0.5) this.show('hop');
+      else this.doTrick('look', 2.6, 'Idle');
+      this.face(kid.gx, kid.gy);
+      return;
+    }
+    if (route.length < 2) {
+      // al naast het kind: blijven staan en naar hem kijken
+      if (this.state !== 'walk') this.face(kid.gx, kid.gy);
+      return;
+    }
+    if (to === this.route[this.route.length - 1]) return;
+    this.startWalk(route);
+    this.fast = true;
+    this.play('Run', this.young ? 2 : 1.5);
   }
 
   /** Een verlegen dier loopt weg van een gast: naar een tegel die een stuk verder van hem af ligt. */
@@ -1197,7 +1616,7 @@ export class Animal {
   }
 
   private choose(w: AnimalWorld): void {
-    const encore = this.encore, wasUp = this.perched;
+    const encore = this.encore, wasUp = this.perched, acting = this.acting;
     this.trick = null;
     this.fast = false;
     this.perched = false;
@@ -1213,6 +1632,8 @@ export class Animal {
       if (encore === 'shake') w.splash(this.gx, this.gy);
       this.show(encore);
       this.perched = wasUp;
+      // het tweede deel van een kunstje voor de gasten (springen en dan zwaaien) hoort er nog bij
+      this.acting = acting;
       return;
     }
     // 's nachts liggen de meeste dieren te slapen (wie honger heeft, gaat eerst eten)
@@ -1296,6 +1717,8 @@ export class Animal {
       const toy = pool[Math.floor(Math.random() * pool.length)];
       if (toy && this.goPlay(w, toy, region.id, isTrough, false)) return;
     }
+    // er staan gasten te kijken: af en toe loopt een dier naar ze toe, laat het zijn kunstje zien of bedelt het
+    if (this.heedGuests(w, region, tame, isTrough)) return;
     // een gast in de buurt: een tam of dapper dier loopt ernaartoe, een verlegen dier loopt juist weg
     const guest = w.guestNear(this.gx, this.gy);
     if (guest) {
@@ -1448,7 +1871,7 @@ export class Animal {
       const half = Math.min(front, back, 0.14 + this.info.height * MODEL_SCALE * 0.22);
       const s = Math.sin(this.heading), c = Math.cos(this.heading), as = Math.abs(s), ac = Math.abs(c);
       // hoe ver het lijf naar elke kant reikt; wie ronddraait heeft overal zijn hele lengte nodig
-      const turning = kind === 'spin' || kind === 'dance' || kind === 'jumpturn' || kind === 'peek' || kind === 'survey';
+      const turning = kind === 'spin' || kind === 'dance' || kind === 'jumpturn' || kind === 'peek' || kind === 'survey' || kind === 'fan' || kind === 'prance';
       const all = Math.max(front, back);
       const east = turning ? all : (s > 0 ? front : back) * as + half * ac, west = turning ? all : (s > 0 ? back : front) * as + half * ac;
       const south = turning ? all : (c > 0 ? front : back) * ac + half * as, north = turning ? all : (c > 0 ? back : front) * ac + half * as;
@@ -1478,11 +1901,23 @@ export class Animal {
     this.model.mixer.update(dt);
     this.bob += dt;
     if (this.trick) this.trick.t += dt;
-    if (this.leap && this.trick?.kind !== 'leap') {
+    if (this.leap && this.trick?.kind !== 'leap' && this.trick?.kind !== 'breach') {
       this.leap = null;
       w.splash(this.gx, this.gy);
     }
-    if (this.dash && this.trick?.kind !== 'tunnel' && this.trick?.kind !== 'under' && this.trick?.kind !== 'swing') this.dash = null;
+    if (this.dash && this.trick?.kind !== 'tunnel' && this.trick?.kind !== 'under' && this.trick?.kind !== 'swing' && this.trick?.kind !== 'slide') this.dash = null;
+    // voor de gasten: het geluid bij een kunstje (even na het begin), het water van de olifant, en meedraven met een kind
+    if (this.cryIn > 0) {
+      this.cryIn = this.trick ? this.cryIn - dt : 0;
+      if (this.trick && this.cryIn <= 0) w.cry(this, this.cryLoud);
+    }
+    if (this.trick?.kind === 'spray' && this.trick.t > 0.7 && this.trick.t < 2.2 && Math.random() < dt * 10) {
+      const front = (this.info.length - this.info.back) * MODEL_SCALE * 0.9;
+      w.spray(this.px + Math.sin(this.heading) * front, this.py + Math.cos(this.heading) * front, this.top * 0.9);
+    }
+    if (this.tailRest > 0) this.tailRest -= dt;
+    if (this.tail) this.trail(dt, w);
+    else if ((this.young || this.nature === 'playful') && this.tailRest <= 0 && Math.random() < dt * 0.8) this.spotPasser(w);
     if (this.hit && this.trick?.kind !== 'punch') this.hit = null;
     if (this.fetch && this.trick?.kind !== 'fetch') this.fetch = null;
     const swims = w.grid.terrain[this.tile] === WATER_TILE && !this.lift;
@@ -1517,6 +1952,16 @@ export class Animal {
           this.goal = null;
           if (this.nature === 'shy') this.show('sniff');
           else this.doTrick('greet', 1.8, 'Happy');
+          this.face(this.spotX, this.spotY);
+        } else if (this.goal === 'show') {
+          // bij de gasten aan het hek: het kunstje van deze soort
+          this.goal = null;
+          this.perform(w, this.spotX, this.spotY);
+        } else if (this.goal === 'look' || this.goal === 'beg') {
+          // de gast aankijken, of in de kinderboerderij met de neus naar zijn hand
+          if (this.goal === 'beg') this.show('beg');
+          else this.doTrick('look', 2.6, 'Idle');
+          this.goal = null;
           this.face(this.spotX, this.spotY);
         } else if (this.pal) {
           const pal = this.pal, chasing = this.chasing;
@@ -1602,7 +2047,8 @@ export class Animal {
         if (this.state === 'poop') w.dropPoop(px, py);
         else w.dropPuddle(px, py);
       }
-      if (this.timeLeft <= 0) this.choose(w);
+      // wie met een kind meedraaft, wacht op hem in plaats van iets anders te gaan doen
+      if (this.timeLeft <= 0 && !this.tail) this.choose(w);
     }
     this.keepInside(dt, w);
     this.place();

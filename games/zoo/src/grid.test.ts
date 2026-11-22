@@ -6,6 +6,7 @@ import { emptyStats, goalProgress, levelDone } from './levels';
 import { allLines, fill, goalLine, textOf, voiceId, type Tr } from './lines';
 import nl from './nl.json';
 import { AQUATIC, PROP, PROPS, WILD_KINDS, WILD_WANT, propPoints, wildRange, wildWant } from './data';
+import { DECOR, WAYFIND, WAYFIND_PATHS, canStray, wayfound } from './data';
 
 /** Zet een hek om het blok tegels van (x0,y0) tot en met (x1,y1). */
 function fenceBox(g: Grid, x0: number, y0: number, x1: number, y1: number): Edge[] {
@@ -319,6 +320,21 @@ describe('paden, kinderboerderij en drukte', () => {
       expect(SPECIES[a], a).toBeTruthy();
       expect(SPECIES[b], b).toBeTruthy();
     }
+  });
+
+  it('een wegwijzer wijst de weg binnen zijn bereik, een plattegrond verder; daarbuiten kun je verdwalen', () => {
+    const signs = [{ gx: 10.5, gy: 10.5, r: WAYFIND.signpost }];
+    expect(wayfound(signs, 10.5 + WAYFIND.signpost, 10.5)).toBe(true);
+    expect(wayfound(signs, 10.5 + WAYFIND.signpost + 0.5, 10.5)).toBe(false);
+    expect(wayfound([...signs, { gx: 30.5, gy: 10.5, r: WAYFIND.mapboard }], 20.5, 10.5)).toBe(true);
+    expect(wayfound([], 3, 3)).toBe(false);
+    expect(WAYFIND.mapboard).toBeGreaterThan(WAYFIND.signpost);
+  });
+
+  it('in een klein park of voordat de wegwijzer te koop is, raakt niemand de weg kwijt', () => {
+    expect(canStray(DECOR.signpost.from - 1, 500)).toBe(false);
+    expect(canStray(DECOR.signpost.from, WAYFIND_PATHS)).toBe(false);
+    expect(canStray(DECOR.signpost.from, WAYFIND_PATHS + 1)).toBe(true);
   });
 });
 

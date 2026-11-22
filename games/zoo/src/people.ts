@@ -1,7 +1,7 @@
 // Gasten en verzorgers. Gasten komen binnen bij de ingang, lopen over de paden, kijken bij de dieren,
 // kopen iets als ze het naar hun zin hebben en laten met een wolkje zien wat ze willen.
 import * as THREE from 'three';
-import { PLUSH, PRODUCTS, STALLS, type FoodId, type ShopKind } from './data';
+import { PLUSH, PRODUCTS, SEEK_REACH, STALLS, type FoodId, type ShopKind } from './data';
 import { Grid, H, W, tileIndex, tileXY } from './grid';
 import { BUMPER_CARS, DARK_FUN, FERRIS, LOOKS, PETTING_GUESTS, PLAY, RESTAURANT_TABLES, RIDES, SUIT_COLORS, TOWER_TOP, TRAIN, bumperCar, isPath } from './data';
 import { toWorldX, toWorldZ } from './view';
@@ -118,7 +118,7 @@ export interface GuestSave {
 }
 
 /** `busy`: het is er wel, maar te druk: er zijn te weinig van voor zoveel gasten. */
-export type GuestWish = { kind: Need | 'bored' | 'fav' | 'dark' | 'wide'; lacking: boolean; product?: string; busy?: boolean };
+export type GuestWish = { kind: Need | 'bored' | 'fav' | 'dark' | 'wide' | 'astray'; lacking: boolean; product?: string; busy?: boolean };
 
 export interface GuestWorld {
   grid: Grid;
@@ -167,6 +167,8 @@ export interface GuestWorld {
   wide(tile: number): boolean;
   /** Staat er een plattegrond vlakbij? Wie die gezien heeft, vindt zijn lievelingsdier meteen. */
   mapNear(gx: number, gy: number): boolean;
+  /** Weet een gast op deze tegel de weg? Ja bij een wegwijzer, een plattegrond of de poort in de buurt, en altijd in een klein park. */
+  signed(tile: number): boolean;
   /** Een blije gast gaat naar huis en laat een tekening achter in het gastenboek. */
   signBook(guest: Guest): void;
   /** Een gast heeft net bij de dieren gekeken (de fotograaf verkoopt hem misschien een foto). */
@@ -189,10 +191,95 @@ export interface GuestWorld {
   classLeft(guest: Guest, happy: boolean): void;
   /** Bij een heel vol park krijgt elke gast wat minder snel trek, zodat de kramen het aankunnen (1 = gewoon). */
   ease(): number;
+  /**
+   * De dingen in het park waar een gast naartoe kan lopen om er iets mee te doen (zie SIGHT). Het spel zoekt ze om
+   * de paar tellen opnieuw uit; een ding houdt hetzelfde object zolang het er staat.
+   */
+  sights(): Sight[];
+  /** Een gast doet iets met dit ding: het beweegt even mee (de pomp, de sneeuwpop, het gastenboek, de klep van de afvalbak). */
+  sightUsed(sight: Sight): void;
+  /** Een plons op deze plek en hoogte (in de fontein). `coin`: er ging een muntje in; heel af en toe levert dat een munt op. */
+  plons(gx: number, gy: number, height: number, coin: boolean): void;
+  /** Is het avond, nacht of winter? Dan warmen meer gasten hun handen bij het kampvuur. */
+  chilly(): boolean;
+  /** Wat doen de dieren waar je vanaf deze padtegel naar kijkt? Een optelsom van PEN (slapen, spelen, ziek, vies, schrik). */
+  penMood(tile: number): number;
+  /** Loopt er een ontsnapt dier vlak bij dit punt? Zo ja, dan staat in `out` waar het is. */
+  looseNear(gx: number, gy: number, out: [number, number]): boolean;
+  /** Is het nacht? Dan gapen de gasten en lopen ze slaperig. */
+  isNight(): boolean;
+  /** Staat er een regenboog? Dan wijzen de gasten omhoog. */
+  rainbowUp(): boolean;
+  /** Ligt er een regenplas op deze tegel? Kinderen stampen erin. */
+  puddleOn(tile: number): boolean;
+  /** Spetters op deze plek. */
+  splash(gx: number, gy: number): void;
 }
 
+/** Een ding in het park waar gasten iets mee doen: een versiering, een bloembak of een afvalbak. */
+export interface Sight {
+  /** Het ding zelf, voor het spel. */
+  ref: object;
+  kind: string;
+  /** Waar het staat, in rastercoördinaten. */
+  x: number;
+  y: number;
+  /** De tegels ernaast: ligt daar pad, dan kan een gast er vanaf die tegel bij. */
+  tiles: number[];
+  /** Hoe het gedraaid staat, in kwartslagen (voor de bankjes van de picknicktafel). */
+  rot: number;
+  /** Hoeveel gasten ernaartoe lopen of er al zijn, en welke plekken bezet zijn (een bit per plek). De gasten houden dit bij. */
+  n: number;
+  used: number;
+  /** Het is weggehaald. */
+  gone: boolean;
+}
+
+/**
+ * Wat gasten met de dingen in het park doen. `off`: zo ver van het ding blijft de gast staan (hij stapt er van het
+ * pad naartoe); `most`: zoveel gasten tegelijk; `time`: zo lang is hij bezig, in tellen; `fun`: zoveel plezier geeft
+ * het; `zin`: hoe graag gasten erheen gaan (0: nooit zomaar); `roll`: kan ook vanuit een rolstoel of met een
+ * kinderwagen (die blijft op het pad).
+ */
+export const SIGHT: Record<string, { off: number; most: number; time: number; fun: number; zin: number; roll?: boolean }> = {
+  picnic: { off: 0, most: 4, time: 6, fun: 0.08, zin: 0.8 },
+  pond: { off: 0.62, most: 3, time: 4.5, fun: 0.08, zin: 1.2 },
+  well: { off: 0.52, most: 2, time: 4.2, fun: 0.06, zin: 1 },
+  pump: { off: 0.42, most: 1, time: 4.2, fun: 0.07, zin: 1 },
+  birdbath: { off: 0.6, most: 2, time: 4, fun: 0.06, zin: 0.9, roll: true },
+  waterfall: { off: 0.95, most: 3, time: 4, fun: 0.07, zin: 1, roll: true },
+  campfire: { off: 0.62, most: 4, time: 5, fun: 0.06, zin: 0.5 },
+  statue: { off: 0.8, most: 3, time: 4.2, fun: 0.07, zin: 1, roll: true },
+  totem: { off: 0.75, most: 3, time: 4.2, fun: 0.07, zin: 1, roll: true },
+  clocktower: { off: 1, most: 3, time: 4.2, fun: 0.07, zin: 1, roll: true },
+  windmill: { off: 1, most: 3, time: 4.2, fun: 0.07, zin: 1, roll: true },
+  snowman: { off: 0.7, most: 3, time: 3.6, fun: 0.07, zin: 1, roll: true },
+  scarecrow: { off: 0.7, most: 3, time: 3.6, fun: 0.07, zin: 1, roll: true },
+  guestbook: { off: 0.42, most: 1, time: 4.4, fun: 0.06, zin: 1.5 },
+  signpost: { off: 0.6, most: 2, time: 3.2, fun: 0.03, zin: 0.5, roll: true },
+  mapboard: { off: 0.6, most: 2, time: 3.4, fun: 0.03, zin: 0.6, roll: true },
+  roses: { off: 0.36, most: 2, time: 3.4, fun: 0.05, zin: 0.6 },
+  tulips: { off: 0.36, most: 2, time: 3.4, fun: 0.05, zin: 0.6 },
+  sunflowers: { off: 0.36, most: 2, time: 3.4, fun: 0.05, zin: 0.6 },
+  flowers: { off: 0.4, most: 2, time: 3.4, fun: 0.05, zin: 0.6 },
+  arch: { off: 0.05, most: 1, time: 3, fun: 0.05, zin: 0.5, roll: true },
+  flag: { off: 0.7, most: 2, time: 2.8, fun: 0.03, zin: 0.25, roll: true },
+  bunting: { off: 0.7, most: 2, time: 2.8, fun: 0.03, zin: 0.25, roll: true },
+  bin: { off: 0.42, most: 2, time: 1.5, fun: 0.01, zin: 0 },
+};
+/** Zo vaak gaat een gast die niets dringends te doen heeft naar iets moois in de buurt, en hoe ver hij ervoor loopt (in tegels). */
+const SIGHT_CHANCE = 0.4, SIGHT_NEAR = 5;
+/** Meer gasten bij hetzelfde ding gaan er in een boogje omheen staan: zoveel draait elke plek (in radialen). */
+const SIGHT_SPREAD = [0, 0.7, -0.7, 1.4];
+/** Bij de fontein: zo ver van het midden staat een gast aan de rand, en hoe de plekken langs de rand verdeeld zijn. */
+const RIM = 1.04, RIM_SPREAD = [0, 0.42, -0.42, 0.84, -0.84, 1.26];
+/** Wat een gast bij een ding in het park doet. */
+type Use = 'picnic' | 'crouch' | 'feed' | 'show' | 'well' | 'pump' | 'bird' | 'warm' | 'lookup' | 'mimic' | 'snap' | 'giggle' | 'write' | 'sign' | 'sniff' | 'arch' | 'toss';
+/** Op welk moment van het bezoek (0 tot 1) het ding zelf even meebeweegt. */
+const USE_POKE: Partial<Record<Use, number>> = { crouch: 0.5, show: 0.3, well: 0.4, bird: 0.5, warm: 0.3, giggle: 0.15, mimic: 0.2, write: 0.9 };
+
 // ------------------------------------------------------------ poppetje
-const SKIN = [0xf6cfa6, 0xe8b48a, 0xc98d5e, 0xa86b42, 0x8a5637];
+const SKIN =[0xf6cfa6, 0xe8b48a, 0xc98d5e, 0xa86b42, 0x8a5637];
 const SHIRT = [0xe0584f, 0x4a90e2, 0xf5a623, 0x6cc04a, 0xb06ad9, 0x2bb5a8, 0xf06aa6, 0xf4f1e8];
 const PANTS = [0x3d4f7a, 0x5a4636, 0x38343c, 0x6b7a4a];
 const HAIR = [0x2b1b14, 0x7a4a22, 0xd9a520, 0xd9532b, 0x9aa0a6];
@@ -330,11 +417,27 @@ function swing(limbs: THREE.Mesh[], amount: number): void {
 }
 
 // ------------------------------------------------------------ gast
-type GuestState = 'idle' | 'walk' | 'watch' | 'buy' | 'sit' | 'accident' | 'queue';
+type GuestState = 'idle' | 'walk' | 'watch' | 'buy' | 'sit' | 'accident' | 'queue' | 'use';
 /** Wat een gast doet terwijl hij ergens staat. */
-type Act = 'wave' | 'point' | 'photo' | 'clap' | 'pet' | 'jump' | 'peer' | 'kneel' | 'call' | 'laugh';
+type Act = 'wave' | 'point' | 'photo' | 'clap' | 'pet' | 'jump' | 'peer' | 'kneel' | 'call' | 'laugh' | MoreAct;
+/**
+ * Houdingen bij een verblijf die erbij zijn gekomen: meedoen met een spelend dier, ssst bij een slapend dier, sip
+ * kijken bij een ziek dier, op de tenen staan, door een verrekijker kijken, de neus dichtknijpen bij een vies
+ * verblijf, uit de hand voeren, op de grond zitten, teleurgesteld staan (te donker) en confetti gooien.
+ */
+type MoreAct = 'join' | 'hush' | 'pity' | 'tiptoe' | 'scope' | 'stink' | 'feed' | 'ground' | 'gloom' | 'toss';
+/**
+ * Een kort gebaar dat even boven alles uit gaat: schrikken, schouders laten hangen, over de buik wrijven, de knuffel
+ * knuffelen, het hoedje opzetten, opgelucht na de wc, de paraplu uitschudden, wijzen naar een ontsnapt dier, bah,
+ * duizelig, een high five, een foto of handtekening bij de ster, de ballon nakijken en in een plas stampen.
+ */
+type Shot = 'startle' | 'slump' | 'rub' | 'hug' | 'don' | 'relief' | 'shake' | 'alarm' | 'yuck' | 'dizzy' | 'five' | 'fan' | 'lookup' | 'stomp';
+/** Wat een gast in zijn hand heeft om van te eten of te drinken: zo beweegt de hand naar de mond. */
+type Bite = 'lick' | 'sip' | 'bite';
 /** Kleine dingen tussendoor: om je heen kijken, op je horloge kijken, je uitrekken, kletsen, een dansje. */
-type Idle = 'look' | 'scratch' | 'watch' | 'stretch' | 'talk' | 'selfie' | 'dance' | 'tap' | 'nod' | 'shiver' | 'sway';
+type Idle = 'look' | 'scratch' | 'watch' | 'stretch' | 'talk' | 'selfie' | 'dance' | 'tap' | 'nod' | 'shiver' | 'sway' | MoreIdle;
+/** Kleine dingen die erbij zijn gekomen: gapen, zuchten, op de tenen kijken hoe lang de rij is, naar de regenboog wijzen, trappelen. */
+type MoreIdle = 'yawn' | 'sigh' | 'peek' | 'rainbow' | 'fidget';
 /** Zoveel gasten kan één kraam, wc, bankje of attractie tegelijk helpen; de rest staat in de rij. */
 const AT_ONCE: Partial<Record<ShopKind, number>> = {
   toilet: 2, bench: 2, playground: 3, carousel: 4, fountain: 6, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2,
@@ -356,6 +459,15 @@ const WC = { walk: 1.1, step: 0.9, back: 1.1, door: 0.42, front: 1.18, deep: 0.1
 const REST_NEAR = 8;
 /** Wie dit wil, gaat niet eerst nog even op een bankje zitten. */
 const PRESSING: Need[] = ['toilet', 'food', 'drink', 'umbrella', 'shelter', 'sit'];
+/**
+ * De weg kwijt (buiten het bereik van elk bord). `chance`: zo vaak gebeurt het, per keer dat een gast kiest waar hij
+ * heen gaat; `time`: zo lang zoekt hij (kortste en langste, in tellen); `fun`: zoveel plezier kost het; `rest`: zo lang
+ * daarna gebeurt het hem niet nog eens; `most` en `share`: zoveel gasten zijn hooguit tegelijk de weg kwijt (een vast
+ * aantal, of in een vol park dit deel van alle gasten). `doubt` en `pause`: zo vaak en zo lang twijfelt de juf.
+ */
+const STRAY = { chance: 0.07, time: [10, 15], fun: 0.04, rest: 70, most: 3, share: 0.06, doubt: 0.3, pause: [3, 5] };
+/** Zoveel gasten mogen er nu nog de weg kwijtraken: de GuestManager telt het elk beeldje opnieuw. */
+let strayRoom = 0;
 /** Waar een gast op de wc nu staat, welke kant hij op gaat en de plek voor zijn deur; elke keer opnieuw ingevuld door `wcPose`. */
 const WC_AT = { x: 0, y: 0, dx: 0, dy: 0, fx: 0, fy: 0, hidden: false, moving: false };
 /** Waar een gast op of in gaat zitten of staan (in plaats van iets te kopen aan een toonbank). */
@@ -389,6 +501,95 @@ const SHADES_GEO = new THREE.BoxGeometry(0.19, 0.05, 0.03);
 const BROLLY_COLORS = [0xe0584f, 0x4a90e2, 0xffd23f, 0x6cc04a, 0xa06ad9, 0xf06aa6];
 const COLOR_OF = Object.fromEntries(PRODUCTS.filter(p => p.color !== undefined).map(p => [p.id, p.color as number]));
 const SNACK_GEO = new THREE.BoxGeometry(0.06, 0.08, 0.06).translate(0, -0.2, 0.04);
+/** Wat de dieren doen waar een gast naar kijkt (zie `penMood`): een bit per ding. */
+export const PEN = { asleep: 1, playing: 2, sick: 4, dirty: 8, scare: 16 };
+/** Waar een ontsnapt dier loopt: elke keer opnieuw ingevuld door `looseNear`. */
+const LOOSE_AT: [number, number] = [0, 0];
+/** De beroemde gast, als die in het park is, en waar de locomotief van het treintje rijdt (de GuestManager en het treintje vullen dit in). */
+let theStar: Guest | null = null;
+const TRAIN_AT = { x: 0, y: 0, on: false };
+/** Een klok voor alle gasten samen, en wie het laatst uit een attractie stapte: stapt er meteen nog iemand uit, dan geven ze een high five. */
+let crowdClock = 0;
+let offRide: Guest | null = null, offRideAt = -9;
+/** Zo lang duren de korte gebaren, in tellen. */
+const SHOT_TIME: Record<Shot, number> = { startle: 1.1, slump: 1.8, rub: 1.6, hug: 1.7, don: 1.3, relief: 1.9, shake: 1.5, alarm: 2.2, yuck: 1.3, dizzy: 1.8, five: 1.3, fan: 2.2, lookup: 3, stomp: 1.5 };
+const SCOOPS = [0xffc1d6, 0xfff1c9, 0x8a5637, 0xb6e3c0];
+const PLUSH_COLORS = [0xc98d5e, 0xf4f1e8, 0xf5a623, 0x9aa0a6, 0xf48fb1, 0x8a5637, 0xffd23f];
+/** Waar de knuffel zit: onder de arm, en tegen de borst bij het knuffelen. */
+const PLUSH_REST = [-0.19, 0.31, 0.075], PLUSH_HUG = [0, 0.37, 0.11];
+/** Waar de hand het touwtje van de ballon vasthoudt: daar draait de ballon omheen als hij wiebelt. */
+const BALLOON_AT = [0.185, 0.27, 0.11];
+/** Uit welke kleine dingen een gast kiest als hij even stilstaat: het hangt af van de regen, de rij, de nacht en de regenboog. */
+const IDLES: Record<'wet' | 'queue' | 'queueLong' | 'queueChild' | 'child' | 'adult' | 'rainbow' | 'night', Idle[]> = {
+  wet: ['shiver'],
+  queue: ['tap', 'watch', 'look', 'sway'],
+  queueLong: ['tap', 'watch', 'sigh', 'peek', 'sigh', 'peek', 'look'],
+  queueChild: ['fidget', 'fidget', 'peek', 'look', 'sway'],
+  child: ['look', 'dance', 'scratch', 'sway', 'stretch'],
+  adult: ['look', 'scratch', 'watch', 'stretch', 'selfie', 'nod', 'sway'],
+  rainbow: ['rainbow', 'rainbow', 'look'],
+  night: ['yawn', 'yawn', 'look', 'stretch', 'sway'],
+};
+const smooth = (a: number, b: number, v: number): number => {
+  const k = Math.max(0, Math.min(1, (v - a) / (b - a)));
+  return k * k * (3 - 2 * k);
+};
+
+/** Een los onderdeel van iets wat een gast draagt: een van de vormen die er al zijn, verschaald en gekleurd. Zo komt er geen tekenopdracht bij. */
+function bit(geo: THREE.BufferGeometry, color: number, x: number, y: number, z: number, sx: number, sy = sx, sz = sx): THREE.Mesh {
+  const mesh = new THREE.Mesh(geo, mat(color));
+  mesh.position.set(x, y, z);
+  mesh.scale.set(sx, sy, sz);
+  return mesh;
+}
+
+/**
+ * Wat een gast in zijn hand heeft na de kraam: een hoorntje met een bol, een waterijsje, een beker met een rietje,
+ * een puntzak friet, een stapel pannenkoeken of een broodje. Het staat rechtop als de arm naar voren steekt.
+ */
+function makeTreat(kind: ShopKind, product: string | undefined): THREE.Group {
+  const g = new THREE.Group();
+  g.position.set(0, -0.19, 0.03);
+  g.rotation.x = Math.PI / 2;
+  if (kind === 'icecream' && product === 'lolly') {
+    g.add(bit(STRING_GEO, 0xe9d5a8, 0, 0.03, 0, 1.6, 0.2, 1.6), bit(SPIKE_GEO, pick([0xe0584f, 0xf5a623, 0x4a90e2]), 0, 0.1, 0, 1.3, 1.8, 0.8));
+  } else if (kind === 'icecream') {
+    const cone = bit(PARTY_GEO, 0xe3b06a, 0, 0.042, 0, 0.42);
+    cone.rotation.z = Math.PI; // de punt naar beneden
+    g.add(cone, bit(POM_GEO, pick(SCOOPS), 0, 0.105, 0, 1.5));
+  } else if (kind === 'drinkstall') {
+    const straw = bit(STRING_GEO, 0xe0584f, 0.012, 0.11, 0, 1.6, 0.2, 1.6);
+    straw.rotation.z = -0.3;
+    g.add(bit(CROWN_GEO, product === 'milk' ? 0xf7f4ec : product === 'juice' ? 0xff9a3c : 0xffe45c, 0, 0.045, 0, 0.36, 1.1, 0.36), straw);
+  } else if (product === 'pancake') {
+    g.add(bit(BRIM_GEO, 0xe9b872, 0, 0.02, 0, 0.3, 1.5, 0.3), bit(BRIM_GEO, 0xe9b872, 0, 0.052, 0, 0.28, 1.5, 0.28), bit(BRIM_GEO, 0x8a5637, 0, 0.074, 0, 0.16, 0.8, 0.16));
+  } else if (product === 'hotdog') {
+    g.add(bit(SPIKE_GEO, 0xd9a05b, 0, 0.03, 0, 2.6, 0.9, 1.1), bit(SPIKE_GEO, 0xb5483a, 0, 0.052, 0, 3, 0.45, 0.6));
+  } else {
+    // een puntzak friet
+    g.add(bit(SPIKE_GEO, 0xe0584f, 0, 0.04, 0, 1.7, 1.5, 1.1), bit(SPIKE_GEO, 0xffd23f, -0.014, 0.088, 0, 0.6, 0.9, 0.7), bit(SPIKE_GEO, 0xffd23f, 0.014, 0.08, 0, 0.6, 0.6, 0.7));
+  }
+  return g;
+}
+
+/** De knuffel uit de knuffelkraam: een lijfje, een kop en twee oortjes. Elke soort heeft zijn eigen kleur. */
+function makePlush(product: string | undefined): THREE.Group {
+  let n = 0;
+  for (let i = 0; product && i < product.length; i++) n += product.charCodeAt(i);
+  const color = PLUSH_COLORS[n % PLUSH_COLORS.length];
+  const g = new THREE.Group();
+  g.add(bit(BALLOON_GEO, color, 0, 0, 0, 0.5, 0.58, 0.45), bit(POM_GEO, color, 0, 0.075, 0.025, 1.5), bit(SPIKE_GEO, color, 0.03, 0.115, 0.02, 0.5), bit(SPIKE_GEO, color, -0.03, 0.115, 0.02, 0.5));
+  g.position.set(PLUSH_REST[0], PLUSH_REST[1], PLUSH_REST[2]);
+  return g;
+}
+
+/** De verrekijker: twee kokertjes voor de ogen. Hij zit aan het hoofd en is alleen te zien als de gast erdoor kijkt. */
+function makeScope(): THREE.Group {
+  const g = new THREE.Group();
+  g.add(bit(SPIKE_GEO, 0x38343c, 0.042, 0.01, 0.12, 1, 0.85, 2.2), bit(SPIKE_GEO, 0x38343c, -0.042, 0.01, 0.12, 1, 0.85, 2.2));
+  g.visible = false;
+  return g;
+}
 /**
  * De tegel op het pad waar je bij een gebouw geholpen wordt: de bereikbare tegel het dichtst bij de voorkant.
  * Alle gasten gaan naar dezelfde plek, zodat er één rij ontstaat.
@@ -496,6 +697,11 @@ export class Guest implements Leader {
   private found = false;
   private helped = false;
   private lostFor = 0;
+  /** De weg kwijt: zoveel tellen zoekt de gast nog, met een vraagteken boven zijn hoofd (0: hij weet de weg). */
+  astray = 0;
+  /** Tot deze leeftijd raakt de gast niet nog eens de weg kwijt; en of de juf bij deze stop al getwijfeld heeft. */
+  private strayFree = 0;
+  private doubted = false;
   /** In het treintje. */
   riding: Train | null = null;
   private rode = false;
@@ -547,7 +753,7 @@ export class Guest implements Leader {
   private idleIn = 1.5 + Math.random() * 4;
   /** Zoveel tellen eet of drinkt de gast nog van wat hij net kocht; het zit in zijn hand. */
   private eating = 0;
-  private snack: THREE.Mesh | null = null;
+  private snack: THREE.Object3D | null = null;
   /** Zoveel tellen springt de gast nog van blijdschap. */
   joy = 0;
   /** Zoveel tellen zwaait de gast nog (naar de speler, of bij het weggaan). */
@@ -579,12 +785,80 @@ export class Guest implements Leader {
   private wornHat: string | null = null;
   private wornBalloon: string | null = null;
   private mess: 'poop' | 'pee' = 'pee';
+  // ---- extra houdingen en dingen in de hand (zie `extras`, `overlay`, `poseAct` en `poseIdle`)
+  /** Een kort gebaar dat even boven alles uit gaat (schrikken, bah, opgelucht, ...) en hoe ver het is. */
+  private shot: Shot | null = null;
+  private shotT = 0;
+  /** Zoveel tellen blijft de gast nog even staan tijdens het lopen, voor een kort gebaar. `gaze`: hij kijkt dan naar (lookX, lookY). */
+  private stall = 0;
+  private gaze = false;
+  private lookX = 0;
+  private lookY = 0;
+  /** Een stap achteruit of opzij (in tegels): alleen in het beeld, de gast blijft staan waar hij staat. */
+  private back = 0;
+  private aside = 0;
+  /** Wat de dieren doen waar de gast naar kijkt (PEN), wat hij uit zichzelf deed, of hij erop let en tot wanneer hij er staat. */
+  private mood = 0;
+  private ownAct: Act | null = null;
+  private heeds = false;
+  private penEnd = 0;
+  /** Hoe de gast eet van wat hij in zijn hand heeft; `full`: daarna wrijft hij over zijn buik. */
+  private bite: Bite = 'bite';
+  private full = false;
+  /** Het muntje in de hand bij de toonbank, de verrekijker, het zakje voer en de knuffel onder de arm. */
+  private coin: THREE.Mesh | null = null;
+  private scope: THREE.Group | null = null;
+  private feedBag: THREE.Mesh | null = null;
+  private feeder = false;
+  private plush: THREE.Group | null = null;
+  private hugIn = 5 + Math.random() * 8;
+  /** De ballon met zijn touwtje; `flown`: zoveel tellen is hij al weggevlogen (-1: de gast heeft hem nog vast). */
+  private balloonG: THREE.Group | null = null;
+  private flown = -1;
+  /** De wielen van de rolstoel of kinderwagen en hoe groot ze zijn: zo draaien ze mee met het rijden. */
+  private rims: THREE.Mesh[] = [];
+  private rimR: number[] = [];
+  private lastX = 0;
+  private lastY = 0;
+  private lastTile = -1;
+  /** Is het nacht (1) en staat er een regenboog (2)? */
+  private sky = 0;
+  /** Tot deze leeftijd reageert de gast niet nog eens op iets vies, een ontsnapt dier of een plas. */
+  private calmUntil = 0;
+  private scanIn = Math.random();
+  /** Heeft de gast de ster al gezien? En was zijn paraplu net nog dicht? */
+  private fanned = false;
+  private wasDry = true;
   private ox = (Math.random() - 0.5) * 0.4;
   private oy = (Math.random() - 0.5) * 0.4;
+  /** Het ding in het park waar de gast naartoe loopt of mee bezig is (state 'use'), en wat hij er doet. */
+  private sight: Sight | null = null;
+  private use: Use | null = null;
+  /** Waar hij daarbij staat en hoe hij gedraaid is; hoe lang de passen erheen en het bezig zijn duren. */
+  private ux = 0;
+  private uy = 0;
+  private uturn = 0;
+  private useGap = 0;
+  private useLen = 1;
+  /** Hoe ver hij van het pad af is (0 tot 1), hoe lang hij al bezig is, en hoeveel er onderweg al gebeurd is (een plons, de klep). */
+  private useK = 0;
+  private useE = 0;
+  private useMark = 0;
+  /** Een gok per bezoek: daarmee kiest de gast wat hij doet op het bankje en bij de fontein. */
+  private whim = Math.random();
+  /** De laatste dingen waar de gast was: daar gaat hij niet meteen nog eens heen. */
+  private sightsSeen: Sight[] = [];
+  /** Heeft de gast al in het gastenboek geschreven? */
+  private wrote = false;
+  /** Het propje afval in de hand, en zoveel tellen duurt het boogje naar de bak nog. */
+  private litter: THREE.Mesh | null = null;
+  private tossT = 0;
 
   constructor(tile: number, species: string[], opts: GuestOptions = {}) {
     const person = makePerson(false, undefined, { child: opts.wheels || opts.star ? false : opts.child, shirt: opts.star ? 0xffd23f : opts.shirt });
     this.mesh = person.group;
+    // eerst vooroverleunen en opzij hellen, dan pas draaien: zo leunt de gast de kant op waar hij naar kijkt
+    this.mesh.rotation.order = 'YXZ';
     this.limbs = person.limbs;
     this.head = person.head;
     this.height = person.height;
@@ -602,21 +876,35 @@ export class Guest implements Leader {
       mesh.position.set(x, y, z);
       this.mesh.add(mesh);
     };
+    // een wiel heeft spaken, zodat je het ziet draaien (zie `extras`): een groot wiel twee, een klein wieltje één
+    const wheel = (geo: THREE.BufferGeometry, color: number, x: number, y: number, z: number, r: number): void => {
+      const mesh = new THREE.Mesh(geo, mat(color)), spoke = color === 0x38343c ? 0xd8dce2 : 0x38343c;
+      mesh.position.set(x, y, z);
+      mesh.add(bit(STRING_GEO, spoke, 0, 0, 0, 3.4, (r * 1.8) / 0.34, 2.5));
+      if (r > 0.1) {
+        const cross = bit(STRING_GEO, spoke, 0, 0, 0, 3.4, (r * 1.8) / 0.34, 2.5);
+        cross.rotation.x = Math.PI / 2;
+        mesh.add(cross);
+      }
+      this.mesh.add(mesh);
+      this.rims.push(mesh);
+      this.rimR.push(r);
+    };
     if (this.wheels === 'chair') {
       // de rolstoel: een zitting met een rugleuning en twee grote wielen
       add(CHAIR_BACK_GEO, 0x3d4f7a, 0, 0.34, -0.1);
       add(CHAIR_SEAT_GEO, 0x3d4f7a, 0, 0.17, 0.02);
-      add(WHEEL_GEO, 0x38343c, 0.16, 0.15, -0.02);
-      add(WHEEL_GEO, 0x38343c, -0.16, 0.15, -0.02);
-      add(SMALL_WHEEL_GEO, 0x8a8f98, 0.1, 0.05, 0.2);
-      add(SMALL_WHEEL_GEO, 0x8a8f98, -0.1, 0.05, 0.2);
+      wheel(WHEEL_GEO, 0x38343c, 0.16, 0.15, -0.02, 0.15);
+      wheel(WHEEL_GEO, 0x38343c, -0.16, 0.15, -0.02, 0.15);
+      wheel(SMALL_WHEEL_GEO, 0x8a8f98, 0.1, 0.05, 0.2, 0.05);
+      wheel(SMALL_WHEEL_GEO, 0x8a8f98, -0.1, 0.05, 0.2, 0.05);
     } else if (this.wheels === 'pram') {
       // de kinderwagen rijdt voor de gast uit
       const color = pick([0xe0584f, 0x4a90e2, 0x6cc04a, 0xf06aa6]);
       add(PRAM_GEO, color, 0, 0.3, 0.42);
       add(PRAM_HOOD_GEO, color, 0, 0.42, 0.33);
       add(PRAM_BAR_GEO, 0x8a8f98, 0, 0.42, 0.2);
-      for (const [x, z] of [[0.11, 0.3], [-0.11, 0.3], [0.11, 0.54], [-0.11, 0.54]]) add(SMALL_WHEEL_GEO, 0x38343c, x, 0.07, z);
+      for (const [x, z] of [[0.11, 0.3], [-0.11, 0.3], [0.11, 0.54], [-0.11, 0.54]]) wheel(SMALL_WHEEL_GEO, 0x38343c, x, 0.07, z, 0.05);
     }
     if (this.star) {
       add(SHADES_GEO, 0x1d1d24, 0, 0.52, 0.09);
@@ -645,7 +933,7 @@ export class Guest implements Leader {
 
   /** Kan deze gast nu mee met de gids? */
   get free(): boolean {
-    return !this.special && !this.leaving && !this.inside && !this.riding && !this.wheels && (this.state === 'idle' || this.state === 'walk' || this.state === 'watch') && !this.errand;
+    return !this.special && !this.leaving && !this.inside && !this.riding && !this.wheels && this.astray <= 0 && (this.state === 'idle' || this.state === 'walk' || this.state === 'watch') && !this.errand && !this.sight;
   }
 
   /** Wacht de gast bij deze halte op het treintje? */
@@ -877,7 +1165,7 @@ export class Guest implements Leader {
 
   /** Kan de gast nu een praatje maken? */
   get chatty(): boolean {
-    return !this.special && !this.idle && !this.act && this.moan <= 0 && (this.state === 'idle' || this.state === 'queue');
+    return !this.special && !this.idle && !this.act && this.moan <= 0 && this.astray <= 0 && (this.state === 'idle' || this.state === 'queue');
   }
 
   /** Hoe ver de gast is met gaan zitten (0 = staat nog op het pad, 1 = zit); aan het eind staat hij weer op. */
@@ -902,16 +1190,25 @@ export class Guest implements Leader {
       m.position.set(toWorldX(x), 0.24 - 0.2 * m.scale.y, toWorldZ(y));
       m.rotation.set(0, h, 0);
       this.limbs[0].rotation.x = this.limbs[1].rotation.x = -1.4;
+      // af en toe naar buiten zwaaien
+      if (Math.sin(this.phase * 0.05 + this.seat * 2.3) > 0.2) {
+        this.limbs[2].rotation.x = -2.6;
+        this.limbs[2].rotation.z = 0.3 + Math.sin(this.phase * 0.85) * 0.45;
+      }
       return;
     }
     const kind = this.state === 'sit' ? this.shop?.kind : undefined;
+    // bij een ding in het park of aan de rand van de fontein: een paar passen van het pad af
+    if (this.state === 'use' && this.sight) return this.usePlace();
+    if (kind === 'fountain' && this.shop) return this.fountainPlace();
     if (kind === 'bench' && this.shop?.edge) {
       // op het bankje: naast elkaar, met het gezicht dezelfde kant op als het bankje
       const [bx, by, rot] = edgePose(this.shop);
       const k = this.settle(BENCH_TIME), lx = this.seat % 2 ? 0.2 : -0.2, lz = -0.02;
       const sx = bx + lx * Math.cos(rot) + lz * Math.sin(rot), sy = by - lx * Math.sin(rot) + lz * Math.cos(rot);
       m.position.set(toWorldX(this.gx + (sx - this.gx) * k), (0.3 - 0.2 * m.scale.y) * k, toWorldZ(this.gy + (sy - this.gy) * k));
-      m.rotation.set(0, this.heading + Math.atan2(Math.sin(rot - this.heading), Math.cos(rot - this.heading)) * k, 0);
+      // achteroverleunen of een beetje scheef zakken bij een dutje (zie benchPose)
+      m.rotation.set(this.lean * k, this.heading + Math.atan2(Math.sin(rot - this.heading), Math.cos(rot - this.heading)) * k, this.tilt * k);
       // een kind op het bankje zwaait met zijn benen
       const dangle = this.child ? Math.sin(this.phase * 0.45) * 0.35 * k : 0;
       this.limbs[0].rotation.x = (-Math.PI / 2) * k + dangle;
@@ -938,13 +1235,39 @@ export class Guest implements Leader {
       };
       if (kind === 'playground' || kind === 'slide') {
         // de trap op, van de glijbaan af en weer terug: twee keer per bezoek (op de losse glijbaan om de beurt)
-        const u = ((6 - this.timer + (kind === 'slide' ? this.seat * 1.5 : 0)) % 3) / 3;
+        // wie niet de eerste is, wacht even op zijn beurt en doet zijn twee rondjes daarna iets vlotter
+        const wait = this.seat * (kind === 'slide' ? 1.2 : 0.5), lap = (6 - wait) / 2, e = 6 - this.timer - wait;
+        const u = e > 0 ? (e % lap) / lap : 0;
         const top = kind === 'slide' ? at(0, 1.18, -0.5) : at(-0.39, 1.0, 0.1), low = kind === 'slide' ? at(0, 0.12, 0.95) : at(-0.39, 0.1, 1.1);
-        const sliding = u >= 0.45 && u < 0.8;
-        put(u < 0.45 ? mix(here, top, u / 0.45) : sliding ? mix(top, low, (u - 0.45) / 0.35) : mix(low, here, (u - 0.8) / 0.2), sliding ? turn : this.heading);
-        if (sliding) {
+        if (u <= 0) {
+          // nog even wachten op je beurt: wippen van ongeduld
+          put(here, this.heading);
+          if (e < 0) m.position.y = Math.abs(Math.sin(this.phase * 0.6)) * 0.03;
+        } else if (u < 0.45) {
+          // naar de trap lopen en omhoog klimmen: eerst vooruit en dan pas de hoogte in, om de beurt een been en een arm
+          const t = u / 0.45, p = mix(here, top, smooth(0, 1, t)), climb = smooth(0.05, 0.3, t) * (1 - smooth(0.85, 1, t));
+          const step = Math.sin(this.phase * 0.9) * 0.5 * climb, sat = smooth(0.85, 1, t);
+          p[1] = top[1] * smooth(0.3, 1, t);
+          put(p, Math.atan2(top[0] - here[0], top[2] - here[2]));
+          this.limbs[0].rotation.x = step - 0.25 * climb - 1.3 * sat;
+          this.limbs[1].rotation.x = -step - 0.25 * climb - 1.3 * sat;
+          this.limbs[2].rotation.x = -1.1 * climb - step;
+          this.limbs[3].rotation.x = -1.1 * climb + step;
+        } else if (u < 0.8) {
+          // glijden: steeds sneller, achterover en met de armen in de lucht: joehoe
+          const t = (u - 0.45) / 0.35;
+          put(mix(top, low, Math.pow(t, 1.6)), turn);
+          m.rotation.x = -0.2;
           legs(-1.3);
-          arms(-2.8); // armen in de lucht: joehoe
+          arms(-2.8);
+        } else {
+          // onderaan landen (even door de knieën), en dan juichend terug naar het pad
+          const t = (u - 0.8) / 0.2, up = smooth(0, 0.3, t), cheer = smooth(0.2, 0.4, t) * (1 - smooth(0.85, 1, t));
+          const p = mix(low, here, smooth(0.3, 1, t));
+          p[1] = low[1] * (1 - up) + Math.abs(Math.sin(this.phase * 0.8)) * 0.1 * cheer;
+          put(p, t < 0.3 ? turn : Math.atan2(here[0] - low[0], here[2] - low[2]));
+          legs(-1.3 * (1 - up));
+          arms(-1.2 * (1 - up) - 2.9 * cheer);
         }
         return;
       }
@@ -963,18 +1286,24 @@ export class Guest implements Leader {
           const b = Math.sin(spin) * 0.3 * amp;
           seat = at(side * 0.67, 0.5 + side * 0.67 * Math.sin(b) - sit, 0);
           facing = turn - side * (Math.PI / 2);
-          arm = -1.0;
+          // onderaan zetten de voeten af tegen de grond; bovenaan zwaaien de benen naar voren, gaan de handen even los
+          // en gaat het hoofd lachend in de nek
+          const lift = side * Math.sin(spin) * amp;
+          leg = -1.2 + 0.8 * Math.max(0, -lift) - 0.35 * Math.max(0, lift);
+          arm = -1.0 - 0.9 * Math.max(0, lift - 0.5);
+          this.head.rotation.x = -0.25 * Math.max(0, lift) * k;
         } else if (kind === 'springer') {
           const c = Math.sin(spin) * 0.3 * amp;
           seat = at(side * 0.42, 0.36 + 0.2 * Math.cos(c) - sit, 0.2 * Math.sin(c));
           arm = -1.1;
         } else {
-          // trampoline: springen met de armen omhoog
-          const jump = Math.abs(Math.sin(spin + this.seat * 1.3));
-          seat = at(side * 0.28, 0.41 + jump * 0.55, side * 0.1);
+          // trampoline: springen met de armen omhoog, en elke derde sprong op de billen landen en weer opveren
+          const f = (spin + this.seat * 1.3) / Math.PI, jump = Math.abs(Math.sin(f * Math.PI));
+          const bum = Math.round(f) % 3 === 0 ? Math.max(0, 1 - jump / 0.5) : 0;
+          seat = at(side * 0.28, 0.41 + jump * 0.55 - bum * sit * 0.8, side * 0.1);
           facing = this.heading + spin * 0.5;
-          leg = 0.5 * (1 - jump);
-          arm = -2.7 * jump;
+          leg = 0.5 * (1 - jump) * (1 - bum) - 1.45 * bum;
+          arm = -2.7 * jump * (1 - bum) - 0.5 * bum;
         }
         put(mix(here, seat, k), k > 0.5 ? facing : this.heading);
         legs(leg * k);
@@ -982,11 +1311,15 @@ export class Guest implements Leader {
         return;
       }
       if (kind === 'carousel') {
-        // in de draaimolen zit de gast op een paardje en draait mee
+        // in de draaimolen: rustig opstappen, op een paardje meedraaien en aan het eind weer afstappen
         const a = spin + (this.seat * Math.PI) / 2;
-        m.position.set(toWorldX(cx) + Math.sin(a) * 0.56, 0.3, toWorldZ(cy) + Math.cos(a) * 0.56);
-        m.rotation.set(0, a + Math.PI / 2, 0);
-        legs(-1.1);
+        put(mix(here, [cx + Math.sin(a) * 0.56, 0.3, cy + Math.cos(a) * 0.56], k), k > 0.5 ? a + Math.PI / 2 : this.heading);
+        legs(-1.1 * k);
+        // wie aan de voorkant langskomt, zwaait met zijn buitenste arm naar de mensen langs de kant
+        if (k > 0.9 && Math.cos(a - turn) > 0.5) {
+          this.limbs[3].rotation.x = -2.6;
+          this.limbs[3].rotation.z = -0.3 + Math.sin(this.phase * 0.9) * 0.4;
+        }
         return;
       }
       if (kind === 'ferris') {
@@ -994,8 +1327,17 @@ export class Guest implements Leader {
         const a = (this.seat * Math.PI * 2) / FERRIS.cabins + spin;
         put(mix(here, at(Math.cos(a) * FERRIS.radius, FERRIS.hub + Math.sin(a) * FERRIS.radius - 0.12 - sit, 0), k), k > 0.5 ? turn : this.heading);
         legs(-1.3 * k);
-        // bovenin gaan de armen omhoog
+        // bovenin gaan de armen omhoog; onderweg zwaait de een naar beneden en wijst de ander iets aan in de diepte
         if (Math.sin(a) > 0.55) arms(-2.7);
+        else if (k > 0.9 && Math.sin(a) > -0.5) {
+          if (this.seat % 2) {
+            this.limbs[2].rotation.x = -2.6;
+            this.limbs[2].rotation.z = Math.sin(this.phase * 0.85) * 0.45;
+          } else {
+            this.limbs[2].rotation.x = -0.95 + Math.sin(this.phase * 0.3) * 0.08;
+            this.head.rotation.x = 0.35;
+          }
+        }
         return;
       }
       if (kind === 'bumper') {
@@ -1004,13 +1346,33 @@ export class Guest implements Leader {
         put(mix(here, at(x, 0.16 - sit, z), k), k > 0.5 ? turn + h : this.heading);
         legs(-1.4 * k);
         arms(-1.2 * k);
+        // tegen de rand gebotst: de gast wordt door elkaar geschud en juicht met de armen omhoog
+        const jolt = k > 0.9 ? Math.max(0, Math.min(1, (Math.max(Math.abs(x), Math.abs(z)) - 0.58) / 0.05)) : 0;
+        if (jolt > 0) {
+          m.rotation.z = Math.sin(this.phase * 2.6) * 0.16 * jolt;
+          m.rotation.x = -0.12 * jolt;
+          arms(-1.2 - 1.5 * jolt);
+          this.head.rotation.z = Math.sin(this.phase * 2.6 + 1) * 0.2 * jolt;
+        }
         return;
       }
       if (kind === 'tower') {
-        // boven op de uitkijktoren: rondkijken en wijzen
+        // boven op de uitkijktoren: rondkijken en wijzen, door de verrekijker kijken of naar beneden zwaaien
         const look = turn + Math.sin(this.phase * 0.07 + this.seat * 1.7) * 1.4;
         put(mix(here, at(side * 0.3, TOWER_TOP, this.seat > 1 ? 0.3 : -0.25), k), k > 0.5 ? look : this.heading);
-        if (k > 0.9) this.limbs[2].rotation.x = -1.5;
+        if (k > 0.9) {
+          const mood = Math.sin(this.phase * 0.02 + this.seat * 2.1);
+          if (this.seat % 2 === 0 && mood > -0.3) {
+            arms(-2.25);
+            this.limbs[2].rotation.z = -0.5;
+            this.limbs[3].rotation.z = 0.5;
+            this.spy();
+          } else if (mood > 0.3) {
+            this.limbs[2].rotation.x = -2.2;
+            this.limbs[2].rotation.z = Math.sin(this.phase * 0.85) * 0.45;
+            this.head.rotation.x = 0.3;
+          } else this.limbs[2].rotation.x = -1.5;
+        }
         return;
       }
       if (kind === 'restaurant') {
@@ -1037,11 +1399,26 @@ export class Guest implements Leader {
       if (kind === 'station') {
         // op het perron wachten tot het treintje komt
         put(mix(here, at(((this.seat % 4) - 1.5) * 0.36, 0.12, this.seat < 4 ? -0.45 : -0.15), k), k > 0.5 ? turn : this.heading);
+        if (k > 0.9) {
+          const bored = Math.sin(this.phase * 0.04 + this.seat * 1.9);
+          if (TRAIN_AT.on && Math.abs(TRAIN_AT.x - this.gx) + Math.abs(TRAIN_AT.y - this.gy) < 4) {
+            // daar komt het treintje: zwaaien
+            this.limbs[2].rotation.x = -2.7;
+            this.limbs[2].rotation.z = Math.sin(this.phase * 0.85) * 0.45;
+          } else if (bored > 0.7) {
+            // hoe laat is het? Op de klok kijken
+            this.limbs[3].rotation.x = -1.3;
+            this.limbs[3].rotation.z = 0.7;
+            this.head.rotation.x = 0.35;
+          } else if (bored < -0.7) this.head.rotation.y = this.seat % 2 ? 0.9 : -0.9; // komt hij er al aan?
+        }
         return;
       }
     }
     const kneel = this.act === 'kneel' && this.state === 'watch' ? -0.07 : 0;
-    m.position.set(toWorldX(this.gx), (this.state === 'accident' ? -0.07 : kneel) + this.hop, toWorldZ(this.gy));
+    // een stap achteruit of opzij (schrikken, bah): alleen in het beeld
+    const hs = Math.sin(this.heading), hc = Math.cos(this.heading);
+    m.position.set(toWorldX(this.gx - hs * this.back + hc * this.aside), (this.state === 'accident' ? -0.07 : kneel) + this.hop, toWorldZ(this.gy - hc * this.back - hs * this.aside));
     // een moe gastje loopt een beetje voorovergebogen
     m.rotation.set((this.tired > 0.7 && this.state === 'walk' ? 0.12 : 0) + this.lean, this.heading + this.twist, this.tilt);
   }
@@ -1102,6 +1479,16 @@ export class Guest implements Leader {
       }
       const door = doorOf(w, reach, shop);
       if (door !== null) options.push({ shop, tile: door });
+    }
+    // zonder wegwijzer of plattegrond in de buurt kijkt een gast niet verder dan een stuk om zich heen: wat verder weg
+    // staat, vindt hij niet (dan vraagt hij erom met een wolkje, wordt minder blij en gaat op den duur naar huis)
+    if (options.length && !w.signed(this.tile)) {
+      const [gx, gy] = tileXY(this.tile);
+      const near = options.filter(o => Math.hypot(tileXY(o.tile)[0] - gx, tileXY(o.tile)[1] - gy) <= SEEK_REACH);
+      if (near.length !== options.length) {
+        options.length = 0;
+        options.push(...near);
+      }
     }
     if (!options.length) return null;
     // de kortste rij is het aantrekkelijkst
@@ -1195,7 +1582,663 @@ export class Guest implements Leader {
     this.gone = true;
     if (this.star) w.starLeft(this, this.happy);
     else if (this.badge === 'schoolclass' && this.tour) w.classLeft(this, this.happy);
-    else if (this.happy && !this.leader) w.signBook(this);
+    else if (this.happy && !this.leader && !this.wrote) w.signBook(this);
+  }
+
+  // ------------------------------------------------------------ dingen in het park
+  /** Loopt de gast naar een ding in het park of is hij ermee bezig? Dan telt hij daar mee (zie GuestManager.update). */
+  claim(): void {
+    const s = this.sight;
+    if (!s || this.leader || (this.state !== 'walk' && this.state !== 'use')) return;
+    s.n++;
+    if (this.state === 'use') s.used |= 1 << this.seat;
+  }
+
+  /** Op weg naar een ding in het park, naar de padtegel ernaast. Is de weg erheen een heel eind om, dan gaat het niet door. */
+  private headFor(w: GuestWorld, reach: Set<number>, sight: Sight, tile: number, far: number): boolean {
+    if (tile !== this.tile) {
+      if (!this.go(w, reach, tile)) return false;
+      if (this.route.length > far) {
+        this.route = [];
+        this.state = 'idle';
+        return false;
+      }
+    }
+    this.sight = sight;
+    sight.n++;
+    if (tile === this.tile) this.arrive(w);
+    return true;
+  }
+
+  /** Afval in de hand en een afvalbak in de buurt: de gast loopt ernaartoe en gooit het erin. */
+  private binTrip(w: GuestWorld, reach: Set<number>): boolean {
+    if (this.trash <= 0 || this.eating > 0 || this.sloppy || this.bladder > 0.8) return false;
+    let best: Sight | null = null, tile = -1, near = SIGHT_NEAR;
+    for (const s of w.sights()) {
+      if (s.kind !== 'bin' || s.gone) continue;
+      for (const n of s.tiles) {
+        if (!reach.has(n)) continue;
+        const [x, y] = tileXY(n);
+        const d = Math.abs(x + 0.5 - this.gx) + Math.abs(y + 0.5 - this.gy);
+        if (d < near) {
+          near = d;
+          best = s;
+          tile = n;
+        }
+      }
+    }
+    return !!best && this.headFor(w, reach, best, tile, SIGHT_NEAR * 2);
+  }
+
+  /**
+   * Even naar iets moois in de buurt: de vijver, de pomp, het standbeeld, de bloemen, een bord. Alleen als het
+   * dichtbij is, er plek is en de gast er niet net geweest is. Met `snack` (iets lekkers in de hand) alleen naar een
+   * picknicktafel. Geeft terug of de gast nu op weg is.
+   */
+  private sightsee(w: GuestWorld, reach: Set<number>, snack: boolean): boolean {
+    if (this.special || w.raining() || Math.random() > (snack ? 0.85 : SIGHT_CHANCE)) return false;
+    const chilly = w.chilly();
+    let best: Sight | null = null, bestTile = -1, total = 0;
+    for (const s of w.sights()) {
+      const info = SIGHT[s.kind];
+      if (!info || s.gone || s.n >= info.most || (snack && s.kind !== 'picnic')) continue;
+      if (Math.abs(s.x - this.gx) + Math.abs(s.y - this.gy) > SIGHT_NEAR + 1) continue;
+      if (this.wheels && (snack || !info.roll)) continue;
+      let zin = info.zin;
+      if (!snack) {
+        if (this.sightsSeen.includes(s)) continue;
+        // bij het vuur is het vooral fijn als het koud of donker is; schrijven doet alleen wie blij is; aan tafel ga je zitten als je wat moe bent
+        if (s.kind === 'campfire') zin = chilly ? 2.5 : 0.4;
+        else if (s.kind === 'guestbook' && (this.wrote || !this.happy)) continue;
+        else if (s.kind === 'picnic' && this.tired < 0.3) continue;
+      }
+      if (zin <= 0) continue;
+      // de padtegel ernaast die het dichtst bij het ding ligt, en daarna het dichtst bij de gast
+      let tile = -1, near = 99;
+      for (const n of s.tiles) {
+        if (!reach.has(n)) continue;
+        const [x, y] = tileXY(n);
+        const d = Math.hypot(x + 0.5 - s.x, y + 0.5 - s.y) * 4 + Math.abs(x + 0.5 - this.gx) + Math.abs(y + 0.5 - this.gy);
+        if (d < near) {
+          near = d;
+          tile = n;
+        }
+      }
+      if (tile < 0) continue;
+      // loten: hoe meer zin, hoe groter de kans
+      total += zin;
+      if (Math.random() * total < zin) {
+        best = s;
+        bestTile = tile;
+      }
+    }
+    // in het donker valt er niets te zien (het vuur geeft zelf licht)
+    if (!best || (best.kind !== 'campfire' && w.dark(bestTile))) return false;
+    if (!this.headFor(w, reach, best, bestTile, SIGHT_NEAR * 2)) return false;
+    // wat lekkers gaat mee naar de picknicktafel
+    if (snack) this.eating = Math.max(this.eating, this.route.length / 0.8 + 4);
+    return true;
+  }
+
+  /** Wat de gast bij dit ding gaat doen. */
+  private pickUse(kind: string): Use {
+    const v = Math.random(), kid = this.child;
+    switch (kind) {
+      case 'picnic': return 'picnic';
+      case 'pond': return this.wheels ? 'show' : kid ? (v < 0.5 ? 'show' : v < 0.8 ? 'feed' : 'crouch') : v < 0.45 ? 'crouch' : v < 0.85 ? 'feed' : 'show';
+      case 'well': return 'well';
+      case 'pump': return 'pump';
+      case 'birdbath': return 'bird';
+      case 'campfire': return 'warm';
+      case 'waterfall': return v < 0.5 ? 'snap' : 'lookup';
+      case 'statue':
+      case 'totem':
+      case 'clocktower':
+      case 'windmill': return v < (kid ? 0.5 : 0.25) ? 'mimic' : v < 0.65 ? 'snap' : 'lookup';
+      case 'snowman': return 'giggle';
+      case 'scarecrow': return v < 0.4 ? 'mimic' : 'giggle';
+      case 'guestbook': return 'write';
+      case 'signpost':
+      case 'mapboard': return 'sign';
+      case 'roses':
+      case 'tulips':
+      case 'sunflowers':
+      case 'flowers': return 'sniff';
+      case 'arch': return 'arch';
+      case 'bin': return 'toss';
+      default: return 'lookup';
+    }
+  }
+
+  /** Aangekomen op het pad naast het ding: een vrij plekje kiezen, ernaartoe stappen en beginnen. */
+  private beginUse(): void {
+    const s = this.sight!, info = SIGHT[s.kind];
+    this.state = 'idle';
+    this.timer = 0.3;
+    // aan de picknicktafel: het vrije plekje op de bank dat het dichtst bij is; anders gewoon het eerste vrije plekje
+    const turn = (s.rot * Math.PI) / 2, cos = Math.cos(turn), sin = Math.sin(turn);
+    let seat = -1, near = 99;
+    for (let i = 0; info && !s.gone && i < info.most; i++) {
+      if (s.used & (1 << i)) continue;
+      if (s.kind !== 'picnic') {
+        seat = i;
+        break;
+      }
+      const lx = i & 1 ? 0.2 : -0.2, lz = i & 2 ? 0.34 : -0.34;
+      const d = Math.hypot(s.x + lx * cos + lz * sin - this.gx, s.y - lx * sin + lz * cos - this.gy);
+      if (d < near) {
+        near = d;
+        seat = i;
+      }
+    }
+    if (seat < 0) {
+      // weggehaald, of intussen vol: gewoon doorlopen
+      this.sight = null;
+      return;
+    }
+    this.seat = seat;
+    s.used |= 1 << seat;
+    this.use = this.pickUse(s.kind);
+    this.useMark = 0;
+    this.whim = Math.random();
+    // waar de gast gaat staan: een paar passen van het pad, met het gezicht naar het ding
+    let tx = this.gx, ty = this.gy, face = Math.atan2(s.x - this.gx, s.y - this.gy);
+    if (s.kind === 'picnic') {
+      const lx = seat & 1 ? 0.2 : -0.2, lz = seat & 2 ? 0.34 : -0.34;
+      tx = s.x + lx * cos + lz * sin;
+      ty = s.y - lx * sin + lz * cos;
+      face = turn + (lz > 0 ? Math.PI : 0);
+    } else if (!this.wheels && Math.hypot(s.x - this.gx, s.y - this.gy) > info.off + 0.05) {
+      face += SIGHT_SPREAD[seat % SIGHT_SPREAD.length];
+      tx = s.x - Math.sin(face) * info.off;
+      ty = s.y - Math.cos(face) * info.off;
+    }
+    const step = Math.hypot(tx - this.gx, ty - this.gy);
+    this.ux = tx;
+    this.uy = ty;
+    this.uturn = face;
+    this.useGap = step < 0.05 ? 0 : Math.max(0.35, step);
+    this.useLen = info.time * (0.85 + Math.random() * 0.3);
+    this.useK = this.useE = 0;
+    this.timer = this.useLen + 2 * this.useGap;
+    this.state = 'use';
+    this.idle = null;
+    this.face = [s.x, s.y];
+    // wie met iets lekkers aan tafel gaat zitten, eet het daar rustig op
+    if (this.use === 'picnic' && this.eating > 0) this.eating = Math.max(this.eating, this.timer - 1.5);
+  }
+
+  /**
+   * Elk beeldje bij een ding in het park of aan de fontein: hoe ver de gast van het pad af is, hoe lang hij al bezig
+   * is, en wat er op zijn tijd gebeurt (het ding beweegt mee, een plons, het afval gaat in de bak).
+   */
+  private useStep(w: GuestWorld): void {
+    if (this.state === 'sit') {
+      // aan de fontein: het muntje plonst in het water, of de hand spettert
+      const shop = this.shop!, t = (SERVE_TIME.fountain ?? 4) - this.timer - 0.45, coin = this.tossesCoin;
+      this.stepping = t < 0 || this.timer < 0.35;
+      if (this.useMark < (coin ? 1 : 2) && t > (coin ? 0.95 : this.useMark ? 2.1 : 1) && this.timer > 0.4) {
+        this.useMark++;
+        const a = Math.atan2(this.gx - shop.x - 1, this.gy - shop.y - 1) + RIM_SPREAD[this.seat % RIM_SPREAD.length], r = coin ? 0.45 : 0.72;
+        w.plons(shop.x + 1 + Math.sin(a) * r, shop.y + 1 + Math.cos(a) * r, 0.3, coin);
+      }
+      return;
+    }
+    const s = this.sight, use = this.use;
+    if (!s || !use) return;
+    // het ding is weggehaald: meteen terug naar het pad
+    if (s.gone) this.timer = Math.min(this.timer, this.useGap);
+    const gap = this.useGap, e = this.useLen + 2 * gap - this.timer;
+    this.useK = gap > 0 ? Math.max(0, Math.min(1, e / gap, this.timer / gap)) : 1;
+    this.useE = Math.max(0, e - gap);
+    this.stepping = this.useK < 1;
+    if (s.gone || this.useK < 1) return;
+    if (use === 'feed') {
+      // bij elke worp plonst er een stukje brood in de vijver
+      if (this.useMark < 3 && this.useE > 0.95 + this.useMark * 1.3) {
+        this.useMark++;
+        w.plons(s.x, s.y, 0, false);
+      }
+    } else if (use === 'pump') {
+      // zolang de gast pompt, gaat de zwengel flink op en neer
+      if (this.useMark < 3 && this.useE > 0.2 + this.useMark * 1.15) {
+        this.useMark++;
+        w.sightUsed(s);
+      }
+    } else if (use === 'toss') {
+      // het afval is los: de klep van de bak klappert
+      if (!this.useMark && this.useE > 0.6) {
+        this.useMark = 1;
+        this.trash = 0;
+        w.sightUsed(s);
+      }
+    } else if (!this.useMark && this.useE > (USE_POKE[use] ?? 2) * this.useLen) {
+      // het ding doet even mee: de kikker springt, het vogeltje hipt, het vuur laait op, het blad slaat om
+      this.useMark = 1;
+      w.sightUsed(s);
+      if (use === 'giggle') w.guestSound('guest.laugh', this);
+    }
+  }
+
+  /** Klaar bij het ding: dat was leuk (leuker dan er alleen langs lopen). De gast loopt weer verder. */
+  private endUse(w: GuestWorld): boolean {
+    const s = this.sight, info = s ? SIGHT[s.kind] : undefined, use = this.use;
+    if (s && info && !s.gone) {
+      this.fun = Math.min(1, this.fun + info.fun + (use === 'warm' && w.chilly() ? 0.05 : 0));
+      if (use === 'picnic') this.tired = Math.max(0, this.tired - 0.4);
+      if (s.kind === 'mapboard') this.knows = true;
+      if (use === 'write' && !this.wrote) {
+        // de tekening van het lievelingsdier staat erin (anders pas bij het weggaan)
+        this.wrote = true;
+        w.signBook(this);
+      }
+      if (this.child && (use === 'giggle' || use === 'mimic' || use === 'show')) this.joy = Math.max(this.joy, 0.6);
+      if (this.sightsSeen.push(s) > 4) this.sightsSeen.shift();
+    }
+    this.sight = null;
+    this.use = null;
+    this.wish = null;
+    this.errand = null;
+    return false;
+  }
+
+  /** Bij een ding in het park: een paar passen van het pad ernaartoe, daar staan (of zitten, aan de picknicktafel) en weer terug. */
+  private usePlace(): void {
+    const m = this.mesh, k = this.useK;
+    let h = this.hop * k;
+    if (this.use === 'picnic') {
+      // op de bank van de tafel, de benen eronder; een kind zwaait met zijn benen
+      h = (0.22 - 0.2 * m.scale.y) * k;
+      const dangle = this.child ? Math.sin(this.phase * 0.45) * 0.3 * k : 0;
+      this.limbs[0].rotation.x = this.limbs[0].rotation.x * (1 - k) - (Math.PI / 2) * k + dangle;
+      this.limbs[1].rotation.x = this.limbs[1].rotation.x * (1 - k) - (Math.PI / 2) * k - dangle;
+    }
+    m.position.set(toWorldX(this.gx + (this.ux - this.gx) * k), h, toWorldZ(this.gy + (this.uy - this.gy) * k));
+    m.rotation.set(this.wheels ? 0 : this.lean, this.heading + Math.atan2(Math.sin(this.uturn - this.heading), Math.cos(this.uturn - this.heading)) * k + this.twist, this.tilt);
+  }
+
+  /** Aan de fontein: van het pad naar de rand van het bassin, elk op zijn eigen plekje, met het gezicht naar het water. */
+  private fountainPlace(): void {
+    const m = this.mesh, shop = this.shop!, cx = shop.x + 1, cy = shop.y + 1;
+    const k = this.settle(SERVE_TIME.fountain ?? 4);
+    const a = Math.atan2(this.gx - cx, this.gy - cy) + RIM_SPREAD[this.seat % RIM_SPREAD.length];
+    const x = this.gx + (cx + Math.sin(a) * RIM - this.gx) * k, y = this.gy + (cy + Math.cos(a) * RIM - this.gy) * k;
+    m.position.set(toWorldX(x), this.hop * k, toWorldZ(y));
+    m.rotation.set(this.wheels ? 0 : this.lean * k, this.heading + Math.atan2(Math.sin(a + Math.PI - this.heading), Math.cos(a + Math.PI - this.heading)) * k + this.twist, this.tilt);
+  }
+
+  /** Gooit deze gast een muntje in de fontein? (Anders steekt hij een hand in het water, of spettert hij.) */
+  private get tossesCoin(): boolean {
+    return !!this.wheels || this.whim < (this.child ? 0.3 : 0.5);
+  }
+
+  /**
+   * Afval: de gast houdt het propje zichtbaar in zijn hand zodra het lekkers op is. Komt hij langs een afvalbak, dan
+   * gooit hij het er met een boogje in (of hij loopt ernaartoe, zie binTrip); anders valt het na een poosje op het pad.
+   */
+  private carryTrash(dt: number, w: GuestWorld): void {
+    if (this.tossT > 0) this.tossT -= dt;
+    if (this.trash > 0 && this.eating > 0) this.trash = Math.max(2.5, this.trash - dt); // eerst opeten
+    else if (this.trash > 0 && this.sight?.kind !== 'bin') {
+      let bin: ShopSpot | null = null;
+      if (!this.sloppy)
+        for (const sh of w.shops) {
+          if (sh.kind !== 'bin') continue;
+          // het midden van de bak: op zijn rand, of (in een ouder park) midden op zijn tegel
+          const x = sh.edge === 'v' ? sh.x : sh.x + 0.5, y = sh.edge === 'h' ? sh.y : sh.y + 0.5;
+          if (Math.abs(x - this.gx) < 1.6 && Math.abs(y - this.gy) < 1.6) bin = sh;
+        }
+      if (bin) {
+        this.trash = 0;
+        this.tossT = 0.6;
+        w.binned(bin);
+      } else {
+        this.trash -= dt;
+        if (this.trash <= 0 && w.sells('bin')) w.dropLitter(this.gx, this.gy);
+      }
+    }
+    const show = (this.trash > 0 && this.eating <= 0 && w.sells('bin')) || this.tossT > 0.25;
+    if (show && !this.litter) {
+      // een propje papier: het doosje van het lekkers, maar kleiner en vaal
+      this.litter = new THREE.Mesh(SNACK_GEO, mat(0xe9e4d4));
+      this.litter.scale.setScalar(0.8);
+      // kleiner gemaakt, maar nog steeds onder de hand
+      this.litter.position.set(0, -0.04, 0.008);
+      this.limbs[3].add(this.litter);
+    }
+    if (this.litter) this.litter.visible = show;
+  }
+
+  /** Armen, hoofd en lijf bij een ding in het park, op het bankje en aan de fontein; en het afval in de hand. */
+  private sightPose(): void {
+    if (this.litter?.visible || this.tossT > 0) {
+      // het propje voor zich uit dragen; in het voorbijgaan gaat het met een boogje in de bak
+      const c = 1 - this.tossT / 0.6;
+      this.limbs[3].rotation.x = this.tossT <= 0 ? -0.6 : c < 0.5 ? -0.6 - c * 4.2 : -2.7 + (c - 0.5) * 3.4;
+    }
+    if (this.state === 'use') this.usePose();
+    else if (this.state === 'sit' && this.shop?.kind === 'bench') this.benchPose();
+    else if (this.state === 'sit' && this.shop?.kind === 'fountain') this.fountainPose();
+  }
+
+  /** Lachen: schuddende schouders en de handen op de buik. */
+  private chuckle(t: number): void {
+    const right = this.limbs[2], left = this.limbs[3];
+    this.hop = Math.abs(Math.sin(t * 12)) * 0.025;
+    this.head.rotation.x = -0.2 + Math.sin(t * 12) * 0.1;
+    right.rotation.x = left.rotation.x = -0.9;
+    right.rotation.z = -0.5;
+    left.rotation.z = 0.5;
+  }
+
+  /** Door de knieën: een been naar voren, een naar achteren, en het lijf een stukje omlaag. */
+  private squat(lean: number): void {
+    this.lean = lean;
+    if (this.wheels) return;
+    this.hop = -0.07;
+    this.limbs[0].rotation.x = -0.95;
+    this.limbs[1].rotation.x = 0.5;
+  }
+
+  /** Wat de gast met armen, hoofd en lijf doet bij een ding in het park (zie pickUse). */
+  private usePose(): void {
+    const s = this.sight, use = this.use;
+    if (!s || !use || this.useK < 0.95) return;
+    const right = this.limbs[2], left = this.limbs[3], head = this.head, kid = this.child;
+    const t = this.useE, u = t / this.useLen;
+    switch (use) {
+      case 'picnic':
+        // aan tafel: een arm op het blad, om je heen kijken, en kletsen als er iemand bij zit
+        right.rotation.x = s.n > 1 ? -1.05 + Math.sin(t * 6 + this.seat) * 0.3 : -1.15;
+        head.rotation.y = Math.sin(t * 1.3 + this.seat * 2) * 0.55;
+        break;
+      case 'crouch':
+        // hurken aan de rand van de vijver en naar de vissen en de kikker kijken
+        this.squat(0.3);
+        right.rotation.x = -0.8 + Math.sin(t * 2.2) * 0.12;
+        head.rotation.x = 0.3;
+        head.rotation.y = Math.sin(t * 1.2) * 0.35;
+        break;
+      case 'show':
+        // kijk, een kikker! Wijzen, wippen en even omkijken of iemand het ook ziet
+        right.rotation.x = -1.1 + Math.sin(t * 3) * 0.06;
+        left.rotation.x = -0.4;
+        this.lean = 0.15;
+        if (kid) this.hop = Math.abs(Math.sin(t * 6)) * 0.05;
+        head.rotation.x = 0.25;
+        if (u > 0.5 && u < 0.72) head.rotation.set(0, 1, 0);
+        break;
+      case 'feed': {
+        // de eendjes voeren: een stukje brood pakken, uithalen en gooien
+        const c = (t % 1.3) / 1.3;
+        right.rotation.x = c < 0.45 ? -0.9 : c < 0.72 ? -0.9 - ((c - 0.45) / 0.27) * 1.8 : -2.7 + ((c - 0.72) / 0.28) * 1.6;
+        right.rotation.z = c < 0.45 ? -0.35 : 0;
+        left.rotation.x = -0.9;
+        left.rotation.z = 0.35;
+        this.lean = c > 0.72 ? 0.12 : 0;
+        head.rotation.x = 0.15;
+        break;
+      }
+      case 'well':
+        // over de rand hangen en naar beneden kijken; dan iets naar beneden roepen en luisteren naar de echo
+        right.rotation.x = left.rotation.x = -0.75;
+        this.lean = 0.45;
+        head.rotation.x = 0.45;
+        if (u > 0.5 && u < 0.75) {
+          right.rotation.x = left.rotation.x = -2.2;
+          right.rotation.z = -0.4;
+          left.rotation.z = 0.4;
+        } else if (u >= 0.75) {
+          this.lean = 0.3;
+          head.rotation.set(0.3, 0, 0.3);
+        }
+        break;
+      case 'pump': {
+        // de zwengel op en neer, het hele lijf beweegt mee
+        const p = Math.sin(t * 5.5);
+        right.rotation.x = left.rotation.x = -1.4 + p * 0.55;
+        this.lean = 0.14 + p * 0.09;
+        head.rotation.x = 0.2;
+        break;
+      }
+      case 'bird':
+        // doodstil staan kijken met de handen op de rug; hipt het vogeltje op, dan klapt de gast (een kind wijst en springt)
+        right.rotation.x = left.rotation.x = 0.4;
+        this.lean = 0.12;
+        head.rotation.x = 0.15;
+        head.rotation.z = Math.sin(t * 0.9) * 0.14;
+        if (u > 0.5 && u < 0.8) {
+          if (kid) {
+            right.rotation.x = -1.3;
+            left.rotation.x = 0;
+            this.hop = Math.abs(Math.sin(t * 8)) * 0.05;
+          } else {
+            const clap = Math.abs(Math.sin(t * 10)) * 0.4;
+            right.rotation.x = left.rotation.x = -1.25;
+            right.rotation.z = -clap;
+            left.rotation.z = clap;
+          }
+        }
+        break;
+      case 'warm':
+        // de handen naar het vuur, en ze af en toe warm wrijven; een kind hurkt erbij
+        this.lean = 0.1;
+        if (kid) this.squat(0.2);
+        head.rotation.x = 0.15;
+        if (u > 0.45 && u < 0.7) {
+          const rub = Math.sin(t * 16) * 0.08;
+          right.rotation.x = left.rotation.x = -1.1;
+          right.rotation.z = -0.42 + rub;
+          left.rotation.z = 0.42 + rub;
+        } else {
+          right.rotation.x = left.rotation.x = -1.3 + Math.sin(t * 2.2) * 0.06;
+          right.rotation.z = -0.12;
+          left.rotation.z = 0.12;
+        }
+        break;
+      case 'lookup':
+        // omhoog kijken met een hand boven de ogen; een kind zwaait naar de vlag
+        head.rotation.x = -0.5;
+        head.rotation.y = Math.sin(t * 1.1) * 0.3;
+        this.lean = -0.08;
+        right.rotation.x = kid && u > 0.4 ? -2.7 : -2.45;
+        right.rotation.z = kid && u > 0.4 ? Math.sin(t * 9) * 0.45 : -0.5;
+        break;
+      case 'mimic':
+        this.mimicPose(s.kind, t, u);
+        break;
+      case 'snap':
+        // een foto: het toestel voor de ogen, klik, en dan kijken of hij gelukt is
+        if (u < 0.7) {
+          right.rotation.x = left.rotation.x = -1.95;
+          this.lean = Math.sin(t * 2.4) > 0.9 ? -0.06 : 0;
+          head.rotation.x = -0.12;
+        } else {
+          right.rotation.x = left.rotation.x = -1.2;
+          right.rotation.z = -0.2;
+          left.rotation.z = 0.2;
+          head.rotation.x = 0.35 + Math.sin(t * 7) * 0.08;
+        }
+        break;
+      case 'giggle':
+        // eerst zwaaien, dan lachen
+        if (u < 0.45) {
+          right.rotation.x = -2.7;
+          right.rotation.z = Math.sin(t * 9) * 0.45;
+          if (kid) this.hop = Math.abs(Math.sin(t * 7)) * 0.06;
+        } else this.chuckle(t);
+        break;
+      case 'write':
+        // voorover over het boek en schrijven; halverwege even nadenken, aan het eind tevreden knikken
+        this.lean = 0.22;
+        head.rotation.x = 0.4;
+        left.rotation.x = -1;
+        left.rotation.z = 0.2;
+        if (u > 0.4 && u < 0.55) {
+          this.lean = 0.05;
+          right.rotation.x = -2.25;
+          right.rotation.z = -0.4;
+          head.rotation.set(-0.1, 0, 0.15);
+        } else if (u > 0.9) {
+          this.lean = 0;
+          left.rotation.set(0, 0, 0);
+          head.rotation.x = Math.sin(t * 8) * 0.2;
+        } else {
+          right.rotation.x = -1.15 + Math.sin(t * 13) * 0.07;
+          right.rotation.z = -0.25 + Math.sin(t * 4.3) * 0.2;
+        }
+        break;
+      case 'sign':
+        if (u < 0.45) {
+          // lezen, met een hand aan de kin
+          head.rotation.x = s.kind === 'signpost' ? -0.25 : -0.05;
+          head.rotation.y = Math.sin(t * 2.5) * 0.22;
+          left.rotation.x = -2.2;
+          left.rotation.z = 0.45;
+        } else if (u < 0.6) head.rotation.x = Math.sin(t * 10) * 0.22; // aha
+        else {
+          // die kant op: het lijf draait mee met de wijzende arm
+          this.twist = (this.whim < 0.5 ? 1.1 : -1.1) * Math.min(1, (u - 0.6) / 0.1);
+          right.rotation.x = -1.5 + Math.sin(t * 3) * 0.05;
+          head.rotation.x = -0.08;
+        }
+        break;
+      case 'sniff':
+        if (u < 0.62) {
+          // vooroverbuigen met de handen op de rug en snuffelen (zonnebloemen zijn hoog: daar hoeft het niet zo diep)
+          this.lean = s.kind === 'sunflowers' ? 0.16 : kid ? 0.4 : 0.55;
+          right.rotation.x = left.rotation.x = 0.45;
+          head.rotation.x = (s.kind === 'sunflowers' ? -0.2 : 0.15) + Math.sin(t * 10) * 0.07;
+        } else {
+          // mmm: weer overeind, de neus in de lucht
+          this.lean = -0.06;
+          head.rotation.x = -0.3;
+          right.rotation.z = 0.3;
+          left.rotation.z = -0.3;
+          if (kid) this.hop = Math.abs(Math.sin(t * 7)) * 0.04;
+        }
+        break;
+      case 'arch':
+        // onder de boog: omhoog kijken en langzaam ronddraaien; een kind reikt naar de bloemen
+        head.rotation.x = -0.55;
+        this.twist = Math.sin(t * 1.4) * 0.9;
+        if (kid) {
+          right.rotation.x = left.rotation.x = -2.8;
+          this.hop = Math.abs(Math.sin(t * 5)) * 0.07;
+        } else {
+          right.rotation.z = 0.3;
+          left.rotation.z = -0.3;
+        }
+        break;
+      case 'toss':
+        // uithalen, gooien en de handen afkloppen
+        if (t < 0.45) left.rotation.x = -0.6 - (t / 0.45) * 2.1;
+        else if (t < 0.7) {
+          left.rotation.x = -2.7 + ((t - 0.45) / 0.25) * 1.7;
+          this.lean = 0.15;
+        } else {
+          const clap = Math.abs(Math.sin(t * 12)) * 0.35;
+          right.rotation.x = left.rotation.x = -1.1;
+          right.rotation.z = -clap;
+          left.rotation.z = clap;
+        }
+        break;
+    }
+  }
+
+  /** De houding nadoen: brullen als de leeuw van het standbeeld, stijf als de totempaal, wieken als de molen, tikken als de klok. */
+  private mimicPose(kind: string, t: number, u: number): void {
+    const right = this.limbs[2], left = this.limbs[3], head = this.head;
+    // aan het eind moet de gast er zelf om lachen
+    if (u > 0.78) return this.chuckle(t);
+    if (kind === 'windmill') {
+      // de armen draaien rond als wieken
+      right.rotation.x = t * 4.5;
+      left.rotation.x = t * 4.5 + Math.PI;
+      head.rotation.x = -0.3;
+    } else if (kind === 'clocktower') {
+      // tik, tak: heen en weer als de slinger
+      this.tilt = Math.sin(t * 3) * 0.16;
+      head.rotation.z = -Math.sin(t * 3) * 0.12;
+    } else if (kind === 'totem' || kind === 'scarecrow') {
+      // de armen wijd, stokstijf (de vogelverschrikker met het hoofd scheef)
+      right.rotation.z = 1.45;
+      left.rotation.z = -1.45;
+      if (kind === 'scarecrow') head.rotation.z = 0.3;
+      else this.tilt = Math.sin(t * 5) * 0.05;
+    } else {
+      // de leeuw: klauwen omhoog en brullen
+      right.rotation.x = left.rotation.x = -2 + Math.sin(t * 9) * 0.08;
+      right.rotation.z = 0.45;
+      left.rotation.z = -0.45;
+      head.rotation.x = -0.3;
+      this.lean = -0.08;
+    }
+  }
+
+  /** Op het bankje: kletsen met de buur, achteroverleunen, om je heen kijken of een dutje doen. */
+  private benchPose(): void {
+    const t = BENCH_TIME - this.timer, v = this.whim;
+    if (this.eating > 0 || t < 0.6 || this.timer < 0.5) return;
+    const right = this.limbs[2], left = this.limbs[3], head = this.head;
+    if ((this.shop?.busyNow ?? 0) > 1 && v < 0.6) {
+      // kletsen: het hoofd naar de buur en een handgebaar
+      head.rotation.y = this.seat % 2 ? -0.75 : 0.75;
+      head.rotation.x = Math.sin(t * 4) * 0.12;
+      right.rotation.x = -0.8 + Math.sin(t * 6) * 0.4;
+    } else if (v < 0.3) {
+      // achteroverleunen: de armen wijd over de leuning en het gezicht in de zon
+      this.lean = -0.2;
+      right.rotation.set(0.2, 0, 1.1);
+      left.rotation.set(0.2, 0, -1.1);
+      head.rotation.x = -0.3;
+    } else if (v < 0.75 || this.child) {
+      // rondkijken
+      this.lean = -0.06;
+      head.rotation.y = Math.sin(t * 1.1 + this.seat) * 0.85;
+    } else {
+      // een dutje: het hoofd zakt op de borst en het lijf helt een beetje opzij
+      head.rotation.set(0.5, 0, 0.15);
+      this.tilt = 0.07 + Math.sin(t * 1.6) * 0.02;
+      this.lean = 0.05 + Math.sin(t * 1.6) * 0.02;
+    }
+  }
+
+  /** Aan de rand van de fontein: een muntje gooien en een wens doen, een hand door het water halen, of spetteren (kinderen). */
+  private fountainPose(): void {
+    const t = (SERVE_TIME.fountain ?? 4) - this.timer - 0.45;
+    if (t < 0 || this.timer < 0.35) return;
+    const right = this.limbs[2], left = this.limbs[3], head = this.head;
+    if (this.tossesCoin) {
+      if (t < 0.5) {
+        // het muntje in de hand
+        right.rotation.x = -0.9;
+        right.rotation.z = -0.3;
+        head.rotation.x = 0.3;
+      } else if (t < 0.8) right.rotation.x = -0.9 - ((t - 0.5) / 0.3) * 1.8;
+      else if (t < 1) right.rotation.x = -2.7 + ((t - 0.8) / 0.2) * 1.5;
+      else if (t < 2.3) {
+        // een wens doen: de handen tegen elkaar en het hoofd gebogen
+        right.rotation.x = left.rotation.x = -1.35;
+        right.rotation.z = -0.4;
+        left.rotation.z = 0.4;
+        head.rotation.x = 0.3;
+      } else head.rotation.x = -0.3;
+    } else if (!this.child || this.whim < 0.6) {
+      // hurken en een hand door het water halen
+      this.squat(0.4);
+      right.rotation.x = -0.95 + Math.sin(t * 3) * 0.1;
+      right.rotation.z = Math.sin(t * 4) * 0.3;
+      head.rotation.x = 0.3;
+    } else {
+      // spetteren met twee handen
+      const s = Math.abs(Math.sin(t * 7));
+      this.lean = 0.3;
+      right.rotation.x = -0.6 - s * 0.8;
+      left.rotation.x = -0.6 - (1 - s) * 0.8;
+      this.hop = s * 0.04;
+      head.rotation.x = 0.15;
+    }
   }
 
   /** Naar de kinderboerderij: eerst naar het poortje lopen. Lukt dat? */
@@ -1242,6 +2285,12 @@ export class Guest implements Leader {
       if (this.tile === ENTRANCE || !this.go(w, reach, ENTRANCE)) this.leave(w);
       return;
     }
+    // ver van elk bord twijfelt de juf of meester soms even: welke kant moeten we op? Daarna loopt de klas gewoon door
+    if (!this.doubted && Math.random() < STRAY.doubt && !w.signed(this.tile)) {
+      this.doubted = true;
+      return this.stray(STRAY.pause[0] + Math.random() * (STRAY.pause[1] - STRAY.pause[0]), 0);
+    }
+    this.doubted = false;
     t.stops--;
     for (let tries = 0; tries < 30; tries++) {
       const tile = pick(list);
@@ -1269,6 +2318,8 @@ export class Guest implements Leader {
     this.act = null;
     this.gate = -1;
     this.easy = false;
+    this.sight = null;
+    this.use = null;
     if (this.tour && !this.leaving) return this.tourStep(w, list, reach);
     if (this.age > this.stay || this.fun < 0.08) this.leaving = true;
     if (this.leaving) {
@@ -1280,6 +2331,9 @@ export class Guest implements Leader {
     this.fun = Math.min(1, this.fun + w.charm(this.tile));
     this.wish = this.fun < 0.2 ? { kind: 'bored', lacking: true } : null;
     // (een rolstoel of kinderwagen vroeg eerst om een pad van twee tegels breed; dat is eruit: het was vooral lastig)
+    // ver van elk bord raakt een gast in een groot park soms de weg kwijt; niet met hoge nood en niet in de regen
+    if (strayRoom > 0 && this.age >= this.strayFree && !this.special && !this.wheels && this.bladder < 0.6 && !w.raining() && Math.random() < STRAY.chance && !w.signed(this.tile))
+      return this.stray(STRAY.time[0] + Math.random() * (STRAY.time[1] - STRAY.time[0]), STRAY.fun);
     // op de plattegrond gekeken: nu weet de gast de weg
     if (!this.knows && w.mapNear(this.gx, this.gy)) {
       this.knows = true;
@@ -1289,7 +2343,11 @@ export class Guest implements Leader {
     const want = this.want(w);
     // niets dringends, of net iets lekkers gekocht: even gaan zitten als er vlakbij een bankje vrij is
     const calm = !want || !PRESSING.includes(want) || (!!this.snack && (want === 'food' || want === 'drink'));
+    // afval in de hand: eerst naar de bak als die vlakbij staat. En met iets lekkers het liefst aan de picknicktafel
+    if (this.binTrip(w, reach) || (calm && this.eating > 0 && this.sightsee(w, reach, true))) return;
     if (calm && this.rest(w, reach)) return;
+    // niets dringends: misschien even naar iets moois in de buurt (de vijver, het standbeeld, de bloemen)
+    if ((!want || !PRESSING.includes(want)) && this.sightsee(w, reach, false)) return;
     if (want === 'pet') {
       if (this.visitPen(w, reach)) return;
       this.postpone(want);
@@ -1367,12 +2425,19 @@ export class Guest implements Leader {
   /** Bij het kijken doet de gast iets: zwaaien, wijzen, een foto maken, klappen, door zijn handen turen, roepen, lachen. */
   private pickAct(): Act | null {
     const p = Math.random();
+    if (!this.wheels) {
+      // moe: even op de grond gaan zitten kijken. Een kind staat soms op zijn tenen, een groot mens pakt de verrekijker
+      const q = Math.random();
+      if (this.tired > 0.45 && q < 0.35) return 'ground';
+      if (this.child ? q > 0.82 : q > 0.88) return this.child ? 'tiptoe' : 'scope';
+    }
     if (this.child && p < 0.22) return 'jump';
     return p < 0.36 ? 'wave' : p < 0.5 ? 'point' : p < 0.64 ? 'photo' : p < 0.73 ? 'clap' : p < 0.8 ? 'peer' : p < 0.86 ? 'kneel' : p < 0.91 ? 'call' : p < 0.96 ? 'laugh' : null;
   }
 
   private arrive(w: GuestWorld): void {
     if (this.pen) return this.penArrive(w);
+    if (this.sight) return this.beginUse();
     if (this.partyShop) {
       // het feest: slingers, taart en iedereen klapt
       const shop = this.partyShop;
@@ -1422,6 +2487,8 @@ export class Guest implements Leader {
       if (w.dark(this.tile)) this.wish = { kind: 'dark', lacking: true };
       this.act = this.tour ? 'point' : this.pickAct();
       this.actT = 0;
+      // kijken wat de dieren doen: slapen ze, speelt er een, is het er vies? Daar past de gast zijn houding bij aan
+      if (!this.tour) this.eyePen(w, true);
     } else {
       this.state = 'idle';
       this.timer = 0.6 + Math.random();
@@ -1448,7 +2515,10 @@ export class Guest implements Leader {
       this.penPhase = 3;
       this.state = 'watch';
       this.timer = 6 + Math.random() * 3;
-      this.act = 'pet';
+      // de een aait, de ander heeft een zakje voer bij zich en voert uit de hand
+      this.feeder = !this.wheels && Math.random() < 0.6;
+      this.act = this.feeder ? 'feed' : 'pet';
+      if (this.feeder && !this.feedBag) this.limbs[3].add((this.feedBag = new THREE.Mesh(SNACK_GEO, mat(0xb88a52))));
       this.actT = 0;
       this.face = w.petAt(pen, this);
     } else {
@@ -1460,6 +2530,7 @@ export class Guest implements Leader {
 
   private endPen(): void {
     if (this.pen) this.pen.count = Math.max(0, this.pen.count - 1);
+    this.feeder = false;
     this.pen = null;
     this.penPhase = 0;
     this.inside = false;
@@ -1479,6 +2550,9 @@ export class Guest implements Leader {
     this.timer = SERVE_TIME[kind] ?? 3;
     this.waitT = 0;
     this.rode = false;
+    // een nieuwe gok voor wat de gast op het bankje of bij de fontein doet
+    this.whim = Math.random();
+    this.useMark = 0;
     this.shop.busyNow = (this.shop.busyNow ?? 0) + 1;
     this.slot = null;
     if (this.gate >= 0 && this.state === 'buy' && kind !== 'toilet') {
@@ -1508,6 +2582,7 @@ export class Guest implements Leader {
   /** Klaar met kijken, kopen of zitten. Geeft true als de gast zelf al weet wat hij hierna doet. */
   private finish(w: GuestWorld): boolean {
     const kind = this.shop?.kind;
+    if (this.state === 'use') return this.endUse(w);
     if (this.state === 'watch' && this.pen && this.penPhase === 3) {
       // genoeg geaaid: door het poortje weer naar buiten
       this.fun = Math.min(1, this.fun + 0.3);
@@ -1550,6 +2625,8 @@ export class Guest implements Leader {
       w.guestSound('guest.laugh', this);
       this.rideWish = 0;
       this.fun = Math.min(1, this.fun + (kind === 'ferris' ? 0.4 : 0.35));
+      // duizelig van het draaien, of een high five met wie er tegelijk uitstapt
+      this.afterRide();
     } else if (this.state === 'sit' && kind === 'tower' && this.shop) {
       this.curious = 0;
       this.fun = Math.min(1, this.fun + 0.1 + w.towerView(this.shop));
@@ -1564,6 +2641,7 @@ export class Guest implements Leader {
       this.bought.foodstall = this.bought.drinkstall = 1;
       if (w.buy(this.shop, this, undefined, true)) w.buy(this.shop, this, undefined, true);
       this.fun = Math.min(1, this.fun + 0.2);
+      this.fire('rub'); // dat was lekker
     } else if (this.state === 'sit' && kind === 'shelter') {
       this.fun = Math.min(1, this.fun + 0.05);
     } else if (this.state === 'sit') {
@@ -1578,13 +2656,18 @@ export class Guest implements Leader {
         // het doortrekken was al te horen toen de gast nog binnen zat (zie toiletStep)
         this.bladder = 0;
         this.fun = Math.min(1, this.fun + 0.08);
+        // opgelucht: een zucht, en dan de handen droog schudden
+        this.fire('relief', 0.8);
       } else if ((exact || got) && w.buy(this.shop, this, got, exact)) {
         this.bought[kind] = (this.bought[kind] ?? 0) + 1;
         this.purchases++;
         // wat lekkers gaat mee in de hand: de gast eet of drinkt er nog even van
         if (kind === 'foodstall' || kind === 'drinkstall' || kind === 'icecream') {
           if (this.snack) this.limbs[3].remove(this.snack);
-          this.snack = new THREE.Mesh(SNACK_GEO, mat(kind === 'foodstall' ? 0xffd23f : kind === 'drinkstall' ? 0x9fd8f5 : 0xffc1d6));
+          // een hoorntje, een beker met een rietje, een zak friet, ...: elk met zijn eigen manier van eten
+          this.snack = makeTreat(kind, got);
+          this.bite = kind === 'icecream' ? 'lick' : kind === 'drinkstall' ? 'sip' : 'bite';
+          this.full = kind !== 'drinkstall';
           this.limbs[3].add(this.snack);
           this.eating = 7;
         }
@@ -1599,7 +2682,11 @@ export class Guest implements Leader {
         } else if (kind === 'hats') {
           this.hat = 0;
           this.addHat(got);
-        } else if (kind === 'souvenir') this.gift = 0;
+          this.fire('don'); // opzetten met een zwier
+        } else if (kind === 'souvenir') {
+          this.gift = 0;
+          this.takePlush(got);
+        }
         else if (kind === 'umbrellas') this.takeUmbrella();
         // precies wat de gast vroeg maakt hem blijer dan iets anders
         const joy = kind === 'foodstall' || kind === 'drinkstall' ? 0.1 : 0.2;
@@ -1627,11 +2714,18 @@ export class Guest implements Leader {
     const colors = [0xe0584f, 0x4a90e2, 0xffd23f, 0x6cc04a, 0xf06aa6];
     const color = (product && COLOR_OF[product]) || pick(colors);
     const balloon = new THREE.Mesh(BALLOON_GEO, mat(color));
-    balloon.position.set(0.17, 0.95, 0);
     if (product === 'balloon_heart') balloon.scale.set(1.5, 1.25, 0.8);
     const string = new THREE.Mesh(STRING_GEO, mat(0xf4f1e8));
-    string.position.set(0.17, 0.68, 0);
-    this.mesh.add(balloon, string);
+    // de ballon en zijn touwtje hangen samen aan de hand: daar draaien ze omheen als de ballon wiebelt (zie `overlay`)
+    balloon.position.set(0, 0.68, 0);
+    string.position.set(0, 0.31, 0);
+    string.scale.y = 1.8;
+    if (this.balloonG) this.mesh.remove(this.balloonG);
+    this.balloonG = new THREE.Group();
+    this.balloonG.position.set(BALLOON_AT[0], BALLOON_AT[1], BALLOON_AT[2]);
+    this.balloonG.add(balloon, string);
+    this.flown = -1;
+    this.mesh.add(this.balloonG);
   }
 
   /** De gast zet het hoedje op dat hij kocht: een petje, een strohoed, een feestmuts of een kroon. */
@@ -1695,7 +2789,8 @@ export class Guest implements Leader {
     } else if (L.face) this.turnTo(L.face[0] - this.gx, L.face[1] - this.gy, dt);
     this.state = moving ? 'walk' : L.watching ? 'watch' : 'idle';
     if (this.state === 'watch' && !this.act) {
-      this.act = this.pickAct();
+      // op het verjaardagsfeest gooien de kinderen confetti
+      this.act = L instanceof Guest && L.tour && L.act === 'clap' && Math.random() < 0.6 ? 'toss' : this.pickAct();
       this.actT = Math.random() * 2;
     }
     if (this.leading) this.mark();
@@ -1749,6 +2844,65 @@ export class Guest implements Leader {
     this.place();
   }
 
+  /** De weg kwijt: de gast blijft staan en kijkt om zich heen, zoveel tellen lang. Het kost een beetje plezier. */
+  private stray(time: number, cost: number): void {
+    this.astray = time;
+    this.fun = Math.max(0, this.fun - cost);
+    this.wish = { kind: 'astray', lacking: true };
+    this.route = [];
+    this.state = 'idle';
+    this.timer = 1.5 + Math.random() * 1.5;
+    // geen dansje of selfie tussendoor: hij zoekt de weg
+    this.idle = null;
+    this.idleIn = 30;
+    strayRoom--;
+  }
+
+  /** De gast weet de weg weer. `glad`: omdat hij een bord ziet; dan knikt hij en is het plezier terug. */
+  findWay(glad = false): void {
+    if (this.astray <= 0) return;
+    this.astray = 0;
+    this.strayFree = this.age + STRAY.rest;
+    if (this.wish?.kind === 'astray') this.wish = null;
+    this.route = [];
+    this.state = 'idle';
+    this.timer = 0.3;
+    this.idleIn = 2 + Math.random() * 3;
+    if (glad) {
+      this.fun = Math.min(1, this.fun + STRAY.fun);
+      this.idle = { kind: 'nod', t: 0, dur: 1.2 };
+      this.timer = 1.2;
+    }
+  }
+
+  /** De weg kwijt: staan en om je heen kijken, een paar passen een willekeurige kant op, en weer kijken. */
+  private roam(dt: number, w: GuestWorld, reach: Set<number>): void {
+    this.astray -= dt;
+    // een bord in zicht, of lang genoeg gezocht: de gast weet het weer
+    const found = w.signed(this.tile);
+    if (found || this.astray <= 0) return this.findWay(found);
+    if (this.state === 'walk') {
+      if (this.stride(dt, 0.55)) {
+        this.state = 'idle';
+        this.timer = 1.5 + Math.random() * 1.5;
+      }
+      return;
+    }
+    this.timer -= dt;
+    // een groepje blijft bij elkaar staan; wie alleen is, probeert een paar passen een andere kant op
+    if (this.timer > 0 || this.tour) return;
+    let at = this.tile, prev = -1;
+    for (let n = 2 + Math.floor(Math.random() * 3); n > 0; n--) {
+      const next = w.grid.neighbors(at).filter(i => reach.has(i) && i !== prev);
+      if (!next.length) break;
+      prev = at;
+      at = pick(next);
+      this.route.push(at);
+    }
+    if (this.route.length) this.state = 'walk';
+    else this.timer = 1;
+  }
+
   update(dt: number, w: GuestWorld, list: number[], reach: Set<number>): void {
     this.age += dt;
     this.stepping = false;
@@ -1756,6 +2910,8 @@ export class Guest implements Leader {
     if (this.brolly) this.brolly.visible = rain;
     if (this.leader) return this.follow(dt);
     if (this.lost) return this.cry(dt, w, reach);
+    // wielen, ballon en paraplu, en opletten wat er om de gast heen gebeurt (iets vies, een ontsnapt dier, de ster)
+    this.extras(dt, w);
     const ease = w.ease(), demand = w.demand() * ease;
     if (w.sells('foodstall') && !this.bought.foodstall) this.hunger = Math.min(1, this.hunger + (dt / 160) * demand * w.craving('foodstall'));
     if (w.sells('drinkstall') && !this.bought.drinkstall) this.thirst = Math.min(1, this.thirst + (dt / 130) * demand * w.craving('drinkstall'));
@@ -1811,24 +2967,19 @@ export class Guest implements Leader {
       this.place();
       return;
     }
-    // afval: in de bak als er een vlakbij staat, anders valt het na een poosje op het pad
-    if (this.trash > 0) {
-      const bin = w.shops.find(sh => sh.kind === 'bin' && Math.abs(shopCenter(sh)[0] - this.gx) < 1.6 && Math.abs(shopCenter(sh)[1] - this.gy) < 1.6);
-      if (bin && !this.sloppy) {
-        this.trash = 0;
-        w.binned(bin);
-      } else {
-        this.trash -= dt;
-        if (this.trash <= 0 && w.sells('bin')) w.dropLitter(this.gx, this.gy);
-      }
-    }
-    if (this.state === 'walk') {
+    // afval: zichtbaar in de hand, in de bak als er een vlakbij staat, anders valt het na een poosje op het pad
+    if (this.trash > 0 || this.litter) this.carryTrash(dt, w);
+    if (this.astray > 0) this.roam(dt, w, reach);
+    else if (this.state === 'walk') {
       // een blij kind zet het af en toe op een rennen
       if (this.dash > 0) this.dash -= dt;
       else if (this.child && this.fun > 0.7 && !this.inside && Math.random() < dt * 0.04) this.dash = 2 + Math.random() * 1.5;
       // het regent en de gast heeft geen paraplu: op een holletje naar de schuilhut of de paraplubak
-      const speed = this.wheels ? 0.62 : this.dash > 0 || this.hurrying(w) ? 1.35 : 0.8;
-      if (this.stride(dt, speed)) this.arrive(w);
+      // (en wie hoge nood heeft, rent naar de wc)
+      const speed = this.wheels ? 0.62 : this.dash > 0 || this.hurrying(w) || this.bursting ? 1.35 : 0.8;
+      // even blijven staan voor een kort gebaar (bah, kijk daar, een high five)
+      if (this.stall > 0) this.linger(dt);
+      else if (this.stride(dt, speed)) this.arrive(w);
     } else if (this.state === 'queue') {
       // in de rij: opschuiven naar je plek en wachten; wie te lang wacht, loopt mopperend weg
       this.waited += dt;
@@ -1848,6 +2999,8 @@ export class Guest implements Leader {
     } else {
       const talk = this.idle?.kind === 'talk' ? this.chatAt : null;
       const face = talk ?? this.face;
+      // bij een ding in het park of aan de fontein: de passen ernaartoe en wat er onderweg gebeurt
+      if (this.state === 'use' || (this.state === 'sit' && this.shop?.kind === 'fountain')) this.useStep(w);
       if (this.state === 'buy' && this.shop?.kind === 'toilet') this.toiletStep(dt, w, reach);
       // wie uit de rij aan de beurt is, stapt eerst naar de toonbank
       else if (!(this.state === 'buy' && this.shuffle(dt, reach)) && face) this.turnTo(face[0] - this.gx, face[1] - this.gy, dt);
@@ -1887,6 +3040,7 @@ export class Guest implements Leader {
     head.rotation.set(0, 0, 0);
     this.hop = 0;
     this.lean = this.tilt = this.twist = 0;
+    this.prep();
     const standing = this.state === 'idle' || this.state === 'queue' || this.state === 'watch';
     // in de rolstoel liggen de handen op de wielen; de kinderwagen duw je voor je uit
     if (this.wheels === 'chair') {
@@ -1903,7 +3057,9 @@ export class Guest implements Leader {
     if (this.state === 'watch' && this.act) {
       this.actT += dt;
       const t = this.actT;
-      if (this.act === 'wave') {
+      if (this.poseAct(t)) {
+        // een van de houdingen die erbij zijn gekomen (ssst, meedoen, verrekijker, ...): zie poseAct
+      } else if (this.act === 'wave') {
         right.rotation.x = -2.7;
         right.rotation.z = Math.sin(t * 9) * 0.45;
       } else if (this.act === 'point') {
@@ -1954,14 +3110,15 @@ export class Guest implements Leader {
       // iets kleins tussendoor
       this.idleIn -= dt;
       if (!this.idle && this.idleIn <= 0) {
-        const kinds: Idle[] = wet ? ['shiver'] : this.state === 'queue' ? ['tap', 'watch', 'look', 'sway'] : this.child ? ['look', 'dance', 'scratch', 'sway', 'stretch'] : ['look', 'scratch', 'watch', 'stretch', 'selfie', 'nod', 'sway'];
-        this.idle = { kind: pick(kinds), t: 0, dur: 1.4 + Math.random() * 1.6 };
+        this.idle = { kind: pick(this.idleKinds(wet)), t: 0, dur: 1.4 + Math.random() * 1.6 };
       }
       const a = this.idle;
       if (a) {
         a.t += dt;
         const t = a.t, u = Math.min(1, t / a.dur);
-        if (a.kind === 'look') head.rotation.y = Math.sin(t * 2.2) * 0.9;
+        if (this.poseIdle(a.kind, t, u)) {
+          // een van de kleine dingen die erbij zijn gekomen (gapen, zuchten, trappelen, ...): zie poseIdle
+        } else if (a.kind === 'look') head.rotation.y = Math.sin(t * 2.2) * 0.9;
         else if (a.kind === 'scratch') {
           right.rotation.x = -2.6;
           right.rotation.z = 0.5 + Math.sin(t * 14) * 0.12;
@@ -2008,14 +3165,27 @@ export class Guest implements Leader {
         }
       }
     } else if (this.state === 'walk') this.idle = null;
+    if (this.astray > 0) {
+      // de weg kwijt: links en rechts kijken, en wie stilstaat houdt een hand boven de ogen en draait heen en weer
+      head.rotation.y = Math.sin(this.phase * 0.2) * 0.95;
+      if (this.state !== 'walk') {
+        right.rotation.x = -2.45;
+        right.rotation.z = 0.5;
+        this.twist = Math.sin(this.phase * 0.09) * 0.35;
+      }
+    }
+    // bij een ding in het park, op het bankje of aan de fontein; en het afval in de hand
+    this.sightPose();
     if (this.state === 'buy' && this.shop?.kind !== 'toilet') right.rotation.x = -1.3; // de hand uitsteken naar de toonbank
     if (this.eating > 0) {
       // een hap of een slok: de hand gaat naar de mond en weer terug
       this.eating -= dt;
-      left.rotation.x = -1.75 + Math.sin(this.phase * 0.45) * 0.5;
+      this.munch();
       if (this.eating <= 0 && this.snack) {
         left.remove(this.snack);
         this.snack = null;
+        // dat was lekker: even over de buik wrijven
+        if (this.full) this.fire('rub');
       }
     }
     // de paraplu omhoog houden als het regent
@@ -2027,6 +3197,8 @@ export class Guest implements Leader {
       right.rotation.x = -2.7;
       right.rotation.z = Math.sin(this.phase * 0.85) * 0.5;
     }
+    // het muntje, de ballon, hoge nood, ongeduld, slaperig lopen en de korte gebaren (schrikken, bah, ...)
+    this.overlay(dt);
     if (this.moan > 0) {
       // mopperen: handen in de zij en heen en weer draaien
       this.moan -= dt;
@@ -2041,7 +3213,660 @@ export class Guest implements Leader {
       this.joy -= dt;
       right.rotation.x = left.rotation.x = -2.9;
       this.hop = Math.abs(Math.sin(this.joy * 9)) * 0.13;
-    } else if (this.child && this.state === 'walk' && this.fun > 0.6) this.hop = Math.abs(Math.sin(this.phase * 0.5)) * 0.05; // een blij kind huppelt
+    } else if (this.child && this.state === 'walk' && this.fun > 0.6 && this.stall <= 0 && !(this.sky & 1)) this.hop = Math.abs(Math.sin(this.phase * 0.5)) * 0.05; // een blij kind huppelt
+  }
+
+  // ------------------------------------------------------------ extra houdingen en dingen in de hand
+  /** Loopt of staat de gast gewoon op het pad (niet op een bankje, in een attractie, op de wc of in de trein)? */
+  private get afoot(): boolean {
+    return (this.state === 'walk' || this.state === 'idle' || this.state === 'watch' || this.state === 'queue') && !this.riding;
+  }
+
+  /** Hoge nood en op weg naar de wc: dan zet de gast er de pas in. */
+  private get bursting(): boolean {
+    return this.bladder > 0.85 && this.errand === 'toilet';
+  }
+
+  /** Begin een kort gebaar. `stall`: zo lang blijft de gast er even voor staan als hij liep; `gaze`: hij kijkt naar (lookX, lookY). */
+  private fire(kind: Shot, stall = 0, gaze = false): void {
+    // in een rolstoel of achter de kinderwagen geen gebaren met de benen
+    if (this.wheels && (kind === 'stomp' || kind === 'startle' || kind === 'dizzy' || kind === 'slump' || kind === 'yuck')) return;
+    this.calm();
+    this.shot = kind;
+    this.shotT = 0;
+    this.gaze = gaze;
+    this.stall = Math.max(this.stall, stall);
+  }
+
+  /** Het gebaar is voorbij: wat het verplaatst heeft (het hoedje, de paraplu, de knuffel) staat weer op zijn plek. */
+  private calm(): void {
+    this.shot = null;
+    this.gaze = false;
+    if (this.headwear) {
+      this.headwear.position.set(0, 0, 0);
+      this.headwear.rotation.set(0, 0, 0);
+    }
+    if (this.brolly) {
+      this.brolly.rotation.set(0, 0, 0);
+      this.brolly.scale.set(1, 1, 1);
+    }
+    if (this.plush) this.plush.position.set(PLUSH_REST[0], PLUSH_REST[1], PLUSH_REST[2]);
+  }
+
+  /** Even stilstaan tijdens het lopen, en kijken naar waar het om gaat. */
+  private linger(dt: number): void {
+    if (this.gaze) this.turnTo(this.lookX - this.gx, this.lookY - this.gy, dt);
+  }
+
+  /** De knuffel uit de knuffelkraam gaat mee onder de arm. */
+  private takePlush(product?: string): void {
+    if (this.plush) this.mesh.remove(this.plush);
+    this.plush = makePlush(product);
+    this.mesh.add(this.plush);
+  }
+
+  /** De verrekijker voor de ogen (hij verdwijnt vanzelf weer als de gast er niet meer door kijkt). */
+  private spy(): void {
+    if (!this.scope) this.head.add((this.scope = makeScope()));
+    this.scope.visible = true;
+  }
+
+  /** Net uit een attractie: duizelig wiebelen, of een high five met wie er tegelijk uitstapt. */
+  private afterRide(): void {
+    const mate = offRide;
+    if (mate && mate !== this && !mate.gone && !mate.wheels && crowdClock - offRideAt < 0.8 && mate.shot !== 'five' && Math.hypot(mate.gx - this.gx, mate.gy - this.gy) < 1.2) {
+      offRide = null;
+      this.lookX = mate.gx;
+      this.lookY = mate.gy;
+      mate.lookX = this.gx;
+      mate.lookY = this.gy;
+      this.fire('five', 1.3, true);
+      mate.fire('five', 1.3, true);
+      return;
+    }
+    offRide = this;
+    offRideAt = crowdClock;
+    if (Math.random() < 0.6) this.fire('dizzy', 1.4);
+  }
+
+  /**
+   * Kijken wat de dieren doen en de houding daarbij kiezen: ssst bij slapende dieren, sip bij een ziek dier, de neus
+   * dicht bij een vies verblijf, meedoen als er een speelt, en even schrikken als er een ineens vlak bij het hek
+   * komt of zich laat horen. `first`: de gast komt net aan.
+   */
+  private eyePen(w: GuestWorld, first: boolean): void {
+    const mood = w.penMood(this.tile), was = this.mood;
+    this.mood = mood;
+    if (first) {
+      this.ownAct = this.act;
+      this.heeds = Math.random() < 0.75;
+      this.penEnd = this.age + this.timer;
+      if (w.dark(this.tile)) {
+        // te donker om iets te zien: de schouders hangen
+        this.act = 'gloom';
+        this.heeds = false;
+        return;
+      }
+      // de gast zoekt zijn lievelingsdier al een poos, en hier staat het weer niet
+      if (this.fav && !this.favSeen && this.age > 40 && !this.sees.includes(this.fav) && Math.random() < 0.35) this.fire('slump');
+    }
+    if (!this.heeds) return;
+    const act: Act | null = mood & PEN.asleep ? 'hush' : mood & PEN.sick ? 'pity' : mood & PEN.dirty ? 'stink' : mood & PEN.playing ? 'join' : this.ownAct;
+    if (act !== this.act) {
+      this.act = act;
+      this.actT = 0;
+    }
+    if (!first && mood & PEN.scare && !(was & PEN.scare) && !(mood & PEN.asleep) && !this.shot && this.act !== 'ground' && Math.random() < 0.4) this.fire('startle');
+  }
+
+  /**
+   * Elk beeldje, voor de gast loopt of staat: de wielen draaien, de ballon vliegt soms weg, de paraplu wordt
+   * uitgeschud, en de gast let op wat er om hem heen is (iets vies op het pad, een plas, een ontsnapt dier, de
+   * beroemde gast, wat de dieren doen).
+   */
+  private extras(dt: number, w: GuestWorld): void {
+    this.sky = (w.isNight() ? 1 : 0) | (w.rainbowUp() ? 2 : 0);
+    const afoot = this.afoot && !this.inside;
+    if (this.rims.length) {
+      // de wielen draaien mee met de weg die de gast aflegt
+      const d = Math.hypot(this.gx - this.lastX, this.gy - this.lastY);
+      if (d < 0.5) for (let i = 0; i < this.rims.length; i++) this.rims[i].rotation.x += d / this.rimR[i];
+      this.lastX = this.gx;
+      this.lastY = this.gy;
+    }
+    // het is droog: de paraplu gaat dicht, maar eerst even uitschudden (niet allemaal tegelijk)
+    const dry = !this.brolly?.visible;
+    if (dry && !this.wasDry && afoot && !this.shot) {
+      this.fire('shake');
+      this.shotT = -Math.random() * 1.5;
+    }
+    this.wasDry = dry;
+    // een nieuwe tegel: ligt er iets vies, of een plas om in te stampen?
+    const tile = this.tile;
+    if (tile !== this.lastTile) {
+      this.lastTile = tile;
+      if (this.state === 'walk' && afoot && !this.shot && !this.wheels && !this.special && this.astray <= 0 && this.age > this.calmUntil && this.bladder <= 0.85 && this.errand !== 'shelter' && this.errand !== 'umbrella') {
+        if (this.child && w.puddleOn(tile)) {
+          this.fire('stomp', 1.5);
+          this.calmUntil = this.age + 10;
+          w.splash(this.gx, this.gy);
+        } else if (Math.random() < 0.6 && w.litterOn(tile)) {
+          this.fire('yuck', 1.2);
+          this.calmUntil = this.age + 20;
+        }
+      }
+    }
+    if (this.shot === 'stomp' && this.shotT < 0.75 && this.shotT + dt >= 0.75) w.splash(this.gx, this.gy);
+    this.scanIn -= dt;
+    if (this.scanIn <= 0) {
+      this.scanIn = 0.7 + Math.random() * 0.4;
+      // bij een regenboog kijkt iedereen wat eerder op
+      if (this.sky & 2 && this.idleIn > 2.5) this.idleIn = 2.5;
+      if (this.heeds && this.state === 'watch' && this.age < this.penEnd && !this.pen) this.eyePen(w, false);
+      if (afoot && this.age > this.calmUntil && w.looseNear(this.gx, this.gy, LOOSE_AT)) {
+        // een ontsnapt dier! Wijzen en roepen, en een stap opzij
+        this.lookX = LOOSE_AT[0];
+        this.lookY = LOOSE_AT[1];
+        this.fire('alarm', 2, true);
+        this.calmUntil = this.age + 10;
+      } else if (theStar && theStar !== this && !this.fanned && afoot && !this.special && !this.shot && this.state !== 'queue' && this.bladder < 0.6 && Math.hypot(theStar.gx - this.gx, theStar.gy - this.gy) < 1.7) {
+        // de beroemde gast! Een foto maken of om een handtekening vragen; de ster zwaait terug
+        this.fanned = true;
+        if (Math.random() < 0.7) {
+          this.lookX = theStar.gx;
+          this.lookY = theStar.gy;
+          this.fire('fan', 2.2, true);
+          theStar.greet();
+        }
+      }
+    }
+    // af en toe de knuffel even knuffelen
+    if (this.plush && afoot && !this.shot && this.eating <= 0) {
+      this.hugIn -= dt;
+      if (this.hugIn <= 0) {
+        this.hugIn = (this.child ? 6 : 11) + Math.random() * 8;
+        this.fire('hug');
+      }
+    }
+    const g = this.balloonG;
+    if (g && this.flown >= 0) {
+      // de ballon is los: hij stijgt op, drijft weg en wordt steeds kleiner
+      this.flown += dt;
+      g.position.y += dt * (0.35 + this.flown * 0.5);
+      g.position.x += dt * 0.22;
+      g.rotation.z = Math.sin(this.flown * 3) * 0.2;
+      g.scale.setScalar(1 - smooth(1.5, 3.4, this.flown) * 0.95);
+      if (this.flown > 3.4) {
+        this.mesh.remove(g);
+        this.balloonG = null;
+        this.flown = -1;
+      }
+    } else if (g && this.child && afoot && !this.shot && this.state !== 'queue' && Math.random() < dt * 0.0008) {
+      // heel soms laat een kind zijn ballon los: die vliegt weg en het kind kijkt hem na
+      this.flown = 0;
+      this.wornBalloon = null;
+      this.fire('lookup', 3);
+    }
+  }
+
+  /** Aan het begin van elk beeldje: alles wat een houding kan verzetten, staat weer gewoon. */
+  private prep(): void {
+    this.back = this.aside = 0;
+    this.limbs[0].rotation.z = this.limbs[1].rotation.z = 0;
+    if (this.scope) this.scope.visible = false;
+    if (this.coin) this.coin.visible = false;
+    if (this.feedBag) this.feedBag.visible = this.feeder;
+    // wie even blijft staan voor een gebaar, zwaait niet met armen en benen
+    if (this.stall > 0 && this.state === 'walk') swing(this.limbs, 0);
+  }
+
+  /** Uit welke kleine dingen de gast nu kiest als hij even stilstaat. */
+  private idleKinds(wet: boolean): Idle[] {
+    if (wet) return IDLES.wet;
+    if (this.state === 'queue') return this.child ? IDLES.queueChild : this.waited > PATIENCE * 0.25 ? IDLES.queueLong : IDLES.queue;
+    if (this.sky & 2) return IDLES.rainbow;
+    if (this.sky & 1) return IDLES.night;
+    return this.child ? IDLES.child : IDLES.adult;
+  }
+
+  /** Eten of drinken van wat de gast in zijn hand heeft: likken aan een ijsje, een slok door het rietje of een hap en kauwen. */
+  private munch(): void {
+    const left = this.limbs[3], head = this.head;
+    left.rotation.z = 0.45;
+    if (this.bite === 'lick') {
+      // het ijsje bij de mond houden en likken, en af en toe even kijken hoeveel er nog is
+      const c = (this.phase * 0.045) % 1, up = smooth(0, 0.15, c) * (1 - smooth(0.75, 0.95, c));
+      left.rotation.x = -1.25 - 0.3 * up;
+      head.rotation.x = (0.15 + Math.sin(this.phase * 0.9) * 0.1) * up;
+    } else if (this.bite === 'sip') {
+      // de beker omhoog, het hoofd naar het rietje en een lange slok
+      const c = (this.phase * 0.035) % 1, up = smooth(0.1, 0.3, c) * (1 - smooth(0.7, 0.9, c));
+      left.rotation.x = -1.15 - 0.4 * up;
+      head.rotation.x = 0.2 * up;
+    } else {
+      // een hap nemen en dan kauwen
+      const c = (this.phase * 0.055) % 1, up = smooth(0, 0.18, c) * (1 - smooth(0.3, 0.5, c));
+      left.rotation.x = -1.1 - 0.5 * up;
+      head.rotation.x = 0.2 * smooth(0.15, 0.25, c) * (1 - smooth(0.3, 0.4, c)) + (c > 0.45 ? Math.sin(this.phase * 1.4) * 0.05 : 0);
+    }
+  }
+
+  /** De houdingen bij een verblijf die erbij zijn gekomen. Geeft true als dit er een van was. */
+  private poseAct(t: number): boolean {
+    const legs = this.limbs, right = legs[2], left = legs[3], head = this.head, flip = this.seat % 2 ? 1 : -1;
+    // vlak voor de gast verder loopt, komt hij weer gewoon te staan (wie achter een leider aan loopt, heeft geen eigen klok)
+    const out = this.leader ? 1 : smooth(0, 0.35, this.timer);
+    switch (this.act) {
+      case 'join': {
+        // het dier speelt: meedoen! Een kind springt mee, een groot mens danst
+        const b = Math.sin(t * 8);
+        this.hop = Math.abs(b) * (this.child ? 0.13 : 0.05);
+        this.twist = Math.sin(t * 4) * 0.35;
+        right.rotation.x = -1.9 + b * 0.7;
+        left.rotation.x = -1.9 - b * 0.7;
+        right.rotation.z = 0.3;
+        left.rotation.z = -0.3;
+        head.rotation.z = Math.sin(t * 4) * 0.15;
+        return true;
+      }
+      case 'hush': {
+        // ssst, het dier slaapt: een vinger voor de mond, en af en toe omkijken naar de anderen
+        const turn = Math.max(0, Math.sin(t * 1.3) - 0.5) * 2;
+        right.rotation.x = -2.3;
+        right.rotation.z = -0.78;
+        this.lean = 0.1;
+        head.rotation.y = turn * 0.9 * flip;
+        left.rotation.x = turn * (-0.9 + Math.sin(t * 6) * 0.15);
+        return true;
+      }
+      case 'pity': {
+        // ach, het dier is ziek: hoofd schuin, handen samen voor de borst
+        right.rotation.x = left.rotation.x = -1;
+        right.rotation.z = -0.55;
+        left.rotation.z = 0.55;
+        head.rotation.x = 0.3;
+        head.rotation.z = Math.sin(t * 0.9) * 0.2;
+        this.lean = 0.12;
+        this.tilt = Math.sin(t * 1.2) * 0.04;
+        return true;
+      }
+      case 'tiptoe': {
+        // een kind op zijn tenen bij het hek: handen op de rand, hoofd omhoog en een beetje wiebelen
+        const up = smooth(0, 0.4, t) * out;
+        this.hop = (0.05 + Math.max(0, Math.sin(t * 2.3)) * 0.015) * up;
+        this.lean = 0.14 * up;
+        this.tilt = Math.sin(t * 2.3) * 0.04 * up;
+        right.rotation.x = left.rotation.x = -1.25 * up;
+        legs[0].rotation.x = legs[1].rotation.x = 0.1 * up;
+        head.rotation.x = -0.25 * up;
+        return true;
+      }
+      case 'scope': {
+        // door de verrekijker: langzaam van links naar rechts
+        const up = smooth(0, 0.5, t) * out;
+        right.rotation.x = left.rotation.x = -2.25 * up;
+        right.rotation.z = -0.5 * up;
+        left.rotation.z = 0.5 * up;
+        this.twist = Math.sin(t * 0.9) * 0.45 * up;
+        head.rotation.x = -0.08;
+        if (up > 0.8) this.spy();
+        return true;
+      }
+      case 'stink': {
+        // bah, wat stinkt het hier: de neus dicht, wapperen met de andere hand en een beetje achterover
+        right.rotation.x = -2.3;
+        right.rotation.z = -0.78;
+        left.rotation.x = -1.5 + Math.sin(t * 11) * 0.3;
+        left.rotation.z = Math.sin(t * 11) * 0.4;
+        this.lean = -0.14;
+        this.back = 0.08;
+        head.rotation.y = 0.45 * flip;
+        head.rotation.x = -0.1;
+        return true;
+      }
+      case 'feed': {
+        // uit de hand voeren: een greep in het zakje, vooroverbuigen en de hand ophouden
+        const c = (t % 3.2) / 3.2, dip = c < 0.2 ? Math.sin((c / 0.2) * Math.PI) : 0, offer = smooth(0.2, 0.35, c) * (1 - smooth(0.9, 1, c));
+        this.lean = 0.12 + 0.3 * offer;
+        left.rotation.x = -0.9;
+        left.rotation.z = 0.25;
+        right.rotation.x = -0.9 * dip - (1.05 + Math.sin(t * 9) * 0.05) * offer;
+        right.rotation.z = -0.6 * dip;
+        head.rotation.x = 0.1 + 0.15 * offer;
+        return true;
+      }
+      case 'ground': {
+        // even op de grond zitten: benen vooruit, achterover leunen op de handen en rondkijken
+        const k = smooth(0, 0.45, t) * out;
+        this.hop = -0.15 * this.mesh.scale.y * k;
+        this.lean = -0.16 * k;
+        legs[0].rotation.x = -1.36 * k;
+        legs[1].rotation.x = (-1.36 + (this.child ? Math.sin(t * 3) * 0.15 : 0)) * k;
+        legs[0].rotation.z = 0.12 * k;
+        legs[1].rotation.z = -0.12 * k;
+        right.rotation.x = left.rotation.x = 0.55 * k;
+        right.rotation.z = 0.2 * k;
+        left.rotation.z = -0.2 * k;
+        head.rotation.y = Math.sin(t * 0.8) * 0.3;
+        return true;
+      }
+      case 'gloom': {
+        // te donker om iets te zien: de schouders hangen, turen en het hoofd schudden
+        this.lean = 0.14;
+        this.hop = -0.012;
+        head.rotation.x = 0.28;
+        head.rotation.y = Math.sin(t * 1.1) > 0.3 ? Math.sin(t * 5) * 0.3 : 0;
+        right.rotation.x = left.rotation.x = 0.08;
+        return true;
+      }
+      case 'toss': {
+        // confetti gooien: door de knieën en dan allebei de armen omhoog
+        const c = (t * 0.9) % 1, up = smooth(0.25, 0.5, c) * (1 - smooth(0.8, 1, c));
+        right.rotation.x = left.rotation.x = -0.4 - 2.5 * up;
+        right.rotation.z = 0.35 * up;
+        left.rotation.z = -0.35 * up;
+        this.hop = up * 0.08;
+        head.rotation.x = -0.2 * up;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** De kleine dingen tussendoor die erbij zijn gekomen. Geeft true als dit er een van was. */
+  private poseIdle(kind: Idle, t: number, u: number): boolean {
+    const legs = this.limbs, right = legs[2], left = legs[3], head = this.head, s = Math.sin(u * Math.PI);
+    switch (kind) {
+      case 'yawn':
+        // gapen: een hand voor de mond, de andere arm rekt zich uit, het hoofd achterover
+        right.rotation.x = -2.3 * s;
+        right.rotation.z = -0.78 * s;
+        left.rotation.x = -2.9 * s;
+        left.rotation.z = -0.5 * s;
+        head.rotation.x = -0.3 * s;
+        this.lean = -0.08 * s;
+        return true;
+      case 'sigh': {
+        // zuchten: de schouders omhoog en dan alles laten zakken
+        const up = smooth(0, 0.35, u) * (1 - smooth(0.4, 0.6, u)), down = smooth(0.5, 0.75, u) * (1 - smooth(0.9, 1, u));
+        this.hop = 0.02 * up;
+        this.lean = 0.1 * down;
+        head.rotation.x = -0.2 * up + 0.3 * down;
+        right.rotation.x = left.rotation.x = 0.1 * s;
+        return true;
+      }
+      case 'peek': {
+        // op de tenen opzij leunen met een hand boven de ogen: hoe lang is de rij nog?
+        const side = this.seat % 2 ? 1 : -1;
+        this.hop = 0.05 * s;
+        this.tilt = 0.2 * s * side;
+        head.rotation.z = -0.15 * s * side;
+        head.rotation.x = -0.12 * s;
+        right.rotation.x = -2.45 * s;
+        right.rotation.z = -0.5 * s;
+        return true;
+      }
+      case 'rainbow': {
+        // kijk, een regenboog: omhoog wijzen en kijken
+        const up = smooth(0, 0.2, u) * (1 - smooth(0.85, 1, u));
+        right.rotation.x = (-2.5 + Math.sin(t * 3) * 0.07) * up;
+        right.rotation.z = 0.25 * up;
+        head.rotation.x = -0.4 * up;
+        this.lean = -0.08 * up;
+        return true;
+      }
+      case 'fidget': {
+        // trappelen van ongeduld: van de ene voet op de andere
+        const b = Math.sin(t * 10);
+        legs[0].rotation.x = -Math.max(0, b) * 0.5;
+        legs[1].rotation.x = -Math.max(0, -b) * 0.5;
+        this.tilt = b * 0.07;
+        this.hop = Math.abs(b) * 0.02;
+        right.rotation.x = left.rotation.x = -0.5 + b * 0.2;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Wat boven op de gewone houding komt: het muntje bij de toonbank, de ballon die aan zijn touwtje trekt, de
+   * knuffel onder de arm, hoge nood, ongeduld in de rij, slaperig lopen in de nacht, en de korte gebaren.
+   */
+  private overlay(dt: number): void {
+    const legs = this.limbs, right = legs[2], left = legs[3], head = this.head;
+    // (het stilstaan voor een gebaar loopt hier af, zodat het ook stopt bij wie achter een leider aan loopt)
+    if (this.stall > 0) this.stall -= dt;
+    const walking = this.state === 'walk' && this.stall <= 0, afoot = this.afoot, flip = this.seat % 2 ? 1 : -1;
+    if (this.state === 'buy' && this.shop && this.shop.kind !== 'toilet') {
+      // bij de toonbank: een muntje in de hand, en dat even later aangeven
+      const e = 1 - this.timer / (SERVE_TIME[this.shop.kind] ?? 3), give = smooth(0.5, 0.6, e) * (1 - smooth(0.68, 0.8, e));
+      right.rotation.x = -1.3 - 0.3 * give;
+      this.lean = 0.1 * give;
+      if (e > 0.08 && e < 0.64) {
+        if (!this.coin) {
+          this.coin = bit(BRIM_GEO, 0xffd23f, 0, -0.2, 0.04, 0.26, 1.2, 0.26);
+          this.coin.rotation.x = Math.PI / 2;
+          right.add(this.coin);
+        }
+        this.coin.visible = true;
+      }
+    }
+    const g = this.balloonG;
+    if (g && this.flown < 0) {
+      // de ballon trekt omhoog aan zijn touwtje en wiebelt; bij het lopen blijft hij een beetje achter
+      g.rotation.z = Math.sin(this.phase * 0.11) * 0.1;
+      g.rotation.x = walking ? -0.2 + Math.sin(this.phase * 0.23) * 0.05 : Math.sin(this.phase * 0.07) * 0.06;
+      g.position.y = BALLOON_AT[1] + Math.abs(Math.sin(this.phase * 0.13)) * 0.03;
+      // de hand houdt het touwtje vast
+      if (afoot && right.rotation.z === 0 && right.rotation.x > -0.75) {
+        right.rotation.x = -0.55 + right.rotation.x * 0.3;
+        right.rotation.z = 0.3;
+      }
+    }
+    // de knuffel zit onder de arm geklemd; het zakje voer draag je voor je buik
+    if (this.plush && afoot && this.trash <= 0 && left.rotation.z === 0 && left.rotation.x > -0.75) {
+      left.rotation.x *= 0.35;
+      left.rotation.z = -0.3;
+    }
+    if (this.feeder && this.act !== 'feed') left.rotation.x = -0.85;
+    if (this.bladder > 0.85 && afoot && !this.wheels && !this.shot) {
+      // hoge nood: de benen tegen elkaar, de handen ervoor en wiebelen
+      legs[0].rotation.z = -0.16;
+      legs[1].rotation.z = 0.16;
+      right.rotation.x = left.rotation.x = -0.5;
+      right.rotation.z = -0.55;
+      left.rotation.z = 0.55;
+      this.lean = 0.12;
+      if (!walking) {
+        const b = Math.sin(this.phase * 1.2);
+        this.tilt = b * 0.09;
+        this.hop = Math.abs(b) * 0.02;
+        legs[0].rotation.x = -Math.max(0, b) * 0.25;
+        legs[1].rotation.x = -Math.max(0, -b) * 0.25;
+        head.rotation.x = -0.1;
+      }
+    } else if (this.state === 'queue' && !this.idle && !this.stepping && !this.wheels && !this.shot) {
+      if (this.child) {
+        // een kind in de rij kan niet stilstaan
+        this.tilt = Math.sin(this.phase * 0.5) * 0.05;
+        this.hop = Math.max(0, Math.sin(this.phase)) * 0.02;
+      } else if (this.waited > PATIENCE * 0.45 && this.eating <= 0) {
+        // al lang in de rij: de armen over elkaar en met de voet tikken
+        right.rotation.x = left.rotation.x = -1.06;
+        right.rotation.z = -1.05;
+        left.rotation.z = 1.05;
+        legs[0].rotation.x = -Math.abs(Math.sin(this.phase * 0.8)) * 0.3;
+        head.rotation.z = 0.1;
+      }
+    } else if (this.sky & 1 && walking && !this.wheels && !this.shot && this.dash <= 0 && this.eating <= 0) {
+      // 's nachts: slaperig lopen, het hoofd knikkebolt en af en toe een gaap
+      this.lean += 0.09;
+      head.rotation.x = 0.22 + Math.sin(this.phase * 0.12) * 0.12;
+      if (right.rotation.z === 0) right.rotation.x *= 0.45;
+      if (left.rotation.z === 0 && !this.brolly?.visible && this.trash <= 0) left.rotation.x *= 0.45;
+      if (Math.sin(this.phase * 0.035 + this.seat * 2) > 0.92) {
+        right.rotation.x = -2.3;
+        right.rotation.z = -0.78;
+        head.rotation.x = -0.25;
+      }
+    }
+    if (this.shot) {
+      this.shotT += dt;
+      const kind = this.shot, t = this.shotT, u = Math.max(0, t / SHOT_TIME[kind]);
+      // `e`: het gebaar komt rustig op en gaat rustig weer weg
+      const e = smooth(0, 0.2, u) * (1 - smooth(0.8, 1, u));
+      if (u >= 1) this.calm();
+      else if (kind === 'shake') {
+        // de paraplu naar opzij, half dicht, en de druppels eraf schudden (tot het zover is blijft hij nog even omhoog)
+        const b = this.brolly;
+        if (b) {
+          b.visible = true;
+          b.scale.set(1 - 0.5 * e, 1 - 0.25 * e, 1 - 0.5 * e);
+          b.rotation.z = (0.7 + Math.sin(t * 22) * 0.12) * e;
+        }
+        left.rotation.x = -2.5 * (1 - e);
+        left.rotation.z = (-0.9 + Math.sin(t * 22) * 0.1) * e;
+      } else if (t < 0) {
+        // nog even wachten
+      } else if (kind === 'startle') {
+        // schrikken: een sprongetje en een stap achteruit, de handen omhoog
+        const k = smooth(0, 0.15, u) * (1 - smooth(0.6, 1, u));
+        this.back = 0.22 * k;
+        this.hop = Math.sin(Math.min(1, u / 0.3) * Math.PI) * 0.1;
+        this.lean = -0.22 * k;
+        right.rotation.x = left.rotation.x = -2 * k;
+        right.rotation.z = 0.4 * k;
+        left.rotation.z = -0.4 * k;
+        head.rotation.x = -0.15 * k;
+      } else if (kind === 'slump') {
+        // teleurgesteld: de schouders hangen, het hoofd omlaag en even schudden
+        this.lean = 0.2 * e;
+        this.hop = -0.02 * e;
+        head.rotation.x = 0.4 * e;
+        head.rotation.y = u > 0.4 ? Math.sin(t * 6) * 0.2 * e : 0;
+        right.rotation.x = left.rotation.x = -0.12 * e;
+      } else if (kind === 'rub') {
+        // dat was lekker: over de buik wrijven
+        left.rotation.x = (-0.56 + Math.sin(t * 9) * 0.14) * e;
+        left.rotation.z = (0.78 + Math.cos(t * 9) * 0.14) * e;
+        head.rotation.x = -0.15 * e;
+        this.lean -= 0.06 * e;
+      } else if (kind === 'hug') {
+        // de knuffel even stevig tegen zich aan
+        right.rotation.x = left.rotation.x = -1.06 * e;
+        right.rotation.z = -1.05 * e;
+        left.rotation.z = 1.05 * e;
+        head.rotation.x = 0.25 * e;
+        head.rotation.z = 0.2 * e;
+        this.tilt = Math.sin(t * 5) * 0.08 * e;
+        if (this.plush) this.plush.position.set(PLUSH_REST[0] + (PLUSH_HUG[0] - PLUSH_REST[0]) * e, PLUSH_REST[1] + (PLUSH_HUG[1] - PLUSH_REST[1]) * e, PLUSH_REST[2] + (PLUSH_HUG[2] - PLUSH_REST[2]) * e);
+      } else if (kind === 'don') {
+        // het hoedje opzetten met een zwier: omhoog met een boog, een draai erbij en dan op het hoofd
+        const a = smooth(0, 0.45, u), b = smooth(0.45, 0.8, u), off = 1 - smooth(0.85, 1, u);
+        const ax = -1.3 - 1.5 * a, az = 0.6 * Math.sin(a * Math.PI) * (1 - b) - 0.5 * b;
+        right.rotation.x = ax * off;
+        right.rotation.z = az * off;
+        if (this.headwear) {
+          // het hoedje zit eerst in de hand
+          this.headwear.position.set((0.13 + 0.2 * Math.sin(az)) * (1 - b), (0.41 - 0.2 * Math.cos(ax) * Math.cos(az) - 0.66) * (1 - b), -0.2 * Math.sin(ax) * Math.cos(az) * (1 - b));
+          this.headwear.rotation.y = b * Math.PI * 2;
+        }
+        this.hop = Math.sin(smooth(0.8, 1, u) * Math.PI) * 0.05;
+        head.rotation.z = 0.15 * b * off;
+      } else if (kind === 'relief') {
+        if (u < 0.4) {
+          // hè hè: een diepe zucht
+          const k = Math.sin((u / 0.4) * Math.PI);
+          this.lean = -0.1 * k;
+          head.rotation.x = -0.25 * k;
+          right.rotation.x = left.rotation.x = 0.15 * k;
+        } else {
+          // en de handen droog schudden
+          const k = 1 - smooth(0.85, 1, u);
+          right.rotation.x = (-0.75 + Math.sin(t * 28) * 0.25) * k;
+          left.rotation.x = (-0.75 + Math.cos(t * 28) * 0.25) * k;
+          head.rotation.x = 0.15 * k;
+        }
+      } else if (kind === 'alarm') {
+        // kijk daar, een dier is los! Wijzen, roepen en een stap opzij
+        right.rotation.x = (-1.5 + Math.sin(t * 10) * 0.08) * e;
+        left.rotation.x = -2.3 * e;
+        left.rotation.z = 0.5 * e;
+        this.hop = Math.abs(Math.sin(t * 8)) * 0.04 * e;
+        this.aside = 0.2 * e * flip;
+        this.lean = -0.08 * e;
+        head.rotation.x = -0.1 * e;
+      } else if (kind === 'yuck') {
+        // bah: de neus dicht, afweren met de andere hand en een stap opzij
+        right.rotation.x = -2.3 * e;
+        right.rotation.z = -0.78 * e;
+        left.rotation.x = -1.3 * e;
+        left.rotation.z = -0.4 * e;
+        this.aside = 0.24 * e * flip;
+        this.lean = -0.12 * e;
+        this.tilt = 0.1 * e * flip;
+        head.rotation.y = 0.5 * e * flip;
+        head.rotation.x = -0.1 * e;
+      } else if (kind === 'dizzy') {
+        // duizelig van het draaien: wiebelen met de armen wijd
+        this.tilt = Math.sin(t * 6) * 0.16 * e;
+        this.lean = Math.cos(t * 6) * 0.1 * e;
+        this.twist = Math.sin(t * 3) * 0.3 * e;
+        right.rotation.x = left.rotation.x = -0.2 * e;
+        right.rotation.z = e;
+        left.rotation.z = -e;
+        legs[0].rotation.z = 0.12 * e;
+        legs[1].rotation.z = -0.12 * e;
+        head.rotation.z = Math.sin(t * 6 + 1) * 0.25 * e;
+      } else if (kind === 'five') {
+        // een high five: de hand omhoog en klap
+        const k = smooth(0.1, 0.45, u) * (1 - smooth(0.7, 1, u));
+        right.rotation.x = -2.5 * k;
+        right.rotation.z = -0.3 * k;
+        this.hop = Math.sin(smooth(0.35, 0.6, u) * Math.PI) * 0.07;
+      } else if (kind === 'fan') {
+        if (flip > 0) {
+          // een foto van de ster: de camera voor de ogen, en klik
+          right.rotation.x = left.rotation.x = -1.95 * e;
+          right.rotation.z = -0.35 * e;
+          left.rotation.z = 0.35 * e;
+          this.lean = Math.sin(t * 4) > 0.9 ? -0.06 : 0;
+        } else {
+          // om een handtekening vragen: zwaaien, springen en het boekje ophouden
+          right.rotation.x = -2.7 * e;
+          right.rotation.z = Math.sin(t * 9) * 0.45 * e;
+          left.rotation.x = -1.4 * e;
+          this.hop = Math.abs(Math.sin(t * 9)) * 0.06 * e;
+        }
+      } else if (kind === 'lookup') {
+        // de ballon is weg: ernaar reiken en hem nakijken, en dan sip het hoofd laten hangen
+        const up = 1 - smooth(0.7, 0.8, u), sad = smooth(0.75, 0.85, u) * (1 - smooth(0.92, 1, u));
+        head.rotation.x = -0.55 * up * e + 0.4 * sad;
+        right.rotation.x = -2.9 * up * e;
+        right.rotation.z = 0.2 * up * e;
+        this.hop = t < 1.2 ? Math.abs(Math.sin(t * 7)) * 0.08 : 0;
+        this.lean = -0.08 * up * e + 0.15 * sad;
+      } else if (kind === 'stomp') {
+        // in de plas stampen: om de beurt een voet omhoog en hard neer
+        const b = Math.sin(t * 9);
+        legs[0].rotation.x = -Math.max(0, b) * 0.9 * e;
+        legs[1].rotation.x = -Math.max(0, -b) * 0.9 * e;
+        this.hop = Math.abs(b) * 0.05 * e;
+        this.tilt = b * 0.06 * e;
+        right.rotation.x = left.rotation.x = -0.6 * e;
+        right.rotation.z = 0.7 * e;
+        left.rotation.z = -0.7 * e;
+        head.rotation.x = 0.3 * e;
+      }
+      // meedraaien naar waar het om gaat (wie liep, draait zich helemaal om: zie `linger`)
+      if (this.gaze && this.shot) {
+        const d = Math.atan2(this.lookX - this.gx, this.lookY - this.gy) - this.heading;
+        this.twist += Math.atan2(Math.sin(d), Math.cos(d)) * e;
+      }
+    }
+    // in de rolstoel of achter de kinderwagen blijft het lijf recht
+    if (this.wheels) this.hop = this.lean = this.tilt = this.back = this.aside = 0;
   }
 }
 
@@ -2132,6 +3957,7 @@ export class Train {
       this.checkIn = 1.5;
       this.plan(w, reach);
     }
+    TRAIN_AT.on = this.running;
     if (!this.running) return;
     if (this.wait > 0) {
       this.wait -= dt;
@@ -2160,6 +3986,11 @@ export class Train {
     }
     this.cars.forEach((car, k) => {
       const [x, y, h] = this.point(this.s - k * TRAIN.gap);
+      if (!k) {
+        // waar de locomotief is: wie op het perron staat, zwaait als hij eraan komt
+        TRAIN_AT.x = x;
+        TRAIN_AT.y = y;
+      }
       car.position.set(toWorldX(x), 0, toWorldZ(y));
       car.rotation.y = h;
     });
@@ -2234,10 +4065,13 @@ export class GuestManager {
     return guest;
   }
 
-  /** Een schoolklas: een juf of meester met een rij kinderen in dezelfde kleur shirt erachteraan. */
-  spawnClass(n = 6): Guest | null {
+  /**
+   * Een schoolklas: een juf of meester met een rij kinderen in dezelfde kleur shirt erachteraan.
+   * `shirt`: de kleur van de juf (oranje vest) of de meester (groene trui), net als op hun portret.
+   */
+  spawnClass(n = 6, shirt = 0xf08a24): Guest | null {
     if (!this.open) return null;
-    const teacher = this.make({ child: false, shirt: 0xf08a24 });
+    const teacher = this.make({ child: false, shirt });
     teacher.tour = { stops: 5 };
     teacher.badge = 'schoolclass';
     teacher.lead();
@@ -2296,6 +4130,17 @@ export class GuestManager {
       }
     }
     this.lines();
+    // de klok voor de korte gebaren, en waar de beroemde gast loopt (wie hem tegenkomt, wil een foto of een handtekening)
+    crowdClock += dt;
+    theStar = null;
+    for (const g of this.guests) if (g.star && !g.gone) theStar = g;
+    // bij elk ding in het park: wie er nu staat of ernaartoe loopt
+    for (const s of this.world.sights()) s.n = s.used = 0;
+    for (const g of this.guests) g.claim();
+    // hooguit een paar gasten tegelijk zijn de weg kwijt
+    let astray = 0;
+    for (const g of this.guests) if (g.astray > 0) astray++;
+    strayRoom = Math.max(STRAY.most, Math.floor(this.guests.length * STRAY.share)) - astray;
     for (const g of this.guests) g.update(dt, this.world, this.list, this.reach);
     if (this.guests.some(g => g.gone)) this.guests = this.guests.filter(g => !g.gone);
     this.train?.update(dt, this.world, this.reach, this.guests);
@@ -2868,6 +4713,8 @@ const VENDORS: Partial<Record<ShopKind, { shirt: number; hat: number }>> = {
   hats: { shirt: 0x6cc04a, hat: 0xe0584f },
   souvenir: { shirt: 0x7a5cc9, hat: 0xffe08a },
 };
+/** De kleur van wat de verkoper aangeeft: een zak friet, een beker, een ijsje, een ballon, een petje of een knuffel. */
+const VENDOR_ITEM: Partial<Record<ShopKind, number>> = { foodstall: 0xffd23f, drinkstall: 0x9fd8f5, icecream: 0xffc1d6, balloon: 0xe0584f, hats: 0x4a90e2, souvenir: 0xc98d5e };
 
 /** Het poppetje dat in een kraam werkt. Het wiegt een beetje en zwaait als het iets verkoopt. */
 export class Vendor {
@@ -2875,32 +4722,46 @@ export class Vendor {
   private limbs: THREE.Mesh[];
   private phase = Math.random() * 6;
   private wave = 0;
+  /** Zo lang is de verkoper al met een klant bezig, en het doosje dat hij aangeeft. */
+  private serveT = 0;
+  private item: THREE.Mesh;
 
-  private constructor(outfit: { shirt: number; hat: number }) {
+  private constructor(outfit: { shirt: number; hat: number }, item: number) {
     const person = makePerson(false, outfit);
     this.mesh = person.group;
     this.limbs = person.limbs;
     // achter de tafel van de marktkraam, met het gezicht naar de gasten
     this.mesh.position.set(0, 0.03, -0.12);
     this.mesh.scale.setScalar(1.15);
+    // wat hij aangeeft zit in zijn hand; je ziet het pas als hij het ophoudt
+    this.item = new THREE.Mesh(SNACK_GEO, mat(item));
+    this.item.visible = false;
+    this.limbs[2].add(this.item);
   }
 
   /** De verkoper voor dit soort winkel, of null als er niemand werkt (bankje, wc, bloemen, ...). */
   static of(kind: ShopKind): Vendor | null {
     const spot = VENDORS[kind];
-    return spot ? new Vendor(spot) : null;
+    return spot ? new Vendor(spot, VENDOR_ITEM[kind] ?? 0xffd23f) : null;
   }
 
   sold(): void {
     this.wave = 1.3;
   }
 
-  update(dt: number): void {
+  /** `serving`: er staat een klant aan de toonbank. */
+  update(dt: number, serving = false): void {
     this.phase += dt * 2;
     this.wave = Math.max(0, this.wave - dt);
-    const sway = Math.sin(this.phase) * 0.14;
+    const sway = Math.sin(this.phase) * 0.14, right = this.limbs[2], left = this.limbs[3];
+    // een klant: eerst iets pakken (bukken en rommelen onder de toonbank), dan het ophouden tot de klant betaald heeft
+    this.serveT = serving && this.wave <= 0 ? this.serveT + dt : 0;
+    const t = this.serveT, grab = smooth(0, 0.4, t) * (1 - smooth(1.5, 2.1, t)), hold = smooth(1.6, 2.2, t);
+    this.mesh.rotation.x = 0.3 * grab;
+    this.mesh.rotation.y = -0.5 * grab;
+    this.item.visible = t > 1.5;
     // bij een verkoop gaat één arm omhoog en zwaait
-    this.limbs[2].rotation.x = this.wave > 0 ? -2.5 + Math.sin(this.phase * 7) * 0.35 : sway;
-    this.limbs[3].rotation.x = -sway;
+    right.rotation.x = this.wave > 0 ? -2.5 + Math.sin(this.phase * 7) * 0.35 : t > 0 ? (-0.8 + Math.sin(this.phase * 6) * 0.25) * grab - (1.35 + Math.sin(this.phase * 1.5) * 0.06) * hold : sway;
+    left.rotation.x = t > 0 ? (-0.7 + Math.cos(this.phase * 6) * 0.25) * grab - 0.3 * hold : -sway;
   }
 }

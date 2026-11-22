@@ -152,7 +152,13 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 .goal.done .count { color: #3f9a25; }
 .ic.badge { position: absolute; right: -7px; bottom: -4px; font-size: 0.55em; }
 
-#bubbles { position: absolute; inset: 0; overflow: hidden; }
+#bubbles { position: absolute; inset: 0; overflow: hidden; z-index: 0; }
+/* de knoppen en balken liggen altijd boven de wolkjes en hartjes uit het park, nooit eronder */
+#goals, #home, #sound, #turnL, #turnR, #wallet, #needs { z-index: 2; }
+#menu, #speechbar, #bottom { z-index: 3; }
+/* het wijzende handje ligt daar weer boven, en een kaart (uitleg, dierenarts) boven alles */
+#pointer { z-index: 4; }
+#overlay { z-index: 5; }
 .bubble {
   position: absolute; left: 0; top: 0; background: #fff; border-radius: 16px; padding: 4px 7px; font-size: 26px;
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15); display: flex; will-change: transform;

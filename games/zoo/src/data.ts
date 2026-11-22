@@ -239,15 +239,15 @@ export const SMALL_DECOR: DecorKind[] = ['mushrooms', 'cactus', 'pumpkins', 'bir
   'gardenlight', 'lampion', 'torch', 'streetlamp'];
 /**
  * De groepen onder de knop Park, van links naar rechts. In een groep staan versieringen, klein spul en gebouwtjes
- * door elkaar: de bloembak staat bij Groen, wc en bankje bij Handig, de speeltoestellen bij Speeltuin.
+ * door elkaar: de bloembak staat bij Groen, wc en bankje bij Handig.
  */
-export const PARK_GROUPS = ['green', 'water', 'art', 'light', 'small', 'service', 'play'] as const;
+export const PARK_GROUPS = ['green', 'water', 'art', 'light', 'small', 'service'] as const;
 export type ParkGroup = (typeof PARK_GROUPS)[number];
 export const SERVICE_SHOPS: ShopKind[] = ['toilet', 'bench', 'bin', 'umbrellas', 'shelter'];
 /** In welke groep onder Park dit gebouwtje staat; niets als het onder de knop Winkel hoort. */
 export const parkShopGroup = (kind: ShopKind): ParkGroup | null =>
-  kind === 'flowers' ? 'green' : SERVICE_SHOPS.includes(kind) ? 'service' : kind !== 'playground' && PLAY.includes(kind) ? 'play' : null;
-/** Onder de knop Winkel staan de kramen en, in een eigen groep, de attracties. */
+  kind === 'flowers' ? 'green' : SERVICE_SHOPS.includes(kind) ? 'service' : null;
+/** Onder de knop Attracties staan de speeltoestellen (groep Speeltuin) en de grote attracties. */
 export const ATTRACTIONS: ShopKind[] = ['fountain', 'tower', 'carousel', 'station', 'bumper', 'ferris'];
 /** Palen waar een slinger tussen komt: staan er twee in één lijn, hooguit zoveel tegels uit elkaar, dan hangt er vanzelf een slinger. */
 export const STRING_REACH = 5;
@@ -414,6 +414,27 @@ export const DUSK_SECONDS = 12;
 export const LIGHT = { lantern: 3.5, campfire: 3, shop: 2.4, entrance: 4.5, lightstring: 2.4, gardenlight: 1.8, lampion: 3, torch: 2.6, streetlamp: 5 };
 /** In het donker ziet een gast bijna niets: zoveel van het plezier blijft er over. */
 export const DARK_FUN = 0.25;
+/**
+ * De weg wijzen: een wegwijzer, een plattegrond en de poort laten gasten zien waar ze zijn, tot zoveel tegels ver
+ * (hemelsbreed). Buiten het bereik van elk bord raakt een gast in een groot park weleens de weg kwijt.
+ */
+export const WAYFIND = { signpost: 7, mapboard: 11, entrance: 9 };
+/**
+ * Zo ver kijkt een gast om zich heen als hij iets zoekt (een wc, eten, een bankje) en er geen wegwijzer of plattegrond
+ * in de buurt staat. Staat hij binnen het bereik van een bord, dan weet hij de weg door het hele park.
+ */
+export const SEEK_REACH = 14;
+/** Pas bij meer padtegels dan dit is een park groot genoeg om in te verdwalen. */
+export const WAYFIND_PATHS = 40;
+export interface WaySign {
+  gx: number;
+  gy: number;
+  r: number;
+}
+/** Staat dit punt binnen het bereik van een van deze borden? */
+export const wayfound = (signs: WaySign[], gx: number, gy: number): boolean => signs.some(s => Math.hypot(s.gx - gx, s.gy - gy) <= s.r);
+/** Kunnen gasten in dit park de weg kwijtraken? Pas als de wegwijzer te koop is en het park groot genoeg is. */
+export const canStray = (level: number, paths: number): boolean => level >= DECOR.signpost.from && paths > WAYFIND_PATHS;
 /** Een strook grond erbij (links, rechts of achter) is duur: daar spaar je lang voor. */
 export const LAND_PRICE = 75;
 export const START_COINS = 10;
