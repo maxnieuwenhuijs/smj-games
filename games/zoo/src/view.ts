@@ -387,8 +387,6 @@ const balloon = (x: number, y: number, z: number, r: number, color: number): Par
 /** Een petje op de tafel. */
 const cap = (x: number, z: number): THREE.BufferGeometry[] =>
   [new THREE.SphereGeometry(0.1, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2).translate(x, 0.41, z), boxAt(0.13, 0.016, 0.09, x, 0.42, z + 0.12)];
-/** Een bestaand bouwsel groter maken (de speeltuin). */
-const scaled = (parts: Part[], k: number): Part[] => parts.map(([g, m, shadow]) => [g.clone().scale(k, k, k), m, shadow] as Part);
 
 const SHOP_PARTS: Record<ShopKind, Part[]> = {
   // eetkraam: een rood-wit zeil en een grote hamburger erop
@@ -515,32 +513,8 @@ const SHOP_PARTS: Record<ShopKind, Part[]> = {
     [mergeGeometries([boxAt(0.2, 0.2, 0.04, -0.42, 1.04, 0.57), boxAt(0.2, 0.2, 0.04, 0.42, 1.04, 0.57)])!, std(0x9fd8f5, 0.4)],
     [boxAt(0.04, 0.5, 0.5, 0.86, 0.75, -0.2), std(0x9fd8f5, 0.4)],
   ],
-  // speeltuin: zandbak met een torentje, een laddertje, een gele glijbaan, een schommel en een emmertje
-  playground: scaled([
-    [painted(
-      [0xecd591, boxAt(0.94, 0.03, 0.94, 0, 0.015, 0)],
-      [0xc58a4b, boxAt(0.94, 0.045, 0.03, 0, 0.0225, -0.455), boxAt(0.94, 0.045, 0.03, 0, 0.0225, 0.455), boxAt(0.03, 0.045, 0.88, -0.455, 0.0225, 0), boxAt(0.03, 0.045, 0.88, 0.455, 0.0225, 0)],
-    ), MATTE_MAT, false],
-    [mergeGeometries([
-      boxAt(0.06, 0.92, 0.06, -0.38, 0.46, -0.34), boxAt(0.06, 0.92, 0.06, -0.02, 0.46, -0.34), boxAt(0.06, 0.92, 0.06, -0.38, 0.46, 0.02), boxAt(0.06, 0.92, 0.06, -0.02, 0.46, 0.02),
-      boxAt(0.3, 0.04, 0.04, -0.2, 0.14, -0.36), boxAt(0.3, 0.04, 0.04, -0.2, 0.28, -0.36), boxAt(0.3, 0.04, 0.04, -0.2, 0.42, -0.36),
-      boxAt(0.04, 0.04, 0.36, -0.38, 0.78, -0.16), boxAt(0.04, 0.04, 0.36, -0.02, 0.78, -0.16), boxAt(0.36, 0.04, 0.04, -0.2, 0.78, -0.34),
-    ])!, WOOD_MAT],
-    [boxAt(0.42, 0.06, 0.42, -0.2, 0.58, -0.16), std(0x4a90e2)],
-    [merge([cone(0.36, 0.24, -0.2, 1.04, -0.16, 4), ball(0.035, -0.2, 1.17, -0.16)]), std(0xe0584f)],
-    [painted(
-      [0xffd23f, new THREE.BoxGeometry(0.24, 0.04, 0.78).rotateX(0.74).translate(-0.2, 0.31, 0.3)],
-      [0xe0584f, new THREE.BoxGeometry(0.025, 0.09, 0.78).rotateX(0.74).translate(-0.325, 0.335, 0.3), new THREE.BoxGeometry(0.025, 0.09, 0.78).rotateX(0.74).translate(-0.075, 0.335, 0.3)],
-    ), PAINT_MAT],
-    [mergeGeometries([boxAt(0.05, 0.4, 0.05, 0.3, 0.2, -0.3), boxAt(0.05, 0.4, 0.05, 0.3, 0.2, 0.1), boxAt(0.05, 0.05, 0.45, 0.3, 0.41, -0.1)])!, std(0xe0584f)],
-    // het zitje aan zijn kettingen, en in het zand een emmertje, een schepje en een zandtaartje
-    [painted(
-      [0x4a90e2, boxAt(0.16, 0.03, 0.1, 0.3, 0.16, -0.1), boxAt(0.02, 0.02, 0.12, 0.08, 0.045, 0.34), boxAt(0.05, 0.02, 0.05, 0.08, 0.045, 0.41)],
-      [0x8a8f98, boxAt(0.012, 0.24, 0.012, 0.3, 0.29, -0.15), boxAt(0.012, 0.24, 0.012, 0.3, 0.29, -0.05)],
-      [0xe0584f, tube(0.045, 0.035, 0.07, 0.2, 0.065, 0.3)],
-      [0xdcc07a, cone(0.07, 0.07, 0.32, 0.065, 0.32, 8)],
-    ), PAINT_MAT],
-  ], 1.95),
+  // de speeltuin als één gebouw bestaat niet meer (zie SHOPS in data.ts): je bouwt losse toestellen
+  playground: [],
   bench: [[BENCH_GEO, FENCE_MAT]],
   // bloembak: elke bloem is een steel met een kop, zodat ze los van elkaar kunnen wiegen (zie SHOP_BOB)
   flowers: [
@@ -1110,7 +1084,6 @@ const SHOP_BOB: Partial<Record<ShopKind, Bob[]>> = {
   hats: [{ parts: [7, 8, 9], at: [0, 1.55, -0.05] }],
   souvenir: [{ parts: [7, 8], at: [0, 1.55, -0.05] }],
   flowers: [0, 1, 2].map((i): Bob => ({ parts: [2 + i * 2, 3 + i * 2], at: [-0.22 + i * 0.22, 0.22, 0], amp: 0, sway: 0.1 })),
-  playground: [{ parts: [3], at: [-0.39, 1.79, -0.31], amp: 0.02, sway: 0.03 }],
   tower: [{ parts: [6], at: [0, TOWER_ROOF + 0.72, 0], amp: 0, sway: 0, yaw: 0.5 }],
   restaurant: RESTAURANT_TABLES.map(([x, z], i): Bob => ({ parts: [10 + i], at: [x, 1.32, z], amp: 0.012, sway: 0.05 })),
   station: [{ parts: [8, 9], at: [SIGN_AT[0], 1.3, SIGN_AT[2]], amp: 0, sway: 0.07 }],
@@ -2348,8 +2321,9 @@ export class View {
   /** Het licht van nu: de nacht en de regen samen. Bij regen is de zon wat zwakker en de lucht grijzer. */
   private relight(): void {
     const dark = this.dark, wet = this.wet;
-    this.sun.intensity = 2.2 * (1 - 0.6 * dark) * (1 - 0.3 * wet);
-    this.hemi.intensity = 1.6 * (1 - 0.4 * dark) * (1 - 0.12 * wet);
+    // 's nachts blijft er maar weinig licht over: wat niet bij een lamp staat, is echt donker
+    this.sun.intensity = 2.2 * (1 - 0.8 * dark) * (1 - 0.3 * wet);
+    this.hemi.intensity = 1.6 * (1 - 0.6 * dark) * (1 - 0.12 * wet);
     (this.scene.background as THREE.Color).copy(this.skyDay).lerp(RAIN_SKY, 0.65 * wet).lerp(NIGHT_SKY, dark);
     LAMP_MAT.emissiveIntensity = 0.6 + 1.8 * dark;
   }
@@ -2395,7 +2369,7 @@ export class View {
     if (!ctx) return;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalCompositeOperation = 'copy';
-    ctx.fillStyle = `rgba(10, 16, 48, ${0.78 * dark})`;
+    ctx.fillStyle = `rgba(8, 12, 40, ${0.9 * dark})`;
     ctx.fillRect(0, 0, w, h);
     const perTile = (innerHeight / this.zoom) * k;
     const spots = lights
@@ -2606,17 +2580,21 @@ export class View {
     this.placeRainbow();
   }
 
-  /** De regenboog staat een stuk achter het midden van het beeld en is zo groot als past bij hoe ver je bent uitgezoomd. */
+  /**
+   * De regenboog staat een stuk achter het midden van het beeld en loopt van de linkerrand tot de rechterrand van het
+   * scherm, hoe ver je ook bent in- of uitgezoomd. Op een breed scherm wordt hij niet hoger dan het beeld: dan is het
+   * een platte boog.
+   */
   private placeRainbow(): void {
     const bow = this.rainbow;
     if (!bow || !bow.visible) return;
-    // op een smal scherm kleiner, zodat de hele boog erop past
-    const k = (this.zoom / 11) * Math.min(1, (innerWidth / innerHeight) * 0.75);
-    bow.scale.setScalar(k);
+    // de boog is 10,4 breed; het beeld is zoom keer de verhouding breed
+    const wide = (this.zoom * (innerWidth / innerHeight) * 1.04) / 10.4, tall = Math.min(wide, (this.zoom * 0.62) / (5.2 * 0.816));
+    bow.scale.set(wide, tall, wide);
     // altijd achter het midden van het beeld, ook als het gedraaid is
-    const phi = this.angle + Math.PI / 4, back = 1.2 * SQRT2 * k;
+    const phi = this.angle + Math.PI / 4, back = 1.2 * SQRT2 * tall;
     bow.rotation.y = phi;
-    bow.position.set(this.target.x - Math.sin(phi) * back, -0.4 * k, this.target.z - Math.cos(phi) * back);
+    bow.position.set(this.target.x - Math.sin(phi) * back, -0.4 * tall, this.target.z - Math.cos(phi) * back);
   }
 
   /** Schuif het beeld rustig naar deze plek op het raster. */

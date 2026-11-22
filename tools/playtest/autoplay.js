@@ -289,7 +289,7 @@ export const T = {
     for (const sp of this.order) if (this.animalsOf(sp).length) await this.stock(sp, data.HERD[sp] ?? 2);
     for (const g of level.goals) if (g.species) await this.stock(g.species, Math.max(data.HERD[g.species] ?? 2, g.type === 'animals' ? g.n : 2));
     if (done >= FEATURE.paths) this.paths();
-    for (const kind of ['foodstall', 'drinkstall', 'toilet', 'bench', 'playground', 'icecream', 'balloon', 'bin', 'hats', 'souvenir']) if (done >= FEATURE[kind]) this.shop(kind, game.shopsNeeded(kind));
+    for (const kind of ['foodstall', 'drinkstall', 'toilet', 'bench', 'slide', 'icecream', 'balloon', 'bin', 'hats', 'souvenir']) if (done >= FEATURE[kind]) this.shop(kind, game.shopsNeeded(kind));
     for (const g of level.goals) {
       if (g.type === 'shop') this.shop(g.shop, g.n);
       if (g.type === 'sold' && g.shop) this.shop(g.shop, 1);

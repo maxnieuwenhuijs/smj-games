@@ -172,7 +172,12 @@ export const TOY_OF: Partial<Record<SpeciesId, ToyKind>> = {
   penguin: 'ball', seal: 'ball', polarbear: 'log', reindeer: 'bush', wolf: 'ball', arcticfox: 'flowerbed', bear: 'log', yak: 'bush', owl: 'log', walrus: 'ball',
   otter: 'ball', beaver: 'log', koala: 'bush', redpanda: 'log', lemur: 'bush', bison: 'log', kangaroo: 'ball',
 };
-export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'playground', 'slide', 'swing', 'seesaw', 'springer', 'trampoline', 'icecream', 'flowers', 'bin', 'umbrellas', 'shelter', 'balloon', 'hats', 'souvenir', 'restaurant', 'fountain', 'tower', 'carousel', 'station', 'bumper', 'ferris'];
+/**
+ * Wat je kunt bouwen. De speeltuin als één gebouw staat er niet meer bij: je bouwt losse toestellen (eerst de
+ * glijbaan, later de schommel, de wipwap, de wipkip en de trampoline). 'playground' bestaat nog als naam voor
+ * 'iets om te spelen' (de wens van een gast) en voor oude parken, waar hij bij het laden een glijbaan wordt.
+ */
+export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'slide', 'swing', 'seesaw', 'springer', 'trampoline', 'icecream', 'flowers', 'bin', 'umbrellas', 'shelter', 'balloon', 'hats', 'souvenir', 'restaurant', 'fountain', 'tower', 'carousel', 'station', 'bumper', 'ferris'];
 /** Waar een gast naar kijkt (zin in iets moois) en waar hij in rijdt (zin in een ritje). */
 export const LOOKS: ShopKind[] = ['fountain', 'tower'];
 export const RIDES: ShopKind[] = ['carousel', 'ferris', 'bumper', 'station'];
@@ -474,7 +479,7 @@ export const LEVELS: Level[] = [
   { goals: [happy('goat'), goal('born', 1), goal('coins', 12)], reward: 'alpaca' },
   { goals: [shop('toilet'), happy('alpaca'), goal('guests', 6)], reward: 'chicken' },
   { goals: [happy('chicken'), shop('bench', 2), goal('cleaned', 5)], reward: 'duck' },
-  { goals: [happy('duck'), goal('kinds', 3), shop('playground')], reward: 'rabbit' },
+  { goals: [happy('duck'), goal('kinds', 3), shop('slide')], reward: 'rabbit' },
   // ---- wereld 2: savanne. Stenen muren, meer soorten tegelijk, meer gasten.
   { goals: [happy('rabbit'), goal('born', 2), goal('guests', 8)], reward: 'zebra' },
   { goals: [happy('zebra'), shop('icecream'), goal('coins', 18)], reward: 'giraffe' },
@@ -594,7 +599,7 @@ export const TANK_WATER = 0.42;
 
 /** Vanaf hoeveel gehaalde levels iets meedoet. */
 export const FEATURE = {
-  paths: 3, foodstall: 4, drinkstall: 5, toilet: 7, bench: 8, playground: 9, slide: 12, swing: 16, seesaw: 19, springer: 23, trampoline: 28, icecream: 11, flowers: 14, bin: 5, hats: 22, souvenir: 26,
+  paths: 3, foodstall: 4, drinkstall: 5, toilet: 7, bench: 8, playground: 9, slide: 9, swing: 12, seesaw: 16, springer: 19, trampoline: 23, icecream: 11, flowers: 14, bin: 5, hats: 22, souvenir: 26,
   /** De grote attracties: een fontein om naar te kijken en een draaimolen om in te rijden. */
   fountain: 15, carousel: 25,
   tower: 20, restaurant: 24, ferris: 35, bumper: 30, shelter: 10, station: 27, umbrellas: 10,

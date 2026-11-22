@@ -529,7 +529,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     for (const p of d.props ?? []) if (PROP[p.k]) this.props.push({ kind: p.k, sx: p.x + ox * 2, sy: p.y + oy * 2, rot: p.r ?? 0 });
     this.syncProps();
     // eerst de losse dingen (bankje, bloemen, afvalbak): die blijven staan waar ze stonden
-    const stored = [...(d.shops ?? [])].sort((p, q) => (SHOP_SIZE[p.kind] ?? 1) - (SHOP_SIZE[q.kind] ?? 1));
+    // de speeltuin als één gebouw bestaat niet meer: in een ouder park wordt hij een glijbaan (even groot)
+    const stored = [...(d.shops ?? [])].map(sh => (sh.kind === 'playground' ? { ...sh, kind: 'slide' as ShopKind } : sh)).sort((p, q) => (SHOP_SIZE[p.kind] ?? 1) - (SHOP_SIZE[q.kind] ?? 1));
     for (const sh of stored) {
       const size = SHOP_SIZE[sh.kind];
       if (!size) continue;
@@ -1268,6 +1269,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.level === FEATURE.petting) this.lines.push(say.pettingNew());
     if (this.level === FEATURE.climate) this.lines.push(say.climateNew());
     if (this.level === FEATURE.wild) this.lines.push(say.wildNew());
+    if (this.level === FEATURE.night) this.lines.push(say.nightNew());
     if (this.level === BONUS.dolphin && hasSpecies('dolphin')) this.lines.push(say.aquaNew());
     // vanaf nu kun je hulp aannemen: de verzorger vertelt hoe
     if (this.level === FEATURE.keeper) this.showStaffGuide();
@@ -3842,7 +3844,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.has('weather')) {
       if (this.rainLeft > 0) {
         this.rainLeft -= dt;
-        if (this.rainLeft <= 0 && this.season !== 'winter' && this.night < 0.3) {
+        // niet na elke bui: dan blijft het iets bijzonders
+        if (this.rainLeft <= 0 && this.season !== 'winter' && this.night < 0.3 && Math.random() < 0.55) {
           // de bui is voorbij en de zon schijnt: een regenboog, en de gasten kijken ernaar
           this.rainbow = RAINBOW_SECONDS;
           this.mention(say.rainbow(), 300);

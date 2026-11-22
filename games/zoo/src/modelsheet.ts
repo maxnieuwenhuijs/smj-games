@@ -151,7 +151,7 @@ const SHOP_SETS: Record<string, ShopKind[]> = {
   kramen: ['foodstall', 'drinkstall', 'icecream', 'balloon', 'hats', 'souvenir'],
   gebouwen: ['toilet', 'restaurant', 'shelter', 'station'],
   klein: ['bench', 'flowers', 'bin', 'umbrellas'],
-  speeltuin: ['playground', 'slide', 'swing', 'seesaw', 'springer', 'trampoline'],
+  speeltuin: ['slide', 'swing', 'seesaw', 'springer', 'trampoline'],
   attracties: ['fountain', 'carousel', 'tower', 'bumper', 'ferris'],
 };
 const GROUPS: Record<string, Item[]> = {

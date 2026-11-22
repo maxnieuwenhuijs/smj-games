@@ -104,6 +104,7 @@ export const say = {
   penColor: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.pen.color' }),
   bigger: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.bigger' }),
   night: (): Line => ({ who: 'director', mood: 'happy', key: 'say.night' }),
+  nightNew: (): Line => ({ who: 'director', mood: 'happy', key: 'say.night.new' }),
   aquaNew: (): Line => ({ who: 'director', mood: 'happy', key: 'say.aqua.new' }),
   reopen: (name: string): Line => ({ who: 'builder', mood: 'happy', key: 'say.reopen', vars: { name } }),
   wrongFood: (tr: Tr, sp: SpeciesId): Line => ({ who: 'keeper', mood: 'worried', key: 'alert.wrongfood', vars: speciesVars(tr, sp) }),
@@ -257,6 +258,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.visit(), say.party(), say.celeb(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
     say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate()]) add(line);
   add(say.night());
+  add(say.nightNew());
   add(say.aquaNew());
   for (const kind of Object.keys(SERVES)) add(say.busy(kind));
   add(say.cash('short'));
