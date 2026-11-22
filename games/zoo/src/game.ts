@@ -9,7 +9,7 @@ import {
   BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, SHOP_DEEP, shopSpan, herdOf, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
-  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, WAGE, TOY_OF, DECOR, DECORS, type DecorKind, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, LIGHT, SPACE, guestsAt, SERVES,
+  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, hourAt, WAGE, TOY_OF, DECOR, DECORS, type DecorKind, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, LIGHT, SPACE, guestsAt, SERVES,
   isPath, PATH_KINDS, PATH_FROM, TOY_FROM, TOY_PRICE, CLIMATE, palsOf, PETTABLE, PETTING_MIN, NATURES, pickRare, RARE_CHANCE, MUD_LOVERS, FERRIS, BUMPER_CARS, bumperCar, crowdLoad, CROWD_EASE,
   EDGE_DECOR, SMALL_DECOR, PARK_GROUPS, ATTRACTIONS, parkShopGroup, PROP, PROPS, WILD_PROPS, PARK_PROPS, WILD_KINDS, wildRange, wildWant, type PropKind, type WildKind, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, SEASONS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
 import { CLIMB_SECONDS, PUSH, SWING, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, sinceHit, sway, swingAt, tetherAt } from './data';
@@ -910,7 +910,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   capacity(): number {
-    if (!this.has('paths')) return 0;
+    if (!this.has('paths') || this.goingHome()) return 0;
     const base = Math.min(guestsAt(this.level, this.view.speed), 2 + Math.floor(this.animals.filter(a => !a.young).length * 1.3));
     // was de beroemde gast tevreden, dan komen er een poos meer gasten
     return this.clock < this.boostUntil ? Math.round(base * 1.25) : base;
@@ -2971,12 +2971,32 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   /** De tijd op de klok rechtsboven, digitaal (12:05). De minuten springen per vijf, zodat de klok rustig blijft. */
+  /** Het uur van de dag als getal: 7 is zeven uur 's ochtends, 21,5 half tien 's avonds, 0 tot 7 de nacht. */
+  private hourNow(): number {
+    if (!this.has('night')) return 8 + ((this.clock / HOUR_SECONDS) % 12);
+    return hourAt(this.now() % (DAY_SECONDS + NIGHT_SECONDS)) % 24;
+  }
+
+  /**
+   * Het park is dicht van middernacht tot zeven uur 's ochtends: er komen geen gasten en wie er nog is, gaat naar
+   * huis. Voor het nacht wordt in het spel (FEATURE.night) is het park altijd open.
+   */
+  closed(): boolean {
+    return this.has('night') && this.hourNow() < 7;
+  }
+
+  /** Vanaf tien uur 's avonds gaan de gasten naar huis, zodat het park om middernacht leeg is. */
+  goingHome(): boolean {
+    return this.has('night') && (this.hourNow() >= 22 || this.hourNow() < 7);
+  }
+
+  /** Van middernacht tot vijf uur slaapt alles: de dieren en ook het personeel. Vanaf vijf uur werkt het personeel weer. */
+  deepNight(): boolean {
+    return this.has('night') && this.hourNow() < 5;
+  }
+
   private clockText(): string {
-    let hours = 8 + ((this.clock / HOUR_SECONDS) % 12);
-    if (this.has('night')) {
-      const phase = this.now() % (DAY_SECONDS + NIGHT_SECONDS);
-      hours = phase < DAY_SECONDS ? 7 + (phase / DAY_SECONDS) * 14 : (21 + ((phase - DAY_SECONDS) / NIGHT_SECONDS) * 10) % 24;
-    }
+    const hours = this.hourNow();
     const h = Math.floor(hours), m = Math.floor(((hours - h) * 60) / 5) * 5;
     return `${h}:${String(m).padStart(2, '0')}`;
   }
@@ -3006,7 +3026,16 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   /** Elk beeldje: de schemering, het geluid van de nacht en het donkere vlak met gaten bij elk licht. */
+  /** Was het park net nog dicht? Zo zegt de directeur het één keer als het dichtgaat en als het weer opengaat. */
+  private wasShut = false;
+
   private updateNight(): void {
+    const shut = this.closed();
+    if (shut !== this.wasShut) {
+      this.wasShut = shut;
+      // (niet meteen bij het openen van het spel)
+      if (this.clock > 3) this.mention({ who: 'director', mood: 'happy', key: shut ? 'say.park.closed' : 'say.park.open' }, 30);
+    }
     const night = this.darkness();
     if (night !== this.night) {
       this.night = night;

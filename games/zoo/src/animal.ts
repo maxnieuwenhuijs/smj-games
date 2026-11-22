@@ -37,6 +37,8 @@ export interface Toy {
 
 /** Wat een dier van het park moet weten en kunnen. */
 export interface AnimalWorld {
+  /** Midden in de nacht (tussen twaalf en vijf): dan slaapt elk dier. */
+  deepNight(): boolean;
   grid: Grid;
   troughs: Trough[];
   beds: Bed[];
@@ -1646,6 +1648,14 @@ export class Animal {
       this.perched = wasUp;
       // het tweede deel van een kunstje voor de gasten (springen en dan zwaaien) hoort er nog bij
       this.acting = acting;
+      return;
+    }
+    // midden in de nacht slaapt elk dier, ook wie honger heeft: het park is dicht
+    if (w.deepNight() && !this.escaped) {
+      this.trick = null;
+      this.state = 'rest';
+      this.timeLeft = 4 + Math.random() * 3;
+      this.play('Sleep');
       return;
     }
     // 's nachts liggen de meeste dieren te slapen (wie honger heeft, gaat eerst eten)

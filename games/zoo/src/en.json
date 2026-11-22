@@ -738,6 +738,8 @@
   "host.rain": "The guests are getting wet! Put down a shelter or umbrellas.",
   "host.wide": "That guest needs more room. Make the path two tiles wide!",
   "say.night.new": "New: there is day and night now! At the top right you see the sun or the moon. At night it is dark and the animals sleep.",
+  "say.park.closed": "It is midnight. The park is closing and all the animals are going to sleep. Good night!",
+  "say.park.open": "Good morning! It is seven o'clock. The park is open again.",
   "say.night": "It is getting dark! Put lanterns in your park, so the guests can still see the animals.",
   "say.season.spring": "It is spring! The trees are in bloom.",
   "say.season.summer": "It is summer! Nice and warm in the park.",

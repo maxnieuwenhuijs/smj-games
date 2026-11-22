@@ -152,6 +152,10 @@ export interface GuestWorld {
   demand(): number;
   /** Hoeveel gasten het park nu trekt. */
   capacity(): number;
+  /** Het park is dicht (van middernacht tot zeven uur): er komen geen gasten en wie er nog is, gaat naar huis. */
+  closed(): boolean;
+  /** Het is bijna sluitingstijd (vanaf tien uur 's avonds) of het park is al dicht: de gasten gaan naar huis. */
+  goingHome(): boolean;
   /** Bestaat dit soort kraam al in het spel? Zo niet, dan krijgen gasten er ook geen trek in. */
   sells(kind: ShopKind): boolean;
   /** De soorten die nu in het park wonen; een gast kiest er één als lievelingsdier. */
@@ -2768,7 +2772,7 @@ export class Guest implements Leader {
     this.sight = null;
     this.use = null;
     if (this.tour && !this.leaving) return this.tourStep(w, list, reach);
-    if (this.age > this.stay || this.fun < 0.08) this.leaving = true;
+    if (this.age > this.stay || this.fun < 0.08 || w.goingHome()) this.leaving = true;
     if (this.leaving) {
       this.wish = null;
       if (this.tile === ENTRANCE || !this.go(w, reach, ENTRANCE)) this.leave(w);
@@ -3423,7 +3427,8 @@ export class Guest implements Leader {
       else if (this.child && this.fun > 0.7 && !this.inside && Math.random() < dt * 0.04) this.dash = 2 + Math.random() * 1.5;
       // het regent en de gast heeft geen paraplu: op een holletje naar de schuilhut of de paraplubak
       // (en wie hoge nood heeft, rent naar de wc)
-      const speed = this.wheels ? 0.62 : this.dash > 0 || this.hurrying(w) || this.bursting ? 1.35 : 0.8;
+      // wie na sluitingstijd nog in het park is, loopt stevig door naar de uitgang
+      const speed = this.wheels ? (this.leaving && w.closed() ? 0.9 : 0.62) : this.dash > 0 || this.hurrying(w) || this.bursting || (this.leaving && w.closed()) ? 1.35 : 0.8;
       // even blijven staan voor een kort gebaar (bah, kijk daar, een high five)
       if (this.stall > 0) this.linger(dt);
       else if (this.stride(dt, speed)) this.arrive(w);
@@ -4673,7 +4678,7 @@ export class GuestManager {
       this.spawnIn -= dt;
       if (this.spawnIn <= 0) {
         // hoe meer gasten het park trekt, hoe sneller ze na elkaar binnenkomen
-        this.spawnIn = Math.max(0.8, 110 / capacity) * (0.7 + Math.random() * 0.6);
+        this.spawnIn = Math.max(0.8, 110 / capacity) * (0.7 + Math.random() * 0.6) * (here < capacity * 0.5 ? 0.4 : 1);
         const wheels = this.world.feature('wheels') && Math.random() < 0.06 ? (Math.random() < 0.5 ? 'chair' : 'pram') : undefined;
         // een nieuwe gast komt over de stoep aanlopen en gaat door de poort naar binnen
         this.walkIn(this.make({ wheels }));
@@ -4829,6 +4834,8 @@ export interface FixJob {
   gy: number;
 }
 export interface WorkerWorld {
+  /** Midden in de nacht (tussen twaalf en vijf) slaapt ook het personeel; vanaf vijf uur gaan ze weer aan het werk. */
+  deepNight(): boolean;
   grid: Grid;
   /** Voerbakken die bijgevuld moeten worden, met het voer dat erin hoort. */
   feedJobs(): { trough: KeeperTrough; food: FoodId }[];
@@ -5226,6 +5233,12 @@ export class Worker implements Leader {
       this.mesh.scale.set(size * (1 + squash * 0.5), size * (1 - squash), size * (1 + squash * 0.5));
       this.limbs[2].rotation.x = this.limbs[3].rotation.x = -2.5 * fall;
       return;
+    }
+    if (w.deepNight()) {
+      // midden in de nacht staat de werker stil: het park is dicht (de rondleiding is afgelopen)
+      if (this.group.length) this.dismiss();
+      swing(this.limbs, 0);
+      return this.place();
     }
     if (!this.paid) {
       // geen loon: even wachten (en de rondleiding is afgelopen)

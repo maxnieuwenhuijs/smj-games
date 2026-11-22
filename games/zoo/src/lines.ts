@@ -300,6 +300,9 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   // de uitleg bij een puzzeltje, in de stem van wie om hulp vroeg
   for (const who of ['host', 'keeper', 'builder', 'cashier', 'director', 'teacher', 'master'] as const)
     for (const key of ['mini.sum.plus', 'mini.sum.minus', 'mini.spell', 'mini.order.size', 'mini.order.count', 'mini.done.good', 'mini.done.try']) add({ who, mood: 'happy', key });
+  // het park gaat om middernacht dicht en om zeven uur weer open
+  add({ who: 'director', mood: 'happy', key: 'say.park.closed' });
+  add({ who: 'director', mood: 'happy', key: 'say.park.open' });
   add(say.night());
   add(say.nightNew());
   add(say.aquaNew());

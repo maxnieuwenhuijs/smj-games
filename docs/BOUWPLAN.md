@@ -357,7 +357,7 @@ De getallen staan in `games/zoo/src/data.ts` (`BONUS`, `AQUATIC`, `TANK_WATER`).
 
 ## Dag en nacht
 
-Vanaf level 15 wordt het ook nacht. Een dag duurt vier minuten, een nacht ruim anderhalve minuut, met twaalf tellen schemering ertussen. Elke keer dat je het spel opent, begint het overdag. Rechtsboven staat een zon of een maan met het uur (de dag loopt van 7 tot 21 uur).
+Vanaf level 15 wordt het ook nacht. Een dag (7 tot 21 uur) duurt vijf minuten en een nacht bijna anderhalve minuut, met twaalf tellen schemering ertussen. De nacht bestaat uit drie stukken (`NIGHT_PARTS`): de avond van 21 tot 24 uur (45 tellen, het park is nog open), de slaapnacht van 0 tot 5 uur (20 tellen) en de vroege ochtend van 5 tot 7 uur (20 tellen). Elke keer dat je het spel opent, begint het overdag. Rechtsboven staat een zon of een maan met het uur (de dag loopt van 7 tot 21 uur).
 
 - **Donker:** 's nachts ligt er een donkerblauw waas over het park. Alleen bij licht zie je alles goed: rond een lantaarn (3,5 tegel), een kampvuur (3), elke winkel en elk speeltoestel (2,4) en de ingang (4,5). De lantaarns branden dan fel.
 - **Gasten:** staat een gast in het donker naar dieren te kijken, dan heeft hij er maar een kwart van het plezier van en ziet hij zijn lievelingsdier niet. Boven zijn hoofd staat een oranje wolkje met een lantaarn. Zijn er meer gasten in het donker, dan zegt de gastvrouw: "Het is te donker! Zet er lantaarns bij."
@@ -715,6 +715,7 @@ Alles hieronder staat in `games/zoo/src`; de vaste getallen in `data.ts`. De vol
 - **Klein spul voor het park** mag ook op een padtegel staan, in een kwart van de tegel. De stapel ballen is eruit; er zijn nu negen kleine dingen.
 - **Puzzeltjes:** de uitleg boven de vraag en "Goed gedaan!" worden voorgelezen, in de stem van wie om hulp vroeg.
 - **Opgesloten werker:** stond een werker in een verblijf toen het hek weer dichtging of het verblijf groter werd, dan stapt hij er nu eerst uit, in plaats van bij elke klus te melden dat er een poort moet komen.
+- **Sluitingstijd:** vanaf tien uur 's avonds gaan de gasten naar huis en komt er niemand meer bij. Om middernacht is het park dicht: de directeur zegt welterusten, alle dieren slapen (ook wie honger heeft) en het personeel staat stil. Wie dan nog binnen is, loopt stevig door naar de uitgang. Om vijf uur gaat het personeel weer aan het werk (voeren, vegen, repareren). Om zeven uur gaat het park open, zegt de directeur goedemorgen en loopt het snel weer vol. Dit geldt pas vanaf het level waarin het nacht wordt (`closed`, `goingHome` en `deepNight` in `game.ts`).
 - **Wegwijzers:** de regels zijn even soepeler geweest en op verzoek weer teruggezet (zie de getallen hierboven).
 
 ## Bekende zwakke punten van de modellen

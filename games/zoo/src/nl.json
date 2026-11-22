@@ -738,6 +738,8 @@
   "host.rain": "De gasten worden nat! Zet een schuilhut of paraplu's neer.",
   "host.wide": "Die gast heeft meer ruimte nodig. Maak het pad twee tegels breed!",
   "say.night.new": "Nieuw: het wordt nu dag en nacht! Rechtsboven zie je de zon of de maan. 's Nachts is het donker en slapen de dieren.",
+  "say.park.closed": "Het is middernacht. Het park gaat dicht en alle dieren gaan slapen. Welterusten!",
+  "say.park.open": "Goedemorgen! Het is zeven uur. Het park gaat weer open.",
   "say.night": "Het wordt donker! Zet lantaarns in je park, dan kunnen de gasten de dieren blijven zien.",
   "say.season.spring": "Het is lente! De bomen staan in bloei.",
   "say.season.summer": "Het is zomer! Lekker warm in het park.",
