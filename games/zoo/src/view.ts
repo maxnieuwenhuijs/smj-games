@@ -18,159 +18,6 @@ function boxAt(w: number, h: number, d: number, x: number, y: number, z: number)
   return g;
 }
 
-// Een hekdeel loopt van (0,0,0) naar (1,0,0).
-const FENCE_GEO = mergeGeometries([
-  boxAt(0.13, 0.5, 0.13, 0, 0.25, 0),
-  boxAt(0.13, 0.5, 0.13, 1, 0.25, 0),
-  boxAt(1, 0.08, 0.06, 0.5, 0.17, 0),
-  boxAt(1, 0.08, 0.06, 0.5, 0.37, 0),
-])!;
-// Een houten hek slijt in drie fases: de bovenste plank zakt scheef, dan hangt hij los, dan ligt het hek half plat.
-// Bij elke fase is het hout donkerder.
-const plank = (len: number, x: number, y: number, tilt: number): THREE.BufferGeometry => new THREE.BoxGeometry(len, 0.08, 0.06).rotateZ(tilt).translate(x, y, 0);
-const WORN_GEOS = [
-  FENCE_GEO,
-  mergeGeometries([boxAt(0.13, 0.5, 0.13, 0, 0.25, 0), boxAt(0.13, 0.5, 0.13, 1, 0.25, 0), plank(1, 0.5, 0.17, 0), plank(1, 0.5, 0.35, 0.08)])!,
-  mergeGeometries([boxAt(0.13, 0.5, 0.13, 0, 0.25, 0), boxAt(0.13, 0.46, 0.13, 1, 0.23, 0), plank(1, 0.5, 0.17, -0.04), plank(0.72, 0.33, 0.25, -0.36)])!,
-  mergeGeometries([boxAt(0.13, 0.5, 0.13, 0, 0.25, 0), boxAt(0.13, 0.26, 0.13, 1, 0.13, 0), plank(0.95, 0.52, 0.05, 0.03), plank(0.6, 0.3, 0.17, -0.5)])!,
-];
-// De poort is van hetzelfde hout, maar hoger en met een deurtje.
-const GATE_GEO = mergeGeometries([
-  boxAt(0.15, 0.72, 0.15, 0, 0.36, 0),
-  boxAt(0.15, 0.72, 0.15, 1, 0.36, 0),
-  boxAt(1.15, 0.1, 0.15, 0.5, 0.75, 0),
-  boxAt(0.82, 0.07, 0.06, 0.5, 0.12, 0),
-  boxAt(0.82, 0.07, 0.06, 0.5, 0.42, 0),
-  boxAt(0.07, 0.36, 0.06, 0.2, 0.27, 0),
-  boxAt(0.07, 0.36, 0.06, 0.5, 0.27, 0),
-  boxAt(0.07, 0.36, 0.06, 0.8, 0.27, 0),
-])!;
-// Stenen muur voor sterke dieren: laag en smal genoeg om eroverheen het verblijf in te kijken.
-const WALL_GEO = mergeGeometries([
-  boxAt(1.06, 0.3, 0.13, 0.5, 0.15, 0),
-  boxAt(0.2, 0.09, 0.16, 0.12, 0.345, 0),
-  boxAt(0.2, 0.09, 0.16, 0.5, 0.345, 0),
-  boxAt(0.2, 0.09, 0.16, 0.88, 0.345, 0),
-])!;
-// Glazen wand van een aquarium: een lijst met een ruit erin. De ruit is een los, doorzichtig onderdeel.
-const GLASS_FRAME_GEO = mergeGeometries([
-  boxAt(0.08, 0.74, 0.08, 0, 0.37, 0),
-  boxAt(0.08, 0.74, 0.08, 1, 0.37, 0),
-  boxAt(1, 0.07, 0.08, 0.5, 0.035, 0),
-  boxAt(1, 0.06, 0.07, 0.5, 0.71, 0),
-])!;
-const GLASS_PANE_GEO = boxAt(0.92, 0.62, 0.025, 0.5, 0.38, 0);
-// Hoog net voor klimmers, vliegers en springers: hoge palen met gaas ertussen.
-const NET_GEO = mergeGeometries([
-  boxAt(0.1, 0.92, 0.1, 0, 0.46, 0),
-  boxAt(0.1, 0.92, 0.1, 1, 0.46, 0),
-  boxAt(1, 0.06, 0.06, 0.5, 0.89, 0),
-  boxAt(1, 0.05, 0.05, 0.5, 0.06, 0),
-  ...[0.34, 0.62].map(y => boxAt(1, 0.018, 0.018, 0.5, y, 0)),
-  ...[0.25, 0.5, 0.75].map(x => boxAt(0.018, 0.82, 0.018, x, 0.47, 0)),
-])!;
-const TROUGH_GEO = mergeGeometries([
-  boxAt(0.8, 0.06, 0.48, 0, 0.03, 0),
-  boxAt(0.8, 0.2, 0.06, 0, 0.13, -0.21),
-  boxAt(0.8, 0.2, 0.06, 0, 0.13, 0.21),
-  boxAt(0.06, 0.2, 0.36, -0.37, 0.13, 0),
-  boxAt(0.06, 0.2, 0.36, 0.37, 0.13, 0),
-])!;
-// Slaapplekken. Het stalletje heeft alleen achterwanden en een afdakje, zodat je het slapende dier blijft zien.
-const STRAW_GEO = mergeGeometries([
-  boxAt(0.86, 0.07, 0.86, 0, 0.035, 0),
-  boxAt(0.6, 0.06, 0.6, 0.03, 0.1, -0.02),
-])!;
-const SHED_WALL_GEO = mergeGeometries([
-  boxAt(0.94, 0.62, 0.06, 0, 0.31, -0.44),
-  boxAt(0.06, 0.62, 0.94, -0.44, 0.31, 0),
-  boxAt(0.08, 0.62, 0.08, 0.44, 0.31, 0.44),
-])!;
-const SHED_ROOF_GEO = mergeGeometries([
-  boxAt(1.08, 0.07, 0.5, 0, 0.66, -0.3),
-  boxAt(0.5, 0.07, 1.08, -0.3, 0.66, 0),
-])!;
-const STRAW_MAT = new THREE.MeshStandardMaterial({ color: 0xe9d05a, roughness: 1 });
-const ROOF_MAT = new THREE.MeshStandardMaterial({ color: 0xc0523f, roughness: 0.9 });
-const FENCE_MAT = new THREE.MeshStandardMaterial({ color: 0xc58a4b, roughness: 0.9 });
-const WOOD_MAT = new THREE.MeshStandardMaterial({ color: 0xa8743f, roughness: 0.9 });
-const WORN_MATS = [FENCE_MAT, ...[0xa9743d, 0x8a5a2e, 0x694120].map(color => new THREE.MeshStandardMaterial({ color, roughness: 1 }))];
-const STONE_MAT = new THREE.MeshStandardMaterial({ color: 0xa9adb3, roughness: 1 });
-const ROCK_MAT = new THREE.MeshStandardMaterial({ color: 0x8f949c, roughness: 1 });
-const LEAF_MAT = new THREE.MeshStandardMaterial({ color: 0x5fa544, roughness: 1 });
-const WHITE_MAT = new THREE.MeshStandardMaterial({ color: 0xf7f4ec, roughness: 0.9 });
-/** Steeltjes van bloemen: blijven groen, ook in de herfst en de winter. */
-const STEM_MAT = new THREE.MeshStandardMaterial({ color: 0x5fa544, roughness: 1 });
-/** Voor vormen met een eigen kleur per hoekpunt (zie `paint`): zo is een bont ding toch één onderdeel. */
-const PAINT_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 });
-
-const NET_MAT = new THREE.MeshStandardMaterial({ color: 0x3f7f6b, roughness: 0.7 });
-const GLASS_FRAME_MAT = new THREE.MeshStandardMaterial({ color: 0xd9e6ee, roughness: 0.5 });
-const GLASS_MAT = new THREE.MeshStandardMaterial({ color: 0xbfe6f7, roughness: 0.15, transparent: true, opacity: 0.32, depthWrite: false });
-/** Het water in een bak van glas: een doorzichtig blok per tegel. */
-const TANK_MAT = new THREE.MeshStandardMaterial({ color: 0x4fb4e6, roughness: 0.2, transparent: true, opacity: 0.42, depthWrite: false });
-const DARK_MAT = new THREE.MeshStandardMaterial({ color: 0x5a3d22, roughness: 1 });
-const std = (color: number, roughness = 0.9): THREE.MeshStandardMaterial => new THREE.MeshStandardMaterial({ color, roughness });
-
-/** Een onderdeel van een bouwsel: vorm, materiaal en of het een schaduw geeft. */
-type Part = [THREE.BufferGeometry, THREE.Material, boolean?];
-
-// Slaapplekken. Wanden staan alleen aan de achterkant, zodat je het slapende dier blijft zien.
-// een platte rots in twee lagen: de bovenkant is vlak, zodat een dier erop kan liggen
-const ROCK_GEO = mergeGeometries([boxAt(0.96, 0.12, 0.88, 0, 0.06, 0), boxAt(0.82, 0.1, 0.74, 0, 0.17, 0)])!;
-const TRUNK_GEO = boxAt(0.13, 1.05, 0.13, -0.36, 0.525, -0.36);
-const CANOPY_GEO = mergeGeometries([boxAt(0.95, 0.2, 0.95, -0.18, 1.14, -0.18), boxAt(0.6, 0.16, 0.6, -0.2, 1.32, -0.2)])!;
-const NEST_GEO = mergeGeometries([
-  boxAt(0.66, 0.05, 0.66, 0, 0.025, 0),
-  boxAt(0.8, 0.13, 0.13, 0, 0.065, -0.34),
-  boxAt(0.8, 0.13, 0.13, 0, 0.065, 0.34),
-  boxAt(0.13, 0.13, 0.58, -0.34, 0.065, 0),
-  boxAt(0.13, 0.13, 0.58, 0.34, 0.065, 0),
-])!;
-const EGG_GEO = mergeGeometries([boxAt(0.1, 0.1, 0.1, -0.1, 0.1, 0.05), boxAt(0.1, 0.1, 0.1, 0.08, 0.1, -0.06)])!;
-const CAVE_FLOOR_GEO = boxAt(0.84, 0.03, 0.84, 0, 0.015, 0);
-const CAVE_GEO = mergeGeometries([
-  boxAt(0.98, 0.62, 0.16, 0, 0.31, -0.41),
-  boxAt(0.16, 0.62, 0.9, -0.41, 0.31, 0.04),
-  boxAt(0.18, 0.62, 0.18, 0.4, 0.31, -0.4),
-  boxAt(1.06, 0.18, 0.62, -0.02, 0.7, -0.2),
-  boxAt(0.6, 0.18, 0.5, -0.24, 0.7, 0.26),
-  boxAt(0.56, 0.14, 0.4, -0.12, 0.86, -0.2),
-])!;
-const CLIMB_GEO = mergeGeometries([
-  boxAt(0.17, 1.25, 0.17, -0.3, 0.625, -0.3),
-  boxAt(0.78, 0.07, 0.36, 0.02, 0.6, -0.3),
-  boxAt(0.36, 0.07, 0.78, -0.3, 0.9, 0.02),
-  boxAt(0.035, 0.42, 0.035, 0.32, 0.38, -0.3),
-  boxAt(0.2, 0.05, 0.12, 0.32, 0.17, -0.3),
-])!;
-const CLIMB_LEAF_GEO = mergeGeometries([boxAt(0.56, 0.2, 0.56, -0.3, 1.34, -0.3), boxAt(0.34, 0.14, 0.34, -0.3, 1.5, -0.3)])!;
-const BED_PARTS: Record<BedKind, Part[]> = {
-  straw: [[STRAW_GEO, STRAW_MAT, false]],
-  shed: [[STRAW_GEO, STRAW_MAT, false], [SHED_WALL_GEO, WOOD_MAT], [SHED_ROOF_GEO, ROOF_MAT]],
-  rock: [[ROCK_GEO, ROCK_MAT]],
-  shade: [[TRUNK_GEO, WOOD_MAT], [CANOPY_GEO, LEAF_MAT]],
-  nest: [[NEST_GEO, std(0xb98a4a, 1)], [EGG_GEO, WHITE_MAT]],
-  cave: [[CAVE_FLOOR_GEO, DARK_MAT, false], [CAVE_GEO, ROCK_MAT]],
-  climb: [[CLIMB_GEO, WOOD_MAT], [CLIMB_LEAF_GEO, LEAF_MAT]],
-  // koraal: een platte steen met roze en oranje takken, laag genoeg om onder water te staan
-  coral: [
-    [boxAt(0.8, 0.08, 0.7, 0, 0.04, 0), ROCK_MAT],
-    [mergeGeometries([boxAt(0.07, 0.3, 0.07, -0.22, 0.2, -0.12), boxAt(0.18, 0.06, 0.06, -0.15, 0.3, -0.12), boxAt(0.06, 0.16, 0.06, -0.08, 0.36, -0.12), boxAt(0.07, 0.24, 0.07, 0.24, 0.17, 0.14), boxAt(0.06, 0.06, 0.16, 0.24, 0.26, 0.2)])!, std(0xf06aa6, 0.8)],
-    [mergeGeometries([boxAt(0.08, 0.26, 0.08, 0.08, 0.18, -0.18), boxAt(0.2, 0.06, 0.06, 0.16, 0.28, -0.18), boxAt(0.06, 0.14, 0.06, 0.24, 0.33, -0.18), boxAt(0.07, 0.18, 0.07, -0.2, 0.14, 0.2)])!, std(0xf08a24, 0.8)],
-    [mergeGeometries([boxAt(0.14, 0.1, 0.14, 0, 0.12, 0.08), boxAt(0.1, 0.08, 0.1, -0.02, 0.2, 0.1)])!, std(0xffd23f, 0.8)],
-  ],
-};
-
-// Winkels: gebouwen van 2 bij 2 tegels, en losse dingen als een bankje, bloemen en een afvalbak.
-const BENCH_GEO = mergeGeometries([
-  boxAt(0.8, 0.06, 0.28, 0, 0.24, 0.02),
-  boxAt(0.8, 0.26, 0.05, 0, 0.42, -0.12),
-  boxAt(0.07, 0.24, 0.07, -0.33, 0.12, -0.08),
-  boxAt(0.07, 0.24, 0.07, 0.33, 0.12, -0.08),
-  boxAt(0.07, 0.24, 0.07, -0.33, 0.12, 0.12),
-  boxAt(0.07, 0.24, 0.07, 0.33, 0.12, 0.12),
-])!;
 const ball = (r: number, x: number, y: number, z: number): THREE.BufferGeometry => new THREE.IcosahedronGeometry(r, 1).translate(x, y, z);
 const tube = (rTop: number, rBottom: number, h: number, x: number, y: number, z: number): THREE.BufferGeometry =>
   new THREE.CylinderGeometry(rTop, rBottom, h, 10).translate(x, y, z);
@@ -207,83 +54,411 @@ const hash = (x: number, y: number, k = 0): number => {
   return s - Math.floor(s);
 };
 
+/** Een bol die je kunt uitrekken of platdrukken: een ei, een kruin, een pompoen. */
+const blob = (r: number, sx: number, sy: number, sz: number, x: number, y: number, z: number, detail = 1): THREE.BufferGeometry =>
+  new THREE.IcosahedronGeometry(r, detail).scale(sx, sy, sz).translate(x, y, z);
+/** Een heel klein bolletje met weinig vlakjes: een oogje, een knoop, een besje, een lampje. */
+const dot = (r: number, x: number, y: number, z: number): THREE.BufferGeometry => new THREE.IcosahedronGeometry(r, 0).translate(x, y, z);
+/** Een hoekige kei van `w` bij `h` bij `d`, een stukje gedraaid; zijn onderkant ligt op hoogte `y`. */
+const stone = (w: number, h: number, d: number, x: number, y: number, z: number, turn = 0): THREE.BufferGeometry =>
+  new THREE.DodecahedronGeometry(0.535, 0).rotateY(turn).scale(w, h, d).translate(x, y + h / 2, z);
+/** Een schijf of zuil met platte kanten (een rotsplaat, een stronk): `sides` kanten, het midden op hoogte `y`. */
+const prism = (rTop: number, rBottom: number, h: number, x: number, y: number, z: number, sides = 7, turn = 0): THREE.BufferGeometry => {
+  const g = new THREE.CylinderGeometry(rTop, rBottom, h, sides).rotateY(turn).toNonIndexed();
+  g.computeVertexNormals();
+  return g.translate(x, y, z);
+};
+/** Een ronde staaf van punt a naar punt b (een tak, een steel, een touw); `rEnd` is de dikte bij b. */
+const rod = (r: number, a: P3, b: P3, sides = 6, rEnd = r): THREE.BufferGeometry => {
+  const d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]), len = d.length();
+  const q = new THREE.Quaternion().setFromUnitVectors(UP, d.normalize());
+  return new THREE.CylinderGeometry(rEnd, r, len, sides).applyQuaternion(q).translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
+};
+/**
+ * Voegt vormen in verschillende kleuren samen tot één onderdeel (voor PAINT_MAT of MATTE_MAT): elk rijtje begint
+ * met zijn kleur. Zo krijgt een model een tweede tint of een randje zonder dat er een onderdeel bij komt.
+ */
+const painted = (...groups: [number, ...THREE.BufferGeometry[]][]): THREE.BufferGeometry =>
+  merge(groups.flatMap(([hex, ...geos]) => geos.map(g => paint(g, hex))));
+/**
+ * Kleurt een ronde vorm in banen rond het punt (cx, cz), zoals een parasol of een tentdak: elk vlakje krijgt de
+ * kleur van zijn baan. Met evenveel banen als de vorm kanten heeft, vallen de banen precies op de kanten.
+ */
+const striped = (geo: THREE.BufferGeometry, colors: number[], bands: number, cx = 0, cz = 0): THREE.BufferGeometry => {
+  const g = geo.index ? geo.toNonIndexed() : geo, pos = g.getAttribute('position'), a = new Float32Array(pos.count * 3), c = new THREE.Color();
+  for (let i = 0; i < pos.count; i += 3) {
+    const x = (pos.getX(i) + pos.getX(i + 1) + pos.getX(i + 2)) / 3 - cx, z = (pos.getZ(i) + pos.getZ(i + 1) + pos.getZ(i + 2)) / 3 - cz;
+    const band = Math.floor(((Math.atan2(x, z) / (Math.PI * 2) + 1) % 1) * bands) % bands;
+    c.setHex(colors[band % colors.length]);
+    for (let k = 0; k < 3; k++) a.set([c.r, c.g, c.b], (i + k) * 3);
+  }
+  return g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+};
+/**
+ * Eén bloem op (x, y, z): vijf ronde blaadjes rond een hartje; r is hoe groot hij is. Hij kijkt omhoog, of met
+ * tilt een kwartslag (een halve pi) naar voren.
+ */
+const bloom = (x: number, y: number, z: number, color: number, r = 0.075, tilt = 0): THREE.BufferGeometry[] => [
+  ...[0, 1, 2, 3, 4].map(i => {
+    const a = (i * Math.PI * 2) / 5 + x * 9;
+    return paint(blob(r * 0.52, 1, 0.5, 1, Math.cos(a) * r * 0.62, 0, Math.sin(a) * r * 0.62, 0), color);
+  }),
+  paint(blob(r * 0.42, 1, 0.85, 1, 0, r * 0.2, 0, 0), color === 0xffd23f ? 0xf08a24 : 0xffd23f),
+].map(g => g.rotateX(tilt).translate(x, y, z));
+/** Een bos bloemen als één onderdeel (voor PAINT_MAT): per bloem de plek, de kleur en zo nodig de kanteling. */
+const blooms = (spots: [number, number, number, number, number?][], r = 0.075): THREE.BufferGeometry =>
+  merge(spots.flatMap(([x, y, z, color, tilt]) => bloom(x, y, z, color, r, tilt)));
+// Een hekdeel loopt van (0,0,0) naar (1,0,0). Op elke paal zit een puntig kapje.
+const postCap = (x: number, top: number): THREE.BufferGeometry => cone(0.1, 0.07, x, top + 0.035, 0, 4);
+const FENCE_GEO = mergeGeometries([
+  boxAt(0.13, 0.5, 0.13, 0, 0.25, 0),
+  boxAt(0.13, 0.5, 0.13, 1, 0.25, 0),
+  boxAt(1, 0.08, 0.06, 0.5, 0.17, 0),
+  boxAt(1, 0.08, 0.06, 0.5, 0.37, 0),
+  postCap(0, 0.5),
+  postCap(1, 0.5),
+])!;
+// Een houten hek slijt in drie fases: de bovenste plank zakt scheef, dan hangt hij los, dan ligt het hek half plat.
+// Bij elke fase is het hout donkerder.
+const plank = (len: number, x: number, y: number, tilt: number): THREE.BufferGeometry => new THREE.BoxGeometry(len, 0.08, 0.06).rotateZ(tilt).translate(x, y, 0);
+const WORN_GEOS = [
+  FENCE_GEO,
+  mergeGeometries([boxAt(0.13, 0.5, 0.13, 0, 0.25, 0), boxAt(0.13, 0.5, 0.13, 1, 0.25, 0), plank(1, 0.5, 0.17, 0), plank(1, 0.5, 0.35, 0.08), postCap(0, 0.5), postCap(1, 0.5)])!,
+  mergeGeometries([boxAt(0.13, 0.5, 0.13, 0, 0.25, 0), boxAt(0.13, 0.46, 0.13, 1, 0.23, 0), plank(1, 0.5, 0.17, -0.04), plank(0.72, 0.33, 0.25, -0.36), postCap(0, 0.5), postCap(1, 0.46)])!,
+  mergeGeometries([boxAt(0.13, 0.5, 0.13, 0, 0.25, 0), boxAt(0.13, 0.26, 0.13, 1, 0.13, 0), plank(0.95, 0.52, 0.05, 0.03), plank(0.6, 0.3, 0.17, -0.5), postCap(0, 0.5)])!,
+];
+// De poort is van hetzelfde hout, maar hoger en met een deurtje: drie spijlen, een schoor en een klink.
+const GATE_GEO = mergeGeometries([
+  boxAt(0.15, 0.72, 0.15, 0, 0.36, 0),
+  boxAt(0.15, 0.72, 0.15, 1, 0.36, 0),
+  boxAt(1.15, 0.1, 0.15, 0.5, 0.75, 0),
+  boxAt(0.82, 0.07, 0.06, 0.5, 0.12, 0),
+  boxAt(0.82, 0.07, 0.06, 0.5, 0.42, 0),
+  boxAt(0.07, 0.36, 0.06, 0.2, 0.27, 0),
+  boxAt(0.07, 0.36, 0.06, 0.5, 0.27, 0),
+  boxAt(0.07, 0.36, 0.06, 0.8, 0.27, 0),
+  beam(0.045, [0.12, 0.13, 0.035], [0.88, 0.41, 0.035]),
+  boxAt(0.1, 0.05, 0.1, 0.86, 0.3, 0),
+  boxAt(0.2, 0.05, 0.19, 0, 0.825, 0),
+  boxAt(0.2, 0.05, 0.19, 1, 0.825, 0),
+])!;
+// Stenen muur voor sterke dieren: laag en smal genoeg om eroverheen het verblijf in te kijken.
+const WALL_GEO = mergeGeometries([
+  boxAt(1.06, 0.3, 0.13, 0.5, 0.15, 0),
+  boxAt(0.2, 0.09, 0.16, 0.12, 0.345, 0),
+  boxAt(0.2, 0.09, 0.16, 0.5, 0.345, 0),
+  boxAt(0.2, 0.09, 0.16, 0.88, 0.345, 0),
+  // een bredere voet en een paar stenen die net uitsteken
+  boxAt(1.06, 0.06, 0.17, 0.5, 0.03, 0),
+  boxAt(0.22, 0.08, 0.15, 0.2, 0.14, 0),
+  boxAt(0.2, 0.08, 0.15, 0.62, 0.21, 0),
+  boxAt(0.18, 0.08, 0.15, 0.86, 0.12, 0),
+  boxAt(0.16, 0.07, 0.15, 0.4, 0.24, 0),
+])!;
+// Glazen wand van een aquarium: een lijst met een ruit erin. De ruit is een los, doorzichtig onderdeel.
+const GLASS_FRAME_GEO = mergeGeometries([
+  boxAt(0.08, 0.74, 0.08, 0, 0.37, 0),
+  boxAt(0.08, 0.74, 0.08, 1, 0.37, 0),
+  boxAt(1, 0.07, 0.08, 0.5, 0.035, 0),
+  boxAt(1, 0.06, 0.07, 0.5, 0.71, 0),
+])!;
+const GLASS_PANE_GEO = boxAt(0.92, 0.62, 0.025, 0.5, 0.38, 0);
+// Hoog net voor klimmers, vliegers en springers: hoge palen met gaas ertussen.
+const NET_GEO = mergeGeometries([
+  boxAt(0.1, 0.92, 0.1, 0, 0.46, 0),
+  boxAt(0.1, 0.92, 0.1, 1, 0.46, 0),
+  boxAt(1, 0.06, 0.06, 0.5, 0.89, 0),
+  boxAt(1, 0.05, 0.05, 0.5, 0.06, 0),
+  ...[0.34, 0.62].map(y => boxAt(1, 0.018, 0.018, 0.5, y, 0)),
+  ...[0.25, 0.5, 0.75].map(x => boxAt(0.018, 0.82, 0.018, x, 0.47, 0)),
+])!;
+const TROUGH_GEO = mergeGeometries([
+  boxAt(0.8, 0.06, 0.48, 0, 0.03, 0),
+  boxAt(0.8, 0.2, 0.06, 0, 0.13, -0.21),
+  boxAt(0.8, 0.2, 0.06, 0, 0.13, 0.21),
+  boxAt(0.06, 0.2, 0.36, -0.37, 0.13, 0),
+  boxAt(0.06, 0.2, 0.36, 0.37, 0.13, 0),
+  // hoekpalen die net boven de rand uitsteken, en twee latten eronder
+  ...[-1, 1].flatMap(x => [-1, 1].map(z => boxAt(0.075, 0.27, 0.075, x * 0.385, 0.135, z * 0.225))),
+  boxAt(0.09, 0.03, 0.57, -0.24, 0.015, 0),
+  boxAt(0.09, 0.03, 0.57, 0.24, 0.015, 0),
+])!;
+const STRAW_MAT = new THREE.MeshStandardMaterial({ color: 0xe9d05a, roughness: 1 });
+const ROOF_MAT = new THREE.MeshStandardMaterial({ color: 0xc0523f, roughness: 0.9 });
+const FENCE_MAT = new THREE.MeshStandardMaterial({ color: 0xc58a4b, roughness: 0.9 });
+const WOOD_MAT = new THREE.MeshStandardMaterial({ color: 0xa8743f, roughness: 0.9 });
+const WORN_MATS = [FENCE_MAT, ...[0xa9743d, 0x8a5a2e, 0x694120].map(color => new THREE.MeshStandardMaterial({ color, roughness: 1 }))];
+const STONE_MAT = new THREE.MeshStandardMaterial({ color: 0xa9adb3, roughness: 1 });
+const ROCK_MAT = new THREE.MeshStandardMaterial({ color: 0x8f949c, roughness: 1 });
+const LEAF_MAT = new THREE.MeshStandardMaterial({ color: 0x5fa544, roughness: 1 });
+const WHITE_MAT = new THREE.MeshStandardMaterial({ color: 0xf7f4ec, roughness: 0.9 });
+/** Steeltjes van bloemen: blijven groen, ook in de herfst en de winter. */
+const STEM_MAT = new THREE.MeshStandardMaterial({ color: 0x5fa544, roughness: 1 });
+/** Voor vormen met een eigen kleur per hoekpunt (zie `paint`): zo is een bont ding toch één onderdeel. */
+const PAINT_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 });
+/** Hetzelfde, maar dof: voor hout, steen, stro en alles wat niet glimt. */
+const MATTE_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+
+const NET_MAT = new THREE.MeshStandardMaterial({ color: 0x3f7f6b, roughness: 0.7 });
+const GLASS_FRAME_MAT = new THREE.MeshStandardMaterial({ color: 0xd9e6ee, roughness: 0.5 });
+const GLASS_MAT = new THREE.MeshStandardMaterial({ color: 0xbfe6f7, roughness: 0.15, transparent: true, opacity: 0.32, depthWrite: false });
+/** Het water in een bak van glas: een doorzichtig blok per tegel. */
+const TANK_MAT = new THREE.MeshStandardMaterial({ color: 0x4fb4e6, roughness: 0.2, transparent: true, opacity: 0.42, depthWrite: false });
+const DARK_MAT = new THREE.MeshStandardMaterial({ color: 0x5a3d22, roughness: 1 });
+const std = (color: number, roughness = 0.9): THREE.MeshStandardMaterial => new THREE.MeshStandardMaterial({ color, roughness });
+/** Een tweede, donkerder tint blad; kleurt net als LEAF_MAT mee met de seizoenen. */
+const LEAF2 = std(0x468f3e, 1);
+
+/** Een onderdeel van een bouwsel: vorm, materiaal en of het een schaduw geeft. */
+type Part = [THREE.BufferGeometry, THREE.Material, boolean?];
+
+// Slaapplekken. Wanden staan alleen aan de achterkant, zodat je het slapende dier blijft zien.
+// stro: een dikke laag met een bult in het midden en losse sprieten langs de rand
+const strands = (n: number, k: number): THREE.BufferGeometry[] => Array.from({ length: n }, (_, i) => {
+  const a = (i / n) * Math.PI * 2 + k, r = 0.26 + hash(i, k) * 0.1;
+  return new THREE.BoxGeometry(0.18 + hash(i, k, 1) * 0.1, 0.022, 0.03).rotateY(hash(i, k, 2) * Math.PI).translate(Math.cos(a) * r, 0.071, Math.sin(a) * r);
+});
+const STRAW_GEO = painted(
+  [0xdcbf48, boxAt(0.86, 0.06, 0.86, 0, 0.03, 0)],
+  [0xe9d05a, prism(0.3, 0.38, 0.07, 0.02, 0.095, -0.01, 8, 0.3)],
+  [0xf6e58a, ...strands(7, 0.4)],
+  [0xc9a93a, ...strands(6, 2.1)],
+);
+// het stalletje: wanden van planken links en achter, palen op de hoeken en een afdakje boven de wanden
+const wallPlanks = (back: boolean, tone: number): THREE.BufferGeometry[] => [0, 1, 2, 3].filter(i => i % 2 === tone).map(i =>
+  back ? boxAt(0.94, 0.15, 0.06, 0, 0.08 + i * 0.155, -0.44) : boxAt(0.06, 0.15, 0.94, -0.44, 0.08 + i * 0.155, 0));
+const SHED_WALL_GEO = painted(
+  [0xa8743f, ...wallPlanks(true, 0), ...wallPlanks(false, 1)],
+  [0x97673a, ...wallPlanks(true, 1), ...wallPlanks(false, 0)],
+  [0x80552c, ...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([x, z]) => boxAt(0.09, 0.64, 0.09, x * 0.44, 0.32, z * 0.44)), boxAt(0.9, 0.05, 0.05, 0, 0.615, 0.44), boxAt(0.05, 0.05, 0.9, 0.44, 0.615, 0)],
+);
+const SHED_ROOF_GEO = painted(
+  [0xc0523f, boxAt(1.08, 0.07, 0.5, 0, 0.675, -0.3), boxAt(0.5, 0.07, 1.08, -0.3, 0.675, 0)],
+  // een donkere nok langs de buitenrand en een lichte lijst langs de binnenrand
+  [0x9c3f30, boxAt(1.1, 0.05, 0.08, 0, 0.72, -0.51), boxAt(0.08, 0.05, 1.1, -0.51, 0.72, 0)],
+  [0xe8d2a8, boxAt(0.6, 0.06, 0.03, 0.245, 0.67, -0.04), boxAt(0.03, 0.06, 0.6, -0.04, 0.67, 0.245)],
+);
+// een platte rots in twee lagen: de bovenkant is vlak, zodat een dier erop kan liggen
+const ROCK_GEO = painted(
+  [0x8f949c, prism(0.44, 0.49, 0.12, 0, 0.06, 0, 7, 0.2).scale(1, 1, 0.92)],
+  [0xa0a5ad, prism(0.36, 0.41, 0.1, 0.01, 0.17, -0.01, 7, 0.9).scale(1, 1, 0.9)],
+  [0x7d828a, stone(0.2, 0.16, 0.18, 0.37, -0.03, 0.33, 0.4), stone(0.14, 0.11, 0.13, -0.39, -0.02, 0.35, 1.1), stone(0.13, 0.1, 0.12, 0.4, -0.02, -0.35, 2)],
+  // een plukje mos
+  [0x86b85c, blob(0.1, 1.3, 0.3, 1, -0.26, 0.215, -0.12, 0), blob(0.07, 1.2, 0.3, 1, -0.16, 0.218, 0.04, 0)],
+);
+// schaduwboom: de stam staat in de hoek, de kruin hangt hoog boven de tegel
+const TRUNK_GEO = merge([
+  new THREE.CylinderGeometry(0.05, 0.085, 1.1, 7).translate(-0.36, 0.55, -0.36),
+  rod(0.035, [-0.36, 0.78, -0.36], [-0.12, 1.12, -0.14], 5, 0.025),
+  rod(0.03, [-0.36, 0.9, -0.36], [-0.5, 1.12, -0.2], 5, 0.02),
+  prism(0.09, 0.13, 0.08, -0.36, 0.04, -0.36, 6),
+]);
+const CANOPY_GEO = merge([blob(0.5, 1, 0.4, 1, -0.16, 1.24, -0.16), blob(0.3, 1, 0.5, 1, -0.3, 1.4, -0.26), blob(0.26, 1, 0.5, 1, 0.04, 1.36, -0.04)]);
+const CANOPY_LOW_GEO = merge([blob(0.3, 1, 0.42, 1, -0.44, 1.16, 0.1), blob(0.28, 1, 0.42, 1, 0.1, 1.15, -0.44), blob(0.2, 1, 0.45, 1, 0.2, 1.2, 0.1)]);
+// nest: een ronde krans van takjes met een bedje van stro en drie eieren
+const NEST_GEO = painted(
+  [0xb98a4a, new THREE.TorusGeometry(0.29, 0.1, 5, 11).rotateX(Math.PI / 2).scale(1, 0.85, 1).translate(0, 0.085, 0)],
+  [0x9c7238, new THREE.TorusGeometry(0.3, 0.055, 4, 9).rotateX(Math.PI / 2).rotateY(0.3).translate(0, 0.15, 0)],
+  [0xe2c766, tube(0.25, 0.25, 0.05, 0, 0.035, 0)],
+  [0x7d5527, ...Array.from({ length: 7 }, (_, i): THREE.BufferGeometry => {
+    const a = i * 0.9 + 0.2, b = a + 0.55;
+    return rod(0.014, [Math.cos(a) * 0.3, 0.1, Math.sin(a) * 0.3], [Math.cos(b) * 0.46, 0.13 + (i % 3) * 0.03, Math.sin(b) * 0.46], 4);
+  })],
+);
+const egg = (x: number, z: number, tilt: number): THREE.BufferGeometry => new THREE.IcosahedronGeometry(0.062, 1).scale(1, 1.32, 1).rotateZ(tilt).translate(x, 0.115, z);
+const EGG_GEO = painted([0xfaf4e4, egg(-0.1, 0.04, 0.45), egg(0.08, -0.07, -0.35)], [0xe9cfa6, egg(0.03, 0.11, 0.9)]);
+const CAVE_FLOOR_GEO = boxAt(0.84, 0.03, 0.84, 0, 0.015, 0);
+// grot: wanden links en achter met een dak van platen, en ronde keien erop en ertegen
+const CAVE_GEO = painted(
+  [0x8f949c, boxAt(0.98, 0.62, 0.16, 0, 0.31, -0.41), boxAt(0.16, 0.62, 0.9, -0.41, 0.31, 0.04), boxAt(0.18, 0.62, 0.18, 0.4, 0.31, -0.4)],
+  [0x9ca1a9, boxAt(1.06, 0.18, 0.62, -0.02, 0.7, -0.2), boxAt(0.6, 0.18, 0.5, -0.24, 0.7, 0.26)],
+  [0xa9adb3, stone(0.6, 0.26, 0.46, -0.12, 0.76, -0.22, 0.3), stone(0.34, 0.2, 0.3, 0.3, 0.76, -0.3, 1.2), stone(0.3, 0.18, 0.3, -0.3, 0.76, 0.3, 2)],
+  [0x7d828a, stone(0.2, 0.4, 0.2, -0.4, -0.05, 0.4, 0.5), stone(0.22, 0.36, 0.22, 0.39, -0.05, -0.36, 1.4), stone(0.16, 0.16, 0.14, 0.4, -0.03, -0.16, 0.2)],
+  [0x86b85c, blob(0.15, 1.3, 0.28, 1, 0.16, 0.795, -0.02, 0), blob(0.1, 1.2, 0.3, 1, -0.36, 0.795, 0.42, 0)],
+);
+// klimboom: een stam met twee plankjes op schoren, een tak, een touw met een stokje en een pluk blad bovenop
+const CLIMB_GEO = painted(
+  [0xa8743f, prism(0.075, 0.105, 1.25, -0.3, 0.625, -0.3, 7), prism(0.11, 0.15, 0.07, -0.3, 0.035, -0.3, 7, 0.4), rod(0.04, [-0.3, 1.0, -0.3], [-0.52, 1.2, -0.12], 5, 0.025)],
+  [0xc58a4b, boxAt(0.78, 0.06, 0.36, 0.02, 0.6, -0.3), boxAt(0.36, 0.06, 0.78, -0.3, 0.9, 0.02), rod(0.024, [0.2, 0.17, -0.3], [0.44, 0.17, -0.3], 6)],
+  [0x80552c, beam(0.04, [-0.26, 0.36, -0.3], [0.2, 0.58, -0.3]), beam(0.04, [-0.3, 0.66, -0.26], [-0.3, 0.88, 0.2])],
+  [0xe8dcc0, rod(0.016, [0.32, 0.58, -0.3], [0.32, 0.17, -0.3], 5), ball(0.03, 0.32, 0.2, -0.3)],
+);
+const CLIMB_LEAF_GEO = merge([blob(0.3, 1, 0.62, 1, -0.3, 1.38, -0.3), blob(0.2, 1, 0.7, 1, -0.14, 1.34, -0.42), blob(0.17, 1, 0.7, 1, -0.44, 1.5, -0.24), blob(0.15, 1, 0.7, 1, -0.54, 1.24, -0.1)]);
+const starArm = (i: number): THREE.BufferGeometry =>
+  new THREE.ConeGeometry(0.03, 0.1, 4).rotateZ(-Math.PI / 2).translate(0.05, 0, 0).scale(1, 0.4, 1).rotateY((i * Math.PI * 2) / 5).translate(-0.04, 0.09, 0.27);
+const BED_PARTS: Record<BedKind, Part[]> = {
+  straw: [[STRAW_GEO, MATTE_MAT, false]],
+  shed: [[STRAW_GEO, MATTE_MAT, false], [SHED_WALL_GEO, MATTE_MAT], [SHED_ROOF_GEO, MATTE_MAT]],
+  rock: [[ROCK_GEO, MATTE_MAT]],
+  shade: [[TRUNK_GEO, WOOD_MAT], [CANOPY_GEO, LEAF_MAT], [CANOPY_LOW_GEO, LEAF2]],
+  nest: [[NEST_GEO, MATTE_MAT], [EGG_GEO, PAINT_MAT]],
+  cave: [[CAVE_FLOOR_GEO, DARK_MAT, false], [CAVE_GEO, MATTE_MAT]],
+  climb: [[CLIMB_GEO, MATTE_MAT], [CLIMB_LEAF_GEO, LEAF_MAT]],
+  // koraal: een platte steen met roze takken, oranje buizen, gele bollen en een zeester; laag genoeg om onder water te staan
+  coral: [
+    [merge([prism(0.4, 0.46, 0.08, 0, 0.04, 0, 8).scale(1, 1, 0.85), stone(0.2, 0.12, 0.16, 0.3, 0.02, 0.24, 0.6)]), ROCK_MAT],
+    [merge([
+      rod(0.035, [-0.22, 0.06, -0.12], [-0.22, 0.3, -0.12], 6, 0.028), rod(0.026, [-0.22, 0.2, -0.12], [-0.08, 0.36, -0.14], 5, 0.02), rod(0.024, [-0.22, 0.24, -0.12], [-0.33, 0.38, -0.06], 5, 0.02),
+      ball(0.04, -0.22, 0.32, -0.12), ball(0.036, -0.08, 0.38, -0.14), ball(0.034, -0.33, 0.4, -0.06),
+      rod(0.03, [0.26, 0.06, 0.1], [0.26, 0.24, 0.1], 6, 0.024), rod(0.022, [0.26, 0.16, 0.1], [0.34, 0.3, 0.16], 5, 0.018), ball(0.034, 0.26, 0.26, 0.1), ball(0.03, 0.34, 0.32, 0.16),
+    ]), std(0xf06aa6, 0.8)],
+    [merge([tube(0.055, 0.035, 0.24, 0.08, 0.2, -0.2), tube(0.045, 0.03, 0.17, 0.18, 0.165, -0.14), tube(0.04, 0.028, 0.13, 0, 0.145, -0.26), tube(0.045, 0.03, 0.16, -0.22, 0.16, 0.2), tube(0.035, 0.025, 0.1, -0.13, 0.13, 0.25)]), std(0xf08a24, 0.8)],
+    [merge([blob(0.11, 1, 0.72, 1, 0.02, 0.13, 0.08), blob(0.065, 1, 0.75, 1, 0.14, 0.11, 0.2), ...[0, 1, 2, 3, 4].map(starArm)]), std(0xffd23f, 0.8)],
+  ],
+};
+
+// Winkels: gebouwen van 2 bij 2 tegels, en losse dingen als een bankje, bloemen en een afvalbak.
+const BENCH_GEO = mergeGeometries([
+  // de zitting van drie latten (de bovenkant blijft op 0,27) en de leuning van twee
+  boxAt(0.8, 0.04, 0.085, 0, 0.25, -0.075),
+  boxAt(0.8, 0.04, 0.085, 0, 0.25, 0.02),
+  boxAt(0.8, 0.04, 0.085, 0, 0.25, 0.115),
+  boxAt(0.8, 0.09, 0.035, 0, 0.4, -0.125),
+  boxAt(0.8, 0.09, 0.035, 0, 0.52, -0.135),
+  ...[-0.33, 0.33].flatMap(x => [
+    boxAt(0.06, 0.58, 0.06, x, 0.29, -0.1),
+    boxAt(0.06, 0.24, 0.06, x, 0.12, 0.12),
+    boxAt(0.05, 0.04, 0.24, x, 0.21, 0.01),
+  ]),
+  // de armleuningen
+  ...[-0.385, 0.385].flatMap(x => [boxAt(0.055, 0.035, 0.3, x, 0.4, 0.01), boxAt(0.05, 0.16, 0.05, x, 0.31, 0.13)]),
+])!;
 /**
  * Een winkelgebouw van 2 bij 2 tegels. De camera kijkt van rechtsvoor: daarom staan de wanden links en
  * achter, de toonbank rechts en voor, en ligt het dak alleen boven de achterste helft. Zo zie je de
  * verkoper achter de toonbank staan. Het midden van het gebouw is (0, 0).
  */
 function booth(wall: number, roofA: number, roofB: number, counter: number, floor = 0xd8c7ab): Part[] {
+  // een baan van het dak, met aan de voorkant een ronde flap
   const stripes = (from: number): THREE.BufferGeometry =>
-    mergeGeometries([0, 1, 2].map(i => boxAt(0.33, 0.09, 1.25, -0.82 + (from + i * 2) * 0.33, 1.34, -0.36)))!;
+    merge([0, 1, 2].flatMap(i => {
+      const x = -0.82 + (from + i * 2) * 0.33;
+      return [boxAt(0.33, 0.09, 1.25, x, 1.34, -0.36), new THREE.CylinderGeometry(0.165, 0.165, 0.03, 10, 1, false, -Math.PI / 2, Math.PI).rotateX(Math.PI / 2).translate(x, 1.3, 0.25)];
+    }));
   return [
     [boxAt(1.84, 0.05, 1.84, 0, 0.025, 0), std(floor, 1), false],
-    [mergeGeometries([boxAt(1.84, 1.3, 0.1, 0, 0.65, -0.87), boxAt(0.1, 1.3, 1.74, -0.87, 0.65, 0.05)])!, std(wall)],
-    [mergeGeometries([boxAt(1.5, 0.36, 0.26, 0.12, 0.18, 0.74), boxAt(0.26, 0.36, 1.36, 0.74, 0.18, -0.07)])!, std(counter)],
+    // de wanden, met een donkere plint
+    [painted(
+      [wall, boxAt(1.84, 1.3, 0.1, 0, 0.65, -0.87), boxAt(0.1, 1.3, 1.74, -0.87, 0.65, 0.05)],
+      [shade(wall, 0.72), boxAt(1.74, 0.12, 0.03, 0.05, 0.11, -0.81), boxAt(0.03, 0.12, 1.64, -0.81, 0.11, 0.05)],
+    ), MATTE_MAT],
+    // de toonbank, met lichte vakken aan de buitenkant en een donkere voet
+    [painted(
+      [counter, boxAt(1.5, 0.36, 0.26, 0.12, 0.18, 0.74), boxAt(0.26, 0.36, 1.36, 0.74, 0.18, -0.07)],
+      [shade(counter, 1.3), ...[-0.34, 0.12, 0.58].map(x => boxAt(0.34, 0.2, 0.006, x, 0.2, 0.871)), ...[-0.5, -0.07, 0.36].map(z => boxAt(0.006, 0.2, 0.34, 0.871, 0.2, z))],
+      [shade(counter, 0.7), boxAt(1.52, 0.05, 0.28, 0.12, 0.025, 0.74), boxAt(0.28, 0.05, 1.38, 0.74, 0.025, -0.07)],
+    ), MATTE_MAT],
     [mergeGeometries([boxAt(1.56, 0.05, 0.32, 0.12, 0.385, 0.74), boxAt(0.32, 0.05, 1.42, 0.74, 0.385, -0.07)])!, WHITE_MAT],
     [mergeGeometries([boxAt(0.09, 1.3, 0.09, 0.84, 0.65, -0.87), boxAt(0.09, 1.3, 0.09, -0.87, 0.65, 0.84)])!, std(wall)],
     [stripes(0), std(roofA)],
-    [mergeGeometries([0, 1, 2].map(i => boxAt(0.33, 0.09, 1.25, -0.82 + (1 + i * 2) * 0.33, 1.34, -0.36)))!, std(roofB)],
+    [stripes(1), std(roofB)],
   ];
 }
-/** Spulletjes op de toonbank aan de voorkant. */
-const wares = (color: number, h = 0.16): Part =>
-  [mergeGeometries([boxAt(0.18, h, 0.16, -0.3, 0.41 + h / 2, 0.74), boxAt(0.18, h * 1.3, 0.16, 0.0, 0.41 + h * 0.65, 0.74), boxAt(0.18, h, 0.16, 0.3, 0.41 + h / 2, 0.74)])!, std(color, 0.7)];
+/** Een kleur een stuk donkerder (k onder 1) of lichter (k boven 1). */
+function shade(hex: number, k: number): number {
+  return new THREE.Color(hex).multiplyScalar(k).getHex();
+}
+/** Een ballon met een knoopje, een glimlichtje en een touwtje naar de top van de paal. */
+const balloon = (x: number, y: number, z: number, r: number, color: number): Part => [painted(
+  [color, blob(r, 1, 1.18, 1, x, y, z), cone(r * 0.16, r * 0.22, x, y - r * 1.24, z, 5)],
+  [0xffffff, blob(r * 0.22, 1, 1.5, 0.5, x + r * 0.42, y + r * 0.5, z + r * 0.62)],
+  [0xf7f4ec, rod(0.008, [0.84, 1.9, 0.84], [x, y - r * 1.3, z], 4)],
+), PAINT_MAT];
+/** Een petje op de toonbank. */
+const cap = (x: number, z: number): THREE.BufferGeometry[] =>
+  [new THREE.SphereGeometry(0.1, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2).translate(x, 0.41, z), boxAt(0.13, 0.016, 0.09, x, 0.42, z + 0.12)];
 /** Een bestaand bouwsel groter maken (de speeltuin). */
 const scaled = (parts: Part[], k: number): Part[] => parts.map(([g, m, shadow]) => [g.clone().scale(k, k, k), m, shadow] as Part);
 
 const SHOP_PARTS: Record<ShopKind, Part[]> = {
-  // eetkraam: houten kraam met rood-wit dak en een grote zak friet erop
+  // eetkraam: houten kraam met rood-wit dak en een grote bak friet erop
   foodstall: [
     ...booth(0xc58a4b, 0xe0584f, 0xf7f4ec, 0xa8743f),
-    wares(0xf5a623),
-    [boxAt(0.56, 0.42, 0.24, 0, 1.6, -0.4), std(0xd8362e)],
-    [mergeGeometries([boxAt(0.08, 0.5, 0.08, -0.19, 1.98, -0.4), boxAt(0.08, 0.6, 0.08, -0.065, 2.03, -0.4), boxAt(0.08, 0.54, 0.08, 0.065, 2.0, -0.4), boxAt(0.08, 0.46, 0.08, 0.19, 1.96, -0.4)])!, std(0xffd23f, 0.7)],
+    // op de toonbank: drie puntzakken friet, en opzij een rode en een gele fles
+    [painted(
+      [0xd8362e, ...[-0.3, 0, 0.3].map(x => new THREE.CylinderGeometry(0.075, 0.045, 0.13, 4).rotateY(Math.PI / 4).translate(x, 0.475, 0.74)), tube(0.035, 0.04, 0.14, 0.74, 0.48, -0.36), cone(0.03, 0.06, 0.74, 0.58, -0.36)],
+      [0xffd23f, ...[-0.3, 0, 0.3].flatMap(x => [boxAt(0.025, 0.09, 0.025, x - 0.03, 0.56, 0.74), boxAt(0.025, 0.12, 0.025, x, 0.57, 0.75), boxAt(0.025, 0.08, 0.025, x + 0.03, 0.555, 0.73)]), tube(0.035, 0.04, 0.14, 0.74, 0.48, -0.2), cone(0.03, 0.06, 0.74, 0.58, -0.2)],
+    ), PAINT_MAT],
+    // op het dak (wiegt, zie SHOP_BOB): de rode bak met een witte band, en de frietjes
+    [painted(
+      [0xd8362e, new THREE.CylinderGeometry(0.37, 0.27, 0.44, 4).rotateY(Math.PI / 4).scale(1, 1, 0.5).translate(0, 1.61, -0.4)],
+      [0xf7f4ec, boxAt(0.46, 0.09, 0.27, 0, 1.62, -0.4)],
+    ), PAINT_MAT],
+    [merge([[-0.2, 0.5, -0.45], [-0.1, 0.62, -0.44], [0, 0.56, -0.46], [0.1, 0.66, -0.44], [0.2, 0.5, -0.45], [-0.15, 0.44, -0.35], [-0.05, 0.52, -0.34], [0.05, 0.46, -0.36], [0.15, 0.54, -0.35]]
+      .map(([x, h, z]) => boxAt(0.075, h, 0.075, x, 1.75 + h / 2, z))), std(0xffd23f, 0.7)],
   ],
-  // drinkkraam: wit met blauw dak en een grote beker met rietje erop
+  // drinkkraam: wit met blauw dak en een grote gestreepte beker met rietje erop
   drinkstall: [
     ...booth(0xf4f1e8, 0x4a90e2, 0x9fd8f5, 0x4a90e2),
-    wares(0x9fd8f5, 0.2),
-    [tube(0.24, 0.17, 0.5, 0, 1.64, -0.4), std(0xfff7e0, 0.5)],
-    [tube(0.26, 0.26, 0.05, 0, 1.91, -0.4), std(0x4a90e2)],
-    [boxAt(0.06, 0.46, 0.06, 0.07, 2.13, -0.4), std(0xe0584f)],
+    // op de toonbank: drie bekers met een gekleurd deksel en een rietje, en opzij twee flessen
+    [painted(
+      [0xf7f4ec, ...[-0.3, 0, 0.3].map(x => tube(0.06, 0.045, 0.14, x, 0.48, 0.74))],
+      [0xe0584f, tube(0.064, 0.064, 0.022, -0.3, 0.56, 0.74), boxAt(0.014, 0.1, 0.014, 0.02, 0.61, 0.74), boxAt(0.014, 0.1, 0.014, 0.32, 0.61, 0.74)],
+      [0xf08a24, tube(0.064, 0.064, 0.022, 0, 0.56, 0.74), boxAt(0.014, 0.1, 0.014, -0.28, 0.61, 0.74), tube(0.045, 0.05, 0.16, 0.74, 0.49, -0.2), tube(0.02, 0.03, 0.06, 0.74, 0.6, -0.2)],
+      [0x6cc04a, tube(0.064, 0.064, 0.022, 0.3, 0.56, 0.74), tube(0.045, 0.05, 0.16, 0.74, 0.49, -0.36), tube(0.02, 0.03, 0.06, 0.74, 0.6, -0.36)],
+    ), PAINT_MAT],
+    [striped(new THREE.CylinderGeometry(0.24, 0.17, 0.5, 10), [0xf7f4ec, 0xe0584f], 10).translate(0, 1.64, -0.4), PAINT_MAT],
+    [merge([tube(0.26, 0.26, 0.05, 0, 1.91, -0.4), tube(0.19, 0.24, 0.05, 0, 1.96, -0.4)]), std(0x4a90e2)],
+    [mergeGeometries([boxAt(0.06, 0.4, 0.06, 0.07, 2.16, -0.4), new THREE.BoxGeometry(0.06, 0.2, 0.06).translate(0, 0.1, 0).rotateZ(-0.9).translate(0.07, 2.34, -0.4)])!, std(0xe0584f)],
   ],
-  // ijskraam: roze met een reuzenijsje op het dak
+  // ijskraam: roze met een reuzenijsje op het dak: een wafelhoorn, twee bollen, saus en een kers
   icecream: [
     ...booth(0xffd9e6, 0xf48fb1, 0xf7f4ec, 0xf48fb1),
-    wares(0xfff0c9, 0.14),
-    [cone(0.26, 0.6, 0, 1.68, -0.4, 8, true), std(0xe3b778)],
-    [ball(0.3, 0, 2.1, -0.4), std(0xffc1d6, 0.6)],
-    [ball(0.22, 0, 2.45, -0.4), std(0xfff0c9, 0.6)],
+    // op de toonbank: drie ijsjes in een rekje, en opzij drie bakken ijs
+    [painted(
+      [0xe3b778, ...[-0.3, 0, 0.3].map(x => cone(0.05, 0.14, x, 0.5, 0.74, 6, true))],
+      [0xf7f4ec, boxAt(0.8, 0.03, 0.14, 0, 0.455, 0.74), ball(0.055, 0, 0.6, 0.74), tube(0.07, 0.06, 0.06, 0.74, 0.44, -0.04)],
+      [0xffc1d6, ball(0.055, -0.3, 0.6, 0.74), tube(0.07, 0.06, 0.06, 0.74, 0.44, -0.2)],
+      [0x8a5a3c, ball(0.055, 0.3, 0.6, 0.74), tube(0.07, 0.06, 0.06, 0.74, 0.44, -0.36)],
+    ), PAINT_MAT],
+    [striped(new THREE.ConeGeometry(0.26, 0.6, 8).rotateX(Math.PI), [0xe3b778, 0xd29f5e], 8).translate(0, 1.68, -0.4), PAINT_MAT],
+    [merge([ball(0.3, 0, 2.1, -0.4), blob(0.33, 1, 0.3, 1, 0, 1.98, -0.4)]), std(0xffc1d6, 0.6)],
+    [painted([0xfff0c9, ball(0.22, 0, 2.45, -0.4)], [0x8a5a3c, blob(0.17, 1, 0.5, 1, 0, 2.6, -0.4)], [0xe0453a, ball(0.065, 0, 2.72, -0.4)]), PAINT_MAT],
   ],
-  // ballonnenkraam: paars met een tros ballonnen aan de hoek
+  // ballonnenkraam: paars met een tros ballonnen aan een paal op de hoek; elke ballon wiegt los (zie SHOP_BOB)
   balloon: [
     ...booth(0xc9a3e8, 0xb06ad9, 0xffd23f, 0xb06ad9),
-    [boxAt(0.05, 1.5, 0.05, 0.84, 1.55, 0.84), WHITE_MAT],
-    [ball(0.27, 0.6, 2.25, 0.84), std(0xe0584f, 0.4)],
-    [ball(0.27, 1.02, 2.3, 0.72), std(0x4a90e2, 0.4)],
-    [ball(0.27, 0.84, 2.62, 0.9), std(0xffd23f, 0.4)],
-    [ball(0.22, 0.8, 2.1, 1.05), std(0x6cc04a, 0.4)],
+    [boxAt(0.05, 1.12, 0.05, 0.84, 1.34, 0.84), WHITE_MAT],
+    balloon(0.56, 2.36, 0.84, 0.27, 0xe0584f),
+    balloon(1.06, 2.42, 0.7, 0.27, 0x4a90e2),
+    balloon(0.84, 2.76, 0.9, 0.27, 0xffd23f),
+    balloon(0.8, 2.3, 1.12, 0.22, 0x6cc04a),
   ],
   // hoedjeskraam: groen met een grote strohoed op het dak en hoedjes op de toonbank
   hats: [
     ...booth(0xbfe3a8, 0x6cc04a, 0xf7f4ec, 0x5fa544),
-    [tube(0.5, 0.5, 0.06, 0, 1.44, -0.4), std(0xe9d05a, 1)],
-    [tube(0.25, 0.28, 0.3, 0, 1.62, -0.4), std(0xe9d05a, 1)],
-    [tube(0.285, 0.285, 0.08, 0, 1.52, -0.4), std(0xe0584f)],
-    [mergeGeometries([boxAt(0.2, 0.1, 0.2, -0.3, 0.46, 0.74), boxAt(0.2, 0.1, 0.2, 0.3, 0.46, 0.74)])!, std(0xe0584f)],
-    [boxAt(0.2, 0.1, 0.2, 0.0, 0.46, 0.74), std(0x4a90e2)],
-    [cone(0.09, 0.22, 0.74, 0.52, -0.3), std(0xf06aa6)],
+    [merge([tube(0.5, 0.46, 0.05, 0, 1.44, -0.4), new THREE.TorusGeometry(0.5, 0.03, 5, 16).rotateX(Math.PI / 2).translate(0, 1.455, -0.4)]), std(0xe9d05a, 1)],
+    [merge([tube(0.25, 0.28, 0.26, 0, 1.59, -0.4), blob(0.25, 1, 0.3, 1, 0, 1.72, -0.4)]), std(0xdcc24e, 1)],
+    [merge([tube(0.285, 0.285, 0.08, 0, 1.52, -0.4), blob(0.08, 1.5, 0.8, 0.5, 0.2, 1.53, -0.18), ball(0.04, 0.22, 1.53, -0.15)]), std(0xe0584f)],
+    // op de toonbank: een rode en een blauwe pet, een kroontje en opzij een feesthoedje
+    [painted(
+      [0xe0584f, ...cap(-0.3, 0.72)],
+      [0x4a90e2, ...cap(0.3, 0.72)],
+      [0xffd23f, tube(0.09, 0.09, 0.07, 0, 0.445, 0.74), ...[0, 1, 2, 3, 4].map(i => cone(0.03, 0.06, Math.sin(i * 1.257) * 0.075, 0.51, 0.74 + Math.cos(i * 1.257) * 0.075, 4)), dot(0.03, 0.74, 0.64, -0.3)],
+      [0xf06aa6, cone(0.09, 0.22, 0.74, 0.52, -0.3)],
+    ), PAINT_MAT],
   ],
-  // knuffelkraam: geel met paars dak en een grote beer erop
+  // knuffelkraam: geel met paars dak en een grote beer erop, met een strikje
   souvenir: [
     ...booth(0xffe08a, 0x7a5cc9, 0xb99be8, 0x7a5cc9),
-    [ball(0.3, 0, 1.66, -0.4), std(0xb07a4a)],
-    [ball(0.23, 0, 2.08, -0.4), std(0xb07a4a)],
-    [ball(0.09, -0.2, 2.28, -0.4), std(0x8a5a33)],
-    [ball(0.09, 0.2, 2.28, -0.4), std(0x8a5a33)],
-    [ball(0.1, 0, 2.03, -0.2), std(0xe3bf94)],
-    [ball(0.1, -0.3, 0.5, 0.74), std(0xf3a6b8)],
-    [ball(0.1, 0.3, 0.5, 0.74), std(0x9aa0a6)],
+    [merge([
+      ball(0.3, 0, 1.66, -0.4), ball(0.23, 0, 2.08, -0.4), ball(0.09, -0.2, 2.28, -0.4), ball(0.09, 0.2, 2.28, -0.4),
+      blob(0.1, 1, 1.5, 1, -0.3, 1.74, -0.34), blob(0.1, 1, 1.5, 1, 0.3, 1.74, -0.34), blob(0.12, 1, 1, 1.3, -0.17, 1.47, -0.2), blob(0.12, 1, 1, 1.3, 0.17, 1.47, -0.2),
+    ]), std(0xb07a4a)],
+    [painted(
+      [0xe3bf94, ball(0.1, 0, 2.03, -0.2), blob(0.2, 1, 1.1, 0.4, 0, 1.64, -0.14), dot(0.05, -0.2, 2.28, -0.34), dot(0.05, 0.2, 2.28, -0.34), blob(0.07, 1, 1, 0.4, -0.17, 1.47, -0.05), blob(0.07, 1, 1, 0.4, 0.17, 1.47, -0.05)],
+      [0x3a2a1a, dot(0.035, 0, 2.06, -0.105), dot(0.028, -0.09, 2.14, -0.195), dot(0.028, 0.09, 2.14, -0.195)],
+      [0xe0584f, blob(0.07, 1.3, 0.9, 0.6, -0.08, 1.9, -0.17), blob(0.07, 1.3, 0.9, 0.6, 0.08, 1.9, -0.17), dot(0.04, 0, 1.9, -0.15)],
+    ), PAINT_MAT],
+    // op de toonbank: een roze varkentje, een geel eendje en een grijs olifantje
+    [painted(
+      [0xf3a6b8, ball(0.1, -0.3, 0.5, 0.74), dot(0.035, -0.37, 0.59, 0.74), dot(0.035, -0.23, 0.59, 0.74)],
+      [0xe58aa0, new THREE.CylinderGeometry(0.04, 0.04, 0.03, 8).rotateX(Math.PI / 2).translate(-0.3, 0.49, 0.835)],
+      [0xffd23f, ball(0.09, 0, 0.49, 0.74), ball(0.06, 0, 0.61, 0.77)],
+      [0xf08a24, boxAt(0.05, 0.02, 0.05, 0, 0.6, 0.84)],
+      [0x9aa0a6, ball(0.1, 0.3, 0.5, 0.74), new THREE.CylinderGeometry(0.07, 0.07, 0.02, 8).rotateX(Math.PI / 2).translate(0.2, 0.53, 0.74), new THREE.CylinderGeometry(0.07, 0.07, 0.02, 8).rotateX(Math.PI / 2).translate(0.4, 0.53, 0.74), boxAt(0.035, 0.1, 0.035, 0.3, 0.45, 0.85)],
+      [0x22201c, dot(0.014, -0.34, 0.53, 0.83), dot(0.014, -0.26, 0.53, 0.83), dot(0.012, -0.03, 0.63, 0.82), dot(0.012, 0.03, 0.63, 0.82), dot(0.014, 0.26, 0.54, 0.83), dot(0.014, 0.34, 0.54, 0.83)],
+    ), PAINT_MAT],
   ],
   // wc-gebouw met twee deuren; de deuren zelf zijn los en draaien om hun scharnier (zie buildShop)
   toilet: [
@@ -295,32 +470,51 @@ const SHOP_PARTS: Record<ShopKind, Part[]> = {
     [mergeGeometries([boxAt(0.2, 0.2, 0.04, -0.42, 1.04, 0.57), boxAt(0.2, 0.2, 0.04, 0.42, 1.04, 0.57)])!, std(0x9fd8f5, 0.4)],
     [boxAt(0.04, 0.5, 0.5, 0.86, 0.75, -0.2), std(0x9fd8f5, 0.4)],
   ],
-  // speeltuin: zandbak met een torentje, een laddertje en een gele glijbaan
+  // speeltuin: zandbak met een torentje, een laddertje, een gele glijbaan, een schommel en een emmertje
   playground: scaled([
-    [boxAt(0.94, 0.03, 0.94, 0, 0.015, 0), std(0xecd591, 1), false],
-    [mergeGeometries([boxAt(0.06, 0.92, 0.06, -0.38, 0.46, -0.34), boxAt(0.06, 0.92, 0.06, -0.02, 0.46, -0.34), boxAt(0.06, 0.92, 0.06, -0.38, 0.46, 0.02), boxAt(0.06, 0.92, 0.06, -0.02, 0.46, 0.02), boxAt(0.3, 0.04, 0.04, -0.2, 0.2, -0.36), boxAt(0.3, 0.04, 0.04, -0.2, 0.4, -0.36)])!, WOOD_MAT],
+    [painted(
+      [0xecd591, boxAt(0.94, 0.03, 0.94, 0, 0.015, 0)],
+      [0xc58a4b, boxAt(0.94, 0.045, 0.03, 0, 0.0225, -0.455), boxAt(0.94, 0.045, 0.03, 0, 0.0225, 0.455), boxAt(0.03, 0.045, 0.88, -0.455, 0.0225, 0), boxAt(0.03, 0.045, 0.88, 0.455, 0.0225, 0)],
+    ), MATTE_MAT, false],
+    [mergeGeometries([
+      boxAt(0.06, 0.92, 0.06, -0.38, 0.46, -0.34), boxAt(0.06, 0.92, 0.06, -0.02, 0.46, -0.34), boxAt(0.06, 0.92, 0.06, -0.38, 0.46, 0.02), boxAt(0.06, 0.92, 0.06, -0.02, 0.46, 0.02),
+      boxAt(0.3, 0.04, 0.04, -0.2, 0.14, -0.36), boxAt(0.3, 0.04, 0.04, -0.2, 0.28, -0.36), boxAt(0.3, 0.04, 0.04, -0.2, 0.42, -0.36),
+      boxAt(0.04, 0.04, 0.36, -0.38, 0.78, -0.16), boxAt(0.04, 0.04, 0.36, -0.02, 0.78, -0.16), boxAt(0.36, 0.04, 0.04, -0.2, 0.78, -0.34),
+    ])!, WOOD_MAT],
     [boxAt(0.42, 0.06, 0.42, -0.2, 0.58, -0.16), std(0x4a90e2)],
-    [cone(0.36, 0.24, -0.2, 1.04, -0.16, 4), std(0xe0584f)],
-    [new THREE.BoxGeometry(0.24, 0.04, 0.78).rotateX(0.74).translate(-0.2, 0.31, 0.3), std(0xffd23f, 0.5)],
+    [merge([cone(0.36, 0.24, -0.2, 1.04, -0.16, 4), ball(0.035, -0.2, 1.17, -0.16)]), std(0xe0584f)],
+    [painted(
+      [0xffd23f, new THREE.BoxGeometry(0.24, 0.04, 0.78).rotateX(0.74).translate(-0.2, 0.31, 0.3)],
+      [0xe0584f, new THREE.BoxGeometry(0.025, 0.09, 0.78).rotateX(0.74).translate(-0.325, 0.335, 0.3), new THREE.BoxGeometry(0.025, 0.09, 0.78).rotateX(0.74).translate(-0.075, 0.335, 0.3)],
+    ), PAINT_MAT],
     [mergeGeometries([boxAt(0.05, 0.4, 0.05, 0.3, 0.2, -0.3), boxAt(0.05, 0.4, 0.05, 0.3, 0.2, 0.1), boxAt(0.05, 0.05, 0.45, 0.3, 0.41, -0.1)])!, std(0xe0584f)],
-    [boxAt(0.16, 0.03, 0.1, 0.3, 0.16, -0.1), std(0x4a90e2)],
+    // het zitje aan zijn kettingen, en in het zand een emmertje, een schepje en een zandtaartje
+    [painted(
+      [0x4a90e2, boxAt(0.16, 0.03, 0.1, 0.3, 0.16, -0.1), boxAt(0.02, 0.02, 0.12, 0.08, 0.045, 0.34), boxAt(0.05, 0.02, 0.05, 0.08, 0.045, 0.41)],
+      [0x8a8f98, boxAt(0.012, 0.24, 0.012, 0.3, 0.29, -0.15), boxAt(0.012, 0.24, 0.012, 0.3, 0.29, -0.05)],
+      [0xe0584f, tube(0.045, 0.035, 0.07, 0.2, 0.065, 0.3)],
+      [0xdcc07a, cone(0.07, 0.07, 0.32, 0.065, 0.32, 8)],
+    ), PAINT_MAT],
   ], 1.95),
   bench: [[BENCH_GEO, FENCE_MAT]],
   // bloembak: elke bloem is een steel met een kop, zodat ze los van elkaar kunnen wiegen (zie SHOP_BOB)
   flowers: [
-    [boxAt(0.74, 0.2, 0.36, 0, 0.1, 0), WOOD_MAT],
-    [boxAt(0.66, 0.04, 0.28, 0, 0.21, 0), DARK_MAT, false],
-    [boxAt(0.03, 0.2, 0.03, -0.22, 0.32, 0), STEM_MAT],
-    [boxAt(0.14, 0.1, 0.14, -0.22, 0.45, 0), std(0xe0584f)],
-    [boxAt(0.03, 0.26, 0.03, 0, 0.35, 0.03), STEM_MAT],
-    [boxAt(0.14, 0.1, 0.14, 0, 0.51, 0.03), std(0xffd23f)],
-    [boxAt(0.03, 0.2, 0.03, 0.22, 0.32, -0.02), STEM_MAT],
-    [boxAt(0.14, 0.1, 0.14, 0.22, 0.45, -0.02), std(0xf06aa6)],
+    [mergeGeometries([
+      boxAt(0.74, 0.17, 0.36, 0, 0.115, 0), boxAt(0.8, 0.035, 0.05, 0, 0.2, -0.185), boxAt(0.8, 0.035, 0.05, 0, 0.2, 0.185), boxAt(0.05, 0.035, 0.36, -0.375, 0.2, 0), boxAt(0.05, 0.035, 0.36, 0.375, 0.2, 0),
+      boxAt(0.08, 0.04, 0.32, -0.27, 0.02, 0), boxAt(0.08, 0.04, 0.32, 0.27, 0.02, 0),
+    ])!, WOOD_MAT],
+    [boxAt(0.66, 0.04, 0.28, 0, 0.2, 0), DARK_MAT, false],
+    [merge([boxAt(0.03, 0.2, 0.03, -0.22, 0.32, 0), blob(0.05, 1.5, 0.3, 0.7, -0.17, 0.27, 0.01, 0)]), STEM_MAT],
+    [merge(bloom(-0.22, 0.44, 0, 0xe0584f, 0.09)), PAINT_MAT],
+    [merge([boxAt(0.03, 0.26, 0.03, 0, 0.35, 0.03), blob(0.05, 1.5, 0.3, 0.7, -0.05, 0.3, 0.03, 0)]), STEM_MAT],
+    [merge(bloom(0, 0.5, 0.03, 0xffd23f, 0.09)), PAINT_MAT],
+    [merge([boxAt(0.03, 0.2, 0.03, 0.22, 0.32, -0.02), blob(0.05, 1.5, 0.3, 0.7, 0.27, 0.27, -0.02, 0)]), STEM_MAT],
+    [merge(bloom(0.22, 0.44, -0.02, 0xf06aa6, 0.09)), PAINT_MAT],
   ],
   // afvalbak: de deksel scharniert om zijn achterrand (zie buildShop)
   bin: [
-    [boxAt(0.32, 0.42, 0.32, 0, 0.21, 0), std(0x3d8b5a)],
-    [boxAt(0.38, 0.06, 0.38, 0, 0.03, 0.19), std(0x2c6a43)],
+    [painted([0x3d8b5a, boxAt(0.32, 0.42, 0.32, 0, 0.21, 0)], [0x2c6a43, boxAt(0.34, 0.05, 0.34, 0, 0.025, 0)], [0x58a874, boxAt(0.33, 0.035, 0.33, 0, 0.375, 0)]), PAINT_MAT],
+    [mergeGeometries([boxAt(0.38, 0.06, 0.38, 0, 0.03, 0.19), boxAt(0.14, 0.03, 0.05, 0, 0.075, 0.19)])!, std(0x2c6a43)],
     // de voorkant: een donkere inwerpgleuf, een wit plaatje en een voetpedaal, zodat je ziet welke kant hij op staat
     [boxAt(0.24, 0.08, 0.03, 0, 0.31, 0.16), std(0x1f3d2b)],
     [boxAt(0.17, 0.14, 0.02, 0, 0.15, 0.162), WHITE_MAT],
@@ -361,8 +555,9 @@ const TOY_PARTS: Record<ToyKind, Part[]> = {
     [ball(0.12, 0.24, 0.12, 0.18), std(0x4a90e2, 0.5)],
   ],
   bush: [
-    [mergeGeometries([ball(0.3, 0, 0.27, 0), ball(0.22, 0.24, 0.2, 0.1), ball(0.2, -0.22, 0.19, -0.12)])!, LEAF_MAT],
-    [mergeGeometries([ball(0.05, 0.12, 0.42, 0.2), ball(0.05, -0.16, 0.36, 0.14), ball(0.05, 0.02, 0.5, -0.12), ball(0.05, 0.3, 0.3, -0.02)])!, std(0xe0584f, 0.5)],
+    [merge([ball(0.3, 0, 0.27, 0), ball(0.17, 0.08, 0.5, -0.04), ball(0.16, 0.2, 0.36, 0.14)]), LEAF_MAT],
+    [merge([ball(0.22, 0.24, 0.2, 0.1), ball(0.2, -0.22, 0.19, -0.12), ball(0.16, -0.06, 0.16, 0.24)]), LEAF2],
+    [merge([[0.12, 0.44, 0.22], [-0.17, 0.38, 0.15], [0.02, 0.56, -0.12], [0.32, 0.32, 0], [-0.04, 0.3, 0.3], [0.3, 0.24, 0.24], [-0.3, 0.3, -0.02]].map(([x, y, z]) => dot(0.05, x, y, z))), std(0xe0584f, 0.5)],
   ],
   log: [
     [new THREE.CylinderGeometry(0.15, 0.15, 0.82, 10).rotateZ(Math.PI / 2).rotateY(0.5).translate(0, 0.15, 0.08), WOOD_MAT],
@@ -371,16 +566,21 @@ const TOY_PARTS: Record<ToyKind, Part[]> = {
   ],
   // hoepel: een rode ring op een paal; een dolfijn springt erdoorheen
   hoop: [
-    [mergeGeometries([tube(0.035, 0.045, 0.7, 0, 0.35, 0), tube(0.14, 0.16, 0.05, 0, 0.025, 0)])!, std(0x8a8f98, 0.6)],
+    [mergeGeometries([tube(0.035, 0.045, 0.7, 0, 0.35, 0), tube(0.14, 0.17, 0.05, 0, 0.025, 0), tube(0.07, 0.1, 0.05, 0, 0.075, 0), tube(0.055, 0.055, 0.05, 0, 0.7, 0)])!, std(0x8a8f98, 0.6)],
     [new THREE.TorusGeometry(0.4, 0.045, 8, 22).translate(0, 1.12, 0), std(0xe0584f, 0.5)],
-    [new THREE.TorusGeometry(0.4, 0.05, 6, 22, Math.PI / 5).translate(0, 1.12, 0), WHITE_MAT],
+    // witte banden om de ring
+    [mergeGeometries([0, 1, 2, 3].map(i => new THREE.TorusGeometry(0.4, 0.051, 6, 5, Math.PI / 7).rotateZ((i * Math.PI) / 2 + 0.56).translate(0, 1.12, 0)))!, WHITE_MAT],
   ],
   flowerbed: [
-    [boxAt(0.82, 0.05, 0.82, 0, 0.025, 0), DARK_MAT, false],
-    [mergeGeometries([boxAt(0.03, 0.2, 0.03, -0.24, 0.15, -0.2), boxAt(0.03, 0.26, 0.03, 0.2, 0.18, -0.16), boxAt(0.03, 0.18, 0.03, -0.1, 0.14, 0.22), boxAt(0.03, 0.24, 0.03, 0.24, 0.17, 0.22), boxAt(0.03, 0.2, 0.03, 0, 0.15, 0)])!, STEM_MAT],
-    [mergeGeometries([boxAt(0.14, 0.1, 0.14, -0.24, 0.3, -0.2), boxAt(0.14, 0.1, 0.14, 0.24, 0.34, 0.22)])!, std(0xe0584f)],
-    [mergeGeometries([boxAt(0.14, 0.1, 0.14, 0.2, 0.36, -0.16), boxAt(0.14, 0.1, 0.14, 0, 0.3, 0)])!, std(0xffd23f)],
-    [boxAt(0.14, 0.1, 0.14, -0.1, 0.28, 0.22), std(0xf06aa6)],
+    // aarde met een houten randje eromheen
+    [painted(
+      [0x5a3d22, boxAt(0.8, 0.05, 0.8, 0, 0.025, 0)],
+      [0xa8743f, boxAt(0.88, 0.08, 0.05, 0, 0.04, -0.415), boxAt(0.88, 0.08, 0.05, 0, 0.04, 0.415), boxAt(0.05, 0.08, 0.78, -0.415, 0.04, 0), boxAt(0.05, 0.08, 0.78, 0.415, 0.04, 0)],
+    ), MATTE_MAT, false],
+    [merge([[-0.24, 0.2, -0.2], [0.2, 0.26, -0.16], [-0.1, 0.18, 0.22], [0.24, 0.24, 0.22], [0, 0.2, 0]].flatMap(([x, h, z]) => [
+      boxAt(0.03, h, 0.03, x, 0.05 + h / 2, z), blob(0.05, 1.5, 0.3, 0.7, x + 0.05, 0.1, z + 0.01, 0), blob(0.045, 0.7, 0.3, 1.5, x - 0.01, 0.12, z - 0.05, 0),
+    ])), STEM_MAT],
+    [blooms([[-0.24, 0.27, -0.2, 0xe0584f], [0.2, 0.33, -0.16, 0xffd23f], [-0.1, 0.25, 0.22, 0xf06aa6], [0.24, 0.31, 0.22, 0xf7f4ec], [0, 0.27, 0, 0xb06ad9]], 0.085), PAINT_MAT],
   ],
 };
 
@@ -392,25 +592,30 @@ const SPRAY_MAT = std(0xd6f1ff, 0.3);
 const GOLD_MAT = std(0xffd23f, 0.5);
 const around = <T>(n: number, r: number, make: (x: number, z: number, i: number) => T): T[] =>
   Array.from({ length: n }, (_, i) => make(Math.sin((i / n) * Math.PI * 2) * r, Math.cos((i / n) * Math.PI * 2) * r, i));
-const horse = (x: number, z: number): THREE.BufferGeometry =>
-  mergeGeometries([
-    boxAt(0.3, 0.15, 0.13, 0, 0.47, 0), boxAt(0.1, 0.2, 0.11, 0.17, 0.6, 0), boxAt(0.14, 0.09, 0.1, 0.24, 0.66, 0),
-    boxAt(0.05, 0.2, 0.05, -0.1, 0.3, 0), boxAt(0.05, 0.2, 0.05, 0.1, 0.3, 0), boxAt(0.05, 0.16, 0.05, -0.17, 0.5, 0),
-  ])!.scale(1.3, 1.3, 1.3).rotateY(Math.atan2(-z, x) + Math.PI / 2).translate(x, -0.08, z);
+// een paard van de draaimolen: met manen, een staart en een zadel in een eigen kleur
+const horse = (x: number, z: number, coat: number, mane: number, saddle: number): THREE.BufferGeometry[] => [
+  paint(blob(0.16, 1, 0.5, 0.44, 0, 0.47, 0), coat), paint(rod(0.05, [0.09, 0.5, 0], [0.19, 0.66, 0], 6, 0.04), coat), paint(blob(0.07, 1.25, 0.75, 0.75, 0.25, 0.69, 0), coat),
+  ...[[-0.1, -0.035], [-0.1, 0.035], [0.09, -0.035], [0.09, 0.035]].map(([lx, lz]) => paint(boxAt(0.04, 0.2, 0.04, lx, 0.31, lz), coat)),
+  paint(boxAt(0.02, 0.05, 0.02, 0.2, 0.76, -0.03), coat), paint(boxAt(0.02, 0.05, 0.02, 0.2, 0.76, 0.03), coat),
+  paint(new THREE.BoxGeometry(0.035, 0.17, 0.03).rotateZ(-0.52).translate(0.12, 0.61, 0), mane), paint(blob(0.04, 0.7, 1.7, 0.7, -0.17, 0.44, 0), mane),
+  paint(boxAt(0.13, 0.03, 0.15, -0.01, 0.555, 0), saddle),
+].map(g => g.scale(1.3, 1.3, 1.3).rotateY(Math.atan2(-z, x) + Math.PI / 2).translate(x, -0.08, z));
 SHOP_PARTS.fountain = [
   [boxAt(1.84, 0.05, 1.84, 0, 0.025, 0), std(0xd8c7ab, 1), false],
-  [tube(0.86, 0.9, 0.24, 0, 0.17, 0), STONE],
+  // het bassin, met een lichte rand bovenop
+  [painted([0xb9c2c9, tube(0.86, 0.9, 0.24, 0, 0.17, 0)], [0xd6dde2, new THREE.TorusGeometry(0.82, 0.05, 5, 20).rotateX(Math.PI / 2).translate(0, 0.29, 0)], [0xa3adb5, tube(0.92, 0.94, 0.06, 0, 0.08, 0)]), MATTE_MAT],
   [tube(0.74, 0.74, 0.05, 0, 0.28, 0), WATER_MAT, false],
-  [tube(0.11, 0.15, 0.56, 0, 0.56, 0), STONE],
-  [tube(0.42, 0.16, 0.14, 0, 0.9, 0), STONE],
+  [mergeGeometries([tube(0.11, 0.15, 0.56, 0, 0.56, 0), tube(0.17, 0.2, 0.07, 0, 0.32, 0), tube(0.13, 0.13, 0.04, 0, 0.6, 0)])!, STONE],
+  [merge([tube(0.42, 0.16, 0.14, 0, 0.9, 0), new THREE.TorusGeometry(0.41, 0.03, 5, 16).rotateX(Math.PI / 2).translate(0, 0.97, 0)]), STONE],
   [tube(0.36, 0.36, 0.04, 0, 0.97, 0), WATER_MAT, false],
   // vier straaltjes die van de bovenste schaal in het bassin vallen
   [mergeGeometries(around(4, 0.4, (x, z) => boxAt(0.06, 0.62, 0.06, x, 0.62, z)))!, SPRAY_MAT, false],
 ];
 SHOP_PARTS.carousel = [
   [boxAt(1.84, 0.05, 1.84, 0, 0.025, 0), std(0xd8c7ab, 1), false],
-  [tube(0.9, 0.92, 0.12, 0, 0.11, 0), std(0xe0584f)],
-  [tube(0.09, 0.09, 1.9, 0, 1.1, 0), WHITE_MAT],
+  [painted([0xe0584f, tube(0.9, 0.92, 0.12, 0, 0.11, 0)], [0xffd23f, tube(0.925, 0.925, 0.03, 0, 0.155, 0)]), PAINT_MAT],
+  // de paal in het midden: rood-wit gestreept
+  [striped(new THREE.CylinderGeometry(0.09, 0.09, 1.9, 8), [0xf7f4ec, 0xe0584f], 8).translate(0, 1.1, 0), PAINT_MAT],
 ];
 const SHOP_MOVING: Partial<Record<ShopKind, { y: number; parts: Part[] }>> = {
   fountain: {
@@ -425,22 +630,32 @@ const SHOP_MOVING: Partial<Record<ShopKind, { y: number; parts: Part[] }>> = {
     parts: [
       [tube(0.84, 0.84, 0.06, 0, 0.2, 0), GOLD_MAT],
       [mergeGeometries(around(4, 0.56, (x, z) => tube(0.022, 0.022, 1.75, x, 1.08, z)))!, GOLD_MAT],
-      [tube(0.92, 0.92, 0.14, 0, 1.98, 0), WHITE_MAT],
-      [cone(0.95, 0.46, 0, 2.28, 0, 10), std(0xe0584f)],
+      // de rand van het dak en het dak zelf: om en om rood en wit
+      [striped(new THREE.CylinderGeometry(0.92, 0.92, 0.16, 20), [0xf7f4ec, 0xffd23f], 20).translate(0, 1.98, 0), PAINT_MAT],
+      [striped(new THREE.ConeGeometry(0.95, 0.46, 10), [0xe0584f, 0xf7f4ec], 10).translate(0, 2.28, 0), PAINT_MAT],
       [ball(0.1, 0, 2.55, 0), GOLD_MAT],
-      [mergeGeometries([horse(0, 0.56), horse(0, -0.56)])!, std(0xb07a4a)],
-      [mergeGeometries([horse(0.56, 0), horse(-0.56, 0)])!, WHITE_MAT],
+      [merge([...horse(0, 0.56, 0xb07a4a, 0x5a3d22, 0xe0584f), ...horse(0, -0.56, 0xb07a4a, 0x5a3d22, 0x4a90e2)]), PAINT_MAT],
+      [merge([...horse(0.56, 0, 0xf7f4ec, 0xe9d05a, 0x6cc04a), ...horse(-0.56, 0, 0xf7f4ec, 0xe9d05a, 0xb06ad9)]), PAINT_MAT],
     ],
   },
 };
-// De voersilo: een ronde toren met een rood dak en een bakje ervoor waar de dieren uit eten.
-const SILO_GEO = tube(0.24, 0.24, 0.85, 0, 0.475, -0.2);
-const SILO_ROOF_GEO = cone(0.3, 0.24, 0, 1.02, -0.2);
+// De voersilo: een ronde toren met banden, een ladder en een rood dak, een schuif naar voren en een bakje ervoor
+// waar de dieren uit eten.
+const SILO_GEO = painted(
+  [0xd9dde2, tube(0.24, 0.24, 0.8, 0, 0.5, -0.2)],
+  [0xb4bcc5, tube(0.25, 0.25, 0.035, 0, 0.32, -0.2), tube(0.25, 0.25, 0.035, 0, 0.6, -0.2), tube(0.255, 0.255, 0.04, 0, 0.885, -0.2)],
+  [0x8a8f98, tube(0.2, 0.23, 0.1, 0, 0.05, -0.2), beam(0.08, [0, 0.4, -0.02], [0, 0.17, 0.2])],
+  [0x6b7480, boxAt(0.016, 0.72, 0.016, 0.25, 0.5, -0.26), boxAt(0.016, 0.72, 0.016, 0.25, 0.5, -0.14), ...[0.2, 0.32, 0.44, 0.56, 0.68, 0.8].map(y => boxAt(0.016, 0.016, 0.12, 0.25, y, -0.2))],
+);
+const SILO_ROOF_GEO = merge([cone(0.3, 0.24, 0, 1.02, -0.2), ball(0.04, 0, 1.15, -0.2)]);
 const SILO_TRAY_GEO = TROUGH_GEO.clone().scale(0.75, 0.8, 0.55).translate(0, 0, 0.26);
-const SILO_MAT = std(0xd9dde2, 0.5);
+const SILO_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5 });
 // Losse speeltoestellen van 2 bij 2 tegels. Wat beweegt (de zitjes van de schommel, de plank van de wipwap,
 // de wipkippen) staat in SHOP_MOVING en draait om het midden op hoogte `y`.
-const PLAY_FLOOR: Part = [boxAt(1.84, 0.04, 1.84, 0, 0.02, 0), std(0xe9b66b, 1), false];
+const PLAY_FLOOR: Part = [painted(
+  [0xe9b66b, boxAt(1.84, 0.04, 1.84, 0, 0.02, 0)],
+  [0xd39b4e, boxAt(1.84, 0.05, 0.06, 0, 0.025, -0.89), boxAt(1.84, 0.05, 0.06, 0, 0.025, 0.89), boxAt(0.06, 0.05, 1.72, -0.89, 0.025, 0), boxAt(0.06, 0.05, 1.72, 0.89, 0.025, 0)],
+), MATTE_MAT, false];
 const METAL = std(0x8a8f98, 0.6);
 const P_RED = std(0xe0584f), P_BLUE = std(0x4a90e2), P_YELLOW = std(0xffd23f, 0.6);
 SHOP_PARTS.slide = [
@@ -450,9 +665,13 @@ SHOP_PARTS.slide = [
     ...[0.25, 0.5, 0.75, 1.0].map(y => boxAt(0.5, 0.045, 0.045, 0, y, -0.79)),
   ])!, WOOD_MAT],
   [boxAt(0.58, 0.06, 0.58, 0, 1.15, -0.5), P_BLUE],
-  [cone(0.48, 0.3, 0, 1.66, -0.5, 4), P_RED],
+  [merge([cone(0.48, 0.3, 0, 1.66, -0.5, 4), ball(0.045, 0, 1.83, -0.5)]), P_RED],
   [new THREE.BoxGeometry(0.42, 0.05, 1.58).rotateX(0.727).translate(0, 0.62, 0.31), P_YELLOW],
-  [mergeGeometries([new THREE.BoxGeometry(0.04, 0.13, 1.58).rotateX(0.727).translate(-0.22, 0.68, 0.31), new THREE.BoxGeometry(0.04, 0.13, 1.58).rotateX(0.727).translate(0.22, 0.68, 0.31)])!, P_RED],
+  // de randen van de glijbaan en een leuning om het torentje
+  [mergeGeometries([
+    new THREE.BoxGeometry(0.04, 0.13, 1.58).rotateX(0.727).translate(-0.22, 0.68, 0.31), new THREE.BoxGeometry(0.04, 0.13, 1.58).rotateX(0.727).translate(0.22, 0.68, 0.31),
+    boxAt(0.04, 0.04, 0.5, -0.25, 1.4, -0.5), boxAt(0.04, 0.04, 0.5, 0.25, 1.4, -0.5), boxAt(0.5, 0.04, 0.04, 0, 1.4, -0.75),
+  ])!, P_RED],
 ];
 SHOP_PARTS.swing = [
   PLAY_FLOOR,
@@ -460,7 +679,7 @@ SHOP_PARTS.swing = [
     new THREE.BoxGeometry(0.07, 1.57, 0.07).rotateX(-0.285).translate(x, 0.75, 0.22),
     new THREE.BoxGeometry(0.07, 1.57, 0.07).rotateX(0.285).translate(x, 0.75, -0.22),
   ]))!, P_RED],
-  [boxAt(1.78, 0.07, 0.07, 0, 1.5, 0), P_RED],
+  [merge([boxAt(1.78, 0.07, 0.07, 0, 1.5, 0), ball(0.065, -0.86, 1.5, 0), ball(0.065, 0.86, 1.5, 0)]), P_RED],
 ];
 SHOP_MOVING.swing = {
   y: 1.5,
@@ -470,7 +689,7 @@ SHOP_MOVING.swing = {
     [boxAt(0.34, 0.04, 0.16, 0.36, -1.15, 0), P_YELLOW],
   ],
 };
-SHOP_PARTS.seesaw = [PLAY_FLOOR, [mergeGeometries([boxAt(0.16, 0.4, 0.34, 0, 0.2, 0), boxAt(0.3, 0.06, 0.4, 0, 0.03, 0)])!, P_RED]];
+SHOP_PARTS.seesaw = [PLAY_FLOOR, [mergeGeometries([boxAt(0.16, 0.4, 0.34, 0, 0.2, 0), boxAt(0.3, 0.06, 0.4, 0, 0.03, 0), new THREE.CylinderGeometry(0.05, 0.05, 0.4, 8).rotateX(Math.PI / 2).translate(0, 0.4, 0)])!, P_RED]];
 SHOP_MOVING.seesaw = {
   y: 0.42,
   parts: [
@@ -479,23 +698,30 @@ SHOP_MOVING.seesaw = {
     [mergeGeometries([boxAt(0.26, 0.03, 0.24, -0.67, 0.045, 0), boxAt(0.26, 0.03, 0.24, 0.67, 0.045, 0)])!, P_BLUE],
   ],
 };
-const rider = (x: number): THREE.BufferGeometry[] => [boxAt(0.2, 0.2, 0.52, x, 0.14, 0), boxAt(0.17, 0.24, 0.17, x, 0.36, 0.22), boxAt(0.07, 0.18, 0.06, x, 0.3, -0.28)];
+// een wipkip: een rond diertje met oren, een lichte snuit, oogjes en een zadeltje
+const rider = (x: number, coat: number, light: number): THREE.BufferGeometry => painted(
+  [coat, blob(0.14, 0.75, 0.75, 1.9, x, 0.14, 0), blob(0.1, 0.9, 1.25, 0.95, x, 0.36, 0.2), blob(0.045, 0.7, 1.6, 0.7, x, 0.3, -0.27), cone(0.03, 0.08, x - 0.05, 0.5, 0.18, 4), cone(0.03, 0.08, x + 0.05, 0.5, 0.18, 4)],
+  [light, blob(0.065, 1, 0.8, 1.3, x, 0.33, 0.32), boxAt(0.17, 0.03, 0.2, x, 0.245, -0.04)],
+  [0x22201c, dot(0.018, x - 0.07, 0.4, 0.25), dot(0.018, x + 0.07, 0.4, 0.25)],
+);
 SHOP_PARTS.springer = [
   PLAY_FLOOR,
-  [mergeGeometries([tube(0.07, 0.07, 0.3, -0.42, 0.17, 0), tube(0.07, 0.07, 0.3, 0.42, 0.17, 0), tube(0.16, 0.16, 0.03, -0.42, 0.045, 0), tube(0.16, 0.16, 0.03, 0.42, 0.045, 0)])!, METAL],
+  // de veren: een dunne staaf met ringen eromheen
+  [mergeGeometries([-0.42, 0.42].flatMap(x => [tube(0.035, 0.035, 0.3, x, 0.17, 0), tube(0.16, 0.16, 0.03, x, 0.045, 0), ...[0.09, 0.15, 0.21, 0.27].map(y => tube(0.075, 0.075, 0.028, x, y, 0))]))!, METAL],
 ];
 SHOP_MOVING.springer = {
   y: 0.3,
   parts: [
-    [mergeGeometries(rider(-0.42))!, P_RED],
-    [mergeGeometries(rider(0.42))!, P_BLUE],
-    [mergeGeometries([-0.42, 0.42].flatMap(x => [boxAt(0.08, 0.06, 0.1, x, 0.34, 0.35), boxAt(0.32, 0.03, 0.03, x, 0.44, 0.1)]))!, P_YELLOW],
+    [rider(-0.42, 0xe0584f, 0xf9c9b4), PAINT_MAT],
+    [rider(0.42, 0x4a90e2, 0xc9e2f8), PAINT_MAT],
+    [mergeGeometries([-0.42, 0.42].flatMap(x => [boxAt(0.32, 0.03, 0.03, x, 0.44, 0.1), boxAt(0.05, 0.045, 0.045, x - 0.16, 0.44, 0.1), boxAt(0.05, 0.045, 0.045, x + 0.16, 0.44, 0.1)]))!, P_YELLOW],
   ],
 };
 SHOP_PARTS.trampoline = [
   PLAY_FLOOR,
   [mergeGeometries(around(6, 0.7, (x, z) => boxAt(0.05, 0.34, 0.05, x, 0.17, z)))!, METAL],
-  [tube(0.8, 0.8, 0.07, 0, 0.36, 0), P_BLUE],
+  // de rand: om en om blauw en geel
+  [striped(new THREE.CylinderGeometry(0.8, 0.8, 0.07, 10), [0x4a90e2, 0xffd23f], 10).translate(0, 0.36, 0), PAINT_MAT],
   [tube(0.64, 0.64, 0.02, 0, 0.4, 0), std(0x3d4f5a, 0.8), false],
 ];
 /** Het licht van een lantaarn: overdag een zacht geel, 's nachts fel. */
@@ -503,9 +729,6 @@ const LAMP_MAT = new THREE.MeshStandardMaterial({ color: 0xfff1a8, emissive: 0xf
 const FLAME_MAT = new THREE.MeshStandardMaterial({ color: 0xf08a24, emissive: 0xf06a10, emissiveIntensity: 0.9, roughness: 0.6 });
 const FLAME2_MAT = new THREE.MeshStandardMaterial({ color: 0xffd23f, emissive: 0xffc21f, emissiveIntensity: 0.9, roughness: 0.6 });
 // Versieringen: één tegel groot, het midden is (0, 0).
-const LEAF2 = std(0x468f3e, 1);
-const flowersOn = (spots: [number, number, number][], color: number): Part =>
-  [mergeGeometries(spots.map(([x, y, z]) => boxAt(0.13, 0.1, 0.13, x, y, z)))!, std(color)];
 
 // ------------------------------------------------------------ seizoenen
 /** Het seizoen van nu; een nieuw gemaakte tint blad neemt het meteen over. */
@@ -566,14 +789,21 @@ function leafTone(mat: THREE.MeshStandardMaterial, i: number): THREE.MeshStandar
   }
   return list[i % list.length];
 }
-// Kruinen van de loofboom en de den in drie vormen; elke boom kiest er een (zie View.varyTree).
+// Kruinen van de loofboom en de den in drie vormen; elke boom kiest er een (zie View.varyTree). De loofboom
+// heeft licht blad bovenop en een paar donkere bollen eronder.
 type Blob = [number, number, number, number];
 const TREE_BLOBS: Blob[][] = [
-  [[0.4, 0, 0.9, 0], [0.28, 0.2, 1.2, 0.08], [0.26, -0.22, 1.12, -0.1]],
-  [[0.34, 0, 0.88, 0], [0.3, 0.02, 1.22, 0.02], [0.2, 0, 1.5, 0]],
-  [[0.36, -0.14, 0.86, 0.06], [0.34, 0.18, 0.9, -0.08], [0.26, 0.02, 1.14, 0]],
+  [[0.38, 0, 0.94, 0], [0.27, 0.2, 1.22, 0.08], [0.22, -0.16, 1.2, -0.12]],
+  [[0.32, 0, 0.92, 0], [0.28, 0.02, 1.24, 0.02], [0.19, 0, 1.52, 0]],
+  [[0.34, -0.14, 0.9, 0.06], [0.32, 0.18, 0.94, -0.08], [0.25, 0.02, 1.16, 0]],
+];
+const TREE_SHADE_BLOBS: Blob[][] = [
+  [[0.3, -0.2, 0.84, 0.12], [0.26, 0.22, 0.82, -0.14]],
+  [[0.3, 0.08, 0.78, -0.1], [0.2, -0.16, 1.06, 0.14]],
+  [[0.26, -0.3, 0.76, -0.1], [0.26, 0.28, 0.78, 0.14], [0.2, 0, 0.74, 0.26]],
 ];
 const TREE_CROWNS = TREE_BLOBS.map(blobs => merge(blobs.map(b => ball(...b))));
+const TREE_SHADES = TREE_SHADE_BLOBS.map(blobs => merge(blobs.map(b => ball(...b))));
 // bloesem: kleine roze bolletjes boven op elke bol van de kruin
 const TREE_BLOSSOMS = TREE_BLOBS.map(blobs => merge(blobs.flatMap(([r, x, y, z], i) => [0, 1, 2, 3].map(k => {
   const a = k * 1.7 + i * 0.9, lift = 0.3 + 0.35 * (k % 2), out = r * Math.cos(lift);
@@ -586,7 +816,7 @@ const PINE_CROWNS = [
 ];
 /** Welke onderdelen van een boom blad zijn (die krijgen een eigen tint) en welke de kruin (die krijgt een eigen vorm). */
 const TREE_LOOK: Partial<Record<DecorKind, { leaf: number[]; crown: number[] }>> = {
-  tree: { leaf: [1], crown: [1] },
+  tree: { leaf: [1, 2], crown: [1, 2] },
   pine: { leaf: [1], crown: [1] },
   palm: { leaf: [1], crown: [] },
   cherry: { leaf: [1, 2], crown: [1, 2] },
@@ -618,8 +848,8 @@ SHOP_PARTS.tower = [
   [merge([0.2, 0.42].flatMap(h => [
     boxAt(1.2, 0.04, 0.04, 0, TOWER_TOP + h, -0.6), boxAt(0.04, 0.04, 1.2, -0.6, TOWER_TOP + h, 0), boxAt(0.04, 0.04, 1.2, 0.6, TOWER_TOP + h, 0),
     boxAt(0.36, 0.04, 0.04, -0.4, TOWER_TOP + h, 0.6), boxAt(0.36, 0.04, 0.04, 0.4, TOWER_TOP + h, 0.6),
-  ])), WHITE_MAT],
-  [cone(0.98, 0.45, 0, TOWER_ROOF + 0.225, 0, 4), P_RED],
+  ]).concat([-0.3, 0, 0.3].flatMap(a => [boxAt(0.03, 0.42, 0.03, a, TOWER_TOP + 0.21, -0.6), boxAt(0.03, 0.42, 0.03, -0.6, TOWER_TOP + 0.21, a), boxAt(0.03, 0.42, 0.03, 0.6, TOWER_TOP + 0.21, a)]))), WHITE_MAT],
+  [merge([cone(0.98, 0.45, 0, TOWER_ROOF + 0.225, 0, 4), boxAt(1.42, 0.04, 1.42, 0, TOWER_ROOF + 0.01, 0)]), P_RED],
   [merge([boxAt(0.03, 0.46, 0.03, 0, TOWER_ROOF + 0.62, 0), boxAt(0.07, 0.07, 0.07, 0, TOWER_ROOF + 0.88, 0)]), WHITE_MAT],
   // de vlag: los, zodat hij kan wapperen (zie SHOP_BOB)
   [boxAt(0.3, 0.18, 0.02, 0.165, TOWER_ROOF + 0.72, 0), P_YELLOW],
@@ -644,7 +874,15 @@ SHOP_PARTS.restaurant = [
   [merge(RESTAURANT_TABLES.flatMap(([x, z]) => [-0.27, 0.27].flatMap(d => [tube(0.085, 0.085, 0.05, x + d, 0.215, z), tube(0.025, 0.05, 0.19, x + d, 0.095, z)]))), P_RED],
   [merge(RESTAURANT_TABLES.map(([x, z]) => tube(0.014, 0.014, 0.92, x, 0.88, z))), METAL],
   // de parasols: los, zodat ze kunnen wiegen
-  ...RESTAURANT_TABLES.map(([x, z], i): Part => [cone(0.36, 0.2, x, 1.42, z), [P_RED, P_YELLOW, P_BLUE][i % 3]]),
+  ...RESTAURANT_TABLES.map(([x, z], i): Part => [striped(new THREE.ConeGeometry(0.36, 0.2, 8), [[0xe0584f, 0xffd23f, 0x4a90e2][i % 3], 0xf7f4ec], 8).translate(x, 1.42, z), PAINT_MAT]),
+  // op elke tafel een bord eten, een beker en een bakje sla, en voor de deur een bord met het menu
+  [painted(
+    [0xe0584f, ...RESTAURANT_TABLES.map(([x, z]) => tube(0.055, 0.055, 0.016, x - 0.07, 0.428, z + 0.03))],
+    [0xffd23f, ...RESTAURANT_TABLES.map(([x, z]) => tube(0.026, 0.02, 0.05, x + 0.08, 0.445, z - 0.05))],
+    [0x6cc04a, ...RESTAURANT_TABLES.map(([x, z]) => blob(0.04, 1, 0.6, 1, x + 0.04, 0.44, z + 0.09, 0))],
+    [0x3d4f5a, new THREE.BoxGeometry(0.26, 0.4, 0.02).rotateX(-0.22).translate(-0.74, 0.2, 0.84), new THREE.BoxGeometry(0.26, 0.4, 0.02).rotateX(0.22).translate(-0.74, 0.2, 0.75)],
+    [0xf7f4ec, ...[0.1, 0.02, -0.06].map((y, i) => new THREE.BoxGeometry(0.18 - i * 0.03, 0.022, 0.024).translate(-i * 0.015, y, 0).rotateX(-0.22).translate(-0.74, 0.2, 0.84))],
+  ), PAINT_MAT],
 ];
 // Reuzenrad: twee steunen tot aan de as; het rad zelf draait (SHOP_MOVING) en ligt in het vlak van x en y.
 const CABIN_COLORS = [0xe0584f, 0xffd23f, 0x4a90e2, 0x6cc04a, 0xf48fb1, 0xf08a24];
@@ -675,7 +913,14 @@ SHOP_MOVING.ferris = {
     // het stangetje waar elk bakje aan hangt
     [merge(CABINS.map(([x, y]) => new THREE.CylinderGeometry(0.02, 0.02, 0.46, 6).rotateX(Math.PI / 2).translate(x, y, 0))), METAL],
     // de bakjes: rond, dus het geeft niet dat ze meedraaien
-    [merge(CABINS.map(([x, y], i) => paint(new THREE.SphereGeometry(0.2, 12, 8).translate(x, y, 0), CABIN_COLORS[i % CABIN_COLORS.length]))), PAINT_MAT],
+    // (een rond raampje aan elke kant draait ook mee zonder dat je het ziet)
+    [merge(CABINS.flatMap(([x, y], i) => [
+      paint(new THREE.SphereGeometry(0.2, 12, 8).translate(x, y, 0), CABIN_COLORS[i % CABIN_COLORS.length]),
+      paint(new THREE.CylinderGeometry(0.105, 0.105, 0.39, 10).rotateX(Math.PI / 2).translate(x, y, 0), 0xf7f4ec),
+      paint(new THREE.CylinderGeometry(0.075, 0.075, 0.4, 10).rotateX(Math.PI / 2).translate(x, y, 0), 0x9fd8f5),
+    ])), PAINT_MAT],
+    // lichtjes rond het rad: ze gloeien in het donker
+    [merge(Array.from({ length: 12 }, (_, i) => (i / 12 + 1 / 24) * Math.PI * 2).flatMap(a => [-0.22, 0.22].map(z => dot(0.045, Math.cos(a) * FERRIS.radius, Math.sin(a) * FERRIS.radius, z)))), LAMP_MAT, false],
   ],
 };
 // Botsauto's: een gladde vloer met een rubberen rand en een licht dak op vier palen. De auto's zelf zijn los
@@ -690,6 +935,11 @@ SHOP_PARTS.bumper = [
     beam(0.035, [-0.86, 1.42, -0.86], [0.86, 1.42, 0.86]), beam(0.035, [0.86, 1.42, -0.86], [-0.86, 1.42, 0.86]),
   ]), METAL],
   [merge([...CORNERS.map(([x, z]) => ball(0.07, x * 0.86, 1.5, z * 0.86)), ball(0.08, 0, 1.4, 0)]), LAMP_MAT, false],
+  // een rand van rode en gele vlakken langs het dak
+  [painted(...[0xe0584f, 0xffd23f].map((color, tone): [number, ...THREE.BufferGeometry[]] => [color, ...[0, 1, 2, 3, 4].filter(i => i % 2 === tone).flatMap(i => {
+    const a = -0.64 + i * 0.32;
+    return [boxAt(0.32, 0.1, 0.02, a, 1.345, -0.86), boxAt(0.32, 0.1, 0.02, a, 1.345, 0.86), boxAt(0.02, 0.1, 0.32, -0.86, 1.345, a), boxAt(0.02, 0.1, 0.32, 0.86, 1.345, a)];
+  })])), PAINT_MAT],
 ];
 const CAR_PARTS = (color: THREE.Material): Part[] => [
   [CAR_RUBBER_GEO, CAR_RUBBER_MAT],
@@ -758,6 +1008,17 @@ SHOP_PARTS.umbrellas = [
   [merge(BROLLY_SPOTS.map(([x, z, tx, tz]) => brolly(brollyGrip(), x, z, tx, tz))), DARK_MAT],
 ];
 
+// Bij het wc-gebouw: een bordje met een mannetje en een vrouwtje tussen de deuren, twee deurmatten, een rand
+// onder het dak en een luchtpijp erop. Achteraan in de lijst, zodat de nummers van de andere onderdelen blijven.
+SHOP_PARTS.toilet.push([painted(
+  [0xf7f4ec, boxAt(0.26, 0.3, 0.02, 0, 0.62, 0.56)],
+  [0x4a90e2, ball(0.03, -0.06, 0.71, 0.575), boxAt(0.06, 0.13, 0.016, -0.06, 0.59, 0.572)],
+  [0xf06aa6, ball(0.03, 0.06, 0.71, 0.575), new THREE.ConeGeometry(0.055, 0.14, 4).scale(1, 1, 0.2).translate(0.06, 0.6, 0.572)],
+  [0x3a78c2, boxAt(1.9, 0.04, 1.64, 0, 1.19, -0.12)],
+  [0x8a6a4a, boxAt(0.4, 0.012, 0.2, -0.42, 0.056, 0.72), boxAt(0.4, 0.012, 0.2, 0.42, 0.056, 0.72)],
+  [0x9aa0a6, tube(0.05, 0.05, 0.22, 0.55, 1.43, -0.5), tube(0.08, 0.08, 0.03, 0.55, 1.55, -0.5)],
+), PAINT_MAT]);
+
 /**
  * Wat op of aan een gebouw zachtjes wiegt: de onderdelen (hun nummer in SHOP_PARTS) komen samen in een eigen
  * groepje dat om het punt `at` draait. `amp`: hoe ver het op en neer gaat, `sway`: hoe ver het heen en weer
@@ -776,7 +1037,7 @@ const SHOP_BOB: Partial<Record<ShopKind, Bob[]>> = {
   icecream: [{ parts: [8, 9, 10], at: [0, 1.39, -0.4] }],
   balloon: [8, 9, 10, 11].map((i): Bob => ({ parts: [i], at: [0.84, 1.9, 0.84], amp: 0.03, sway: 0.09 })),
   hats: [{ parts: [7, 8, 9], at: [0, 1.41, -0.4] }],
-  souvenir: [{ parts: [7, 8, 9, 10, 11], at: [0, 1.39, -0.4] }],
+  souvenir: [{ parts: [7, 8], at: [0, 1.39, -0.4] }],
   flowers: [0, 1, 2].map((i): Bob => ({ parts: [2 + i * 2, 3 + i * 2], at: [-0.22 + i * 0.22, 0.22, 0], amp: 0, sway: 0.1 })),
   playground: [{ parts: [3], at: [-0.39, 1.79, -0.31], amp: 0.02, sway: 0.03 }],
   tower: [{ parts: [6], at: [0, TOWER_ROOF + 0.72, 0], amp: 0, sway: 0, yaw: 0.5 }],
@@ -790,26 +1051,31 @@ const KNOB_GEOS = [-1, 1].map(side => boxAt(0.07, 0.07, 0.05, -side * 0.41, 0.45
 
 // ------------------------------------------------------------ meer voor in een verblijf
 const HILL = TOY_LIFT.hill ?? 0.34, ROCKS = TOY_LIFT.rocks ?? 0.3, FRAME = TOY_LIFT.frame ?? 0.8;
-// heuvel: een bult gras met een vlak plekje bovenop
+// heuvel: een ronde bult gras met plukjes gras, bloemen en een kei
+const HILL_SHAPE = [[0.48, 0], [0.45, 0.1], [0.37, 0.21], [0.25, 0.29], [0.12, 0.33], [0, 0.34]].map(([r, y]) => new THREE.Vector2(r, (y * HILL) / 0.34));
 TOY_PARTS.hill = [
-  [mergeGeometries([tube(0.36, 0.48, 0.14, 0, 0.07, 0), tube(0.26, 0.36, 0.12, 0, 0.2, 0), tube(0.2, 0.26, 0.08, 0, 0.3, 0)])!.scale(1, HILL / 0.34, 1), std(0x7cc053, 1)],
-  [mergeGeometries([boxAt(0.05, 0.1, 0.05, 0.34, 0.18, 0.12), boxAt(0.05, 0.08, 0.05, -0.3, 0.17, -0.2), boxAt(0.05, 0.09, 0.05, -0.1, 0.17, 0.36), boxAt(0.05, 0.08, 0.05, 0.22, 0.29, -0.16)])!, LEAF2],
-  flowersOn([[-0.36, 0.17, 0.14], [0.14, 0.17, -0.38]], 0xffd23f),
+  [new THREE.LatheGeometry(HILL_SHAPE, 11), std(0x7cc053, 1)],
+  [merge([[0.34, 0.14, 0.12], [-0.3, 0.14, -0.2], [-0.1, 0.13, 0.36], [0.22, 0.26, -0.16], [-0.26, 0.2, 0.16], [0.08, 0.17, -0.38]].map(([x, y, z], i) => cone(0.035, 0.12, x, y + 0.04, z, 4).rotateY(i))), LEAF2],
+  [merge([blooms([[-0.36, 0.17, 0.14, 0xffd23f], [0.14, 0.18, -0.34, 0xf7f4ec], [0.3, 0.21, 0.2, 0xf06aa6]], 0.065), paint(stone(0.14, 0.1, 0.12, -0.16, 0.14, 0.38, 0.5), 0xa9adb3)]), PAINT_MAT],
 ];
 // rotsen: platte keien op elkaar, de bovenste is vlak
 TOY_PARTS.rocks = [
-  [mergeGeometries([boxAt(0.84, 0.14, 0.72, 0, 0.07, 0), boxAt(0.3, 0.2, 0.26, 0.3, 0.1, 0.3)])!, ROCK_MAT],
-  [mergeGeometries([boxAt(0.58, ROCKS - 0.14, 0.52, -0.06, (ROCKS + 0.14) / 2, -0.04), boxAt(0.22, 0.16, 0.2, -0.34, 0.08, 0.32)])!, STONE_MAT],
+  [merge([prism(0.42, 0.47, 0.14, 0, 0.07, 0, 7, 0.3).scale(1, 1, 0.86), stone(0.3, 0.24, 0.26, 0.3, -0.03, 0.29, 0.5), stone(0.13, 0.1, 0.12, 0.36, -0.02, -0.3, 2)]), ROCK_MAT],
+  [merge([prism(0.28, 0.33, ROCKS - 0.14, -0.06, (ROCKS + 0.14) / 2, -0.04, 6, 0.8), stone(0.22, 0.18, 0.2, -0.34, -0.03, 0.31, 1.3)]), STONE_MAT],
 ];
-// drinkvijver: een rand van keien met water erin (het water als laatste, dat kan rimpelen)
+// drinkvijver: een rand van ronde keien met water erin, en wat riet erbij
 TOY_PARTS.drink = [
-  [mergeGeometries([tube(0.38, 0.42, 0.1, 0, 0.05, 0), ...around(7, 0.36, (x, z) => boxAt(0.14, 0.07, 0.14, x, 0.11, z))])!, STONE],
+  [merge([tube(0.38, 0.42, 0.1, 0, 0.05, 0), ...around(8, 0.37, (x, z, i) => stone(0.18 + (i % 3) * 0.02, 0.12 + (i % 2) * 0.03, 0.16, x, 0.02, z, i * 1.3))]), STONE],
+  [merge([rod(0.012, [-0.3, 0.1, -0.22], [-0.33, 0.46, -0.24], 4), rod(0.012, [-0.24, 0.1, -0.28], [-0.22, 0.38, -0.3], 4), rod(0.012, [-0.34, 0.1, -0.14], [-0.4, 0.34, -0.12], 4), tube(0.07, 0.07, 0.012, 0.1, 0.118, 0.08)]), STEM_MAT],
   [tube(0.3, 0.3, 0.02, 0, 0.105, 0), WATER_MAT, false],
 ];
-// waterval: een rots met een bakje ervoor; het vallende water als laatste
+// waterval: een rots met keien ertegen en een bakje ervoor; het vallende water als laatste
 TOY_PARTS.fall = [
-  [mergeGeometries([boxAt(0.7, 0.4, 0.3, 0, 0.2, -0.3), boxAt(0.5, 0.3, 0.26, -0.04, 0.55, -0.32), boxAt(0.24, 0.14, 0.2, 0.22, 0.47, -0.3)])!, ROCK_MAT],
-  [tube(0.32, 0.34, 0.08, 0, 0.04, 0.12), STONE],
+  [merge([
+    boxAt(0.7, 0.4, 0.3, 0, 0.2, -0.3), boxAt(0.5, 0.3, 0.26, -0.04, 0.55, -0.32), boxAt(0.24, 0.14, 0.2, 0.22, 0.47, -0.3),
+    stone(0.3, 0.34, 0.28, 0.34, -0.04, -0.26, 0.6), stone(0.28, 0.28, 0.26, -0.36, -0.04, -0.24, 1.2), stone(0.3, 0.2, 0.24, 0.16, 0.56, -0.36, 0.4), stone(0.22, 0.18, 0.2, -0.3, 0.36, -0.34, 2),
+  ]), ROCK_MAT],
+  [merge([tube(0.32, 0.34, 0.08, 0, 0.04, 0.12), ...around(5, 0.31, (x, z, i) => stone(0.15, 0.1 + (i % 2) * 0.03, 0.13, x * 0.9 + 0.02, 0.02, 0.14 + Math.abs(z) * 0.9, i * 1.1))]), STONE],
   [tube(0.27, 0.27, 0.02, 0, 0.085, 0.12), WATER_MAT, false],
   [boxAt(0.18, 0.03, 0.2, -0.04, 0.715, -0.26), WATER_MAT, false],
   [boxAt(0.18, 0.64, 0.04, -0.04, 0.4, -0.165), SPRAY_MAT, false],
@@ -819,7 +1085,7 @@ const HEAT_MAT = new THREE.MeshStandardMaterial({ color: 0xff6a3a, emissive: 0xf
 const GLOW_MAT = new THREE.MeshBasicMaterial({ color: 0xff8a3a, transparent: true, opacity: 0.28, depthWrite: false });
 TOY_PARTS.lamp = [
   [merge([tube(0.03, 0.04, 1.05, -0.34, 0.525, -0.2), tube(0.1, 0.12, 0.05, -0.34, 0.025, -0.2), beam(0.04, [-0.34, 1.03, -0.2], [0.02, 1.03, 0.01]), boxAt(0.02, 0.12, 0.02, 0, 0.97, 0)]), std(0x3d4f5a, 0.7)],
-  [cone(0.17, 0.14, 0, 0.86, 0), std(0xc9553f, 0.6)],
+  [merge([cone(0.17, 0.14, 0, 0.86, 0), tube(0.175, 0.175, 0.02, 0, 0.795, 0), ball(0.03, 0, 0.94, 0)]), std(0xc9553f, 0.6)],
   [ball(0.075, 0, 0.78, 0), HEAT_MAT, false],
   [new THREE.CircleGeometry(0.4, 18).rotateX(-Math.PI / 2).translate(0, 0.012, 0), GLOW_MAT, false],
 ];
@@ -831,11 +1097,10 @@ TOY_PARTS.icebox = [
     new THREE.BoxGeometry(0.3, 0.26, 0.3).rotateY(0.5).translate(0.24, 0.13, 0.2),
     new THREE.BoxGeometry(0.22, 0.18, 0.2).rotateY(-0.3).translate(-0.22, 0.09, 0.3),
   ])!, ICE_MAT],
-  [mergeGeometries([
-    boxAt(0.4, 0.05, 0.36, -0.12, 0.425, -0.08),
-    new THREE.BoxGeometry(0.22, 0.04, 0.22).rotateY(0.5).translate(0.24, 0.28, 0.2),
-    tube(0.44, 0.47, 0.02, 0, 0.01, 0),
-  ])!, WHITE_MAT, false],
+  [merge([
+    blob(0.25, 1, 0.2, 0.9, -0.12, 0.41, -0.08), blob(0.15, 1, 0.25, 1, 0.24, 0.265, 0.2), blob(0.11, 1, 0.25, 1, -0.22, 0.185, 0.3),
+    tube(0.44, 0.47, 0.02, 0, 0.01, 0), blob(0.07, 1, 0.8, 1, 0.34, 0.04, -0.2), blob(0.05, 1, 0.8, 1, -0.38, 0.03, 0.08),
+  ]), WHITE_MAT, false],
 ];
 // klimrek: een vlonder op vier palen (bovenop is het vrij: daar staat een dier), een ladder, sporten en een touw
 TOY_PARTS.frame = [
@@ -845,8 +1110,11 @@ TOY_PARTS.frame = [
     beam(0.04, [-0.14, 0, 0.48], [-0.14, FRAME - 0.03, 0.45]), beam(0.04, [0.14, 0, 0.48], [0.14, FRAME - 0.03, 0.45]),
     ...[0.16, 0.32, 0.48, 0.64].map(y => boxAt(0.3, 0.035, 0.035, 0, y, 0.475)),
   ]), WOOD_MAT],
-  [boxAt(0.86, 0.06, 0.86, 0, FRAME - 0.03, 0), std(0xe3c08a, 1)],
-  [mergeGeometries([boxAt(0.025, 0.56, 0.025, 0.45, FRAME - 0.3, 0.1), boxAt(0.06, 0.06, 0.06, 0.45, FRAME - 0.58, 0.1), boxAt(0.08, 0.03, 0.03, 0.43, FRAME - 0.015, 0.1)])!, std(0xe8dcc0, 1)],
+  [painted(
+    [0xe3c08a, ...[-2, 0, 2].map(i => boxAt(0.166, 0.06, 0.86, i * 0.172, FRAME - 0.03, 0))],
+    [0xd3ad74, ...[-1, 1].map(i => boxAt(0.166, 0.06, 0.86, i * 0.172, FRAME - 0.03, 0))],
+  ), MATTE_MAT],
+  [merge([rod(0.014, [0.45, FRAME - 0.02, 0.1], [0.45, FRAME - 0.56, 0.1], 5), dot(0.04, 0.45, FRAME - 0.58, 0.1), dot(0.026, 0.45, FRAME - 0.36, 0.1), boxAt(0.08, 0.03, 0.03, 0.43, FRAME - 0.015, 0.1)]), std(0xe8dcc0, 1)],
 ];
 // tunnel: een boog van planken, open aan de twee korte kanten (hij ligt langs x)
 const tunnelArch = (odd: number): THREE.BufferGeometry =>
@@ -855,212 +1123,430 @@ const tunnelArch = (odd: number): THREE.BufferGeometry =>
 TOY_PARTS.tunnel = [
   [tunnelArch(0), WOOD_MAT],
   [tunnelArch(1), FENCE_MAT],
-  [mergeGeometries([boxAt(0.9, 0.08, 0.1, 0, 0.04, -0.39), boxAt(0.9, 0.08, 0.1, 0, 0.04, 0.39)])!, DARK_MAT],
+  [mergeGeometries([
+    boxAt(0.9, 0.08, 0.1, 0, 0.04, -0.39), boxAt(0.9, 0.08, 0.1, 0, 0.04, 0.39),
+    ...[-0.44, 0.44].flatMap(x => [-75, -50, -25, 0, 25, 50, 75].map(deg => new THREE.BoxGeometry(0.05, 0.03, 0.2).translate(x, 0.43, 0).rotateX((deg * Math.PI) / 180).translate(0, 0.04, 0))),
+  ])!, DARK_MAT],
+];
+// De stam van een boom: onderaan breder, met een voet en twee takken die de kruin in gaan.
+const trunk = (h: number, r: number): THREE.BufferGeometry => merge([
+  new THREE.CylinderGeometry(r * 0.62, r, h, 7).translate(0, h / 2, 0),
+  prism(r * 1.15, r * 1.6, 0.07, 0, 0.035, 0, 6),
+  rod(r * 0.36, [0, h * 0.62, 0], [r * 1.7, h + 0.06, r * 0.6], 5, r * 0.26),
+  rod(r * 0.32, [0, h * 0.7, 0], [-r * 1.5, h + 0.04, -r * 0.8], 5, r * 0.22),
+]);
+// een palmblad: eerst schuin omhoog, dan naar beneden gebogen, met een smalle punt
+const frond = (i: number): THREE.BufferGeometry => {
+  const k = i % 2 ? 0.82 : 1;
+  return merge([
+    new THREE.BoxGeometry(0.34, 0.035, 0.17).translate(0.17, 0, 0).rotateZ(0.35),
+    new THREE.BoxGeometry(0.3, 0.03, 0.13).translate(0.15, 0, 0).rotateZ(-0.45).translate(0.319, 0.117, 0),
+    new THREE.BoxGeometry(0.17, 0.025, 0.07).translate(0.085, 0, 0).rotateZ(-0.95).translate(0.589, -0.014, 0),
+  ]).scale(k, k, k).rotateZ(i % 2 ? -0.22 : 0).rotateY((i * Math.PI) / 3 + 0.2).translate(0, 1.1, 0);
+};
+const PALM_TRUNK: [P3, number][] = [[[0, 0, 0], 0.085], [[0.035, 0.3, 0], 0.078], [[0.05, 0.6, 0], 0.07], [[0.035, 0.88, 0], 0.062], [[0, 1.1, 0], 0.055]];
+// een roos: een knop met een donker hartje
+const rose = (x: number, y: number, z: number, color: number, heart: number): THREE.BufferGeometry[] =>
+  [paint(blob(0.062, 1, 0.85, 1, x, y, z, 0), color), paint(blob(0.03, 1, 1, 1, x, y + 0.042, z, 0), heart)];
+// een tulp: een kelkje op een steel
+const tulip = (x: number, y: number, z: number, color: number, inside: number): THREE.BufferGeometry[] =>
+  [paint(new THREE.CylinderGeometry(0.06, 0.03, 0.11, 6).translate(x, y, z), color), paint(tube(0.044, 0.044, 0.012, x, y + 0.052, z), inside)];
+const TULIPS: [number, number, number, number, number][] = [-0.3, -0.15, 0, 0.15, 0.3].flatMap((x, i): [number, number, number, number, number][] => [
+  [x, 0.34, -0.08, [0xe0584f, 0xffd23f][i % 2], [0xb8403a, 0xe0a92a][i % 2]],
+  [x, 0.32, 0.08, [0xffd23f, 0xb06ad9][i % 2], [0xe0a92a, 0x8a4cb5][i % 2]],
+]);
+// paddenstoelen: een steel, een bolle hoed en witte stippen. [x, z, hoe hoog de steel is, hoe breed de hoed is]
+const SHROOMS: [number, number, number, number][] = [[-0.16, 0.06, 0.2, 0.17], [0.14, -0.1, 0.14, 0.13], [0.1, 0.2, 0.1, 0.1]];
+const shroomDots = ([x, z, h, r]: [number, number, number, number], n: number): THREE.BufferGeometry[] => [0, 1, 2, 3, 4].map(k => {
+  const up = k === 4 ? 0 : 0.75, turn = k * 1.57 + n;
+  return blob(r * 0.15, 1, 0.5, 1, x + Math.sin(up) * Math.cos(turn) * r, h + 0.01 + Math.cos(up) * r * 0.75, z + Math.sin(up) * Math.sin(turn) * r, 0);
+});
+// een zonnebloem kijkt naar voren: een krans van blaadjes rond een bruin hart
+const sunPetals = (x: number, y: number): THREE.BufferGeometry[] => Array.from({ length: 9 }, (_, k) =>
+  blob(0.05, 0.62, 1.3, 0.35, 0, 0.115, 0, 0).rotateZ((k * Math.PI * 2) / 9).translate(x, y, 0.03));
+const SUNS: [number, number][] = [[-0.26, 0.7], [0, 0.78], [0.26, 0.86]];
+// een pompoen: een platte bol met banen
+const pumpkin = (r: number, x: number, z: number): THREE.BufferGeometry =>
+  striped(new THREE.SphereGeometry(r, 10, 6).scale(1, 0.78, 1), [0xf08a24, 0xe27a1c], 10).translate(x, r * 0.74, z);
+// de boog van de bloemenboog: een halve cirkel van zes stukken op twee palen
+const ARCH: P3[] = Array.from({ length: 7 }, (_, i): P3 => [-Math.cos((i * Math.PI) / 6) * 0.4, 0.92 + Math.sin((i * Math.PI) / 6) * 0.4, 0]);
+// een wiek: een lat met een licht zeil van latjes ernaast
+const sail = (i: number): THREE.BufferGeometry[][] => [
+  [boxAt(0.47, 0.035, 0.025, 0.235, 0, 0), boxAt(0.02, 0.13, 0.02, 0.17, 0.065, 0), boxAt(0.02, 0.13, 0.02, 0.3, 0.065, 0), boxAt(0.02, 0.13, 0.02, 0.44, 0.065, 0)],
+  [boxAt(0.3, 0.1, 0.012, 0.3, 0.075, 0)],
+].map(list => list.map(g => g.rotateZ((i * Math.PI) / 2)));
+const SAILS = [0, 1, 2, 3].map(sail);
+// een baan van de vlag: om en om een stukje naar voren en naar achteren gedraaid, zodat het doek golft
+const flagStrip = (i: number, y: number, thick: number): THREE.BufferGeometry =>
+  new THREE.BoxGeometry(0.128, 0.1, thick).rotateY(i % 2 ? 0.32 : -0.32).translate(0.03 + 0.0608 + i * 0.1216, y, 0.02);
+// wat op het open gastenboek ligt, ligt net zo schuin als het boek
+const onBook = (g: THREE.BufferGeometry): THREE.BufferGeometry => g.rotateX(0.45).translate(0, 0.736, 0.037);
+const totemEyes = (y: number): THREE.BufferGeometry[][] => [
+  [boxAt(0.1, 0.1, 0.02, -0.08, y, 0.185), boxAt(0.1, 0.1, 0.02, 0.08, y, 0.185)],
+  [boxAt(0.045, 0.045, 0.02, -0.08, y - 0.01, 0.195), boxAt(0.045, 0.045, 0.02, 0.08, y - 0.01, 0.195)],
 ];
 const DECOR_PARTS: Record<DecorKind, Part[]> = {
   tree: [
-    [boxAt(0.16, 0.6, 0.16, 0, 0.3, 0), WOOD_MAT],
+    [trunk(0.62, 0.1), WOOD_MAT],
     [TREE_CROWNS[0], LEAF_MAT],
+    [TREE_SHADES[0], LEAF2],
   ],
   pine: [
-    [boxAt(0.12, 0.3, 0.12, 0, 0.15, 0), WOOD_MAT],
+    [merge([new THREE.CylinderGeometry(0.05, 0.07, 0.32, 6).translate(0, 0.16, 0), prism(0.08, 0.11, 0.05, 0, 0.025, 0, 6)]), WOOD_MAT],
     [PINE_CROWNS[0], LEAF2],
   ],
+  // palm: een gebogen stam, zes bladeren die naar beneden hangen en kokosnoten
   palm: [
-    [tube(0.055, 0.085, 1.1, 0, 0.55, 0), std(0xb88a52, 1)],
-    [mergeGeometries([0, 1, 2, 3, 4, 5].map(i => new THREE.BoxGeometry(0.56, 0.04, 0.16).translate(0.3, 0, 0).rotateZ(-0.35).rotateY((i * Math.PI) / 3).translate(0, 1.12, 0)))!, PALM_MAT],
-    [mergeGeometries([ball(0.07, 0.07, 1.04, 0.03), ball(0.07, -0.05, 1.02, -0.05)])!, std(0x6b4a2a)],
+    [merge(PALM_TRUNK.slice(1).map(([p, r], i) => rod(PALM_TRUNK[i][1], PALM_TRUNK[i][0], p, 7, r))), std(0xb88a52, 1)],
+    [merge([0, 1, 2, 3, 4, 5].map(frond)), PALM_MAT],
+    [merge([ball(0.065, 0.07, 1.04, 0.03), ball(0.065, -0.05, 1.02, -0.05), ball(0.06, 0.0, 1.0, 0.08)]), std(0x6b4a2a)],
   ],
   // lang en smal: een heg is precies een tegel lang, zodat een rij heggen één geheel wordt
   hedge: [
-    [boxAt(1, 0.42, 0.3, 0, 0.21, 0), LEAF2],
-    [boxAt(0.94, 0.1, 0.24, 0, 0.45, 0), LEAF_MAT],
+    [boxAt(1, 0.4, 0.3, 0, 0.2, 0), LEAF2],
+    [merge([-0.375, -0.125, 0.125, 0.375].map((x, i) => blob(0.17, 1, 0.6 + (i % 2) * 0.14, 0.95, x, 0.4, 0))), LEAF_MAT],
   ],
   roses: [
     [boxAt(0.94, 0.05, 0.34, 0, 0.025, 0), DARK_MAT, false],
-    [mergeGeometries([ball(0.15, -0.32, 0.19, -0.02), ball(0.17, -0.1, 0.21, 0.03), ball(0.16, 0.12, 0.2, -0.03), ball(0.15, 0.33, 0.19, 0.02)])!, LEAF2],
-    flowersOn([[-0.32, 0.36, -0.05], [0.12, 0.38, -0.06], [0.36, 0.35, 0.05]], 0xd8362e),
-    flowersOn([[-0.1, 0.4, 0.07], [0.24, 0.36, 0.08]], 0xf06aa6),
-    flowersOn([[-0.22, 0.35, 0.1], [0.02, 0.37, -0.09]], 0xf7f4ec),
+    [merge([ball(0.15, -0.32, 0.19, -0.02), ball(0.17, -0.1, 0.21, 0.03), ball(0.16, 0.12, 0.2, -0.03), ball(0.15, 0.33, 0.19, 0.02)]), LEAF2],
+    [merge([blob(0.08, 1, 0.7, 1, -0.22, 0.31, -0.06), blob(0.08, 1, 0.7, 1, 0.02, 0.33, 0.08), blob(0.07, 1, 0.7, 1, 0.26, 0.31, -0.08)]), LEAF_MAT],
+    [merge([
+      ...rose(-0.32, 0.36, -0.05, 0xd8362e, 0xa82a24), ...rose(0.12, 0.38, -0.08, 0xd8362e, 0xa82a24), ...rose(0.36, 0.35, 0.05, 0xd8362e, 0xa82a24),
+      ...rose(-0.1, 0.4, 0.07, 0xf06aa6, 0xd04a86), ...rose(0.24, 0.37, 0.09, 0xf06aa6, 0xd04a86),
+      ...rose(-0.22, 0.36, 0.1, 0xf7f4ec, 0xf3d9a8), ...rose(0.02, 0.38, -0.1, 0xf7f4ec, 0xf3d9a8),
+    ]), PAINT_MAT],
   ],
   tulips: [
     [boxAt(0.94, 0.05, 0.36, 0, 0.025, 0), DARK_MAT, false],
-    [mergeGeometries([-0.3, -0.15, 0, 0.15, 0.3].flatMap(x => [boxAt(0.025, 0.24, 0.025, x, 0.17, -0.08), boxAt(0.025, 0.22, 0.025, x, 0.16, 0.08)]))!, STEM_MAT],
-    flowersOn([[-0.3, 0.33, -0.08], [0, 0.33, -0.08], [0.3, 0.33, -0.08]], 0xe0584f),
-    flowersOn([[-0.15, 0.33, -0.08], [0.15, 0.33, -0.08], [-0.3, 0.31, 0.08], [0.3, 0.31, 0.08]], 0xffd23f),
-    flowersOn([[-0.15, 0.31, 0.08], [0, 0.31, 0.08], [0.15, 0.31, 0.08]], 0xb06ad9),
+    [merge(TULIPS.flatMap(([x, y, z], i) => [
+      boxAt(0.025, y - 0.06, 0.025, x, y / 2 - 0.005, z),
+      new THREE.ConeGeometry(0.035, 0.2, 4).scale(1, 1, 0.35).rotateZ(i % 2 ? 0.4 : -0.4).translate(x + (i % 2 ? -0.035 : 0.035), 0.14, z),
+    ])), STEM_MAT],
+    [merge(TULIPS.flatMap(([x, y, z, color, inside]) => tulip(x, y, z, color, inside))), PAINT_MAT],
   ],
   mushrooms: [
-    [mergeGeometries([tube(0.05, 0.06, 0.2, -0.16, 0.1, 0.06), tube(0.04, 0.05, 0.14, 0.14, 0.07, -0.1), tube(0.035, 0.04, 0.1, 0.1, 0.05, 0.2)])!, WHITE_MAT],
-    [mergeGeometries([tube(0.03, 0.17, 0.1, -0.16, 0.25, 0.06), tube(0.025, 0.13, 0.08, 0.14, 0.18, -0.1), tube(0.02, 0.1, 0.07, 0.1, 0.135, 0.2)])!, std(0xd8362e, 0.6)],
+    [merge(SHROOMS.flatMap(([x, z, h, r], n) => [tube(r * 0.3, r * 0.36, h, x, h / 2, z), tube(r * 0.9, r * 0.5, 0.02, x, h, z), ...shroomDots([x, z, h, r], n)])), WHITE_MAT],
+    [merge(SHROOMS.map(([x, z, h, r]) => new THREE.SphereGeometry(r, 9, 4, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.75, 1).translate(x, h + 0.01, z))), std(0xd8362e, 0.6)],
   ],
+  // vijver: een rand van keien met riet erachter; het water, de bladeren en de waterlelie (met een kikker) bewegen los
   pond: [
-    [tube(0.46, 0.48, 0.09, 0, 0.045, 0), STONE],
-    [tube(0.4, 0.4, 0.03, 0, 0.085, 0), WATER_MAT, false],
+    [painted(
+      [0x9aa3ab, tube(0.43, 0.45, 0.08, 0, 0.04, 0)],
+      [0xb9c2c9, ...around(10, 0.41, (x, z, i) => stone(0.16, 0.1 + (i % 3) * 0.025, 0.13, x, 0.03, z, i * 0.9)).filter((_, i) => i % 2 === 0)],
+      [0x8f949c, ...around(10, 0.41, (x, z, i) => stone(0.16, 0.1 + (i % 3) * 0.025, 0.13, x, 0.03, z, i * 0.9)).filter((_, i) => i % 2 === 1)],
+      [0x5fa544, rod(0.012, [-0.3, 0.1, -0.3], [-0.34, 0.5, -0.32], 4), rod(0.012, [-0.36, 0.1, -0.22], [-0.42, 0.42, -0.2], 4), rod(0.012, [-0.24, 0.1, -0.36], [-0.2, 0.4, -0.4], 4)],
+      [0x6b4a2a, rod(0.026, [-0.335, 0.4, -0.318], [-0.342, 0.52, -0.322], 6), rod(0.024, [-0.41, 0.34, -0.203], [-0.425, 0.44, -0.198], 6)],
+    ), MATTE_MAT],
+    [tube(0.37, 0.37, 0.03, 0, 0.085, 0), WATER_MAT, false],
     [mergeGeometries([tube(0.1, 0.1, 0.012, -0.14, 0.106, 0.1), tube(0.08, 0.08, 0.012, 0.16, 0.106, -0.08), tube(0.06, 0.06, 0.012, 0.04, 0.106, 0.22)])!, STEM_MAT, false],
-    [boxAt(0.07, 0.06, 0.07, -0.14, 0.14, 0.1), std(0xf48fb1)],
+    [painted(
+      [0xf48fb1, ...[0, 1, 2, 3, 4, 5].map(i => new THREE.ConeGeometry(0.022, 0.07, 4).translate(0, 0.035, 0).rotateZ(0.6).rotateY(i * 1.05).translate(-0.14, 0.11, 0.1))],
+      [0xffd23f, dot(0.02, -0.14, 0.135, 0.1)],
+      [0x6cc04a, blob(0.036, 1, 0.8, 1.2, 0.16, 0.135, -0.08), dot(0.016, 0.146, 0.165, -0.055), dot(0.016, 0.174, 0.165, -0.055)],
+    ), PAINT_MAT],
   ],
+  // waterval: een steile rots met keien ertegen, mos erop en een bakje ervoor
   waterfall: [
-    [mergeGeometries([boxAt(0.8, 0.5, 0.4, 0, 0.25, -0.22), boxAt(0.6, 0.4, 0.36, -0.06, 0.7, -0.24), boxAt(0.34, 0.26, 0.3, 0.06, 1.02, -0.26)])!, ROCK_MAT],
-    [mergeGeometries([boxAt(0.2, 0.74, 0.05, 0.02, 0.66, -0.03), boxAt(0.24, 0.26, 0.05, 0.02, 0.16, 0.0)])!, SPRAY_MAT, false],
-    [tube(0.4, 0.42, 0.07, 0, 0.035, 0.18), STONE],
+    [painted(
+      [0x8f949c, boxAt(0.8, 0.5, 0.4, 0, 0.25, -0.22), boxAt(0.6, 0.4, 0.36, -0.06, 0.7, -0.24), boxAt(0.34, 0.26, 0.3, 0.06, 1.02, -0.26)],
+      [0x7d828a, stone(0.32, 0.5, 0.32, 0.33, -0.05, -0.2, 0.5), stone(0.26, 0.3, 0.26, -0.33, 0.42, -0.3, 2.1), stone(0.3, 0.22, 0.26, -0.12, 1.0, -0.34, 0.3)],
+      [0xa0a5ad, stone(0.3, 0.42, 0.3, -0.35, -0.05, -0.2, 1.3), stone(0.3, 0.34, 0.3, 0.28, 0.44, -0.28, 0.9), stone(0.2, 0.18, 0.2, 0.22, 1.0, -0.3, 1.7)],
+      [0x86b85c, blob(0.12, 1.2, 0.4, 1, 0.3, 0.8, -0.26, 0), blob(0.1, 1.2, 0.4, 1, -0.34, 0.74, -0.28, 0), blob(0.09, 1.2, 0.4, 1, 0.06, 1.16, -0.26, 0)],
+    ), MATTE_MAT],
+    [merge([boxAt(0.2, 0.74, 0.05, 0.02, 0.66, -0.03), boxAt(0.24, 0.26, 0.05, 0.02, 0.16, 0.0), ball(0.07, -0.08, 0.1, 0.06), ball(0.06, 0.12, 0.09, 0.05)]), SPRAY_MAT, false],
+    [merge([tube(0.4, 0.42, 0.07, 0, 0.035, 0.18), ...around(5, 0.38, (x, z, i) => stone(0.15, 0.1 + (i % 2) * 0.03, 0.13, x * 0.95, 0.01, 0.2 + Math.abs(z) * 0.72, i * 1.1))]), STONE],
     [tube(0.34, 0.34, 0.03, 0, 0.07, 0.18), WATER_MAT, false],
   ],
+  // waterput: een ronde muur van stenen, een dakje op twee palen met een zwengel, en een emmer aan een touw
   well: [
-    [tube(0.3, 0.32, 0.36, 0, 0.18, 0), STONE],
-    [tube(0.22, 0.22, 0.03, 0, 0.35, 0), WATER_MAT, false],
-    [mergeGeometries([boxAt(0.06, 0.7, 0.06, -0.3, 0.55, 0), boxAt(0.06, 0.7, 0.06, 0.3, 0.55, 0), boxAt(0.66, 0.05, 0.05, 0, 0.78, 0)])!, WOOD_MAT],
-    [cone(0.5, 0.3, 0, 1.03, 0, 4), std(0xc9553f)],
-    [tube(0.07, 0.06, 0.1, 0, 0.6, 0), std(0x8a857a)],
-  ],
-  statue: [
-    [mergeGeometries([boxAt(0.6, 0.12, 0.6, 0, 0.06, 0), boxAt(0.46, 0.3, 0.46, 0, 0.27, 0)])!, STONE],
+    [painted(
+      [0xb9c2c9, tube(0.3, 0.32, 0.34, 0, 0.17, 0)],
+      [0xcfd6dc, tube(0.335, 0.335, 0.05, 0, 0.345, 0)],
+      [0x9aa3ab, ...around(7, 0.3, (x, z, i) => stone(0.13, 0.09, 0.1, x, 0.03, z, i)), ...around(7, 0.3, (x, z, i) => stone(0.12, 0.09, 0.1, x, 0.17, z, i + 0.6)).map(g => g.rotateY(0.45))],
+    ), MATTE_MAT],
+    [tube(0.22, 0.22, 0.03, 0, 0.36, 0), WATER_MAT, false],
     [mergeGeometries([
-      boxAt(0.34, 0.2, 0.18, 0, 0.66, 0), boxAt(0.16, 0.18, 0.16, 0.2, 0.82, 0), boxAt(0.2, 0.2, 0.2, 0.2, 0.84, 0).scale(1, 0.5, 1).translate(0, 0.42, 0),
-      boxAt(0.06, 0.16, 0.06, -0.12, 0.5, 0.05), boxAt(0.06, 0.16, 0.06, -0.12, 0.5, -0.05), boxAt(0.06, 0.16, 0.06, 0.12, 0.5, 0.05), boxAt(0.06, 0.16, 0.06, 0.12, 0.5, -0.05),
-      boxAt(0.05, 0.05, 0.16, -0.2, 0.72, 0).rotateZ(0.3),
-    ])!, GOLD_MAT],
+      boxAt(0.06, 0.7, 0.06, -0.3, 0.55, 0), boxAt(0.06, 0.7, 0.06, 0.3, 0.55, 0), boxAt(0.76, 0.045, 0.045, 0, 0.74, 0),
+      boxAt(0.03, 0.13, 0.03, 0.39, 0.69, 0), boxAt(0.09, 0.03, 0.03, 0.42, 0.63, 0),
+    ])!, WOOD_MAT],
+    [painted([0xc9553f, cone(0.5, 0.3, 0, 1.05, 0, 4)], [0xa8432f, boxAt(0.74, 0.035, 0.74, 0, 0.9, 0), ball(0.04, 0, 1.21, 0)]), MATTE_MAT],
+    [painted([0xa8743f, tube(0.075, 0.06, 0.1, 0, 0.6, 0)], [0x5a3d22, tube(0.078, 0.078, 0.022, 0, 0.63, 0)], [0xe8dcc0, rod(0.01, [0, 0.64, 0], [0, 0.74, 0], 4)]), MATTE_MAT],
+  ],
+  // standbeeld: een gouden leeuw die rechtop zit, op een stenen sokkel met een plaatje
+  statue: [
+    [painted(
+      [0xb9c2c9, boxAt(0.6, 0.1, 0.6, 0, 0.05, 0)],
+      [0xa7b1b9, boxAt(0.44, 0.3, 0.44, 0, 0.25, 0)],
+      [0xc8cfd5, boxAt(0.52, 0.06, 0.52, 0, 0.43, 0)],
+      [0xd9b24a, boxAt(0.24, 0.12, 0.02, 0, 0.26, 0.225)],
+    ), MATTE_MAT],
+    [merge([
+      blob(0.15, 0.95, 1.15, 1.05, 0, 0.63, -0.04), blob(0.1, 1, 0.8, 1.2, -0.11, 0.53, -0.06), blob(0.1, 1, 0.8, 1.2, 0.11, 0.53, -0.06),
+      tube(0.035, 0.04, 0.26, -0.07, 0.59, 0.1), tube(0.035, 0.04, 0.26, 0.07, 0.59, 0.1), blob(0.045, 1, 0.6, 1.4, -0.07, 0.485, 0.13), blob(0.045, 1, 0.6, 1.4, 0.07, 0.485, 0.13),
+      blob(0.16, 1, 1, 0.72, 0, 0.87, 0, 0), ball(0.105, 0, 0.89, 0.07), blob(0.055, 1, 0.8, 1, 0, 0.86, 0.16), ball(0.036, -0.085, 0.99, 0.05), ball(0.036, 0.085, 0.99, 0.05),
+      rod(0.018, [0, 0.5, -0.18], [0.17, 0.5, -0.2], 5), ball(0.036, 0.19, 0.52, -0.2),
+    ]), GOLD_MAT],
   ],
   topiary: [
-    [tube(0.18, 0.14, 0.2, 0, 0.1, 0), std(0xc9553f)],
+    [painted([0xc9553f, tube(0.18, 0.13, 0.2, 0, 0.1, 0)], [0xb5472f, tube(0.2, 0.2, 0.045, 0, 0.19, 0)], [0x5a3d22, tube(0.165, 0.165, 0.012, 0, 0.214, 0)]), MATTE_MAT],
     [boxAt(0.07, 0.4, 0.07, 0, 0.36, 0), WOOD_MAT],
     [mergeGeometries([ball(0.3, 0, 0.7, 0), ball(0.2, 0, 1.08, 0), ball(0.12, 0, 1.34, 0)])!, LEAF2],
   ],
   lantern: [
-    [mergeGeometries([tube(0.035, 0.05, 1.05, 0, 0.525, 0), tube(0.1, 0.12, 0.06, 0, 0.03, 0)])!, std(0x3d4f5a, 0.7)],
+    [mergeGeometries([tube(0.035, 0.05, 1.0, 0, 0.5, 0), tube(0.1, 0.12, 0.06, 0, 0.03, 0), tube(0.065, 0.085, 0.05, 0, 0.085, 0), tube(0.05, 0.05, 0.03, 0, 0.62, 0), tube(0.1, 0.045, 0.05, 0, 1.02, 0)])!, std(0x3d4f5a, 0.7)],
     // het licht: om zijn eigen midden, zodat het kan flakkeren (zie buildDecor)
-    [boxAt(0.17, 0.2, 0.17, 0, 0, 0), LAMP_MAT],
-    [cone(0.16, 0.12, 0, 1.31, 0, 4), std(0x3d4f5a, 0.7)],
+    [new THREE.CylinderGeometry(0.115, 0.085, 0.2, 4).rotateY(Math.PI / 4), LAMP_MAT],
+    // het kapje, met vier dunne stijlen om het licht
+    [merge([
+      cone(0.17, 0.12, 0, 1.31, 0, 4), ball(0.03, 0, 1.385, 0), boxAt(0.2, 0.02, 0.2, 0, 1.045, 0),
+      ...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([x, z]) => boxAt(0.016, 0.21, 0.016, x * 0.078, 1.15, z * 0.078)),
+    ]), std(0x3d4f5a, 0.7)],
   ],
+  // vlag: het doek golft in vier banen, rood met een gele streep
   flag: [
-    [tube(0.03, 0.035, 1.5, 0, 0.75, 0), WHITE_MAT],
-    [boxAt(0.5, 0.3, 0.02, 0.27, 1.3, 0), std(0xe0584f, 0.8)],
-    [boxAt(0.5, 0.1, 0.022, 0.27, 1.3, 0), std(0xffd23f, 0.8)],
+    [mergeGeometries([tube(0.03, 0.035, 1.5, 0, 0.75, 0), tube(0.1, 0.12, 0.05, 0, 0.025, 0)])!, WHITE_MAT],
+    [painted(
+      [0xe0584f, ...[0, 1, 2, 3].flatMap(i => [1.4, 1.2].map(y => flagStrip(i, y, 0.02)))],
+      [0xffd23f, ...[0, 1, 2, 3].map(i => flagStrip(i, 1.3, 0.022))],
+    ), PAINT_MAT],
     [ball(0.05, 0, 1.52, 0), GOLD_MAT],
   ],
+  // wegwijzer: twee borden met een punt, elk een andere kant op
   signpost: [
-    [boxAt(0.08, 0.95, 0.08, 0, 0.475, 0), WOOD_MAT],
-    [boxAt(0.5, 0.14, 0.04, 0.2, 0.82, 0.05), std(0xf7f4ec)],
-    [boxAt(0.5, 0.14, 0.04, -0.2, 0.6, 0.05), std(0x9fd8f5)],
+    [merge([boxAt(0.08, 0.95, 0.08, 0, 0.475, 0), cone(0.07, 0.07, 0, 0.985, 0, 4)]), WOOD_MAT],
+    [painted(
+      [0xf7f4ec, boxAt(0.42, 0.14, 0.04, 0.16, 0.82, 0.05), new THREE.CylinderGeometry(0.081, 0.081, 0.04, 3).rotateX(Math.PI / 2).rotateZ(Math.PI / 2).translate(0.41, 0.82, 0.05)],
+      [0x9fd8f5, boxAt(0.42, 0.14, 0.04, -0.16, 0.6, 0.05), new THREE.CylinderGeometry(0.081, 0.081, 0.04, 3).rotateX(Math.PI / 2).rotateZ(-Math.PI / 2).translate(-0.41, 0.6, 0.05)],
+      [0x3d4f5a, boxAt(0.26, 0.022, 0.05, 0.16, 0.845, 0.05), boxAt(0.18, 0.022, 0.05, 0.12, 0.795, 0.05)],
+      [0xf7f4ec, boxAt(0.26, 0.022, 0.05, -0.16, 0.625, 0.05), boxAt(0.18, 0.022, 0.05, -0.12, 0.575, 0.05)],
+    ), PAINT_MAT],
   ],
+  // kei: een paar ronde stenen met mos en een plukje gras
   boulder: [
-    [mergeGeometries([boxAt(0.5, 0.32, 0.42, -0.06, 0.16, 0), boxAt(0.3, 0.22, 0.3, 0.24, 0.11, 0.14), boxAt(0.26, 0.16, 0.24, -0.1, 0.38, -0.02)])!, ROCK_MAT],
+    [painted(
+      [0x8f949c, stone(0.52, 0.38, 0.44, -0.06, -0.05, 0, 0.3)],
+      [0xa0a5ad, stone(0.3, 0.26, 0.3, 0.24, -0.04, 0.14, 1.1), stone(0.14, 0.1, 0.12, -0.3, -0.02, 0.26, 0.4)],
+      [0x7d828a, stone(0.26, 0.2, 0.24, -0.12, 0.22, -0.02, 2)],
+      [0x86b85c, blob(0.11, 1.2, 0.35, 1, 0.02, 0.3, 0.06, 0)],
+      [0x6fb44c, cone(0.03, 0.14, 0.32, 0.07, -0.12, 4), cone(0.03, 0.11, 0.38, 0.055, -0.06, 4), cone(0.03, 0.12, -0.36, 0.06, -0.14, 4)],
+    ), MATTE_MAT],
   ],
+  // cactus: een ronde stam met twee armen, stekels en bloemen
   cactus: [
-    [mergeGeometries([tube(0.12, 0.13, 0.72, 0, 0.36, 0), tube(0.06, 0.06, 0.28, -0.27, 0.5, 0), tube(0.06, 0.06, 0.22, 0.27, 0.62, 0)])!, CACTUS_MAT],
-    [mergeGeometries([boxAt(0.2, 0.09, 0.09, -0.19, 0.38, 0), boxAt(0.2, 0.09, 0.09, 0.19, 0.52, 0)])!, CACTUS_MAT],
-    [ball(0.07, 0, 0.76, 0), std(0xf06aa6)],
+    [merge([
+      tube(0.12, 0.13, 0.66, 0, 0.33, 0), blob(0.12, 1, 0.8, 1, 0, 0.66, 0),
+      tube(0.06, 0.06, 0.24, -0.27, 0.5, 0), blob(0.06, 1, 0.9, 1, -0.27, 0.62, 0), tube(0.06, 0.06, 0.18, 0.27, 0.62, 0), blob(0.06, 1, 0.9, 1, 0.27, 0.71, 0),
+    ]), CACTUS_MAT],
+    [merge([rod(0.055, [-0.1, 0.38, 0], [-0.27, 0.38, 0], 7), ball(0.062, -0.27, 0.38, 0), rod(0.055, [0.1, 0.53, 0], [0.27, 0.53, 0], 7), ball(0.062, 0.27, 0.53, 0)]), CACTUS_MAT],
+    [merge([
+      ...bloom(0, 0.765, 0, 0xf06aa6, 0.07), ...bloom(-0.27, 0.68, 0, 0xffd23f, 0.045),
+      ...[[0.2, 0.3], [1.5, 0.5], [2.9, 0.22], [4.2, 0.44], [5.4, 0.12], [0.9, 0.14], [3.6, 0.58], [2.1, 0.36]].map(([a, y]) => paint(boxAt(0.022, 0.022, 0.022, Math.cos(a) * 0.13, y, Math.sin(a) * 0.13), 0xf3ead6)),
+    ]), PAINT_MAT],
   ],
+  // bamboe: stengels met knopen en spitse blaadjes
   bamboogrove: [
-    [mergeGeometries([[-0.24, 1.2, -0.1], [-0.08, 1.4, 0.12], [0.1, 1.1, -0.14], [0.24, 1.3, 0.06], [0, 0.9, 0.24]].map(([x, h, z]) => tube(0.03, 0.036, h, x, h / 2, z)))!, std(0x8cc152, 0.7)],
-    [mergeGeometries([[-0.24, 1.2, -0.1], [-0.08, 1.4, 0.12], [0.1, 1.1, -0.14], [0.24, 1.3, 0.06]].flatMap(([x, h, z]) => [boxAt(0.22, 0.03, 0.08, x + 0.1, h - 0.1, z), boxAt(0.08, 0.03, 0.2, x, h - 0.25, z + 0.1)]))!, LEAF_MAT],
+    [merge([[-0.24, 1.2, -0.1], [-0.08, 1.4, 0.12], [0.1, 1.1, -0.14], [0.24, 1.3, 0.06], [0, 0.9, 0.24]].flatMap(([x, h, z]) => [
+      tube(0.03, 0.036, h, x, h / 2, z), ...[0.3, 0.6, 0.9, 1.2].filter(y => y < h - 0.05).map(y => tube(0.041, 0.041, 0.025, x, y, z)),
+    ])), std(0x8cc152, 0.7)],
+    [merge([[-0.24, 1.2, -0.1], [-0.08, 1.4, 0.12], [0.1, 1.1, -0.14], [0.24, 1.3, 0.06], [0, 0.9, 0.24]].flatMap(([x, h, z], i) => [0, 1, 2].map(k =>
+      blob(0.12, 1, 0.14, 0.36, 0.11, 0, 0, 0).rotateZ(-0.35 - k * 0.12).rotateY(i * 1.3 + k * 2.2).translate(x, h - 0.05 - k * 0.16, z)))), LEAF_MAT],
   ],
+  // zonnebloemen: de stelen, de gele blaadjes en de bruine harten knikken samen (zie animateDecor)
   sunflowers: [
     [boxAt(0.94, 0.05, 0.3, 0, 0.025, 0), DARK_MAT, false],
-    [mergeGeometries([-0.26, 0, 0.26].map((x, i) => boxAt(0.035, 0.62 + i * 0.08, 0.035, x, 0.33 + i * 0.04, 0)))!, STEM_MAT],
-    [mergeGeometries([-0.26, 0, 0.26].map((x, i) => new THREE.CylinderGeometry(0.14, 0.14, 0.04, 10).rotateX(Math.PI / 2).translate(x, 0.7 + i * 0.08, 0.03)))!, std(0xffd23f)],
-    [mergeGeometries([-0.26, 0, 0.26].map((x, i) => new THREE.CylinderGeometry(0.065, 0.065, 0.05, 8).rotateX(Math.PI / 2).translate(x, 0.7 + i * 0.08, 0.04)))!, std(0x6b4a2a)],
+    [merge(SUNS.flatMap(([x, y]) => [
+      boxAt(0.035, y - 0.04, 0.035, x, y / 2, 0),
+      blob(0.09, 1, 0.2, 0.55, 0.09, 0, 0, 0).rotateZ(0.5).translate(x, y * 0.42, 0), blob(0.09, 1, 0.2, 0.55, -0.09, 0, 0, 0).rotateZ(-0.5).translate(x, y * 0.58, 0),
+    ])), STEM_MAT],
+    [merge(SUNS.flatMap(([x, y]) => sunPetals(x, y))), std(0xffd23f)],
+    [mergeGeometries(SUNS.map(([x, y]) => new THREE.CylinderGeometry(0.085, 0.085, 0.06, 9).rotateX(Math.PI / 2).translate(x, y, 0.035)))!, std(0x6b4a2a)],
   ],
   cherry: [
-    [boxAt(0.15, 0.6, 0.15, 0, 0.3, 0), std(0x7a4f2c, 1)],
-    [mergeGeometries([ball(0.38, 0, 0.9, 0), ball(0.26, 0.22, 1.16, 0.06)])!, CHERRY_A],
-    [mergeGeometries([ball(0.26, -0.22, 1.08, -0.1), ball(0.16, 0.05, 1.36, -0.05)])!, CHERRY_B],
+    [trunk(0.6, 0.095), std(0x7a4f2c, 1)],
+    [merge([ball(0.38, 0, 0.9, 0), ball(0.26, 0.22, 1.16, 0.06), ball(0.18, -0.06, 1.24, 0.2)]), CHERRY_A],
+    [merge([ball(0.26, -0.22, 1.08, -0.1), ball(0.16, 0.05, 1.36, -0.05), ball(0.2, 0.26, 0.86, -0.16)]), CHERRY_B],
   ],
+  // pompoenen: platte bollen met banen en een steeltje, op een paar grote bladeren
   pumpkins: [
-    [mergeGeometries([ball(0.2, -0.12, 0.17, 0), ball(0.13, 0.2, 0.11, 0.14), ball(0.1, 0.14, 0.085, -0.2)])!, std(0xf08a24, 0.7)],
-    [mergeGeometries([boxAt(0.04, 0.08, 0.04, -0.12, 0.38, 0), boxAt(0.03, 0.06, 0.03, 0.2, 0.25, 0.14), boxAt(0.03, 0.05, 0.03, 0.14, 0.19, -0.2)])!, LEAF2],
+    [merge([
+      pumpkin(0.21, -0.12, 0), pumpkin(0.14, 0.2, 0.14), pumpkin(0.11, 0.14, -0.2),
+      ...[[-0.12, 0.32, 0, 0.05], [0.2, 0.21, 0.14, 0.04], [0.14, 0.165, -0.2, 0.035]].map(([x, y, z, h]) => paint(rod(0.022, [x, y - 0.02, z], [x + 0.02, y + h, z], 5, 0.014), 0x6b8f3a)),
+    ]), PAINT_MAT],
+    [merge([blob(0.14, 1, 0.12, 0.8, 0.14, 0.03, -0.02, 0), blob(0.12, 0.8, 0.12, 1, -0.3, 0.03, 0.2, 0), blob(0.1, 1, 0.12, 0.8, -0.02, 0.03, -0.3, 0)]), LEAF2],
   ],
+  // vogelbadje: een schaal op een voet; het vogeltje hipt (zie animateDecor)
   birdbath: [
-    [mergeGeometries([tube(0.16, 0.2, 0.08, 0, 0.04, 0), tube(0.06, 0.08, 0.5, 0, 0.33, 0), tube(0.32, 0.14, 0.1, 0, 0.63, 0)])!, STONE],
+    [merge([
+      tube(0.2, 0.22, 0.05, 0, 0.025, 0), tube(0.13, 0.17, 0.06, 0, 0.08, 0), tube(0.055, 0.075, 0.46, 0, 0.34, 0), tube(0.1, 0.06, 0.05, 0, 0.575, 0), tube(0.32, 0.14, 0.1, 0, 0.63, 0),
+      new THREE.TorusGeometry(0.31, 0.024, 5, 14).rotateX(Math.PI / 2).translate(0, 0.682, 0),
+    ]), STONE],
     [tube(0.27, 0.27, 0.02, 0, 0.685, 0), WATER_MAT, false],
-    [mergeGeometries([boxAt(0.1, 0.09, 0.15, 0.14, 0.74, 0.04), boxAt(0.07, 0.07, 0.07, 0.14, 0.81, 0.11)])!, std(0x4a90e2)],
-    [boxAt(0.03, 0.03, 0.05, 0.14, 0.8, 0.17), std(0xffd23f)],
+    [painted(
+      [0x4a90e2, blob(0.06, 0.85, 0.85, 1.25, 0.14, 0.76, 0.04), ball(0.042, 0.14, 0.82, 0.11)],
+      [0xcfe6f7, blob(0.045, 0.8, 0.6, 1, 0.14, 0.735, 0.07)],
+      [0x2f6fb5, boxAt(0.035, 0.012, 0.08, 0.14, 0.775, -0.06), blob(0.04, 0.35, 0.6, 1, 0.09, 0.768, 0.03), blob(0.04, 0.35, 0.6, 1, 0.19, 0.768, 0.03)],
+      [0x22201c, dot(0.01, 0.112, 0.835, 0.135), dot(0.01, 0.168, 0.835, 0.135)],
+    ), PAINT_MAT],
+    [new THREE.ConeGeometry(0.014, 0.045, 4).rotateX(Math.PI / 2).translate(0.14, 0.815, 0.168), std(0xffd23f)],
   ],
+  // pomp: een ronde groene pomp met een tuit op een steen, en een emmertje eronder
   pump: [
     [boxAt(0.56, 0.07, 0.56, 0, 0.035, 0), STONE],
-    [mergeGeometries([boxAt(0.14, 0.72, 0.14, -0.08, 0.43, 0), boxAt(0.24, 0.07, 0.07, 0.08, 0.6, 0), boxAt(0.07, 0.1, 0.07, 0.17, 0.53, 0)])!, std(0x2f6e4f, 0.6)],
+    [merge([
+      tube(0.07, 0.085, 0.66, -0.08, 0.4, 0), tube(0.11, 0.12, 0.05, -0.08, 0.095, 0), tube(0.088, 0.088, 0.03, -0.08, 0.5, 0), blob(0.08, 1, 0.7, 1, -0.08, 0.74, 0),
+      rod(0.035, [-0.04, 0.6, 0], [0.17, 0.6, 0], 7), tube(0.036, 0.036, 0.08, 0.17, 0.575, 0), boxAt(0.03, 0.1, 0.03, -0.08, 0.81, 0.02),
+    ]), std(0x2f6e4f, 0.6)],
     // de zwengel: los en om zijn scharnier, zodat hij op en neer kan (zie buildDecor)
-    [new THREE.BoxGeometry(0.05, 0.05, 0.44).translate(0, 0, -0.2), std(0x3d4f5a, 0.6)],
-    [tube(0.11, 0.09, 0.15, 0.2, 0.145, 0), WOOD_MAT],
+    [merge([new THREE.BoxGeometry(0.045, 0.045, 0.44).translate(0, 0, -0.2), ball(0.04, 0, 0, -0.42)]), std(0x3d4f5a, 0.6)],
+    [painted([0xa8743f, tube(0.11, 0.09, 0.15, 0.2, 0.145, 0)], [0x6b7480, tube(0.107, 0.107, 0.02, 0.2, 0.19, 0), tube(0.097, 0.097, 0.02, 0.2, 0.1, 0)]), MATTE_MAT],
     [tube(0.09, 0.09, 0.02, 0.2, 0.215, 0), WATER_MAT, false],
   ],
+  // bloemenboog: twee palen met een ronde boog, begroeid met blad en bloemen aan twee kanten
   arch: [
-    [mergeGeometries([boxAt(0.08, 1.2, 0.08, -0.4, 0.6, 0), boxAt(0.08, 1.2, 0.08, 0.4, 0.6, 0), boxAt(0.96, 0.08, 0.14, 0, 1.22, 0)])!, WHITE_MAT],
-    [mergeGeometries([ball(0.13, -0.4, 0.95, 0), ball(0.14, -0.3, 1.26, 0), ball(0.15, 0, 1.32, 0), ball(0.14, 0.3, 1.26, 0), ball(0.13, 0.4, 0.95, 0), ball(0.1, -0.4, 0.6, 0.02), ball(0.1, 0.4, 0.55, 0.02)])!, LEAF_MAT],
-    flowersOn([[-0.4, 1.06, 0.08], [0.1, 1.42, 0.06], [0.4, 0.82, 0.08]], 0xf06aa6),
-    flowersOn([[-0.2, 1.38, 0.08], [0.34, 1.34, 0.06], [-0.42, 0.72, 0.08]], 0xe0584f),
+    [merge([boxAt(0.07, 0.94, 0.07, -0.4, 0.47, 0), boxAt(0.07, 0.94, 0.07, 0.4, 0.47, 0), ...ARCH.slice(1).map((p, i) => beam(0.07, ARCH[i], p))]), WHITE_MAT],
+    [merge([
+      ...[1, 2, 3, 4, 5].map(i => ball(0.13 + (i % 2) * 0.02, ARCH[i][0], ARCH[i][1] + 0.02, 0)),
+      ball(0.12, -0.4, 0.9, 0), ball(0.12, 0.4, 0.9, 0), ball(0.1, -0.4, 0.6, 0.02), ball(0.1, 0.4, 0.52, -0.02), ball(0.09, -0.4, 0.3, -0.02), ball(0.08, 0.4, 0.24, 0.02),
+    ]), LEAF_MAT],
+    [blooms([
+      [-0.4, 1.02, 0.11, 0xf06aa6, Math.PI / 2], [0.12, 1.37, 0.12, 0xf06aa6, Math.PI / 2], [0.4, 0.74, 0.1, 0xf7f4ec, Math.PI / 2], [-0.22, 1.3, 0.12, 0xe0584f, Math.PI / 2], [0.33, 1.2, 0.12, 0xe0584f, Math.PI / 2],
+      [-0.33, 1.18, -0.12, 0xf06aa6, -Math.PI / 2], [0.1, 1.37, -0.12, 0xe0584f, -Math.PI / 2], [0.4, 0.86, -0.1, 0xf06aa6, -Math.PI / 2],
+    ], 0.08), PAINT_MAT],
   ],
+  // molen: een witte toren op een stenen voet, met raampjes, een rode kap en vier wieken met zeilen
   windmill: [
-    [tube(0.17, 0.3, 0.9, 0, 0.45, 0), std(0xf3ead6, 0.9)],
-    [cone(0.22, 0.24, 0, 1.02, 0), std(0xc9553f)],
-    [boxAt(0.14, 0.24, 0.03, 0, 0.12, 0.29), WOOD_MAT],
+    [painted(
+      [0xeedfc0, tube(0.17, 0.3, 0.9, 0, 0.45, 0)],
+      [0xb9c2c9, tube(0.305, 0.32, 0.14, 0, 0.07, 0)],
+      [0xa8743f, tube(0.27, 0.27, 0.03, 0, 0.5, 0)],
+      [0x4a5a6a, boxAt(0.09, 0.11, 0.04, 0.13, 0.66, 0.16), boxAt(0.04, 0.11, 0.09, 0.225, 0.36, 0.12), boxAt(0.09, 0.11, 0.04, -0.12, 0.3, 0.235)],
+    ), MATTE_MAT],
+    [merge([cone(0.22, 0.24, 0, 1.02, 0), ball(0.035, 0, 1.15, 0), rod(0.035, [0, 0.92, 0.08], [0, 0.92, 0.23], 7)]), std(0xc9553f)],
+    // de deur leunt mee met de schuine wand, met een stoepje ervoor
+    [mergeGeometries([new THREE.BoxGeometry(0.14, 0.25, 0.03).rotateX(-0.143).translate(0, 0.125, 0.315), boxAt(0.2, 0.025, 0.07, 0, 0.0125, 0.36)])!, WOOD_MAT],
     // de wieken: los en om hun eigen midden, zodat ze kunnen draaien (zie buildDecor)
-    [mergeGeometries([boxAt(0.95, 0.1, 0.02, 0, 0, 0), boxAt(0.1, 0.95, 0.02, 0, 0, 0)])!, WOOD_MAT],
+    [painted(
+      [0x8a5a2e, ...SAILS.flatMap(s => s[0]), new THREE.CylinderGeometry(0.045, 0.045, 0.05, 8).rotateX(Math.PI / 2)],
+      [0xfffaf0, ...SAILS.flatMap(s => s[1])],
+    ), MATTE_MAT],
   ],
+  // vogelverschrikker: een hemd met een lap erop, strohanden, een gezicht, een hoed en een kraai op zijn arm
   scarecrow: [
     [mergeGeometries([boxAt(0.06, 1.0, 0.06, 0, 0.5, 0), boxAt(0.82, 0.06, 0.06, 0, 0.74, 0)])!, WOOD_MAT],
-    [boxAt(0.34, 0.36, 0.16, 0, 0.64, 0), std(0xc9553f)],
-    [ball(0.15, 0, 0.98, 0), std(0xe8c66a, 1)],
-    [mergeGeometries([tube(0.25, 0.25, 0.03, 0, 1.08, 0), tube(0.1, 0.14, 0.16, 0, 1.17, 0)])!, std(0x8a5a2c, 1)],
+    [painted(
+      [0xc9553f, boxAt(0.34, 0.36, 0.16, 0, 0.64, 0), boxAt(0.2, 0.13, 0.13, -0.27, 0.74, 0), boxAt(0.2, 0.13, 0.13, 0.27, 0.74, 0)],
+      [0x4a90e2, boxAt(0.1, 0.1, 0.012, -0.08, 0.57, 0.082)],
+      [0xffd23f, boxAt(0.035, 0.035, 0.012, 0.05, 0.7, 0.082), boxAt(0.035, 0.035, 0.012, 0.05, 0.6, 0.082)],
+      [0xe9d05a, boxAt(0.1, 0.08, 0.08, -0.41, 0.74, 0), boxAt(0.1, 0.08, 0.08, 0.41, 0.74, 0), boxAt(0.3, 0.07, 0.14, 0, 0.44, 0), boxAt(0.2, 0.04, 0.14, 0, 0.84, 0)],
+    ), MATTE_MAT],
+    [painted(
+      [0xe8c66a, ball(0.15, 0, 0.98, 0)],
+      [0x3a2a1a, dot(0.022, -0.055, 1.0, 0.138), dot(0.022, 0.055, 1.0, 0.138), boxAt(0.09, 0.014, 0.012, 0, 0.92, 0.136)],
+      [0xf08a24, new THREE.ConeGeometry(0.026, 0.08, 5).rotateX(Math.PI / 2).translate(0, 0.965, 0.175)],
+    ), MATTE_MAT],
+    [painted(
+      [0x8a5a2c, tube(0.25, 0.25, 0.03, 0, 1.08, 0), tube(0.1, 0.14, 0.16, 0, 1.17, 0)],
+      [0xc9553f, tube(0.144, 0.144, 0.035, 0, 1.115, 0)],
+      [0x2b2f36, blob(0.05, 0.9, 0.9, 1.3, -0.33, 0.83, 0), ball(0.036, -0.33, 0.885, 0.05), boxAt(0.03, 0.012, 0.07, -0.33, 0.83, -0.08)],
+      [0xffd23f, new THREE.ConeGeometry(0.014, 0.04, 4).rotateX(Math.PI / 2).translate(-0.33, 0.88, 0.1)],
+    ), MATTE_MAT],
   ],
+  // sneeuwpop: kooltjes als ogen en knopen, een wortelneus, takken als armen, een hoed en een sjaal
   snowman: [
     [mergeGeometries([ball(0.27, 0, 0.25, 0), ball(0.2, 0, 0.62, 0), ball(0.15, 0, 0.9, 0)])!, WHITE_MAT],
-    [mergeGeometries([tube(0.17, 0.17, 0.025, 0, 1.02, 0), tube(0.11, 0.11, 0.15, 0, 1.1, 0)])!, std(0x3d4f5a, 0.7)],
-    [boxAt(0.05, 0.05, 0.16, 0, 0.9, 0.18), std(0xf08a24)],
-    [tube(0.17, 0.17, 0.05, 0, 0.77, 0), std(0xe0584f)],
+    [merge([
+      tube(0.17, 0.17, 0.025, 0, 1.02, 0), tube(0.11, 0.11, 0.15, 0, 1.1, 0),
+      dot(0.019, -0.05, 0.935, 0.138), dot(0.019, 0.05, 0.935, 0.138), dot(0.022, 0, 0.7, 0.185), dot(0.022, 0, 0.6, 0.2), dot(0.024, 0, 0.36, 0.25),
+    ]), std(0x3d4f5a, 0.7)],
+    [painted(
+      [0xf08a24, new THREE.ConeGeometry(0.03, 0.14, 6).rotateX(Math.PI / 2).translate(0, 0.895, 0.2)],
+      [0x6b4a2a, rod(0.014, [0.17, 0.66, 0], [0.42, 0.82, 0.04], 4), rod(0.01, [0.36, 0.78, 0.03], [0.44, 0.74, 0.08], 4), rod(0.014, [-0.17, 0.66, 0], [-0.42, 0.8, 0.04], 4), rod(0.01, [-0.36, 0.77, 0.03], [-0.4, 0.86, 0.02], 4)],
+    ), PAINT_MAT],
+    [mergeGeometries([tube(0.165, 0.165, 0.05, 0, 0.77, 0), boxAt(0.07, 0.17, 0.03, 0.09, 0.68, 0.15), tube(0.113, 0.113, 0.03, 0, 1.045, 0)])!, std(0xe0584f)],
   ],
+  // totempaal: drie gezichten boven elkaar, met vleugels en veren bovenop
   totem: [
-    [boxAt(0.36, 0.36, 0.36, 0, 0.18, 0), std(0xe0584f)],
-    [boxAt(0.36, 0.36, 0.36, 0, 0.54, 0), std(0xffd23f)],
-    [boxAt(0.36, 0.36, 0.36, 0, 0.9, 0), std(0x4a90e2)],
-    [boxAt(0.86, 0.12, 0.06, 0, 0.96, -0.02), WOOD_MAT],
-    [mergeGeometries([0.2, 0.56, 0.92].flatMap(y => [boxAt(0.08, 0.08, 0.02, -0.08, y, 0.185), boxAt(0.08, 0.08, 0.02, 0.08, y, 0.185)]))!, WHITE_MAT],
+    [painted(
+      [0xe0584f, boxAt(0.36, 0.34, 0.36, 0, 0.17, 0), boxAt(0.2, 0.12, 0.06, -0.38, 0.96, -0.02), new THREE.ConeGeometry(0.05, 0.2, 4).translate(-0.1, 1.16, 0)],
+      [0xffd23f, boxAt(0.36, 0.34, 0.36, 0, 0.53, 0), boxAt(0.2, 0.12, 0.06, 0.38, 0.96, -0.02), new THREE.ConeGeometry(0.055, 0.26, 4).translate(0, 1.19, 0)],
+      [0x4a90e2, boxAt(0.36, 0.34, 0.36, 0, 0.89, 0)],
+      [0x6cc04a, new THREE.ConeGeometry(0.05, 0.2, 4).translate(0.1, 1.16, 0)],
+      [0x8a5a2e, boxAt(0.38, 0.03, 0.38, 0, 0.35, 0), boxAt(0.38, 0.03, 0.38, 0, 0.71, 0), boxAt(0.4, 0.04, 0.4, 0, 0.02, 0), boxAt(0.5, 0.12, 0.05, 0, 0.96, -0.02)],
+      [0xf7f4ec, ...totemEyes(0.24)[0], ...totemEyes(0.6)[0], ...totemEyes(0.96)[0], ...[-0.075, -0.025, 0.025, 0.075].map(x => boxAt(0.04, 0.06, 0.02, x, 0.09, 0.185))],
+      [0x2b2f36, ...totemEyes(0.24)[1], ...totemEyes(0.6)[1], ...totemEyes(0.96)[1], boxAt(0.22, 0.02, 0.02, 0, 0.13, 0.185)],
+      [0xf08a24, new THREE.ConeGeometry(0.06, 0.16, 4).rotateX(Math.PI / 2).translate(0, 0.48, 0.25), boxAt(0.07, 0.12, 0.05, 0, 0.84, 0.19)],
+    ), PAINT_MAT],
   ],
+  // kampvuur: een kring van keien, houtblokken tegen elkaar en twee vlammen
   campfire: [
-    [mergeGeometries(around(6, 0.27, (x, z) => boxAt(0.13, 0.09, 0.13, x, 0.045, z)))!, ROCK_MAT],
-    [mergeGeometries([new THREE.BoxGeometry(0.44, 0.07, 0.07).rotateY(0.6).translate(0, 0.06, 0), new THREE.BoxGeometry(0.44, 0.07, 0.07).rotateY(-0.6).translate(0, 0.1, 0)])!, WOOD_MAT],
+    [merge(around(7, 0.27, (x, z, i) => stone(0.15, 0.1 + (i % 3) * 0.02, 0.13, x, -0.01, z, i * 1.4))), ROCK_MAT],
+    [merge([
+      rod(0.04, [-0.2, 0.05, -0.1], [0.2, 0.05, 0.1], 6), rod(0.04, [-0.12, 0.05, 0.18], [0.12, 0.06, -0.18], 6),
+      ...[0, 1, 2].map(i => rod(0.032, [Math.sin(i * 2.1) * 0.17, 0.02, Math.cos(i * 2.1) * 0.17], [Math.sin(i * 2.1) * -0.03, 0.26, Math.cos(i * 2.1) * -0.03], 6)),
+    ]), WOOD_MAT],
     // de vlammen: los, met hun voet op nul, zodat ze kunnen flakkeren (zie buildDecor)
     [cone(0.13, 0.36, 0, 0.18, 0, 6), FLAME_MAT, false],
     [cone(0.07, 0.24, 0.02, 0.12, 0.02, 6), FLAME2_MAT, false],
   ],
+  // klok: een groen huisje met een gouden rand om de wijzerplaat, op een paal met een voet
   clocktower: [
-    [mergeGeometries([boxAt(0.12, 1.1, 0.12, 0, 0.55, 0), boxAt(0.3, 0.06, 0.3, 0, 0.03, 0)])!, std(0x3d4f5a, 0.7)],
-    [boxAt(0.46, 0.46, 0.18, 0, 1.3, 0), std(0x2f6e4f, 0.7)],
+    [mergeGeometries([tube(0.05, 0.065, 1.0, 0, 0.56, 0), boxAt(0.3, 0.06, 0.3, 0, 0.03, 0), boxAt(0.2, 0.06, 0.2, 0, 0.09, 0), tube(0.1, 0.06, 0.07, 0, 1.04, 0)])!, std(0x3d4f5a, 0.7)],
+    [painted(
+      [0x2f6e4f, boxAt(0.46, 0.46, 0.18, 0, 1.3, 0)],
+      [0xd9b24a, new THREE.CylinderGeometry(0.205, 0.205, 0.19, 16).rotateX(Math.PI / 2).translate(0, 1.3, 0), boxAt(0.5, 0.04, 0.2, 0, 1.08, 0)],
+    ), PAINT_MAT],
     [new THREE.CylinderGeometry(0.18, 0.18, 0.2, 16).rotateX(Math.PI / 2).translate(0, 1.3, 0), WHITE_MAT],
-    [mergeGeometries([boxAt(0.03, 0.14, 0.22, 0, 1.36, 0), boxAt(0.1, 0.03, 0.22, 0.04, 1.3, 0)])!, std(0x3a2a1a)],
-    [cone(0.3, 0.16, 0, 1.61, 0, 4), std(0xc9553f)],
-  ],
-  picnic: [
     [mergeGeometries([
-      boxAt(0.8, 0.05, 0.4, 0, 0.36, 0), boxAt(0.8, 0.04, 0.16, 0, 0.2, 0.34), boxAt(0.8, 0.04, 0.16, 0, 0.2, -0.34),
-      boxAt(0.06, 0.36, 0.7, -0.3, 0.18, 0), boxAt(0.06, 0.36, 0.7, 0.3, 0.18, 0),
-    ])!, WOOD_MAT],
-    [boxAt(0.3, 0.012, 0.3, 0.05, 0.392, 0), std(0xe0584f)],
+      boxAt(0.03, 0.14, 0.22, 0, 1.36, 0), boxAt(0.1, 0.03, 0.22, 0.04, 1.3, 0),
+      boxAt(0.022, 0.04, 0.21, 0, 1.445, 0), boxAt(0.022, 0.04, 0.21, 0, 1.155, 0), boxAt(0.04, 0.022, 0.21, 0.145, 1.3, 0), boxAt(0.04, 0.022, 0.21, -0.145, 1.3, 0),
+    ])!, std(0x3a2a1a)],
+    [painted([0xc9553f, cone(0.3, 0.16, 0, 1.61, 0, 4)], [0xd9b24a, ball(0.035, 0, 1.71, 0)]), PAINT_MAT],
+  ],
+  // picknicktafel: planken op schuine poten, met een geruit kleed, een mandje, een appel en een beker
+  picnic: [
+    [painted(
+      [0xc58a4b, ...[-0.135, 0, 0.135].map(z => boxAt(0.8, 0.04, 0.125, 0, 0.36, z)), boxAt(0.8, 0.04, 0.15, 0, 0.2, 0.34), boxAt(0.8, 0.04, 0.15, 0, 0.2, -0.34)],
+      [0x97673a, ...[-0.3, 0.3].flatMap(x => [beam(0.05, [x, 0, -0.36], [x, 0.35, -0.1]), beam(0.05, [x, 0, 0.36], [x, 0.35, 0.1]), boxAt(0.05, 0.045, 0.76, x, 0.165, 0)])],
+    ), MATTE_MAT],
+    [painted(
+      [0xe0584f, ...[[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]].map(([i, k]) => boxAt(0.1, 0.012, 0.1, 0.08 + i * 0.1, 0.387, k * 0.1)), dot(0.032, -0.08, 0.412, 0.1)],
+      [0xf7f4ec, ...[[0, -1], [-1, 0], [1, 0], [0, 1]].map(([i, k]) => boxAt(0.1, 0.012, 0.1, 0.08 + i * 0.1, 0.387, k * 0.1))],
+      [0xb98a4a, tube(0.075, 0.06, 0.08, -0.26, 0.42, -0.06), new THREE.TorusGeometry(0.065, 0.012, 4, 8, Math.PI).translate(-0.26, 0.46, -0.06)],
+      [0x4a90e2, tube(0.03, 0.024, 0.06, -0.12, 0.41, -0.12)],
+    ), PAINT_MAT],
   ],
   // gastenboek: een lessenaar met een open boek; één blad is los en kan omslaan (zie buildDecor)
   guestbook: [
-    [mergeGeometries([boxAt(0.34, 0.05, 0.34, 0, 0.025, 0), boxAt(0.09, 0.62, 0.09, 0, 0.36, 0), new THREE.BoxGeometry(0.5, 0.05, 0.36).rotateX(0.45).translate(0, 0.7, 0.02)])!, WOOD_MAT],
+    [mergeGeometries([boxAt(0.34, 0.05, 0.34, 0, 0.025, 0), boxAt(0.22, 0.04, 0.22, 0, 0.07, 0), boxAt(0.09, 0.6, 0.09, 0, 0.37, 0), new THREE.BoxGeometry(0.5, 0.05, 0.36).rotateX(0.45).translate(0, 0.7, 0.02)])!, WOOD_MAT],
     [new THREE.BoxGeometry(0.4, 0.03, 0.27).rotateX(0.45).translate(0, 0.736, 0.037), WHITE_MAT],
     [new THREE.BoxGeometry(0.18, 0.006, 0.25).translate(0.09, 0, 0), WHITE_MAT, false],
-    [new THREE.BoxGeometry(0.02, 0.034, 0.27).rotateX(0.45).translate(0, 0.737, 0.038), P_RED],
+    // het leeslint, de regels op de bladzijden en een pen
+    [painted(
+      [0xe0584f, onBook(new THREE.BoxGeometry(0.02, 0.034, 0.27))],
+      [0x9aa0a6, ...[-0.11, 0.11].flatMap(x => [-0.08, -0.04, 0, 0.04].map(z => onBook(boxAt(0.12, 0.004, 0.012, x, 0.017, z))))],
+      [0x4a90e2, onBook(boxAt(0.2, 0.02, 0.02, -0.04, 0.03, 0.162))],
+    ), PAINT_MAT],
   ],
-  // plattegrond: een bord op twee palen met gekleurde vlakken en een rode stip: hier ben jij
+  // plattegrond: een bord op twee palen met een dakje, gekleurde vlakken en een rode stip: hier ben jij
   mapboard: [
-    [mergeGeometries([boxAt(0.07, 1, 0.07, -0.36, 0.5, 0), boxAt(0.07, 1, 0.07, 0.36, 0.5, 0), boxAt(0.9, 0.06, 0.16, 0, 1.03, 0)])!, WOOD_MAT],
+    [mergeGeometries([
+      boxAt(0.07, 1, 0.07, -0.36, 0.5, 0), boxAt(0.07, 1, 0.07, 0.36, 0.5, 0),
+      new THREE.BoxGeometry(0.52, 0.045, 0.2).rotateZ(0.26).translate(-0.235, 1.06, 0), new THREE.BoxGeometry(0.52, 0.045, 0.2).rotateZ(-0.26).translate(0.235, 1.06, 0),
+    ])!, WOOD_MAT],
     [boxAt(0.68, 0.5, 0.05, 0, 0.7, 0), std(0xf3ead6)],
     [mergeGeometries([boxAt(0.26, 0.2, 0.06, -0.16, 0.78, 0), boxAt(0.2, 0.14, 0.06, 0.18, 0.58, 0)])!, std(0x86c95c)],
     [mergeGeometries([boxAt(0.18, 0.12, 0.06, 0.2, 0.82, 0), boxAt(0.1, 0.1, 0.06, -0.24, 0.56, 0)])!, std(0x6ec3e8)],
     [mergeGeometries([boxAt(0.34, 0.035, 0.06, -0.02, 0.66, 0), boxAt(0.035, 0.18, 0.06, 0.04, 0.57, 0)])!, std(0xe3ca82)],
-    [boxAt(0.07, 0.07, 0.08, 0.04, 0.66, 0), std(0xe0241f, 0.6)],
+    [new THREE.CylinderGeometry(0.045, 0.045, 0.08, 10).rotateX(Math.PI / 2).translate(0.04, 0.66, 0), std(0xe0241f, 0.6)],
   ],
   // slingerpaal: precies STRING_HEIGHT hoog, met een wimpel die los kan wapperen
   bunting: [
-    [mergeGeometries([tube(0.028, 0.038, STRING_HEIGHT, 0, STRING_HEIGHT / 2, 0), tube(0.1, 0.12, 0.05, 0, 0.025, 0)])!, WHITE_MAT],
+    [mergeGeometries([tube(0.028, 0.038, STRING_HEIGHT, 0, STRING_HEIGHT / 2, 0), tube(0.1, 0.12, 0.05, 0, 0.025, 0), tube(0.06, 0.08, 0.04, 0, 0.07, 0)])!, WHITE_MAT],
     [new THREE.ConeGeometry(0.075, 0.22, 4).rotateZ(-Math.PI / 2).scale(1, 1, 0.14).translate(0.13, STRING_HEIGHT - 0.1, 0), P_RED],
   ],
   // lichtjespaal: net zo hoog, met een lampje erop (om zijn eigen midden, zie buildDecor)
   lightstring: [
-    [mergeGeometries([tube(0.028, 0.038, STRING_HEIGHT, 0, STRING_HEIGHT / 2, 0), tube(0.1, 0.12, 0.05, 0, 0.025, 0)])!, std(0x3d4f5a, 0.7)],
+    [mergeGeometries([tube(0.028, 0.038, STRING_HEIGHT, 0, STRING_HEIGHT / 2, 0), tube(0.1, 0.12, 0.05, 0, 0.025, 0), tube(0.06, 0.08, 0.04, 0, 0.07, 0), tube(0.06, 0.03, 0.04, 0, STRING_HEIGHT - 0.01, 0)])!, std(0x3d4f5a, 0.7)],
     [new THREE.IcosahedronGeometry(0.075, 1), LAMP_MAT, false],
   ],
 };
@@ -1286,31 +1772,36 @@ const BRIDGE_GEO = mergeGeometries([
   ]),
 ])!;
 const FLOWER_EDGE_GEO = boxAt(1, 0.03, 0.11, 0, 0.015, 0);
-const FLOWER_HEAD_GEO = boxAt(0.075, 0.055, 0.075, 0, 0.058, 0);
+const FLOWER_HEAD_GEO = blob(0.046, 1, 0.75, 1, 0, 0.06, 0, 0);
 const FLOWER_EDGE_MAT = std(0x6fb44c, 1);
 const PUDDLE_GEO = new THREE.CircleGeometry(1, 16).rotateX(-Math.PI / 2);
-// Afval in vier soorten, groot en fel genoeg om tussen de gasten op te vallen: een beker met rietje, een
-// frietzak met een verfrommeld papiertje, een bananenschil en een blikje met een servet.
+// Afval in vier soorten, groot en fel genoeg om tussen de gasten op te vallen: een omgevallen beker met een
+// rietje en een plasje, een frietbakje met frietjes en een prop papier, een bananenschil, en een blikje met een
+// servet en een klokhuis. Elke soort is één onderdeel.
+const sideways = (g: THREE.BufferGeometry, x: number, y: number, z: number): THREE.BufferGeometry => g.rotateZ(Math.PI / 2 - 0.12).translate(x, y, z);
 const LITTER_KINDS: Part[][] = [
-  [
-    [tube(0.09, 0.07, 0.2, 0, 0.07, 0).rotateZ(1.35), WHITE_MAT],
-    [tube(0.095, 0.095, 0.03, 0.1, 0.09, 0).rotateZ(1.35), std(0xe0584f)],
-    [boxAt(0.02, 0.02, 0.2, 0.2, 0.06, 0.04), std(0x4a90e2)],
-  ],
-  [
-    [boxAt(0.2, 0.05, 0.16, 0, 0.03, 0), std(0xd8362e)],
-    [boxAt(0.12, 0.09, 0.12, -0.14, 0.05, 0.1), std(0xffd23f)],
-    [boxAt(0.1, 0.07, 0.09, 0.12, 0.04, -0.12), WHITE_MAT],
-  ],
-  [
-    [mergeGeometries([boxAt(0.06, 0.03, 0.2, 0, 0.02, 0.06), boxAt(0.2, 0.03, 0.06, 0.06, 0.02, 0), boxAt(0.06, 0.03, 0.18, -0.02, 0.02, -0.1)])!, std(0xffd23f, 0.6)],
-    [boxAt(0.07, 0.05, 0.07, 0, 0.045, 0), std(0xc9a93a)],
-  ],
-  [
-    [tube(0.055, 0.055, 0.17, 0, 0.055, 0).rotateX(Math.PI / 2), std(0x4a90e2, 0.4)],
-    [boxAt(0.18, 0.02, 0.16, 0.14, 0.015, 0.1), WHITE_MAT],
-    [boxAt(0.1, 0.06, 0.1, -0.14, 0.035, -0.08), std(0xd8a14a)],
-  ],
+  [[painted(
+    [0xf7f4ec, sideways(new THREE.CylinderGeometry(0.085, 0.065, 0.2, 9), 0, 0.078, 0)],
+    [0xe0584f, sideways(new THREE.CylinderGeometry(0.092, 0.092, 0.028, 9), -0.105, 0.09, 0)],
+    [0x4a90e2, rod(0.012, [-0.1, 0.09, 0], [-0.27, 0.13, 0.06], 5)],
+    [0xf5b44a, tube(0.1, 0.1, 0.006, -0.2, 0.004, 0.08)],
+  ), PAINT_MAT]],
+  [[painted(
+    [0xd8362e, new THREE.CylinderGeometry(0.115, 0.08, 0.16, 4).rotateY(Math.PI / 4).scale(1, 1, 0.55).rotateX(1.25).translate(0, 0.06, 0)],
+    [0xffd23f, boxAt(0.03, 0.03, 0.14, -0.03, 0.045, 0.14), new THREE.BoxGeometry(0.03, 0.03, 0.13).rotateY(0.6).translate(0.07, 0.02, 0.2), new THREE.BoxGeometry(0.03, 0.03, 0.12).rotateY(-0.5).translate(-0.11, 0.02, 0.14)],
+    [0xf7f4ec, blob(0.06, 1, 0.8, 1, 0.15, 0.045, -0.1, 0)],
+  ), PAINT_MAT]],
+  [[painted(
+    [0xffd23f, ...[0, 1, 2, 3].map(i => new THREE.BoxGeometry(0.17, 0.02, 0.065).translate(0.085, 0, 0).rotateZ(-0.28).rotateY((i * Math.PI) / 2 + 0.3).translate(0, 0.055, 0))],
+    [0xfbeeb0, ...[0, 1, 2, 3].map(i => new THREE.BoxGeometry(0.13, 0.012, 0.04).translate(0.085, 0.014, 0).rotateZ(-0.28).rotateY((i * Math.PI) / 2 + 0.3).translate(0, 0.055, 0))],
+    [0x6b4a2a, boxAt(0.035, 0.05, 0.035, 0, 0.075, 0)],
+  ), PAINT_MAT]],
+  [[painted(
+    [0x4a90e2, new THREE.CylinderGeometry(0.055, 0.055, 0.17, 9).rotateX(Math.PI / 2).translate(0, 0.055, 0)],
+    [0xcfd6dc, new THREE.CylinderGeometry(0.047, 0.047, 0.178, 9).rotateX(Math.PI / 2).translate(0, 0.055, 0)],
+    [0xf7f4ec, new THREE.BoxGeometry(0.18, 0.012, 0.16).rotateY(0.4).translate(0.15, 0.008, 0.1), blob(0.03, 1, 1.5, 1, 0, 0, 0, 0).rotateZ(1.2).translate(-0.15, 0.03, -0.08)],
+    [0xe0453a, dot(0.03, -0.2, 0.035, -0.08), dot(0.03, -0.1, 0.03, -0.08)],
+  ), PAINT_MAT]],
 ];
 
 function build(parts: Part[], mat?: THREE.Material): THREE.Group {
@@ -1334,48 +1825,62 @@ const WORLD_LOOK: Record<WorldId, { sky: number; ground: number; leaves: [number
   far: { sky: 0xc5ecf5, ground: 0x74bf8f, leaves: [0x3f9f78, 0x4fb088, 0x358c6a] },
 };
 
-// Losse stukjes voer: een bak met vier porties toont vier stukjes.
-const FOOD_MATS = {
-  carrot: new THREE.MeshStandardMaterial({ color: 0xf08a2c, roughness: 0.8 }),
-  leaf: STEM_MAT,
-  hay: new THREE.MeshStandardMaterial({ color: 0xe9d05a, roughness: 1 }),
-  apple: new THREE.MeshStandardMaterial({ color: 0xe0453a, roughness: 0.6 }),
-  grain: new THREE.MeshStandardMaterial({ color: 0xe3c88f, roughness: 1 }),
-  meat: new THREE.MeshStandardMaterial({ color: 0xc9553f, roughness: 0.8 }),
-  bone: WHITE_MAT,
-  fish: new THREE.MeshStandardMaterial({ color: 0x7fa7c9, roughness: 0.5 }),
-  bamboo: new THREE.MeshStandardMaterial({ color: 0x9bd05a, roughness: 0.8 }),
+// Losse stukjes voer: een bak met vier porties toont vier stukjes. Elk stukje is één onderdeel met zijn eigen
+// kleuren; het ligt langs z, met het midden op nul.
+const along = (g: THREE.BufferGeometry, x: number, y: number, z: number): THREE.BufferGeometry => g.rotateX(Math.PI / 2).translate(x, y, z);
+const leaflet = (x: number, z: number, turn: number): THREE.BufferGeometry => blob(0.055, 0.75, 0.25, 1.35, 0, 0, 0, 0).rotateY(turn).translate(x, 0.012, z);
+const FOOD_GEOS: Record<FoodId, THREE.BufferGeometry> = {
+  // een wortel met loof
+  veg: painted(
+    [0xf08a2c, along(new THREE.ConeGeometry(0.06, 0.28, 7), 0, 0, 0)],
+    [0x5fa544, ...[-0.5, 0, 0.5].map(a => new THREE.ConeGeometry(0.024, 0.12, 4).rotateX(-Math.PI / 2).translate(0, 0, -0.05).rotateY(a).translate(0, 0, -0.13))],
+  ),
+  // een baal hooi met twee touwtjes erom
+  hay: painted(
+    [0xe9d05a, new THREE.BoxGeometry(0.14, 0.12, 0.3)],
+    [0xb8923a, boxAt(0.148, 0.128, 0.022, 0, 0, -0.08), boxAt(0.148, 0.128, 0.022, 0, 0, 0.08)],
+    [0xf6e58a, boxAt(0.03, 0.02, 0.1, 0.03, 0.062, 0), boxAt(0.03, 0.02, 0.08, -0.035, 0.062, 0.1), boxAt(0.03, 0.02, 0.07, -0.03, 0.062, -0.11)],
+  ),
+  // een appel met een steeltje en een blaadje
+  fruit: painted(
+    [0xe0453a, blob(0.078, 1, 0.9, 1, 0, 0.02, 0)],
+    [0x6b4a2a, boxAt(0.02, 0.05, 0.02, 0, 0.105, 0)],
+    [0x5fa544, blob(0.03, 1.4, 0.3, 0.8, 0.035, 0.115, 0, 0)],
+  ),
+  // een schoof graan: een bosje halmen met dikke aren en een touwtje erom
+  grain: painted(
+    [0xe3c88f, along(new THREE.CylinderGeometry(0.05, 0.03, 0.2, 6), 0, 0, -0.04)],
+    [0xd9a441, blob(0.035, 0.9, 0.9, 1.9, -0.04, 0.005, 0.1, 0), blob(0.035, 0.9, 0.9, 1.9, 0.04, 0.005, 0.1, 0), blob(0.035, 0.9, 0.9, 1.9, 0, 0.03, 0.12, 0)],
+    [0xb5562b, along(new THREE.CylinderGeometry(0.043, 0.043, 0.03, 6), 0, 0, -0.07)],
+  ),
+  // een stuk vlees aan een bot
+  meat: painted(
+    [0xc9553f, blob(0.075, 1, 0.82, 1.3, 0, 0, -0.04)],
+    [0xf7f4ec, rod(0.02, [0, 0, 0.04], [0, 0, 0.17], 6), dot(0.028, -0.022, 0, 0.18), dot(0.028, 0.022, 0, 0.18)],
+  ),
+  // een takje met blaadjes
+  leaves: painted(
+    [0x7a5a34, rod(0.012, [0, 0, -0.15], [0, 0.01, 0.14], 4)],
+    [0x5fa544, leaflet(-0.045, -0.08, 0.5), leaflet(0.045, 0, -0.5), leaflet(0, 0.13, 0)],
+    [0x7cc053, leaflet(0.045, -0.1, -0.6), leaflet(-0.045, 0.04, 0.6)],
+  ),
+  // een vis met een staart, een rugvin en oogjes
+  fish: painted(
+    [0x7fa7c9, blob(0.06, 0.62, 1, 2, 0, 0, -0.02)],
+    [0xdfeaf2, blob(0.05, 0.6, 0.5, 1.7, 0, -0.028, -0.02, 0)],
+    [0x5f87ab, new THREE.ConeGeometry(0.065, 0.1, 4).rotateX(-Math.PI / 2).scale(0.3, 1, 1).translate(0, 0, 0.15), boxAt(0.012, 0.04, 0.08, 0, 0.06, -0.01)],
+    [0x22201c, dot(0.013, -0.03, 0.018, -0.1), dot(0.013, 0.03, 0.018, -0.1)],
+  ),
+  // twee stengels bamboe met knopen en een paar blaadjes
+  bamboo: painted(
+    [0x9bd05a, rod(0.026, [-0.035, 0, -0.15], [-0.035, 0, 0.15], 6), rod(0.026, [0.035, 0.012, -0.14], [0.035, 0.012, 0.16], 6)],
+    [0x6fa53a, ...[[-0.035, 0, -0.05], [-0.035, 0, 0.06], [0.035, 0.012, -0.02], [0.035, 0.012, 0.09]].map(([x, y, z]) => along(new THREE.CylinderGeometry(0.032, 0.032, 0.018, 6), x, y, z))],
+    [0x5fa544, leaflet(0.07, -0.1, -0.7).translate(0, 0.03, 0), leaflet(-0.07, 0.1, 0.7).translate(0, 0.03, 0)],
+  ),
 };
-const CARROT_GEO = new THREE.ConeGeometry(0.06, 0.28, 6).rotateX(Math.PI / 2);
-const LEAF_GEO = new THREE.BoxGeometry(0.05, 0.05, 0.08).translate(0, 0, -0.17);
-const BALE_GEO = new THREE.BoxGeometry(0.14, 0.12, 0.3);
-const APPLE_GEO = new THREE.IcosahedronGeometry(0.075, 0).translate(0, 0.02, 0);
-const STALK_GEO = new THREE.BoxGeometry(0.03, 0.05, 0.03).translate(0, 0.1, 0);
-const GRAIN_GEO = new THREE.BoxGeometry(0.14, 0.09, 0.28);
-const MEAT_GEO = new THREE.BoxGeometry(0.13, 0.1, 0.2).translate(0, 0, -0.03);
-const BONE_GEO = new THREE.BoxGeometry(0.04, 0.04, 0.12).translate(0, 0, 0.12);
-const FISH_GEO = mergeGeometries([boxAt(0.09, 0.08, 0.22, 0, 0, -0.02), boxAt(0.03, 0.12, 0.09, 0, 0, 0.13)])!;
-const FISH_EYE_GEO = boxAt(0.1, 0.03, 0.03, 0, 0.015, -0.09);
-const BAMBOO_GEO = mergeGeometries([boxAt(0.05, 0.05, 0.3, -0.035, 0, 0), boxAt(0.05, 0.05, 0.3, 0.035, 0.01, 0.01)])!;
-const BAMBOO_LEAF_GEO = boxAt(0.1, 0.02, 0.07, 0.04, 0.045, -0.12);
-const LEAVES_GEO = mergeGeometries([boxAt(0.13, 0.05, 0.3, 0, 0, 0), boxAt(0.1, 0.05, 0.2, 0.02, 0.05, 0.02)])!;
 
 function foodPiece(food: FoodId): THREE.Object3D {
-  const pair = (a: THREE.BufferGeometry, am: THREE.Material, b: THREE.BufferGeometry, bm: THREE.Material): THREE.Group => {
-    const g = new THREE.Group();
-    g.add(new THREE.Mesh(a, am), new THREE.Mesh(b, bm));
-    return g;
-  };
-  switch (food) {
-    case 'hay': return new THREE.Mesh(BALE_GEO, FOOD_MATS.hay);
-    case 'grain': return new THREE.Mesh(GRAIN_GEO, FOOD_MATS.grain);
-    case 'leaves': return new THREE.Mesh(LEAVES_GEO, FOOD_MATS.leaf);
-    case 'fruit': return pair(APPLE_GEO, FOOD_MATS.apple, STALK_GEO, FOOD_MATS.leaf);
-    case 'meat': return pair(MEAT_GEO, FOOD_MATS.meat, BONE_GEO, FOOD_MATS.bone);
-    case 'fish': return pair(FISH_GEO, FOOD_MATS.fish, FISH_EYE_GEO, DARK_MAT);
-    case 'bamboo': return pair(BAMBOO_GEO, FOOD_MATS.bamboo, BAMBOO_LEAF_GEO, FOOD_MATS.leaf);
-    default: return pair(CARROT_GEO, FOOD_MATS.carrot, LEAF_GEO, FOOD_MATS.leaf);
-  }
+  return new THREE.Mesh(FOOD_GEOS[food], PAINT_MAT);
 }
 
 export const toWorldX = (gx: number): number => gx - W / 2;
@@ -1459,7 +1964,7 @@ export class View {
    * (`tall`) en breedte (`wide`); ongeveer een derde is een spar (`fir`) en sommige loofbomen bloeien in de lente.
    */
   private treeSpots: { gx: number; gy: number; s: number; rot: number; tall: number; wide: number; fir: boolean; bloom: boolean }[] = [];
-  /** Stam, twee blokken blad van de loofboom, de spar en de bloesem. */
+  /** Stam, twee bollen blad van de loofboom, de spar en de bloesem. */
   private treeParts: THREE.InstancedMesh[] = [];
   /** De kleuren van de wereld in de zomer; het seizoen kleurt ze bij (zie applySeason). */
   private worldLeaves = [0x4f9e45, 0x5bab4c, 0x468f3e];
@@ -1586,14 +2091,17 @@ export class View {
     const n = this.treeSpots.length;
     const trunk = new THREE.MeshStandardMaterial({ color: 0x8a5a33, roughness: 1 });
     this.treeParts = [
-      new THREE.InstancedMesh(new THREE.BoxGeometry(0.22, 0.6, 0.22).translate(0, 0.3, 0), trunk, n),
-      new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.8, 1).translate(0, 0.95, 0), this.leafMats[0], n),
-      new THREE.InstancedMesh(new THREE.BoxGeometry(0.65, 0.55, 0.65).translate(0, 1.55, 0), this.leafMats[1], n),
+      new THREE.InstancedMesh(new THREE.CylinderGeometry(0.09, 0.14, 0.66, 6).translate(0, 0.33, 0), trunk, n),
+      // de loofboom: een brede bol blad met een kleinere erbovenop
+      new THREE.InstancedMesh(blob(0.5, 1.1, 0.84, 1.1, 0, 0.97, 0), this.leafMats[0], n),
+      new THREE.InstancedMesh(blob(0.34, 1.05, 0.85, 1.05, 0.04, 1.52, 0.03), this.leafMats[1], n),
       // de spar: drie kegels op elkaar
       new THREE.InstancedMesh(mergeGeometries([cone(0.62, 0.9, 0, 0.85, 0, 6), cone(0.48, 0.8, 0, 1.4, 0, 6), cone(0.32, 0.7, 0, 1.92, 0, 6)])!, this.leafMats[2], n),
-      // bloesem: roze blokjes op het blad, alleen in de lente te zien
-      new THREE.InstancedMesh(mergeGeometries([[0.42, 1.2, 0.42], [-0.3, 1.38, 0.2], [0.2, 1.84, -0.1], [0.33, 1.62, 0.3], [-0.46, 1.02, 0.48], [0.5, 1.06, -0.2], [-0.2, 1.72, 0.33], [0.1, 1.38, -0.44]]
-        .map(([x, y, z]) => boxAt(0.17, 0.17, 0.17, x, y, z)))!, BLOSSOM_MAT, n),
+      // bloesem: roze bolletjes op het blad, alleen in de lente te zien
+      new THREE.InstancedMesh(merge([
+        ...[0, 1, 2, 3, 4].map(k => blob(0.085, 1, 1, 1, Math.cos(0.35 + 0.3 * (k % 2)) * Math.cos(k * 1.26) * 0.55, 0.97 + Math.sin(0.35 + 0.3 * (k % 2)) * 0.42, Math.cos(0.35 + 0.3 * (k % 2)) * Math.sin(k * 1.26) * 0.55, 0)),
+        ...[0, 1, 2].map(k => blob(0.075, 1, 1, 1, 0.04 + Math.cos(0.5) * Math.cos(k * 2.1 + 0.6) * 0.357, 1.52 + Math.sin(0.5) * 0.29, 0.03 + Math.cos(0.5) * Math.sin(k * 2.1 + 0.6) * 0.357, 0)),
+      ]), BLOSSOM_MAT, n),
     ];
     // elke boom een tikje lichter of donkerder
     const tint = new THREE.Color();
@@ -2281,7 +2789,10 @@ export class View {
       if (look.leaf.includes(i)) mesh.material = leafTone(mesh.material as THREE.MeshStandardMaterial, tone);
     });
     const crown = group.children[1] as THREE.Mesh;
-    if (kind === 'tree') crown.geometry = TREE_CROWNS[shape];
+    if (kind === 'tree') {
+      crown.geometry = TREE_CROWNS[shape];
+      (group.children[2] as THREE.Mesh).geometry = TREE_SHADES[shape];
+    }
     if (kind === 'pine') crown.geometry = PINE_CROWNS[shape];
     if (kind === 'tree' && hash(x, y, 8) < 0.4) {
       // sommige loofbomen bloeien in de lente

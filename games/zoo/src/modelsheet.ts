@@ -2,11 +2,11 @@
 // fotograferen. Alleen te zien met `npm run dev`; de pagina zit niet in het gepubliceerde spel.
 //
 // In de adresbalk: ?groep=bedden (zie GROUPS), &alleen=nest,grot (alleen die modellen, groot in beeld),
-// &seizoen=winter, &nacht=1, &spook=1 (het doorzichtige voorbeeld), &draai=1 (kwartslagen), &druk=1 (alsof er
+// &bos=1 (de bomen rond het park), &seizoen=winter, &nacht=1, &spook=1 (het doorzichtige voorbeeld), &draai=1 (kwartslagen), &druk=1 (alsof er
 // gasten zijn), &t=2.5 (het moment van de foto), &zoom=6 (tegels in beeld).
 import * as THREE from 'three';
-import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FERRIS, FOODS, SHOPS, SHOP_SIZE, TOYS, TROUGHS, bumperCar, type BedKind, type DecorKind, type FoodId, type Season, type ShopKind, type ToyKind, type TroughKind } from './data';
-import { FULL_LAND, Grid, edgeKey, type Edge, type EdgeKind } from './grid';
+import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FERRIS, FOODS, SHOPS, SHOP_SIZE, TERRAINS, TOYS, TROUGHS, bumperCar, type BedKind, type DecorKind, type FoodId, type Season, type ShopKind, type ToyKind, type TroughKind } from './data';
+import { BASE_LAND, FULL_LAND, Grid, edgeKey, type Edge, type EdgeKind } from './grid';
 import { View, toWorldX, toWorldZ } from './view';
 
 const query = new URLSearchParams(location.search);
@@ -14,6 +14,8 @@ const num = (key: string, fallback: number): number => (query.has(key) ? Number(
 const ghost = query.get('spook') === '1', rot = num('draai', 0), night = query.get('nacht') === '1', busy = num('druk', 0);
 const season = (query.get('seizoen') ?? 'summer') as Season;
 const only = query.get('alleen')?.split(',') ?? null;
+/** De bomen rond het park bekijken: dan houdt het park zijn gewone grootte en staat het beeld op de bosrand. */
+const forest = query.get('bos') === '1';
 
 /** Eén model op de plaat: zijn naam, hoeveel tegels het breed is en hoe het op tegel (x, y) gezet wordt. */
 interface Item {
@@ -25,7 +27,7 @@ interface Item {
 const view = new View(document.body);
 view.renderer.setPixelRatio(1);
 const grid = new Grid(FULL_LAND);
-view.setLand(FULL_LAND, []);
+view.setLand(forest ? BASE_LAND : FULL_LAND, []);
 view.setSeason(season);
 
 /** Wat elk beeldje moet bewegen. */
@@ -111,6 +113,13 @@ const litter = (i: number): Item => ({
     Math.random = real;
   },
 });
+/** Drie tegels pad naast elkaar (het bloemenpad heeft bloemetjes langs de rand). */
+const path = (kind: 'flowerpath' | 'bridge' | 'planks'): Item => ({
+  name: kind, size: 3,
+  put: (x, y) => {
+    for (let i = 0; i < 3; i++) grid.setTerrain(x + i, y, TERRAINS.indexOf(kind));
+  },
+});
 const train: Item = {
   name: 'trein', size: 3,
   put: (x, y) => {
@@ -145,6 +154,7 @@ const GROUPS: Record<string, Item[]> = {
   ...Object.fromEntries(Object.entries(SHOP_SETS).map(([name, kinds]) => [name, kinds.map(shop)])),
   afval: [0, 1, 2, 3].map(litter),
   trein: [train],
+  pad: [path('flowerpath'), path('bridge')],
 };
 // niets vergeten: wat in geen enkel rijtje staat, komt in 'rest'
 const listed = new Set([...Object.values(DECOR_SETS).flat(), ...Object.values(SHOP_SETS).flat()] as string[]);
@@ -189,6 +199,10 @@ const wide = maxX - x0, deep = maxY - y0, tall = num('hoog', look.tall ?? 1.9);
 view.target.set(toWorldX(x0 + wide / 2), tall * 0.3, toWorldZ(y0 + deep / 2));
 // (schuin van boven is een tegel 0,71 breed en 0,41 hoog; daarbovenop komt de hoogte van de modellen)
 view.zoom = num('zoom', Math.max(1.6, (wide + deep) * 0.41 + tall, ((wide + deep) * 0.71 + 1) * (innerHeight / innerWidth)));
+if (forest) {
+  view.target.set(toWorldX(4), 0.6, toWorldZ(24));
+  view.zoom = num('zoom', 9);
+}
 view.resize();
 view.setNight(night ? 1 : 0);
 
