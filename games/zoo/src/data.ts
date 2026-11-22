@@ -418,14 +418,14 @@ export const DARK_FUN = 0.25;
  * De weg wijzen: een wegwijzer, een plattegrond en de poort laten gasten zien waar ze zijn, tot zoveel tegels ver
  * (hemelsbreed). Buiten het bereik van elk bord raakt een gast in een groot park weleens de weg kwijt.
  */
-export const WAYFIND = { signpost: 10, mapboard: 16, entrance: 14 };
+export const WAYFIND = { signpost: 7, mapboard: 11, entrance: 9 };
 /**
  * Zo ver kijkt een gast om zich heen als hij iets zoekt (een wc, eten, een bankje) en er geen wegwijzer of plattegrond
  * in de buurt staat. Staat hij binnen het bereik van een bord, dan weet hij de weg door het hele park.
  */
-export const SEEK_REACH = 24;
+export const SEEK_REACH = 14;
 /** Pas bij meer padtegels dan dit is een park groot genoeg om in te verdwalen. */
-export const WAYFIND_PATHS = 80;
+export const WAYFIND_PATHS = 40;
 export interface WaySign {
   gx: number;
   gy: number;
@@ -683,7 +683,7 @@ export const AQUATIC: SpeciesId[] = ['dolphin', 'orca', 'ray', 'shark'];
  */
 export type PropKind = 'tuft' | 'daisies' | 'fern' | 'shrub' | 'pebbles' | 'stone' | 'oak' | 'fir' | 'coco' | 'crag'
   // klein spul voor in het park (de groep `park`): ook op een kwart tegel, zodat er een paar op één tegel passen
-  | 'pot' | 'gnome' | 'pinwheel' | 'ducky' | 'balls' | 'birdhouse' | 'can' | 'bucket' | 'snail' | 'crate';
+  | 'pot' | 'gnome' | 'pinwheel' | 'ducky' | 'birdhouse' | 'can' | 'bucket' | 'snail' | 'crate';
 export type PropGroup = 'green' | 'stone' | 'park';
 /** Waar een dier om vraagt: bomen, planten (graspollen, bloemetjes, varens, struikjes) of stenen. */
 export type WildKind = 'tree' | 'plant' | 'stone';
@@ -701,7 +701,7 @@ export const PROP: Record<PropKind, { group: PropGroup; wild?: WildKind; size: 1
   crag: { group: 'stone', wild: 'stone', size: 2, price: 3 },
   // voor het park: een paar per keer, vanaf een paar levels na de natuur
   pot: { group: 'park', size: 1, price: 1, from: 10 }, gnome: { group: 'park', size: 1, price: 1, from: 10 }, pinwheel: { group: 'park', size: 1, price: 1, from: 10 },
-  ducky: { group: 'park', size: 1, price: 1, from: 12 }, balls: { group: 'park', size: 1, price: 1, from: 12 },
+  ducky: { group: 'park', size: 1, price: 1, from: 12 },
   birdhouse: { group: 'park', size: 1, price: 1, from: 15 }, can: { group: 'park', size: 1, price: 1, from: 15 },
   bucket: { group: 'park', size: 1, price: 1, from: 18 }, snail: { group: 'park', size: 1, price: 1, from: 18 },
   crate: { group: 'park', size: 1, price: 1, from: 21 },

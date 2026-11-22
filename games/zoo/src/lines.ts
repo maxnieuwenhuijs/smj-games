@@ -297,6 +297,9 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
     for (const who of e.who ? [undefined] : TEACHERS)
       for (const part of ['ask', 'good', 'bad'] as const)
         for (let n = 0; n < e[part]; n++) add(say.event(id, part, n, who));
+  // de uitleg bij een puzzeltje, in de stem van wie om hulp vroeg
+  for (const who of ['host', 'keeper', 'builder', 'cashier', 'director', 'teacher', 'master'] as const)
+    for (const key of ['mini.sum.plus', 'mini.sum.minus', 'mini.spell', 'mini.order.size', 'mini.order.count', 'mini.done.good', 'mini.done.try']) add({ who, mood: 'happy', key });
   add(say.night());
   add(say.nightNew());
   add(say.aquaNew());

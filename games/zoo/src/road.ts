@@ -1,6 +1,7 @@
 // De weg voor de poort: asfalt met een stoep en een fietspad, auto's die voorbijrijden, de schoolbus en de
-// vrachtwagen die bij de poort stoppen, en mensen die te voet, op de fiets of op de step naar de poort komen.
-// Alles is alleen om naar te kijken: je kunt er niets bouwen en er niet op tikken.
+// vrachtwagen die bij de poort stoppen, en mensen die te voet, op de fiets of op de step voorbijkomen.
+// Alles is alleen om naar te kijken: je kunt er niets bouwen en er niet op tikken. De echte gasten (zie people.ts)
+// lopen hier over de stoep naar de poort en na hun bezoek weer weg: hun routes staan onderaan `waar alles ligt`.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { sfx } from './audio';
@@ -16,9 +17,8 @@ type Tinted = [number, ...Geo[]];
 /** Het midden van de poort, en de voorkant van het park. Het park groeit alleen opzij en naar achter: de weg blijft dus vrij. */
 const GATE_X = Math.floor(W / 2) + 0.5 - W / 2;
 const FRONT_Z = H / 2;
-const GATE_Z = FRONT_Z + 0.12;
-/** De weg loopt van -END tot END; daar verdwijnt hij aan beide kanten in een tunnel. */
-const END = 32;
+/** De weg loopt van -END tot END: helemaal door tot de rand van de wereld, zo ver als het gras reikt. Wat daar voorbij rijdt, is weg. */
+const END = 60;
 const PAVE_Z = FRONT_Z + 1.65, PAVE_W = 0.9;
 const WALK_Z = FRONT_Z + 1.5, STEP_Z = FRONT_Z + 1.9;
 const BIKE_Z = FRONT_Z + 2.5, BIKE_W = 0.8;
@@ -32,6 +32,37 @@ const STOP_NOSE = GATE_X + 1.2;
 const RACK_X = GATE_X - 1.9;
 /** Zo ver voor de poort (in tegels) belt een fietser. */
 const BELL_AT = 3.5;
+/** Hoe lang de bus is, en hoe ver zijn deur achter zijn midden zit (hij rijdt naar links, de deur zit aan de kant van het park). */
+const BUS_LEN = 2.75, BUS_DOOR = 0.72;
+
+// ------------------------------------------------------------ de looproutes van de echte gasten (in tegels van het raster)
+type Spot = [number, number];
+const spot = (x: number, z: number): Spot => [x + W / 2, z + H / 2];
+
+/**
+ * De route van een gast die aankomt. Het eerste punt is waar hij begint: op de stoep, `far` tegels links (-1) of
+ * rechts (1) van de poort. Dan naar het pleintje, de bocht om en door de poort tot op de tegel van de ingang.
+ * `lane` (-0,5 tot 0,5) is zijn eigen plekje in de breedte, zodat niet iedereen precies achter elkaar loopt.
+ */
+export function arrivalPath(side: number, far: number, lane = 0): Spot[] {
+  const x = GATE_X + lane * 0.4, z = WALK_Z - 0.05 + lane * 0.3;
+  return [spot(GATE_X + side * far, z), spot(x + side * 0.55, z), spot(x, z - 0.55), spot(x, FRONT_Z - 0.5)];
+}
+
+/** De route naar huis, vanaf de tegel van de ingang: door de poort, de bocht om en `far` tegels de stoep af. */
+export function exitPath(side: number, far: number, lane = 0): Spot[] {
+  const x = GATE_X + lane * 0.4, z = WALK_Z + 0.25 + lane * 0.3;
+  return [spot(x, z - 0.55), spot(x + side * 0.55, z), spot(GATE_X + side * far, z)];
+}
+
+/** De route van de schoolklas: van de deur van de bus (die staat dan bij de halte) schuin over de stoep en door de poort. */
+export function busPath(): Spot[] {
+  const x = GATE_X + 0.1;
+  return [spot(STOP_NOSE + BUS_LEN / 2 - BUS_DOOR, LANE_NEAR - 0.55), spot(x + 0.5, WALK_Z + 0.4), spot(x, WALK_Z - 0.4), spot(x, FRONT_Z - 0.5)];
+}
+
+/** Het stuk stoep waar een gast die al op het pleintje was weer op terug moet (als het park ineens dicht is). */
+export const pavementY = (): number => WALK_Z + 0.25 + H / 2;
 
 /** Voor de bomen rond het park (zie view.ts): voor het park staat er geen een, daar ligt de weg. */
 export const roadside = (gy: number): boolean => gy > H + 0.3;
@@ -42,9 +73,6 @@ const box = (w: number, h: number, d: number, x: number, y: number, z: number): 
 const flat = (w: number, d: number, x: number, y: number, z: number): Geo => new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2).translate(x, y, z);
 /** Een schijf die rechtop staat, met zijn as langs x: een wiel. */
 const disc = (r: number, wide: number, sides: number, x = 0): Geo => new THREE.CylinderGeometry(r, r, wide, sides).rotateZ(Math.PI / 2).translate(x, 0, 0);
-/** Een hoekige kei; zijn onderkant zit een stuk in de grond. */
-const stone = (w: number, h: number, d: number, x: number, z: number, turn: number): Geo =>
-  new THREE.DodecahedronGeometry(0.535, 0).rotateY(turn).scale(w, h, d).translate(x, h * 0.3, z);
 const paint = (geo: Geo, hex: number): Geo => {
   const c = new THREE.Color(hex), n = geo.getAttribute('position').count, a = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) {
@@ -231,14 +259,10 @@ interface Figure {
   z: number;
   speed: number;
   phase: number;
-  /** De route: hooguit drie punten (x, z), hoeveel het er zijn en bij welk punt hij nu is. */
+  /** De route: hooguit drie punten (x, z), hoeveel het er zijn en bij welk punt hij nu is. Aan het eind is hij uit beeld. */
   route: Float32Array;
   steps: number;
   step: number;
-  /** Aan het eind van de route (bij de poort) krimpt hij weg; anders is hij gewoon uit beeld. */
-  vanish: boolean;
-  out: number;
-  grow: number;
   fresh: boolean;
 }
 
@@ -304,10 +328,10 @@ function makeFigure(scene: THREE.Scene, kind: number, n: number): Figure {
   }
   group.visible = false;
   scene.add(group);
-  return { group, kind, swing, wheels, size, active: false, x: 0, z: 0, speed: 1, phase: n, route: new Float32Array(6), steps: 0, step: 0, vanish: false, out: 0, grow: 1, fresh: false };
+  return { group, kind, swing, wheels, size, active: false, x: 0, z: 0, speed: 1, phase: n, route: new Float32Array(6), steps: 0, step: 0, fresh: false };
 }
 
-// ------------------------------------------------------------ wat er stilstaat: de weg zelf, de halte, het rek, de tunnels
+// ------------------------------------------------------------ wat er stilstaat: de weg zelf, de halte en het rek
 /** Alles wat plat op de grond ligt: asfalt, stoep, fietspad, het pleintje voor de poort, de strepen en het zebrapad. */
 function groundGeo(): Geo {
   const asphalt: Geo[][] = [[], []], bike: Geo[][] = [[], []], slabs: Geo[][] = [[], []], court: Geo[][] = [[], []];
@@ -343,27 +367,7 @@ function groundGeo(): Geo {
   );
 }
 
-/** Een rotsheuvel met een tunnel aan het eind van de weg; `s`: 1 = rechts (+x), -1 = links. Wat erin rijdt, is weg. */
-function hillGeo(s: number): Geo {
-  const mid = FRONT_Z + 3.9, face = s * END;
-  const hill = new THREE.IcosahedronGeometry(1, 1).scale(3.6, 2.5, 4.6);
-  hill.computeVertexNormals();
-  return painted(
-    [0x8f949c, hill.translate(s * (END + 4.2), 0, mid)],
-    // de muur waar de tunnels in zitten: hierachter zit alles verstopt
-    [0xa9adb3, box(3.2, 1.45, 5.8, s * (END + 1.6), 0.725, mid)],
-    [0x9aa0a8, stone(1.7, 1.3, 1.5, s * (END + 0.9), FRONT_Z + 0.35, 0.4), stone(1.5, 1.1, 1.6, s * (END + 1), FRONT_Z + 7.3, 1.3)],
-    [0x858b93, stone(1.2, 0.8, 1.1, s * (END + 2.6), FRONT_Z - 0.3, 2.1), stone(1.1, 0.7, 1.2, s * (END + 2.8), FRONT_Z + 8.3, 0.7)],
-    // de donkere gaten: een grote voor de rijbaan, een kleine voor de stoep en het fietspad
-    [0x2b2f36, box(0.06, 1.3, 3, face, 0.65, ROAD_Z), box(0.06, 1, 1.9, face, 0.5, FRONT_Z + 2.05)],
-    [0xc9cdd2,
-      box(0.3, 0.22, 3.5, face, 1.41, ROAD_Z), box(0.3, 1.3, 0.25, face, 0.65, ROAD_Z + 1.62), box(0.3, 1.3, 0.25, face, 0.65, ROAD_Z - 1.62),
-      box(0.3, 0.18, 2.1, face, 1.09, FRONT_Z + 2), box(0.3, 1, 0.22, face, 0.5, FRONT_Z + 1),
-    ],
-  );
-}
-
-/** Alles wat rechtop staat: het bord van de bushalte, het wachthuisje, het fietsenrek, de palen van de lantaarns en de tunnels. */
+/** Alles wat rechtop staat: het bord van de bushalte, het wachthuisje, het fietsenrek en de palen van de lantaarns. */
 function solidGeo(lampX: number[]): Geo {
   const sx = GATE_X + 3, sz = FRONT_Z + 0.5, signX = STOP_NOSE - 0.2;
   return merge([
@@ -383,8 +387,6 @@ function solidGeo(lampX: number[]): Geo {
     ),
     parkedBike(0xe0584f, RACK_X - 1, FRONT_Z + 0.78),
     parkedBike(0x2bb5a8, RACK_X - 0.5, FRONT_Z + 0.78),
-    hillGeo(1),
-    hillGeo(-1),
   ]);
 }
 
@@ -400,9 +402,6 @@ export class Road {
   private figureIn = 3;
   private busDue = false;
   private truckDue = false;
-  /** Hoeveel kinderen er nog uit de bus moeten, en wanneer de volgende uitstapt. */
-  private kids = 0;
-  private kidIn = 0;
   private clock = 0;
   private night = 0;
   private lampLights: Light[];
@@ -422,7 +421,7 @@ export class Road {
     [0xe0584f, 0x4a90e2, 0xf5c33b, 0x6cc04a, 0xf06aa6, 0xf4f1e8].forEach((color, i) => {
       this.cars.push(makeVehicle(scene, carBody(color, i % 2 === 1), carGlow, CAR_AXLE, 0.15, [0.42, -0.42], 1.4));
     });
-    this.bus = makeVehicle(scene, busBody(), glowGeo(0.27, 0.42, 1.36, -1.36), BIG_AXLE, 0.19, [0.82, -0.82], 2.75, 12);
+    this.bus = makeVehicle(scene, busBody(), glowGeo(0.27, 0.42, 1.36, -1.36), BIG_AXLE, 0.19, [0.82, -0.82], BUS_LEN, 12);
     this.truck = makeVehicle(scene, truckBody(), glowGeo(0.26, 0.44, 1.245, -1.245), BIG_AXLE, 0.19, [0.95, -0.8], 2.6, 15);
     this.vehicles = [...this.cars, this.bus, this.truck];
 
@@ -437,7 +436,10 @@ export class Road {
     }
   }
 
-  /** De schoolbus komt: hij stopt een poosje bij de poort, de kinderen stappen uit en hij rijdt weer weg. */
+  /**
+   * De schoolbus komt: hij stopt een poosje bij de poort en rijdt dan weer weg. Zodra hij stilstaat (`busStopped`)
+   * stapt de echte klas uit: dat regelt het spel (zie GuestManager.spawnClass en `busPath`).
+   */
   callBus(): void {
     if (!this.bus.active) this.busDue = true;
   }
@@ -502,7 +504,7 @@ export class Road {
     return null;
   }
 
-  /** Zet een voertuig in de tunnel aan het begin van zijn baan. Lukt niet als daar nog iemand rijdt. */
+  /** Zet een voertuig aan het begin van zijn baan, voorbij de rand van de wereld. Lukt niet als daar nog iemand rijdt. */
   private enter(v: Vehicle, lane: number, cruise: number): boolean {
     const dir = lane === 0 ? -1 : 1, x = -dir * (END + v.len / 2 + 0.3);
     for (const o of this.vehicles) if (o.active && o.lane === lane && (o.x - x) * dir - (o.len + v.len) / 2 < 1.2) return false;
@@ -532,12 +534,8 @@ export class Road {
       if (d <= 0.04) {
         v.halt = 2;
         v.wait = v.stay;
-        if (v === this.bus) {
-          this.kids = 7;
-          this.kidIn = 1;
-          // de deur van de bus gaat sissend open
-          sfx('road.busdoor', { volume: 0.3, at: [v.x - 0.72 + W / 2, LANE_NEAR + H / 2] });
-        }
+        // de deur van de bus gaat sissend open
+        if (v === this.bus) sfx('road.busdoor', { volume: 0.3, at: [v.x - BUS_DOOR + W / 2, LANE_NEAR + H / 2] });
       } else want = Math.min(want, Math.max(0.5, d * 1.6));
     }
     if (v.halt === 2) {
@@ -545,12 +543,6 @@ export class Road {
       v.v = 0;
       v.wait -= dt;
       if (v.wait <= 0) v.halt = 3;
-      // de kinderen stappen een voor een uit en lopen naar de poort
-      else if (v === this.bus && this.kids > 0 && (this.kidIn -= dt) <= 0) {
-        this.kidIn = 0.9;
-        this.kids--;
-        this.dropKid(v.x - 0.72);
-      }
     }
     v.v = want > v.v ? Math.min(want, v.v + 1.8 * dt) : Math.max(want, v.v - 7 * dt);
     // een auto die de poort nadert, hoor je zachtjes voorbijkomen (niet elke: het blijft rustig bij de poort)
@@ -581,18 +573,15 @@ export class Road {
     return null;
   }
 
-  /** Zet een figuur neer; daarna krijgt hij met `to` zijn route. `grow`: hij komt niet uit de tunnel maar groeit ter plekke. */
-  private start(f: Figure, x: number, z: number, speed: number, vanish: boolean, grow = false): void {
+  /** Zet een figuur neer aan het eind van de weg; daarna krijgt hij met `to` zijn route. */
+  private start(f: Figure, x: number, z: number, speed: number): void {
     f.active = f.fresh = true;
     f.x = x;
     f.z = z;
     f.speed = speed;
     f.steps = f.step = 0;
-    f.vanish = vanish;
-    f.out = 0;
-    f.grow = grow ? 0 : 1;
     f.group.visible = true;
-    f.group.scale.setScalar(grow ? 0.01 : f.size);
+    f.group.scale.setScalar(f.size);
     f.group.position.set(x, 0, z);
   }
 
@@ -602,86 +591,49 @@ export class Road {
     f.steps++;
   }
 
-  /** Er komt iemand aan uit een van de tunnels: te voet (soms met een kind), op de fiets of op de step. */
+  /**
+   * Er komt iemand voorbij, van de ene kant van de weg naar de andere: te voet (soms met een kind), op de fiets of op
+   * de step. Niemand van hen gaat naar de poort: wie naar het park komt, is een echte gast (zie people.ts).
+   */
   private arrive(): void {
     const s = Math.random() < 0.5 ? 1 : -1, from = s * (END + 0.6), pick = Math.random();
-    if (pick < 0.55) {
+    if (pick < 0.4) {
       const f = this.free(WALKER);
       if (!f) return;
-      const speed = 0.85 + Math.random() * 0.2, z = WALK_Z + (Math.random() - 0.5) * 0.2, gx = GATE_X + (Math.random() - 0.5) * 0.5;
-      // de meesten gaan naar de poort; een enkeling loopt alleen maar voorbij
-      if (Math.random() < 0.2) {
-        this.start(f, from, z, speed, false);
-        this.to(f, -from, z);
-        return;
-      }
-      this.start(f, from, z, speed, true);
-      this.to(f, gx, z);
-      this.to(f, gx, GATE_Z);
+      // aan de kant van de straat lopen: de kant van het park is voor de gasten die naar de poort gaan
+      const speed = 0.85 + Math.random() * 0.2, z = WALK_Z + 0.3 + Math.random() * 0.15;
+      this.start(f, from, z, speed);
+      this.to(f, -from, z);
       const kid = Math.random() < 0.4 ? this.free(KID) : null;
       if (!kid) return;
-      this.start(kid, from + s * 0.35, z + 0.28, speed, true);
-      this.to(kid, gx, z + 0.28);
-      this.to(kid, gx, GATE_Z);
-    } else if (pick < 0.82) {
+      this.start(kid, from + s * 0.35, z - 0.3, speed);
+      this.to(kid, -from - s * 0.35, z - 0.3);
+    } else if (pick < 0.78) {
       const f = this.free(CYCLIST);
       if (!f) return;
       // rechts houden op het fietspad
-      const z = BIKE_Z - s * 0.18, speed = 2 + Math.random() * 0.5;
-      if (Math.random() < 0.5) {
-        this.start(f, from, z, speed, false);
-        this.to(f, -from, z);
-        return;
-      }
-      // naar het fietsenrek
-      this.start(f, from, z, speed, true);
-      this.to(f, RACK_X, z);
-      this.to(f, RACK_X, FRONT_Z + 0.95);
+      const z = BIKE_Z - s * 0.18;
+      this.start(f, from, z, 2 + Math.random() * 0.5);
+      this.to(f, -from, z);
     } else {
       const f = this.free(STEPPER);
       if (!f) return;
-      this.start(f, from, STEP_Z, 1.5 + Math.random() * 0.3, true);
-      this.to(f, GATE_X, STEP_Z);
-      this.to(f, GATE_X, GATE_Z);
+      this.start(f, from, STEP_Z, 1.5 + Math.random() * 0.3);
+      this.to(f, -from, STEP_Z);
     }
-  }
-
-  /** Een kind stapt uit de bus (bij de deur, op `x`) en loopt schuin over de stoep naar de poort. */
-  private dropKid(x: number): void {
-    const kid = this.free(KID);
-    if (!kid) return;
-    const gx = GATE_X + (Math.random() - 0.5) * 0.6;
-    this.start(kid, x, LANE_NEAR - 0.55, 1.05 + Math.random() * 0.2, true, true);
-    this.to(kid, gx, WALK_Z);
-    this.to(kid, gx, GATE_Z);
   }
 
   private walk(f: Figure, dt: number): void {
     const g = f.group;
-    if (f.out > 0) {
-      // bij de poort: hij krimpt weg (de echte gast komt binnen tevoorschijn)
-      f.out -= dt;
-      if (f.out <= 0) {
-        f.active = false;
-        g.visible = false;
-      } else g.scale.setScalar(f.size * f.out * 4);
-      return;
-    }
-    if (f.grow < 1) {
-      f.grow = Math.min(1, f.grow + dt * 5);
-      g.scale.setScalar(f.size * Math.max(0.01, f.grow));
-    }
     const dx = f.route[f.step * 2] - f.x, dz = f.route[f.step * 2 + 1] - f.z, d = Math.hypot(dx, dz), go = f.speed * dt;
     const was = f.x;
     if (d <= go) {
       f.x += dx;
       f.z += dz;
       if (++f.step >= f.steps) {
-        if (f.vanish) f.out = 0.25;
-        else {
-          f.active = false;
-          g.visible = false;
-        }
+        // voorbij de rand van de wereld: uit beeld
+        f.active = false;
+        g.visible = false;
         f.step = f.steps - 1;
       }
     } else {

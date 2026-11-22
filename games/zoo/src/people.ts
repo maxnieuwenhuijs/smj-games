@@ -5,6 +5,7 @@ import { PLUSH, PRODUCTS, SEEK_REACH, STALLS, type FoodId, type ShopKind } from 
 import { Grid, H, W, tileIndex, tileXY } from './grid';
 import { BUMPER_CARS, DARK_FUN, FERRIS, LOOKS, PETTING_GUESTS, PLAY, RESTAURANT_TABLES, RIDES, SUIT_COLORS, TOWER_TOP, TRAIN, bumperCar, isPath } from './data';
 import { toWorldX, toWorldZ } from './view';
+import { arrivalPath, busPath, exitPath, pavementY } from './road';
 import { FaceCrowd, beardColor, faceFor, giveFace, setFace } from './faces';
 
 /** De tegel waar gasten binnenkomen en weer weggaan: midden aan de voorkant. */
@@ -753,7 +754,7 @@ const PRESSING: Need[] = ['toilet', 'food', 'drink', 'umbrella', 'shelter', 'sit
  * daarna gebeurt het hem niet nog eens; `most` en `share`: zoveel gasten zijn hooguit tegelijk de weg kwijt (een vast
  * aantal, of in een vol park dit deel van alle gasten). `doubt` en `pause`: zo vaak en zo lang twijfelt de juf.
  */
-const STRAY = { chance: 0.03, time: [8, 12], fun: 0.02, rest: 120, most: 2, share: 0.04, doubt: 0.2, pause: [2, 4] };
+const STRAY = { chance: 0.07, time: [10, 15], fun: 0.04, rest: 70, most: 3, share: 0.06, doubt: 0.3, pause: [3, 5] };
 /** Zoveel gasten mogen er nu nog de weg kwijtraken: de GuestManager telt het elk beeldje opnieuw. */
 let strayRoom = 0;
 /** Waar een gast op de wc nu staat, welke kant hij op gaat en de plek voor zijn deur; elke keer opnieuw ingevuld door `wcPose`. */
@@ -1035,6 +1036,14 @@ export class Guest implements Leader {
   private pen: PetSpot | null = null;
   private penPhase = 0;
   inside = false;
+  /**
+   * Buiten de poort, op de stoep: de punten die de gast nog af moet lopen (in tegels, buiten het raster). `out`: hij
+   * gaat naar huis en is aan het eind weg; anders komt hij aan en eindigt hij op de tegel van de ingang.
+   */
+  private walkway: { pts: [number, number][]; out: boolean } | null = null;
+  /** Hoe groot het poppetje is, en hoe ver het is met tevoorschijn komen (0 tot 1) als het buiten de poort begint. */
+  private size = 1;
+  private sprout = 1;
   private rainAsk = 0;
   private rainAlt = false;
   private bought: Partial<Record<ShopKind, number>> = {};
@@ -1192,6 +1201,7 @@ export class Guest implements Leader {
     this.mesh = person.group;
     // eerst vooroverleunen en opzij hellen, dan pas draaien: zo leunt de gast de kant op waar hij naar kijkt
     this.mesh.rotation.order = 'YXZ';
+    this.size = this.mesh.scale.x;
     this.limbs = person.limbs;
     this.head = person.head;
     this.height = person.height;
@@ -1251,8 +1261,52 @@ export class Guest implements Leader {
     this.place();
   }
 
+  /** De tegel waar de gast staat. Wie nog buiten de poort loopt (op de stoep), telt als op de tegel van de ingang. */
   get tile(): number {
-    return tileIndex(Math.floor(this.gx), Math.floor(this.gy));
+    return this.gy >= H ? ENTRANCE : tileIndex(Math.floor(this.gx), Math.floor(this.gy));
+  }
+
+  /** Loopt de gast buiten de poort naar binnen? */
+  get arriving(): boolean {
+    return !!this.walkway && !this.walkway.out;
+  }
+
+  /** Is de gast de poort al uit, op weg naar huis? */
+  get departing(): boolean {
+    return !!this.walkway?.out;
+  }
+
+  /** Neerzetten op een plek buiten de poort: het poppetje komt daar in een oogwenk tevoorschijn. */
+  private setDown(gx: number, gy: number, heading: number): void {
+    this.gx = this.lastX = gx;
+    this.gy = this.lastY = gy;
+    this.heading = heading;
+    this.sprout = 0;
+    this.mesh.scale.setScalar(this.size * 0.05);
+    this.place();
+  }
+
+  /**
+   * Buiten de poort beginnen: de gast staat op het eerste punt en loopt de andere punten af, tot op de tegel van de
+   * ingang. `tail`: zoveel volgers lopen er achter hem aan; voor hen ligt er alvast een spoor klaar, recht naar achteren.
+   */
+  arriveBy(pts: [number, number][], tail = 0): void {
+    const [x, y] = pts[0], [nx, ny] = pts[1];
+    const d = Math.hypot(nx - x, ny - y) || 1, ux = (x - nx) / d, uy = (y - ny) / d;
+    this.walkway = { pts: pts.slice(1), out: false };
+    this.state = 'walk';
+    this.trail = [];
+    for (let k = tail * 3; k >= 0; k--) this.trail.push([x + ux * k * 0.15, y + uy * k * 0.15]);
+    this.setDown(x, y, Math.atan2(nx - x, ny - y));
+  }
+
+  /** Een volger gaat op zijn plek in de rij staan, achter een leider die buiten de poort begint (of bij de deur van de bus). */
+  fallIn(): void {
+    const L = this.leader;
+    if (!L) return;
+    const p = L.trail[Math.max(0, L.trail.length - 1 - this.rank * 3)] ?? [L.gx, L.gy];
+    const x = p[0] + this.ox * 0.5, y = p[1] + this.oy * 0.5;
+    this.setDown(x, y, Math.atan2(L.gx - x, L.gy - y));
   }
 
   /** Een bijzondere gast (in een groepje, verdwaald, beroemd): die doet niet mee met een rondleiding en wordt niet bewaard. */
@@ -1266,7 +1320,7 @@ export class Guest implements Leader {
 
   /** Kan deze gast nu mee met de gids? */
   get free(): boolean {
-    return !this.special && !this.leaving && !this.inside && !this.riding && !this.wheels && this.astray <= 0 && (this.state === 'idle' || this.state === 'walk' || this.state === 'watch') && !this.errand && !this.sight;
+    return !this.special && !this.leaving && !this.inside && !this.riding && !this.walkway && !this.wheels && this.astray <= 0 && (this.state === 'idle' || this.state === 'walk' || this.state === 'watch') && !this.errand && !this.sight;
   }
 
   /** Wacht de gast bij deze halte op het treintje? */
@@ -1417,6 +1471,11 @@ export class Guest implements Leader {
     return true;
   }
 
+  /** Wat de gast nu doet, voor het menu van de gast: de weg kwijt, op weg naar huis, of gewoon zijn bezigheid. */
+  get doing(): string {
+    return this.astray > 0 ? 'astray' : this.leaving ? 'leaving' : this.state;
+  }
+
   get happy(): boolean {
     return this.fun >= 0.55 && this.hunger < 0.9 && this.thirst < 0.9 && this.bladder < 0.9;
   }
@@ -1515,7 +1574,7 @@ export class Guest implements Leader {
 
   /** Kan de gast nu een praatje maken? */
   get chatty(): boolean {
-    return !this.special && !this.idle && !this.act && this.moan <= 0 && this.astray <= 0 && (this.state === 'idle' || this.state === 'queue');
+    return !this.special && !this.walkway && !this.idle && !this.act && this.moan <= 0 && this.astray <= 0 && (this.state === 'idle' || this.state === 'queue');
   }
 
   /** Hoe ver de gast is met gaan zitten (0 = staat nog op het pad, 1 = zit); aan het eind staat hij weer op. */
@@ -1942,11 +2001,23 @@ export class Guest implements Leader {
 
   /** Naar huis: door de poort naar buiten. Een blije gast laat een tekening achter in het gastenboek. */
   private leave(w: GuestWorld): void {
-    if (this.gone) return;
-    this.gone = true;
+    if (this.gone || this.walkway) return;
     if (this.star) w.starLeft(this, this.happy);
     else if (this.badge === 'schoolclass' && this.tour) w.classLeft(this, this.happy);
     else if (this.happy && !this.leader && !this.wrote) w.signBook(this);
+    // kan hij niet bij de ingang komen (het pad is weg), dan is hij meteen weg
+    if (this.gy >= H || tileIndex(Math.floor(this.gx), Math.floor(this.gy)) !== ENTRANCE) {
+      this.gone = true;
+      return;
+    }
+    // de poort uit en een eind de stoep af, naar links of naar rechts: daar pas is hij weg
+    this.walkway = { pts: exitPath(Math.random() < 0.5 ? 1 : -1, 6 + Math.random() * 4, this.ox * 2.5), out: true };
+    this.leaving = true;
+    this.route = [];
+    this.shop = null;
+    this.errand = null;
+    this.wish = null;
+    this.state = 'walk';
   }
 
   // ------------------------------------------------------------ dingen in het park
@@ -3126,7 +3197,13 @@ export class Guest implements Leader {
   private follow(dt: number): void {
     const L = this.leader!;
     if (L.gone) {
-      this.gone = true;
+      // de leider is de stoep af: wie buiten de poort nog achter hem liep, loopt zelf door tot waar hij verdween
+      if (this.gy >= H) {
+        this.leader = null;
+        this.leaving = true;
+        this.walkway = { pts: [[L.gx, L.gy]], out: true };
+        this.state = 'walk';
+      } else this.gone = true;
       return;
     }
     const trail = L.trail, idx = trail.length - 1 - this.rank * 3;
@@ -3267,8 +3344,14 @@ export class Guest implements Leader {
       w.guestSound(this.cue, this);
       this.cue = null;
     }
+    // wie buiten de poort begint, komt in een oogwenk tevoorschijn
+    if (this.sprout < 1) {
+      this.sprout = Math.min(1, this.sprout + dt * 4);
+      this.mesh.scale.setScalar(this.size * (0.05 + 0.95 * this.sprout));
+    }
     if (this.leader) return this.follow(dt);
     if (this.lost) return this.cry(dt, w, reach);
+    if (this.walkway) return this.outdoors(dt, w, reach);
     // wielen, ballon en paraplu, en opletten wat er om de gast heen gebeurt (iets vies, een ontsnapt dier, de ster)
     this.extras(dt, w);
     const ease = w.ease(), demand = w.demand() * ease;
@@ -3381,6 +3464,58 @@ export class Guest implements Leader {
     this.phase += dt * 11;
     swing(this.limbs, this.state === 'walk' || this.stepping ? Math.sin(this.phase * (this.dash > 0 ? 1.5 : 1)) * (this.wheels === 'chair' ? 0 : this.stepping ? 0.5 : 0.7) : 0);
     this.gesture(dt, rain && !this.umbrella && w.feature('weather'));
+    this.place();
+  }
+
+  /**
+   * Buiten de poort: over de stoep naar het pleintje en door de poort naar binnen, of na het bezoek de poort uit en de
+   * stoep af. De gast loopt gewoon van punt naar punt (buiten het raster is er geen pad om te zoeken); honger, dorst
+   * en boodschappen tellen hier niet.
+   */
+  private outdoors(dt: number, w: GuestWorld, reach: Set<number>): void {
+    let way = this.walkway!;
+    this.extras(dt, w);
+    // het park is ineens dicht (het pad bij de ingang is weg): omkeren en de stoep weer af
+    if (!way.out && !reach.has(ENTRANCE)) {
+      const back = this.gx < W / 2 ? -1 : 1, y = Math.max(this.gy, pavementY());
+      way = this.walkway = { pts: [[this.gx, y], [this.gx + back * 7, y]], out: true };
+      this.leaving = true;
+    }
+    // een groepje en wie op wielen rijdt, gaat rustig; wie alleen aankomt, loopt vlot door (hij heeft er zin in)
+    const speed = this.wheels || this.leading ? 0.85 : way.out ? 0.9 : 1.15;
+    if (this.stall > 0) this.linger(dt);
+    else {
+      const [tx, ty] = way.pts[0];
+      const dx = tx - this.gx, dy = ty - this.gy, dist = Math.hypot(dx, dy), step = speed * dt;
+      if (dist <= step) {
+        this.gx = tx;
+        this.gy = ty;
+        way.pts.shift();
+      } else {
+        this.gx += (dx / dist) * step;
+        this.gy += (dy / dist) * step;
+        this.turnTo(dx, dy, dt);
+      }
+      if (this.leading) this.mark();
+      // de laatste halve tegel van de weg naar huis wordt hij kleiner, een eind bij de poort vandaan
+      if (way.out && way.pts.length === 1 && this.sprout >= 1) this.mesh.scale.setScalar(this.size * Math.max(0.05, Math.min(1, dist / 0.5)));
+      if (!way.pts.length) {
+        if (way.out) {
+          this.gone = true;
+          return;
+        }
+        // binnen, op de tegel van de ingang: vanaf hier gaat het bezoek gewoon verder
+        this.walkway = null;
+        this.state = 'idle';
+        this.timer = 0.05;
+        this.place();
+        return;
+      }
+    }
+    this.state = 'walk';
+    this.phase += dt * 11;
+    swing(this.limbs, this.stall > 0 || this.wheels === 'chair' ? 0 : Math.sin(this.phase * (speed > 1 ? 1.2 : 1)) * 0.7);
+    this.gesture(dt, false);
     this.place();
   }
 
@@ -3556,7 +3691,7 @@ export class Guest implements Leader {
     // de paraplu omhoog houden als het regent
     if (this.brolly?.visible) left.rotation.x = -2.5;
     // bij het weggaan nog even zwaaien
-    if (this.leaving && this.fun > 0.6 && this.state === 'walk' && this.route.length < 3 && !this.wheels) this.hello = Math.max(this.hello, 0.3);
+    if (this.leaving && this.fun > 0.6 && this.state === 'walk' && this.route.length < 3 && !this.wheels && !this.walkway) this.hello = Math.max(this.hello, 0.3);
     if (this.hello > 0) {
       this.hello -= dt;
       right.rotation.x = -2.7;
@@ -3584,7 +3719,7 @@ export class Guest implements Leader {
   // ------------------------------------------------------------ extra houdingen en dingen in de hand
   /** Loopt of staat de gast gewoon op het pad (niet op een bankje, in een attractie, op de wc of in de trein)? */
   private get afoot(): boolean {
-    return (this.state === 'walk' || this.state === 'idle' || this.state === 'watch' || this.state === 'queue') && !this.riding;
+    return (this.state === 'walk' || this.state === 'idle' || this.state === 'watch' || this.state === 'queue') && !this.riding && !this.walkway;
   }
 
   /** Hoge nood en op weg naar de wc: dan zet de gast er de pas in. */
@@ -4384,6 +4519,8 @@ export class GuestManager {
   private reach = new Set<number>();
   private reachIn = 0;
   private chatIn = 3;
+  /** Een klas die uit de bus stapt: de juf of meester, het hoeveelste kind nu aan de beurt is (van `n`) en hoe lang het vorige geleden is. */
+  private alighting: { leader: Guest; next: number; n: number; wait: number }[] = [];
   private crowd: Crowd;
 
   constructor(scene: THREE.Scene, private world: GuestWorld) {
@@ -4391,7 +4528,8 @@ export class GuestManager {
   }
 
   snapshot(): GuestSave[] {
-    return this.guests.filter(g => !g.gone && !g.special && !g.inside && !g.riding).map(g => g.snapshot());
+    // (wie nog buiten de poort loopt, op weg naar binnen of naar huis, wordt niet bewaard)
+    return this.guests.filter(g => !g.gone && !g.special && !g.inside && !g.riding && !g.arriving && !g.departing).map(g => g.snapshot());
   }
 
   /** De gasten uit een bewaard spel lopen weer rond waar ze waren. Kind blijft kind; kleren zijn nieuw. */
@@ -4446,13 +4584,25 @@ export class GuestManager {
    * Een schoolklas: een juf of meester met een rij kinderen in dezelfde kleur shirt erachteraan.
    * `shirt`: de kleur van de juf (oranje vest) of de meester (groene trui), net als op hun portret.
    */
-  spawnClass(n = 6, shirt = 0xf08a24): Guest | null {
+  spawnClass(n = 6, shirt = 0xf08a24, byBus = false): Guest | null {
     if (!this.open) return null;
     const teacher = this.make({ child: false, shirt });
     teacher.tour = { stops: 5 };
     teacher.badge = 'schoolclass';
+    if (byBus) {
+      // de bus staat voor de poort: de juf of meester stapt als eerste uit, de kinderen een voor een erachteraan
+      teacher.arriveBy(busPath());
+      teacher.lead();
+      this.alighting.push({ leader: teacher, next: 1, n, wait: 0 });
+      return teacher;
+    }
+    this.walkIn(teacher, n);
     teacher.lead();
-    for (let i = 0; i < n; i++) this.make({ child: true, shirt: 0xffd23f }).join(teacher, i + 1);
+    for (let i = 0; i < n; i++) {
+      const kid = this.make({ child: true, shirt: 0xffd23f });
+      kid.join(teacher, i + 1);
+      kid.fallIn();
+    }
     return teacher;
   }
 
@@ -4462,18 +4612,32 @@ export class GuestManager {
     const parent = this.make({ child: false });
     parent.tour = { stops: 2, party: true };
     parent.badge = 'cake';
+    this.walkIn(parent, n);
     parent.lead();
     for (let i = 0; i < n; i++) {
       const kid = this.make({ child: true });
       kid.addHat('hat_party');
       kid.join(parent, i + 1);
+      kid.fallIn();
     }
     return parent;
   }
 
   /** De beroemde gast: gouden shirt, zonnebril en een ster boven zijn hoofd. */
   spawnStar(): Guest | null {
-    return this.open ? this.make({ star: true }) : null;
+    return this.open ? this.walkIn(this.make({ star: true })) : null;
+  }
+
+  /**
+   * Een nieuwe gast begint buiten: op de stoep, een eind links of rechts van de poort. Hij loopt naar het pleintje en
+   * door de poort naar binnen. `tail`: zoveel volgers komen er achter hem aan (die beginnen wat dichterbij: een
+   * groepje loopt rustiger).
+   */
+  private walkIn(guest: Guest, tail = 0): Guest {
+    const side = Math.random() < 0.5 ? 1 : -1;
+    const far = tail || guest.wheels ? 4 + Math.random() * 1.5 : 5 + Math.random() * 3;
+    guest.arriveBy(arrivalPath(side, far, Math.random() - 0.5), tail);
+    return guest;
   }
 
   /** Een kind raakt zijn papa of mama kwijt: het staat ergens op het pad te huilen. */
@@ -4497,15 +4661,30 @@ export class GuestManager {
       this.refresh();
     }
     const capacity = this.world.capacity();
-    if (this.open && this.guests.length < capacity) {
+    // (wie de poort al uit is en de stoep af loopt, telt niet meer mee)
+    let here = 0;
+    for (const g of this.guests) if (!g.departing) here++;
+    if (this.open && here < capacity) {
       this.spawnIn -= dt;
       if (this.spawnIn <= 0) {
         // hoe meer gasten het park trekt, hoe sneller ze na elkaar binnenkomen
         this.spawnIn = Math.max(0.8, 110 / capacity) * (0.7 + Math.random() * 0.6);
         const wheels = this.world.feature('wheels') && Math.random() < 0.06 ? (Math.random() < 0.5 ? 'chair' : 'pram') : undefined;
-        this.make({ wheels });
+        // een nieuwe gast komt over de stoep aanlopen en gaat door de poort naar binnen
+        this.walkIn(this.make({ wheels }));
       }
     }
+    // de klas stapt uit de bus: een kind komt naar buiten zodra de rij ver genoeg is opgeschoven (of na ruim een tel)
+    for (const a of this.alighting) {
+      a.wait += dt;
+      if (a.leader.gone) a.next = a.n + 1;
+      if (a.next > a.n || (a.leader.trail.length <= a.next * 3 && a.wait < 1.2)) continue;
+      const kid = this.make({ child: true, shirt: 0xffd23f });
+      kid.join(a.leader, a.next++);
+      kid.fallIn();
+      a.wait = 0;
+    }
+    if (this.alighting.some(a => a.next > a.n)) this.alighting = this.alighting.filter(a => a.next <= a.n);
     this.lines();
     // de klok voor de korte gebaren, en waar de beroemde gast loopt (wie hem tegenkomt, wil een foto of een handtekening)
     crowdClock += dt;
@@ -4872,8 +5051,55 @@ export class Worker implements Leader {
     return null;
   }
 
+  /**
+   * Zit de werker opgesloten? Dat gebeurt als hij in een verblijf stond dat open lag en de speler het hek weer
+   * dichtmaakt of het verblijf groter maakt: dan staat hij in een verblijf zonder poort en kan hij nergens meer heen.
+   */
+  private walledIn(w: WorkerWorld): boolean {
+    const [x, y] = tileXY(this.tile);
+    if (!w.grid.enclosureAt(x, y)) return false;
+    const seen = new Set<number>([this.tile]), queue = [this.tile];
+    for (let head = 0; head < queue.length; head++)
+      for (const j of w.grid.neighbors(queue[head], true)) {
+        if (seen.has(j)) continue;
+        const [jx, jy] = tileXY(j);
+        // via een poort kom je buiten: niet opgesloten
+        if (!w.grid.enclosureAt(jx, jy)) return false;
+        seen.add(j);
+        queue.push(j);
+      }
+    return true;
+  }
+
+  /** De werker stapt over het hek naar de dichtstbijzijnde vrije tegel buiten de verblijven. */
+  private stepOut(w: WorkerWorld): void {
+    const seen = new Set<number>([this.tile]), queue = [this.tile];
+    for (let head = 0; head < queue.length; head++) {
+      const [x, y] = tileXY(queue[head]);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (!w.grid.inBounds(nx, ny)) continue;
+        const j = tileIndex(nx, ny);
+        if (seen.has(j)) continue;
+        seen.add(j);
+        if (!w.grid.enclosureAt(nx, ny) && w.walkable(j)) {
+          this.gx = nx + 0.5;
+          this.gy = ny + 0.5;
+          this.route = [];
+          this.job = null;
+          this.timer = 0.6;
+          return;
+        }
+        queue.push(j);
+      }
+    }
+  }
+
   /** Zoekt de dichtstbijzijnde klus die nog niemand doet en waar hij bij kan. */
   private plan(w: WorkerWorld, claimed: Set<object>): void {
+    // staat de werker in een verblijf zonder poort (het hek is om hem heen dichtgegaan), dan gaat hij er eerst uit:
+    // anders kan hij bij geen enkele klus en roept hij overal ten onrechte dat er een poort moet komen
+    if (this.walledIn(w)) return this.stepOut(w);
     const near = <T extends { at: [number, number] }>(list: T[]): T[] =>
       list.sort((p, q) => Math.hypot(p.at[0] - this.gx, p.at[1] - this.gy) - Math.hypot(q.at[0] - this.gx, q.at[1] - this.gy)).slice(0, 6);
     if (this.role === 'feed') {

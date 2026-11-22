@@ -238,8 +238,10 @@ export class Hud {
       // de knop Draai staat helemaal bovenaan: boven de bovenste rij, links, recht boven de eerste knop van die rij.
       // Zo is de volgorde van onder naar boven steeds: de grote knop, de groep, de dingen zelf, en dan draaien.
       const top = Math.min(...boxes.map(k => k.top)), row = boxes.filter(k => k.top < top + 8);
-      const left = Math.max(6, Math.min(...row.map(k => k.left)));
-      this.spinBtn.style.left = `${Math.min(innerWidth - b.width - 6, left)}px`;
+      // recht boven het gekozen ding in die rij (staat het gekozen ding niet in de bovenste rij, dan boven het midden)
+      const r = at.getBoundingClientRect(), chosen = r.width > 0 && r.top < top + 8;
+      const mid = chosen ? r.left + r.width / 2 : (Math.min(...row.map(k => k.left)) + Math.max(...row.map(k => k.right))) / 2;
+      this.spinBtn.style.left = `${Math.max(6, Math.min(innerWidth - b.width - 6, mid - b.width / 2))}px`;
       this.spinBtn.style.top = `${Math.max(6, top - b.height - 10)}px`;
       return;
     }

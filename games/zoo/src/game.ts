@@ -299,7 +299,7 @@ const WILD_ICON: Record<WildKind, IconId> = { tree: 'tree', plant: 'tuft', stone
 const wildIcon = (kind: WildKind): string => icon(WILD_ICON[kind]) + (kind === 'plant' ? '' : `<i class="from">${icon('tuft')}</i>`);
 const PROP_ICON: Record<PropKind, IconId> = { tuft: 'tuft', daisies: 'daisies', fern: 'fern', shrub: 'shrub', pebbles: 'pebbles', stone: 'stone', oak: 'tree', fir: 'pine', coco: 'palm', crag: 'boulder',
   // het kleine spul voor het park heeft een plaatje met dezelfde naam
-  pot: 'pot', gnome: 'gnome', pinwheel: 'pinwheel', ducky: 'ducky', balls: 'balls', birdhouse: 'birdhouse', can: 'can', bucket: 'bucket', snail: 'snail', crate: 'crate' };
+  pot: 'pot', gnome: 'gnome', pinwheel: 'pinwheel', ducky: 'ducky', birdhouse: 'birdhouse', can: 'can', bucket: 'bucket', snail: 'snail', crate: 'crate' };
 interface ToyObj {
   x: number;
   y: number;
@@ -527,6 +527,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private lastSaid = new Map<string, number>();
   /** De klas zoekt een dier: de speler wijst de weg door op het goede verblijf te tikken. */
   private guideAsk: { species: SpeciesId; teacher: Guest; until: number } | null = null;
+  /** De schoolbus is onderweg: zodra hij voor de poort stilstaat, stapt deze klas uit (na `until` komt ze te voet). */
+  private classDue: { n: number; teacher: TeacherId; until: number } | null = null;
   /** Hoe graag schoolklassen komen (0 tot 3): had een klas het leuk, dan komt er vaker een klas, met meer kinderen. */
   private classFans = 0;
   private guestBadges = new Map<Guest, HTMLElement>();
@@ -1355,8 +1357,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
           ...(grounds.park.length ? [{
             key: 'terrainGroup', active: this.option.terrainGroup,
             options: [
-              { ...opt('pen', 'grass', t('terrain.group.pen')), fresh: grounds.pen.some(k => this.fresh.has(k)) },
-              { ...opt('park', 'path', t('terrain.group.park')), fresh: grounds.park.some(k => this.fresh.has(k)) },
+              { ...opt('pen', 'paw', t('terrain.group.pen')), fresh: grounds.pen.some(k => this.fresh.has(k)) },
+              { ...opt('park', 'tree', t('terrain.group.park')), fresh: grounds.park.some(k => this.fresh.has(k)) },
             ],
           }] : []),
         ],
@@ -2022,7 +2024,22 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Het verblijf onder de muis (met het handje) en het verblijf waarvan het menu open staat: die lichten zacht op. */
   private hoverPen: Pen | null = null;
   /** Waar de muis boven hangt en waar een tik een menu opent (dier, gast, werker, voerbak, winkel): daar komt een ring. */
-  private hoverAt: { at: () => [number, number]; r: number } | null = null;
+  private hoverAt: { at: () => [number, number]; w: number; h: number } | null = null;
+  /** De tegels en randen die nu wit oplichten onder wat je aanwijst, en voor welk blok dat was uitgerekend. */
+  private hoverGlow: { key: string; tiles: number[]; edges: Edge[] } = { key: '', tiles: [], edges: [] };
+
+  /** Het witte vlak met rand onder een blok tegels (een kraam, een voerbak, of de tegel waar een dier of gast op staat). */
+  private glowBlock(x: number, y: number, w: number, h: number): { tiles: number[]; edges: Edge[] } {
+    const glow = this.hoverGlow, key = `${x},${y},${w},${h}`;
+    if (glow.key === key) return glow;
+    glow.key = key;
+    glow.tiles = [];
+    glow.edges = [];
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (this.grid.inBounds(x + dx, y + dy)) glow.tiles.push(tileIndex(x + dx, y + dy));
+    for (let dx = 0; dx < w; dx++) glow.edges.push({ o: 'h', x: x + dx, y }, { o: 'h', x: x + dx, y: y + h });
+    for (let dy = 0; dy < h; dy++) glow.edges.push({ o: 'v', x, y: y + dy }, { o: 'v', x: x + w, y: y + dy });
+    return glow;
+  }
   private menuPen: Pen | null = null;
 
   private penMenu(pen: Pen): void {
@@ -2464,7 +2481,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         if (cx < 0 || cy < 0 || !this.grid.inBounds(x, y) || this.cellTaken(cx, cy) || this.propCells.has(this.cellKey(cx, cy))) return false;
         if (park && this.grid.enclosureAt(x, y)) return false;
         const terrain = this.grid.terrain[tileIndex(x, y)];
-        if (isPath(terrain) || terrain === WATER) return false;
+        // klein spul voor het park (een bloempot, een kabouter) mag ook op het pad staan, in een hoekje van de tegel
+        if ((isPath(terrain) && !park) || terrain === WATER) return false;
       }
     return true;
   }
@@ -2507,7 +2525,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       for (let dy = 0; dy < n; dy++)
         for (let dx = 0; dx < n; dx++) {
           const x = (p.sx + dx) >> 1, y = (p.sy + dy) >> 1, terrain = this.grid.terrain[tileIndex(x, y)];
-          if (this.cellTaken(p.sx + dx, p.sy + dy) || isPath(terrain) || terrain === WATER) return true;
+          if (this.cellTaken(p.sx + dx, p.sy + dy) || (isPath(terrain) && PROP[p.kind].group !== 'park') || terrain === WATER) return true;
         }
       return false;
     });
@@ -3790,21 +3808,50 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Bij een gast zie je hoe het gaat, wat zijn lievelingsdier is en wat hij nu wil. */
   private guestMenu(guest: Guest): void {
     const s = this.view.toScreen(guest.gx, guest.gy, guest.height);
-    const want = (on: boolean, ic: IconId): string => (on ? `<span class="wish no">${icon(ic)}</span>` : '');
+    // een wens met een staand balkje: hoe voller, hoe beter het gaat (honger 0 is een vol balkje)
+    const need = (value: number, ic: IconId): string => `<span class="wish ${value > 0.6 ? 'no' : 'ok'}">${icon(ic)}${meter(1 - value)}</span>`;
+    // extra zin in iets (een ijsje, een ballon, een ritje): alleen als de gast er nu echt zin in heeft
+    const want = (value: number, ic: IconId): string => (value > 0.7 ? need(value, ic) : '');
+    // bovenaan de gast zelf, uitvergroot en bewegend, met eronder wat hij doet; daaronder zijn wensen
     const header =
-      icon(guest.fun >= 0.55 ? 'smile_good' : guest.fun >= 0.3 ? 'smile_ok' : 'smile_bad') +
+      '<span class="live"><canvas class="portrait3d" width="144" height="144"></canvas><b class="doing"></b></span>' +
+      '<span class="needs">' +
+      `<span class="wish ${guest.fun >= 0.3 ? 'ok' : 'no'}">${icon(guest.fun >= 0.55 ? 'smile_good' : guest.fun >= 0.3 ? 'smile_ok' : 'smile_bad')}${meter(guest.fun)}</span>` +
       (guest.fav ? `<span class="wish ${guest.favSeen ? 'ok' : 'no'}">${speciesIcon(guest.fav)}${icon('heart', 'badge')}</span>` : '') +
-      want(guest.hunger > 0.6, 'foodstall') + want(guest.thirst > 0.6, 'drinkstall') + want(guest.bladder > 0.6, 'toilet') +
-      want(guest.treat > 0.7, 'icecream') + want(guest.balloon > 0.7, 'balloon') + want(guest.tired > 0.75, 'bench') +
-      want(guest.gift > 0.7, 'souvenir') + want(guest.playful > 0.7, 'playground') + want(guest.hat > 0.7, 'hats') +
-      want(guest.curious > 0.7, 'fountain') + want(guest.rideWish > 0.7, 'carousel');
+      need(guest.hunger, 'foodstall') + need(guest.thirst, 'drinkstall') + need(guest.bladder, 'toilet') + need(guest.tired, 'bench') +
+      want(guest.treat, 'icecream') + want(guest.balloon, 'balloon') + want(guest.gift, 'souvenir') + want(guest.playful, 'slide') + want(guest.hat, 'hats') +
+      want(guest.curious, 'fountain') + want(guest.rideWish, 'carousel') +
+      '</span>';
     this.hud.showMenu(s.x, s.y, t('guest.title'), [{ id: 'wave', icon: icon('hand'), label: t('guest.wave') }], () => {
       if (!guest.waved) guest.fun = Math.min(1, guest.fun + 0.1);
       guest.waved = true;
       // de gast zwaait terug
       guest.greet();
       this.floatAt(icon('heart'), guest.gx, guest.gy, guest.height + 0.2);
-    }, header);
+    }, header, 'animal');
+    const canvas = document.querySelector<HTMLCanvasElement>('#menu canvas.portrait3d');
+    this.liveGuest = canvas ? { g: guest, canvas, label: document.querySelector<HTMLElement>('#menu .doing'), was: '', skip: false } : null;
+    this.updateLiveGuest();
+  }
+
+  /** De gast in het menu: een levend plaatje en wat hij nu doet. */
+  private liveGuest: { g: Guest; canvas: HTMLCanvasElement; label: HTMLElement | null; was: string; skip: boolean } | null = null;
+
+  private updateLiveGuest(): void {
+    const L = this.liveGuest;
+    if (!L) return;
+    if (!L.canvas.isConnected || !this.hud.menuOpen || !this.guests.guests.includes(L.g)) {
+      this.liveGuest = null;
+      return;
+    }
+    // om het andere beeldje is vaak genoeg
+    L.skip = !L.skip;
+    if (L.skip) this.view.portrait(L.g.mesh, L.canvas, L.g.child ? 0.95 : 1.15);
+    const doing = L.g.doing;
+    if (doing !== L.was) {
+      L.was = doing;
+      if (L.label) L.label.textContent = t(`guest.doing.${doing}`);
+    }
   }
 
   // ------------------------------------------------------------ invoer
@@ -3970,18 +4017,19 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         // alles waar een tik een menu opent, krijgt een ring zolang je erboven hangt: zo zie je dat je erop kunt tikken
         const pet = this.pickAnimal(cx, cy);
         if (pet) {
-          this.hoverAt = { at: () => [pet.gx, pet.gy], r: 1.7 };
+          this.hoverAt = { at: () => [Math.floor(pet.gx), Math.floor(pet.gy)], w: 1, h: 1 };
           return this.hud.setCursor(CUR.pet);
         }
         const person = this.pick(this.workers, cx, cy, w => w.height * 0.6, 0.4) ?? this.pick(this.guests.guests, cx, cy, q => q.height * 0.6, 0.4);
         if (person) {
-          this.hoverAt = { at: () => [person.gx, person.gy], r: 1.2 };
+          this.hoverAt = { at: () => [Math.floor(person.gx), Math.floor(person.gy)], w: 1, h: 1 };
           return this.hud.setCursor(CUR.menu);
         }
         if (inside && (this.troughAt(x, y) || this.shopAt(x, y))) {
           const stall = this.troughAt(x, y) ? undefined : this.shopAt(x, y);
-          const spot: [number, number] = stall ? blockCenter(stall) : [x + 0.5, y + 0.5];
-          this.hoverAt = { at: () => spot, r: stall ? 1.3 + Math.max(...shopTiles(stall)) : 1.5 };
+          const spot: [number, number] = stall ? [stall.x, stall.y] : [x, y];
+          const [sw, sh] = stall ? shopTiles(stall) : [1, 1];
+          this.hoverAt = { at: () => spot, w: sw, h: sh };
           return this.hud.setCursor(stall ? CUR.menu : CUR.feed);
         }
         if (inside && this.penAt(x, y)) {
@@ -4777,7 +4825,20 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       this.guideAsk = null;
       this.hud.hideOffer();
     }
-    if (!this.guests.open || crowd < 4 || this.celebrating || this.offer || this.guideAsk) return;
+    // de bus staat voor de poort (of blijft te lang weg): de klas stapt uit, en de juf of meester vraagt om hulp
+    if (this.classDue && (this.road.busStopped() || this.clock > this.classDue.until)) {
+      const due = this.classDue, [ex, ey] = tileXY(ENTRANCE);
+      this.classDue = null;
+      const group = this.guests.spawnClass(due.n, TEACHER_SHIRT[due.teacher], this.road.busStopped());
+      if (group) {
+        this.classTeacher.set(group, due.teacher);
+        // een hele klas betaalt samen entree
+        this.earn(3 + this.classFans, ex + 0.5, ey + 0.5);
+        this.offerEvent('schoolclass', group);
+      }
+      return;
+    }
+    if (!this.guests.open || crowd < 4 || this.celebrating || this.offer || this.guideAsk || this.classDue) return;
     this.eventIn -= dt;
     if (this.eventIn > 0) return;
     this.eventIn = 150 + Math.random() * 130;
@@ -4792,7 +4853,6 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const kind = kinds[Math.floor(Math.random() * kinds.length)];
     if (!kind) return;
     this.lastEvent = kind;
-    const [ex, ey] = tileXY(ENTRANCE);
     if (kind === 'lost') {
       const pair = this.guests.spawnLost();
       if (!pair) return;
@@ -4803,16 +4863,15 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
     // hoe liever de klassen komen, hoe groter de klas; er komt een juf of een meester mee
     const teacher = TEACHERS[Math.floor(Math.random() * TEACHERS.length)];
-    const group = kind === 'schoolclass' ? this.guests.spawnClass(5 + this.classFans + Math.floor(Math.random() * 3), TEACHER_SHIRT[teacher]) : kind === 'party' ? this.guests.spawnParty() : kind === 'celeb' ? this.guests.spawnStar() : null;
-    // een klas, een feestje of een beroemde gast komt niet als het park dicht is
-    if (!group && (kind === 'schoolclass' || kind === 'party' || kind === 'celeb')) return;
-    if (kind === 'schoolclass' && group) {
-      this.classTeacher.set(group, teacher);
-      // een hele klas betaalt samen entree
-      this.earn(3 + this.classFans, ex + 0.5, ey + 0.5);
-      // de schoolbus stopt voor de poort
+    if (kind === 'schoolclass') {
+      // de schoolbus komt eraan: de klas stapt pas uit als hij voor de poort stilstaat (zie hierboven)
       this.road.callBus();
+      this.classDue = { n: 5 + this.classFans + Math.floor(Math.random() * 3), teacher, until: this.clock + 45 };
+      return;
     }
+    const group = kind === 'party' ? this.guests.spawnParty() : kind === 'celeb' ? this.guests.spawnStar() : null;
+    // een feestje of een beroemde gast komt niet als het park dicht is
+    if (!group && (kind === 'party' || kind === 'celeb')) return;
     // de vrachtwagen met voer staat een poosje voor de poort
     if (kind === 'delivery') this.road.callTruck();
     this.offerEvent(kind, group);
@@ -4867,7 +4926,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       this.closeOffer();
       if (species && who) return this.startGuide(species, who);
       this.hud.hush();
-      playMini({ ...mini, picture, onDone: r => this.endEvent(kind, who, r.skipped ? 'skip' : r.won ? 'won' : 'lost') });
+      // wie om hulp vroeg, leest ook de uitleg van het puzzeltje voor
+      playMini({ ...mini, picture, say: text => void playVoice(voiceId(line.who, text)), onDone: r => this.endEvent(kind, who, r.skipped ? 'skip' : r.won ? 'won' : 'lost') });
     }, () => this.closeOffer());
   }
 
@@ -5484,11 +5544,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!(this.tool === 'action' && this.option.action === 'broom')) for (const p of this.poops) if (p !== hot) spots.push({ gx: p.gx, gy: p.gy, r: 0.9, brown: true });
     if (this.marked && (this.clock > this.marked.until || !this.animals.includes(this.marked.a))) this.marked = null;
     if (this.marked) spots.push({ gx: this.marked.a.gx, gy: this.marked.a.gy, hot: true, r: 2.6 });
-    // waar je boven hangt en op kunt tikken voor een menu
-    if (this.hoverAt && this.tool === 'hand' && !this.moving && !this.hud.menuOpen) {
-      const [hx, hy] = this.hoverAt.at();
-      spots.push({ gx: hx, gy: hy, r: this.hoverAt.r, hot: true });
-    } else this.hoverAt = null;
+    // waar je boven hangt en op kunt tikken voor een menu: dat licht straks wit op, net als een verblijf
+    if (!(this.hoverAt && this.tool === 'hand' && !this.moving && !this.hud.menuOpen)) this.hoverAt = null;
     // waar de melding over ging waar je net op tikte
     const pointed = this.pointed && this.clock < this.pointed.until ? this.pointed.at() : null;
     if (pointed) spots.push({ gx: pointed[0], gy: pointed[1], hot: true, r: 2.6 });
@@ -5500,7 +5557,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const lit = this.menuPen ?? this.hoverPen;
     // het hok dat je sleept licht op; anders het verblijf dat je aanwijst of gekozen hebt
     if (this.rect) this.view.highlight(this.rectTiles, [], 1.6, this.clock);
-    else this.view.highlight(lit ? lit.region.tiles : null, lit ? this.grid.borderEdges(lit.region) : [], this.menuPen ? 1 : 0.6, this.clock);
+    else if (!lit && this.hoverAt) {
+      // een kraam, voerbak, dier, gast of werker waar je boven hangt: hetzelfde witte vlak met rand als bij een verblijf
+      const [hx, hy] = this.hoverAt.at(), glow = this.glowBlock(hx, hy, this.hoverAt.w, this.hoverAt.h);
+      this.view.highlight(glow.tiles, glow.edges, 0.9, this.clock);
+    } else this.view.highlight(lit ? lit.region.tiles : null, lit ? this.grid.borderEdges(lit.region) : [], this.menuPen ? 1 : 0.6, this.clock);
     for (const a of this.animals) a.update(dt, this);
     this.guests.update(dt);
     this.road.update(dt, this.night);
@@ -5594,6 +5655,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
     this.guestBubblesUpdate();
     this.updateLive();
+    this.updateLiveGuest();
     // het prijskaartje boven elke strook grond die te koop is
     for (const [side, sign] of this.landSigns) {
       const [cx, cy] = this.view.plotCenter(this.grid.plot(side));

@@ -411,11 +411,6 @@ const ICONS = {
     `<ellipse cx="23" cy="42.5" rx="17" ry="2.8" fill="#000" opacity=".12"/><path d="M9 31 L3 21 L14 26Z" fill="${SUN}" stroke="${SUN_D}" stroke-width="2" stroke-linejoin="round"/>` +
     `<ellipse cx="22" cy="32" rx="15" ry="10" fill="${SUN}" stroke="${SUN_D}" stroke-width="2"/><ellipse cx="42" cy="19.5" rx="5" ry="2.8" fill="#f08a24" stroke="#c96a15" stroke-width="1.4"/>` +
     `<circle cx="32" cy="17" r="9" fill="${SUN}" stroke="${SUN_D}" stroke-width="2"/><path d="M13 31 q7 -5 14 0 q-6 7 -14 0Z" fill="${SUN_D}"/><circle cx="34.5" cy="15" r="1.7" fill="${INK}"/>`,
-  balls:
-    `<ellipse cx="24" cy="43" rx="19" ry="2.8" fill="#000" opacity=".12"/><circle cx="24" cy="29" r="9" fill="${SUN}" stroke="${SUN_D}" stroke-width="2"/>` +
-    `<circle cx="13.5" cy="33.5" r="9.5" fill="${RED}" stroke="#b83a32" stroke-width="2"/><circle cx="34.5" cy="33.5" r="9.5" fill="#4a90e2" stroke="#2f6fb8" stroke-width="2"/>` +
-    `<circle cx="24" cy="16" r="9.5" fill="#b06ad9" stroke="#8a4ab5" stroke-width="2"/>` +
-    `<g fill="#fff" opacity=".6"><circle cx="10" cy="30" r="2.4"/><circle cx="31" cy="30" r="2.4"/><circle cx="20.5" cy="12.5" r="2.4"/></g>`,
   birdhouse:
     `<ellipse cx="24" cy="45" rx="10" ry="2.2" fill="#000" opacity=".12"/><rect x="21.5" y="32" width="5" height="13" rx="1.5" fill="${WOOD_D}"/>` +
     `<rect x="12" y="17" width="24" height="17" rx="2" fill="#fff1c9" stroke="#c9a96a" stroke-width="2"/><circle cx="24" cy="24" r="4" fill="${INK}"/>` +

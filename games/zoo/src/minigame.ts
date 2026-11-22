@@ -21,6 +21,8 @@ export interface MiniOptions {
   first?: 'size' | 'count';
   /** Volgorde: deze plaatjes van klein naar groot, in plaats van de gewone. */
   sizeIcons?: IconId[];
+  /** De uitleg boven de vraag wordt hiermee voorgelezen (de tekst zelf staat er ook); mag ontbreken. */
+  say?: (text: string) => void;
   /** Eén keer aangeroepen: als het puzzeltje klaar is of met het kruisje is weggeklikt. */
   onDone: (result: MiniResult) => void;
 }
@@ -196,8 +198,18 @@ function drawPips(s: Session): void {
   part('mg-pips').innerHTML = html;
 }
 
+/** Wie de uitleg voorleest, en wat er het laatst gezegd is: dezelfde zin klinkt niet bij elke vraag opnieuw. */
+let speak: ((text: string) => void) | null = null;
+let spoken = '';
+function tell(text: string): void {
+  if (text === spoken) return;
+  spoken = text;
+  speak?.(text);
+}
+
 function show(title: string, html: string): void {
   part('mg-title').textContent = title;
+  tell(title);
   part('mg-body').innerHTML = `<div class="mg-round">${html}</div>`;
 }
 
@@ -239,6 +251,7 @@ function showResult(s: Session): void {
   s.since = performance.now();
   part('mg-card').classList.add('done');
   part('mg-title').textContent = t(won ? 'mini.done.good' : 'mini.done.try');
+  tell(t(won ? 'mini.done.good' : 'mini.done.try'));
   // eerst de gele sterren, dan de grijze: zo tel je makkelijk hoeveel er goed waren
   const stars = [...s.marks].sort((a, b) => Number(b) - Number(a));
   part('mg-body').innerHTML =
@@ -402,6 +415,8 @@ function orderRound(s: Session): void {
 // ------------------------------------------------------------ voor het spel
 /** Opent het puzzeltje over het spel heen. Staat er al een open, dan gaat die eerst dicht (zijn onDone krijgt skipped: true). */
 export function playMini(opts: MiniOptions): void {
+  speak = opts.say ?? null;
+  spoken = '';
   stop();
   const el = ensureRoot();
   const s: Session = {

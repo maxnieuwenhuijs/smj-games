@@ -1877,15 +1877,6 @@ const PROP_PARTS: Record<PropKind, Part[]> = {
       [0x3a2a1a, dot(0.014, -0.036, 0.225, 0.133), dot(0.014, 0.036, 0.225, 0.133)],
     ), PAINT_MAT],
   ],
-  // ballen: drie op de grond en één er bovenop
-  balls: [
-    [painted(
-      [0xe0584f, ball(0.085, -0.085, 0.085, 0.055)],
-      [0x4a90e2, ball(0.085, 0.085, 0.085, 0.05)],
-      [0xffd23f, ball(0.082, 0, 0.082, -0.09)],
-      [0xb06ad9, ball(0.075, 0, 0.21, 0.005)],
-    ), PAINT_MAT],
-  ],
   // vogelhuisje: een licht huisje met een rood puntdak op een paal, met een rond gat en een stokje ervoor
   birdhouse: [
     [painted(
