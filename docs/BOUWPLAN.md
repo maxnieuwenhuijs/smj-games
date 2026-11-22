@@ -668,7 +668,7 @@ Alles hieronder staat in `games/zoo/src`; de vaste getallen in `data.ts`. De vol
   - De puzzeltjes staan in `minigame.ts` (`playMini`); los uitproberen kan op `minispel.html`. De zinnen van de gastvrouw zijn ingesproken (Nederlands en Engels); de korte teksten in het puzzeltje zelf worden niet voorgelezen.
 
 - **Zes nieuwe speeltjes voor in het verblijf:** autoband (level 14, 3 munten; rolt rechtop door het verblijf), wipplank (17, 4), slingerbal (20, 4), kruipboog (24, 5), bandenschommel (29, 6) en klimpaal (33, 6). Het dier doet echt mee: het wipt op de plank, geeft de bal een stootje, kruipt onder de boog door, zit op de schommel (grote dieren duwen ertegen) of klimt de paal op en kijkt boven rond. Een tik met het handje laat het ding zelf even bewegen. Zeedieren doen er niets mee. Sommige soorten vinden zo'n nieuw ding net zo leuk als hun lievelingsding (`TOY_ALSO` en `likesToy` in `data.ts`): een aap is ook tevreden met een bandenschommel of klimpaal. Het wolkje en de zin noemen nog wel het oude lievelingsding.
-- **Kleine dingen voor het park:** tien dingen op een kwart tegel (bloempot, kabouter, windmolentje, badeend, ballen, vogelhuisje, gieter, emmertje, slak, kistje appels), 1 munt per stuk. Ze staan bij Natuur in een eigen groep Voor het park en komen een paar tegelijk vrij (level 11, 13, 16, 19 en 22). Ze mogen alleen buiten de verblijven, tellen niet mee voor de natuurwens en je loopt er gewoon langs. Bouw je er later een verblijf omheen, dan blijven ze staan.
+- **Kleine dingen voor het park:** negen dingen op een kwart tegel (bloempot, kabouter, windmolentje, badeend, vogelhuisje, gieter, emmertje, slak, kistje appels), 1 munt per stuk. Ze staan bij Natuur in een eigen groep Voor het park en komen een paar tegelijk vrij (level 11, 13, 16, 19 en 22). Ze mogen alleen buiten de verblijven, tellen niet mee voor de natuurwens en je loopt er gewoon langs. Bouw je er later een verblijf omheen, dan blijven ze staan.
 - **Vijvers haken aan elkaar:** vijvers op tegels naast elkaar worden één vijver met ronde hoeken (twee een ovaal, vier een grote afgeronde vijver). Haal je er een weg, dan wordt de buur weer rond.
 - **Slim geluid, vaste omgeving en muziek:** zie Geluid op de achtergrond. De savanne, de jungle, het ijs en de verre landen hebben geen eigen lucht, gras of achtergrondgeluid meer; de naam van de wereld staat nog wel bij het level en de dieren staan er nog per wereld.
 
@@ -702,6 +702,20 @@ Alles hieronder staat in `games/zoo/src`; de vaste getallen in `data.ts`. De vol
 - **Geluiden bij de animaties:** 33 korte geluidjes voor gasten, park, toestellen, dieren en de weg, elk met een eigen sterkte en een minimale tijd ertussen (`GUEST_SOUND` en `TRICK_SOUND` in `game.ts`). Ze klinken alleen als de plek in beeld is.
 - **Klein:** de speeltuin staat onder Attracties; de paraplubak, het bankje, de afvalbak en de bloembak mogen langs een hek; de knoppen liggen altijd boven de wolkjes; de draaiknoppen tonen een videocamera met een oranje pijl.
 - **Nog niet gebouwd:** een kind op de schouders, hand in hand lopen, een ober in het restaurant en een ouder die de schommel duwt.
+
+### De nacht van 22 op 23 november: bezoekers als mensen
+
+- **Menu van de bezoeker:** tik je op een gast, dan zie je hem uitvergroot en bewegend, met eronder wat hij doet (wandelt, staat in de rij, is de weg kwijt) en zijn wensen met balkjes: humeur, lievelingsdier, eten, drinken, wc, rusten en waar hij zin in heeft.
+- **Namen en feitjes** (`traits.ts`): elke gast heeft een voornaam en drie feitjes uit een voorraad van 946 per taal (eten, hobby, wat hij kan, wat hij leuk vindt, grappige dingetjes, de dierentuin, vandaag, thuis, verzamelen, huisdier, school, muziek, weer, kleur). Kinderen en volwassenen hebben eigen feitjes; een gast in een rolstoel krijgt geen feitjes over rennen of klimmen. Daarboven staan hooguit twee dingen van nu: het lievelingsdier en de grootste nood. De juf, de meester, de beroemde gast, een kind op schoolreis, de jarige en een ouder met een kinderwagen hebben een eigen vaste regel. Een gast houdt zijn kaartje zolang hij in het park is; het wordt niet bewaard.
+- **Door de poort:** een nieuwe gast verschijnt op de stoep, een tegel of zes naast de poort, loopt over de stoep, de hoek om en onder de boog door naar binnen. Wie weggaat, loopt de poort uit en nog een stuk over de stoep. Een schoolklas verschijnt pas als de bus bij de halte stilstaat: de juf of meester stapt uit en de kinderen komen er een voor een achteraan. De poppetjes van de weg zelf lopen of rijden alleen nog voorbij.
+- **De weg** loopt door tot de rand van de wereld; de rotsen met tunnels zijn weg.
+- **Oplichten bij zweven:** een kraam, voerbak, dier, gast of werker waar je boven hangt, krijgt hetzelfde witte vlak met rand als een verblijf.
+- **Draai-knop:** staat recht boven het gekozen ding in de bovenste rij.
+- **Grond:** de twee groepen heten Voor dieren (een pootje) en Voor het park (een boompje).
+- **Klein spul voor het park** mag ook op een padtegel staan, in een kwart van de tegel. De stapel ballen is eruit; er zijn nu negen kleine dingen.
+- **Puzzeltjes:** de uitleg boven de vraag en "Goed gedaan!" worden voorgelezen, in de stem van wie om hulp vroeg.
+- **Opgesloten werker:** stond een werker in een verblijf toen het hek weer dichtging of het verblijf groter werd, dan stapt hij er nu eerst uit, in plaats van bij elke klus te melden dat er een poort moet komen.
+- **Wegwijzers:** de regels zijn even soepeler geweest en op verzoek weer teruggezet (zie de getallen hierboven).
 
 ## Bekende zwakke punten van de modellen
 

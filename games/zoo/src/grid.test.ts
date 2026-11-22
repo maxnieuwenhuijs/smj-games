@@ -7,6 +7,7 @@ import { allLines, fill, goalLine, textOf, voiceId, type Tr } from './lines';
 import nl from './nl.json';
 import { AQUATIC, PROP, PROPS, WILD_KINDS, WILD_WANT, propPoints, wildRange, wildWant } from './data';
 import { DECOR, WAYFIND, WAYFIND_PATHS, canStray, wayfound } from './data';
+import { guestCard, guestFacts, guestNames } from './traits';
 
 /** Zet een hek om het blok tegels van (x0,y0) tot en met (x1,y1). */
 function fenceBox(g: Grid, x0: number, y0: number, x1: number, y1: number): Edge[] {
@@ -398,5 +399,53 @@ describe('natuur in de verblijven', () => {
     }
     // nieuwe soorten komen achteraan, zodat de natuur zijn plek in het rijtje houdt
     expect(PROPS.findIndex(k => PROP[k].group === 'park')).toBe(PROPS.filter(k => PROP[k].group !== 'park').length);
+  });
+});
+
+describe('de weetjes van een gast', () => {
+  it('er zijn in elke taal meer dan 500 verschillende weetjes en genoeg namen', () => {
+    for (const lang of ['nl', 'en']) {
+      const facts = guestFacts(lang);
+      expect(new Set(facts).size, lang).toBeGreaterThan(500);
+      // geen weetje staat er twee keer in, en elk weetje is kort genoeg voor het menu
+      expect(new Set(facts).size, lang).toBe(facts.length);
+      for (const f of facts) expect(f.length, f).toBeLessThanOrEqual(40);
+      expect(new Set(guestNames(lang)).size, lang).toBeGreaterThanOrEqual(80);
+    }
+    // de twee talen hebben even veel weetjes: bij elk rijtje hoort een vertaling
+    expect(guestFacts('nl').length).toBe(guestFacts('en').length);
+  });
+
+  it('dezelfde gast houdt hetzelfde kaartje, met drie verschillende weetjes', () => {
+    for (const lang of ['nl', 'en']) {
+      const names = guestNames(lang);
+      for (let seed = 1; seed < 400; seed++) {
+        const child = seed % 3 === 0, card = guestCard(seed * 7919, child, lang);
+        expect(guestCard(seed * 7919, child, lang)).toEqual(card);
+        expect(names).toContain(card.name);
+        expect(new Set(card.facts).size).toBe(3);
+      }
+    }
+  });
+
+  it('een weetje voor kinderen komt nooit bij een groot mens, en andersom', () => {
+    for (const lang of ['nl', 'en']) {
+      const kid = new Set(guestFacts(lang, 'kid')), adult = new Set(guestFacts(lang, 'adult'));
+      for (let seed = 1; seed < 1500; seed++) {
+        for (const f of guestCard(seed, false, lang).facts) expect(kid.has(f), f).toBe(false);
+        for (const f of guestCard(seed, true, lang).facts) expect(adult.has(f), f).toBe(false);
+      }
+    }
+  });
+
+  it('een gast in een rolstoel krijgt rustige weetjes, de juf geen ander werk', () => {
+    for (let seed = 1; seed < 600; seed++) {
+      const card = guestCard(seed, false, 'nl', { skip: ['job'], count: 2, sex: 'f' });
+      expect(card.facts).toHaveLength(2);
+      for (const f of card.facts) expect(f.startsWith('Werkt '), f).toBe(false);
+      const calm = guestCard(seed, false, 'nl', { calm: true }).facts;
+      expect(calm).toHaveLength(3);
+      for (const f of calm) expect(/^(Klimt|Rent|Springt|Loopt|Huppelt|Fietst|Kan op|Kan heel snel) /.test(f), f).toBe(false);
+    }
   });
 });

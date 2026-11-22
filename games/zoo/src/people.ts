@@ -964,6 +964,10 @@ export class Guest implements Leader {
   readonly child: boolean;
   readonly wheels: 'chair' | 'pram' | null;
   readonly star: boolean;
+  /** Een vast getal voor het kaartje van deze gast: zijn naam en zijn weetjes (zie traits.ts). */
+  readonly seed = Math.floor(Math.random() * 0x7fffffff);
+  /** Voor een passende naam: een baard of snor is een man, een rok of jurk een vrouw; anders mag alles. */
+  readonly sex: 'm' | 'f' | null;
   gx: number;
   gy: number;
   hunger = Math.random() * 0.3;
@@ -1208,6 +1212,7 @@ export class Guest implements Leader {
     this.child = person.child;
     this.wheels = opts.wheels ?? null;
     this.star = !!opts.star;
+    this.sex = beardColor(person.head.userData.face as number) !== null ? 'm' : person.group.children.some(c => (c as THREE.Mesh).geometry === SKIRT_GEO) ? 'f' : null;
     this.wantsBalloon = person.child || Math.random() < 0.2;
     this.wantsHat = Math.random() < 0.65;
     // wie een hoedje of ballon wil, heeft daar meteen al zin in: dan loopt hij er het hele bezoek mee rond

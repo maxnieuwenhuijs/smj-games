@@ -25,6 +25,7 @@ import { ENTRANCE, GuestManager, Train, Vendor, Worker, edgePose, edgeSides, sho
 import { SIGHT, type GuestCue, type Sight } from './people';
 import { PEN } from './people';
 import { Road } from './road';
+import { guestCard } from './traits';
 import { EDGE_SHIFT, View, toWorldX, toWorldZ, type TroughMesh } from './view';
 
 /** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken. */
@@ -3812,7 +3813,27 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const need = (value: number, ic: IconId): string => `<span class="wish ${value > 0.6 ? 'no' : 'ok'}">${icon(ic)}${meter(1 - value)}</span>`;
     // extra zin in iets (een ijsje, een ballon, een ritje): alleen als de gast er nu echt zin in heeft
     const want = (value: number, ic: IconId): string => (value > 0.7 ? need(value, ic) : '');
-    // bovenaan de gast zelf, uitvergroot en bewegend, met eronder wat hij doet; daaronder zijn wensen
+    // wie is het: een naam en een paar weetjes, bij dezelfde gast steeds dezelfde (zie traits.ts)
+    const teacher = this.classTeacher.get(guest), lead = guest.leader as { badge?: string | null } | null;
+    const trip = lead?.badge === 'schoolclass', party = guest.badge === 'cake' || lead?.badge === 'cake';
+    // een bijzondere gast heeft één vast weetje: de juf of meester, de beroemde gast, een kind op schoolreis, het feestje
+    const fixed: [IconId, string] | null = teacher ? ['schoolclass', teacher] : guest.star ? ['star', 'star'] : trip ? ['schoolclass', 'trip'] : party ? ['cake', 'party'] : guest.wheels === 'pram' ? ['pram', 'pram'] : null;
+    const card = guestCard(guest.seed, guest.child, document.documentElement.lang, {
+      sex: teacher ? (teacher === 'master' ? 'm' : 'f') : guest.sex,
+      count: fixed ? 2 : 3,
+      skip: teacher || trip ? ['job', 'school', 'today', 'travel'] : guest.star ? ['job'] : party ? ['today'] : [],
+      calm: guest.wheels === 'chair',
+    });
+    const line = (text: string, ic?: IconId): string => `<span class="fact${ic ? ' now' : ''}">${ic ? icon(ic) : ''}${text}</span>`;
+    // wat er nu speelt, hooguit twee regels: het lievelingsdier en de hoogste nood
+    const urgent = ([[guest.bladder, 'toilet', 'toilet'], [guest.hunger, 'foodstall', 'hungry'], [guest.thirst, 'drinkstall', 'thirsty'], [guest.tired, 'bench', 'tired']] as [number, IconId, string][])
+      .filter(n => n[0] > 0.6).sort((a, b) => b[0] - a[0]);
+    const now = [
+      ...(guest.fav ? [line(t(`guest.fact.${guest.favSeen ? 'favSeen' : 'fav'}`, { animal: t(`species.${guest.fav}.the`) }), 'heart')] : []),
+      ...urgent.map(n => line(t(`guest.fact.${n[2]}`), n[1])),
+    ].slice(0, 2);
+    const facts = `<span class="facts">${now.join('')}${fixed ? line(t(`guest.fact.${fixed[1]}`), fixed[0]) : ''}${card.facts.map(f => line(f)).join('')}</span>`;
+    // bovenaan de gast zelf, uitvergroot en bewegend, met eronder wat hij doet; daaronder zijn wensen en zijn weetjes
     const header =
       '<span class="live"><canvas class="portrait3d" width="144" height="144"></canvas><b class="doing"></b></span>' +
       '<span class="needs">' +
@@ -3821,8 +3842,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       need(guest.hunger, 'foodstall') + need(guest.thirst, 'drinkstall') + need(guest.bladder, 'toilet') + need(guest.tired, 'bench') +
       want(guest.treat, 'icecream') + want(guest.balloon, 'balloon') + want(guest.gift, 'souvenir') + want(guest.playful, 'slide') + want(guest.hat, 'hats') +
       want(guest.curious, 'fountain') + want(guest.rideWish, 'carousel') +
-      '</span>';
-    this.hud.showMenu(s.x, s.y, t('guest.title'), [{ id: 'wave', icon: icon('hand'), label: t('guest.wave') }], () => {
+      '</span>' + facts;
+    this.hud.showMenu(s.x, s.y, card.name || t('guest.title'), [{ id: 'wave', icon: icon('hand'), label: t('guest.wave') }], () => {
       if (!guest.waved) guest.fun = Math.min(1, guest.fun + 0.1);
       guest.waved = true;
       // de gast zwaait terug
