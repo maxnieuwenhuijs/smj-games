@@ -257,11 +257,11 @@ export class Grid {
  * van het blok: 0 = zuid, 1 = oost, 2 = noord, 3 = west (zoals de draaiing van een gebouw). Voor de tribune: die
  * staat met haar rug tegen de bak van de dolfijnen.
  */
-export function glassSides(grid: Grid, x: number, y: number, w: number, h: number): { side: number; region: Region }[] {
+export function glassSides(grid: Grid, x: number, y: number, w: number, h: number, kinds: readonly number[] = [5, 6]): { side: number; region: Region }[] {
   const out: { side: number; region: Region }[] = [];
   const look = (side: number, e: Edge, tx: number, ty: number): void => {
     const kind = grid.getEdge(e);
-    if (kind !== 5 && kind !== 6) return;
+    if (!kinds.includes(kind)) return;
     const region = grid.enclosureAt(tx, ty);
     if (region && !out.some(o => o.region === region && o.side === side)) out.push({ side, region });
   };

@@ -16,7 +16,7 @@ import { CLIMB_SECONDS, PUSH, SWING, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt,
 import { WAYFIND, canStray, wayfound, type WaySign } from './data';
 import { scares } from './data';
 import { MURK, murkAfter, murkLoad, murkyWater } from './data';
-import { SHOW_STARS, SHOW_TIME, newShow, showReady, showSoon, showTick, type ShowClock } from './data';
+import { SHOW_FENCES, SHOW_STARS, SHOW_TIME, newShow, showReady, showSoon, showTick, type ShowClock } from './data';
 import { ESCAPE_WAY, escapeChance, escapeWay, pickEscaper, type EscapeWay } from './data';
 import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region, type Side } from './grid';
 import { glassSides } from './grid';
@@ -3493,7 +3493,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
    * 2 = noord, 3 = west). Daar kijkt de tribune naartoe.
    */
   private showPool(x: number, y: number, w: number, h: number): { side: number; region: Region } | null {
-    return glassSides(this.grid, x, y, w, h).find(g => this.showDolphins(g.region.id).length) ?? null;
+    // dolfijnen en orka's wonen in een bak van glas; zeehonden achter een gewoon hek. Glas gaat voor
+    return glassSides(this.grid, x, y, w, h).find(g => this.showDolphins(g.region.id).length)
+      ?? glassSides(this.grid, x, y, w, h, SHOW_FENCES).find(g => this.showDolphins(g.region.id).some(a => a.species === 'seal')) ?? null;
   }
 
   /** De dolfijnen en orka's in dit verblijf. */
@@ -5157,7 +5159,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         s.next -= dt;
         if (s.next <= 0) {
           s.next = SHOW_TIME.trick;
-          const hoop = this.toys.find(toy => toy.kind === 'hoop' && this.grid.regionOf[tileIndex(toy.x, toy.y)] === pool.region.id) ?? null;
+          // de hoepel voor de dolfijnen, de bal voor de zeehonden
+          const hoop = this.toys.find(toy => (toy.kind === 'hoop' || toy.kind === 'ball') && this.grid.regionOf[tileIndex(toy.x, toy.y)] === pool.region.id) ?? null;
           // elk dier een ander kunstje: de een springt, de ander draait een rondje
           stars.forEach((a, i) => a.showTrick(this, s.n + i, hoop, cx, cy));
           s.n++;

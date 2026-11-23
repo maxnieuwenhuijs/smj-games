@@ -480,7 +480,9 @@ describe('wensen per level: alles wat iemand vraagt, kun je in dat level ook nee
 
   it('de tribune voor de dierenshow komt pas als er dolfijnen zijn', () => {
     expect(FEATURE.show).toBeGreaterThanOrEqual(BONUS.dolphin!);
-    for (const sp of SHOW_STARS) expect(AQUATIC).toContain(sp);
+    // de showdieren wonen allemaal in het water: dolfijn en orka in een bak van glas, de zeehond achter een hek
+    for (const sp of SHOW_STARS) expect(SPECIES[sp].terrain).toBe('water');
+    for (const sp of SHOW_STARS.filter(s => s !== 'seal')) expect(AQUATIC).toContain(sp);
     expect(ATTRACTIONS).toContain('show');
     expect(SHOPS).toContain('show');
   });

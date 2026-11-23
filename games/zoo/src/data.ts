@@ -952,8 +952,10 @@ export function migrateLevel(level: number, version: number): number {
 }
 
 // ------------------------------------------------------------ de dierenshow
-/** Deze dieren doen de show bij de tribune: de dolfijn en de orka. */
-export const SHOW_STARS: SpeciesId[] = ['dolphin', 'orca'];
+/** Deze dieren doen de show bij de tribune: de dolfijn, de orka en de zeehond. */
+export const SHOW_STARS: SpeciesId[] = ['dolphin', 'orca', 'seal'];
+/** Een zeehond woont achter een gewoon hek (geen glas): de tribune mag dan tegen elk soort hek staan, niet tegen een poort. */
+export const SHOW_FENCES = [1, 3, 4, 5, 6, 7];
 /**
  * De dierenshow (vanaf FEATURE.show), in tellen: `first` tot de eerste show, `every` tussen twee shows, `retry` tot
  * een nieuwe poging als de dieren niet konden, `call` om naar de tribune te lopen, `tricks` zo lang doen de dieren

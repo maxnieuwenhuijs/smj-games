@@ -935,6 +935,7 @@ export class Animal {
     const step = n % 5;
     this.stop();
     this.state = 'idle';
+    if (this.species === 'seal') return this.sealTrick(w, step, hoop, gx, gy);
     if (step === 2 && hoop && this.comePlay(w, hoop)) return true;
     if (!this.sink) this.show('hop');
     else if (step === 1) this.show('spin');
@@ -944,6 +945,25 @@ export class Animal {
       w.trickSound(this, 'clap');
     } else this.breach(w);
     if (step === 1 || step === 3) this.face(gx, gy);
+    this.acting = true;
+    w.showOff(this);
+    return true;
+  }
+
+  /**
+   * De zeehond in de show: met zijn vinnen klappen (met een plons in het water), een koprol, de bal op zijn neus
+   * (als die er is), buigen voor het publiek en een sprongetje.
+   */
+  private sealTrick(w: AnimalWorld, step: number, ball: Toy | null, gx: number, gy: number): boolean {
+    if (step === 2 && ball && ball.kind === 'ball' && this.comePlay(w, ball)) return true;
+    if (step === 0 || step === 3) {
+      this.show('clap');
+      if (this.sink) w.splash(this.gx, this.gy);
+      w.trickSound(this, 'clap');
+    } else if (step === 1) this.show('roll');
+    else if (step === 4) this.show('bow');
+    else this.show('hop');
+    this.face(gx, gy);
     this.acting = true;
     w.showOff(this);
     return true;
