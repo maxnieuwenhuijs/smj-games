@@ -1,7 +1,7 @@
 // Alles wat de figuren kunnen zeggen. Het spel bouwt zijn zinnen hier, en het stemmenscript
 // (tools/voice) vraagt hier de volledige lijst op, zodat elke zin ook ingesproken kan worden.
 // Geen DOM en geen Three.js in dit bestand: het draait ook buiten de browser.
-import { ALSO, CLIMATE, GOAL_OWNER, LEVELS, SEASONS, SPECIES, type FenceNeed, type Goal, type Season, type SpeciesId, type WishId, TOY_OF, SPACE, herdOf, SERVES } from './data';
+import { ALSO, CLIMATE, GOAL_OWNER, LEVELS, PREY_OF, SEASONS, SPECIES, type FenceNeed, type Goal, type Season, type SpeciesId, type WishId, TOY_OF, SPACE, herdOf, SERVES } from './data';
 import { STAFF, TEACHERS, type FigureId, type Mood, type TeacherId } from './figures';
 
 export type Vars = Record<string, string | number>;
@@ -161,6 +161,16 @@ export const say = {
   fact: (sp: SpeciesId): Line => ({ who: 'keeper', mood: 'happy', key: `fact.${sp}` }),
   climateNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.climate.new' }),
   wildNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.wild.new' }),
+  /** Vanaf FEATURE.safe: sommige dieren zijn bang voor elkaar. */
+  safeNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.safe.new' }),
+  /** `prey` is bang voor `hunter` in hetzelfde verblijf: "De zebra's zijn bang voor de leeuw!" */
+  scared: (tr: Tr, prey: SpeciesId, hunter: SpeciesId): Line => ({
+    who: 'keeper',
+    mood: 'worried',
+    key: 'alert.safe',
+    vars: { many: tr(`species.${prey}.many`), hunter: tr(`species.${hunter}.the`) },
+    id: `alert.safe.${prey}`,
+  }),
   tapAnimal: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.tap.animal' }),
   rare: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.rare' }),
   pals: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.pals' }),
@@ -274,7 +284,10 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
     add(say.taken(tr, sp));
     add(say.escaped(tr, sp));
     add(say.fact(sp));
+    // bang voor een roofdier: één zin per roofdier en dier dat bang voor hem is
+    for (const prey of PREY_OF[sp] ?? []) add(say.scared(tr, prey, sp));
   }
+  add(say.safeNew());
   add(say.healed());
   add(say.caught());
   add(say.hired());

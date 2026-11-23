@@ -23,7 +23,9 @@ export type SpeciesId =
   // het aquarium: geen beloning van een level, maar erbij vanaf een bepaald level (zie BONUS)
   | 'dolphin' | 'orca' | 'ray' | 'shark';
 export type Variant = 'male' | 'female' | 'young_m' | 'young_f';
-export type WishId = 'health' | 'enclosure' | 'food' | 'bed' | 'terrain' | 'friend' | 'clean' | 'space' | 'fun' | 'climate' | 'wild';
+export type WishId = 'health' | 'enclosure' | 'food' | 'bed' | 'terrain' | 'friend' | 'clean' | 'space' | 'fun' | 'climate' | 'wild'
+  // niet bang hoeven zijn: geen roofdier in het eigen verblijf
+  | 'safe';
 /** Iets leuks in een verblijf: speelgoed of groen. Elk dier is er blij mee. */
 export type ToyKind = 'ball' | 'bush' | 'log' | 'flowerbed' | 'hoop'
   // heuvel, rotsen, drinkvijver, waterval, warmtelamp, ijsblok, klimrek en tunnel
@@ -148,6 +150,30 @@ export const PALS: [SpeciesId, SpeciesId][] = [
   ['reindeer', 'yak'], ['flamingo', 'pelican'], ['otter', 'beaver'], ['dolphin', 'ray'],
 ];
 export const palsOf = (sp: SpeciesId): SpeciesId[] => PALS.filter(p => p.includes(sp)).map(p => (p[0] === sp ? p[1] : p[0]));
+/**
+ * Bang voor elkaar (vanaf FEATURE.safe): een roofdier en de dieren die bang voor hem zijn, wonen niet samen. Er
+ * gebeurt nooit iets engs: het roofdier doet niets, maar de andere dieren zijn bang. Ze kruipen weg in een hoekje,
+ * trillen en rennen weg als hij dichtbij komt. De oplossing: elk een eigen verblijf. Een zeedier is alleen bang
+ * voor een zeedier.
+ */
+const LITTLE: SpeciesId[] = ['chicken', 'duck', 'rabbit'];
+const FARM: SpeciesId[] = ['pig', 'cow', 'sheep', 'horse', 'donkey', 'goat', 'alpaca'];
+const PLAINS: SpeciesId[] = ['zebra', 'gazelle', 'giraffe', 'ostrich', 'camel', 'kangaroo', 'reindeer', 'flamingo', 'peacock'];
+const BIG_CAT: SpeciesId[] = [...LITTLE, ...FARM, ...PLAINS];
+export const PREY_OF: Partial<Record<SpeciesId, SpeciesId[]>> = {
+  lion: BIG_CAT, tiger: BIG_CAT, cheetah: BIG_CAT, panther: BIG_CAT,
+  wolf: [...LITTLE, ...FARM, 'reindeer', 'gazelle'],
+  bear: [...LITTLE, 'sheep', 'goat', 'pig', 'reindeer'],
+  polarbear: [...LITTLE, 'seal', 'penguin', 'reindeer'],
+  arcticfox: [...LITTLE, 'penguin'],
+  crocodile: [...LITTLE, 'zebra', 'gazelle', 'flamingo', 'pelican', 'sheep', 'goat', 'pig'],
+  orca: ['dolphin', 'ray'],
+  shark: ['ray'],
+};
+/** Is `prey` bang voor `hunter` als ze in hetzelfde verblijf wonen? */
+export const scares = (hunter: SpeciesId, prey: SpeciesId): boolean => !!PREY_OF[hunter]?.includes(prey);
+/** Voor wie dit dier bang is. */
+export const huntersOf = (prey: SpeciesId): SpeciesId[] => (Object.keys(PREY_OF) as SpeciesId[]).filter(h => scares(h, prey));
 /**
  * De kinderboerderij: een verblijf met het witte hekje (rand 7) en een poortje voor de gasten (rand 8), minstens
  * PETTING_MIN tegels groot. Daar mogen alle boerderijdieren door elkaar in: elk dier heeft genoeg aan een paar
@@ -803,6 +829,8 @@ export const FEATURE = {
   keeper: 11,
   /** Vanaf hier kan er een dier ontsnappen. */
   escape: 30,
+  /** Vanaf hier zijn dieren bang voor een roofdier in hun verblijf: dan komt de leeuw (zie PREY_OF). */
+  safe: 13,
 };
 
 /** Welk figuur geeft de opdracht voor welk soort doel. */
@@ -828,7 +856,8 @@ export const GOAL_OWNER: Record<GoalType, 'builder' | 'keeper' | 'host' | 'cashi
   coins: 'cashier',
 };
 
-export const WISH_ORDER: WishId[] = ['health', 'enclosure', 'food', 'bed', 'terrain', 'friend', 'clean', 'space', 'fun', 'climate', 'wild'];
+/** De wens 'safe' (niet bang zijn) staat vooraan: zolang een dier bang is, zie je dat het eerst. */
+export const WISH_ORDER: WishId[] = ['health', 'enclosure', 'safe', 'food', 'bed', 'terrain', 'friend', 'clean', 'space', 'fun', 'climate', 'wild'];
 /** Zoveel poepjes mogen er in een verblijf liggen voordat de dieren het vies vinden. */
 export const MAX_POOPS_CLEAN = 3;
 
