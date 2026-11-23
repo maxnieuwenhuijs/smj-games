@@ -357,15 +357,16 @@ De getallen staan in `games/zoo/src/data.ts` (`BONUS`, `AQUATIC`, `TANK_WATER`).
 
 ## Dag en nacht
 
-Vanaf level 15 wordt het ook nacht. Een dag (7 tot 21 uur) duurt tien minuten en een nacht bijna drie minuten, met twintig tellen schemering ertussen. De nacht bestaat uit drie stukken (`NIGHT_PARTS`): de avond van 21 tot 24 uur (anderhalve minuut, het park is nog open), de slaapnacht van 0 tot 5 uur (40 tellen) en de vroege ochtend van 5 tot 7 uur (40 tellen). Elke keer dat je het spel opent, begint het overdag. Rechtsboven staat een zon of een maan met het uur (de dag loopt van 7 tot 21 uur).
+Vanaf level 15 wordt het ook nacht. Een dag (7 tot 21 uur) duurt tien minuten en een nacht bijna vier minuten, met twintig tellen schemering ertussen. De nacht bestaat uit drie stukken (`NIGHT_PARTS`): de avond van 21 tot 24 uur (anderhalve minuut, het park is nog open), de slaapnacht van 0 tot 5 uur (anderhalve minuut) en de vroege ochtend van 5 tot 7 uur (40 tellen). Elke keer dat je het spel opent, begint het overdag. Rechtsboven staat een zon of een maan met het uur (de dag loopt van 7 tot 21 uur).
 
 - **Donker:** 's nachts ligt er een donkerblauw waas over het park. Alleen bij licht zie je alles goed: rond een lantaarn (3,5 tegel), een kampvuur (3), elke winkel en elk speeltoestel (2,4) en de ingang (4,5). De lantaarns branden dan fel.
 - **Gasten:** staat een gast in het donker naar dieren te kijken, dan heeft hij er maar een kwart van het plezier van en ziet hij zijn lievelingsdier niet. Boven zijn hoofd staat een oranje wolkje met een lantaarn. Zijn er meer gasten in het donker, dan zegt de gastvrouw: "Het is te donker! Zet er lantaarns bij."
-- **Dieren:** de meeste dieren gaan liggen slapen; wie honger heeft, eet eerst.
+- **Dieren:** de meeste dieren gaan liggen slapen; wie honger heeft, eet eerst. Van 0 tot 5 uur slaapt elk dier en komt er geen honger en geen poep bij.
+- **Iedereen naar huis:** vanaf 22 uur lopen de gasten naar de poort; er komt dan ook geen klas of ander evenement meer, en een klas of feestje dat er nog is, gaat mee naar huis. Vanaf half twaalf gaat het personeel: elke werker maakt zijn klus af, loopt naar de poort en is dan weg (niet allemaal tegelijk). De verkopers zakken dan achter hun toonbank weg. Rond half één is het park leeg, en dat blijft zo tot 5 uur: ruim een minuut zie je alleen slapende dieren en lampen. Om 5 uur komt het personeel een voor een weer binnen door de poort, om half zeven staan de verkopers er weer en om 7 uur komen de gasten. Wie thuis is, krijgt dat uur geen loon en kun je niet aantikken.
 - **Uitleg:** de eerste nacht zegt de directeur: "Het wordt donker! Zet lantaarns in je park, dan kunnen de gasten de dieren blijven zien." De lantaarn (5 munten, bij Park onder Sier) komt in hetzelfde level vrij.
 - **Geluid:** 's nachts hoor je krekels en af en toe een uil.
 
-De getallen staan in `games/zoo/src/data.ts` (`DAY_SECONDS`, `NIGHT_SECONDS`, `LIGHT`, `DARK_FUN`). Het donker is een vlak dat over het beeld wordt getekend met een zacht gat bij elk licht; dat kost weinig rekenkracht.
+De getallen staan in `games/zoo/src/data.ts` (`DAY_SECONDS`, `NIGHT_PARTS`, `GUESTS_HOME`, `STAFF_HOME`, `STAFF_BACK`, `VENDORS_BACK`, `LIGHT`, `DARK_FUN`). Het donker is een vlak dat over het beeld wordt getekend met een zacht gat bij elk licht; dat kost weinig rekenkracht.
 
 ## Het park uitbreiden
 

@@ -9,7 +9,7 @@ import {
   BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, SHOP_DEEP, shopSpan, herdOf, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
-  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, hourAt, WAGE, TOY_OF, DECOR, DECORS, type DecorKind, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, LIGHT, SPACE, guestsAt, SERVES,
+  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, hourAt, WAGE, TOY_OF, DECOR, DECORS, type DecorKind, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, GUESTS_HOME, STAFF_HOME, STAFF_BACK, VENDORS_BACK, LIGHT, SPACE, guestsAt, SERVES,
   isPath, PATH_KINDS, PATH_FROM, TOY_FROM, TOY_PRICE, CLIMATE, palsOf, PETTABLE, PETTING_MIN, NATURES, pickRare, RARE_CHANCE, MUD_LOVERS, FERRIS, BUMPER_CARS, bumperCar, crowdLoad, CROWD_EASE,
   EDGE_DECOR, SMALL_DECOR, PARK_GROUPS, ATTRACTIONS, parkShopGroup, PROP, PROPS, WILD_PROPS, PARK_PROPS, WILD_KINDS, wildRange, wildWant, type PropKind, type WildKind, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, SEASONS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
 import { CLIMB_SECONDS, PUSH, SWING, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, sinceHit, sway, swingAt, tetherAt } from './data';
@@ -1084,6 +1084,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Vraagt een level om voeren, dan krijgen dieren sneller trek: zo hoef je daar niet lang op te wachten. */
   hungerRate(): number {
+    // midden in de nacht slaapt alles en is er geen personeel: dan komt er geen honger bij
+    if (this.deepNight()) return 0;
     return this.goalOpen('fed') ? 2.5 : 1;
   }
 
@@ -1829,12 +1831,14 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Een nieuw uur: elke werker krijgt loon. Is het geld op, dan wachten de werkers die niets kregen. */
   private payWages(): void {
     let short = false;
-    for (const worker of this.workers) {
+    // wie naar huis is, krijgt dat uur geen loon
+    const here = this.workers.filter(w => !w.away);
+    for (const worker of here) {
       worker.paid = this.coins >= WAGE;
       if (worker.paid) this.coins -= WAGE;
       else short = true;
     }
-    if (this.workers.length) sfx('coin', { volume: 0.35, every: 1 });
+    if (here.length) sfx('coin', { volume: 0.35, every: 1 });
     if (short) this.alert(say.cash('wage'), 300);
   }
 
@@ -3005,10 +3009,23 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Vanaf tien uur 's avonds gaan de gasten naar huis, zodat het park om middernacht leeg is. */
   goingHome(): boolean {
-    return this.has('night') && (this.hourNow() >= 22 || this.hourNow() < 7);
+    return this.has('night') && (this.hourNow() >= GUESTS_HOME || this.hourNow() < 7);
   }
 
-  /** Van middernacht tot vijf uur slaapt alles: de dieren en ook het personeel. Vanaf vijf uur werkt het personeel weer. */
+  /**
+   * Vanaf half twaalf 's avonds gaat ook het personeel naar huis: elke werker loopt naar de poort en is dan weg. Om
+   * vijf uur komen ze een voor een weer binnen.
+   */
+  staffHome(): boolean {
+    return this.has('night') && (this.hourNow() >= STAFF_HOME || this.hourNow() < STAFF_BACK);
+  }
+
+  /** De verkopers in de kramen gaan tegelijk met het personeel weg en staan er weer vlak voor de gasten komen. */
+  private vendorsHome(): boolean {
+    return this.has('night') && (this.hourNow() >= STAFF_HOME || this.hourNow() < VENDORS_BACK);
+  }
+
+  /** Van middernacht tot vijf uur slaapt elk dier en is het park leeg. Vanaf vijf uur komt het personeel weer binnen. */
   deepNight(): boolean {
     return this.has('night') && this.hourNow() < 5;
   }
@@ -3205,6 +3222,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   poopRate(): number {
+    if (this.deepNight()) return 0;
     return this.goalOpen('cleaned') ? 4 : 1;
   }
 
@@ -4089,7 +4107,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
           this.hoverAt = { at: () => [Math.floor(pet.gx), Math.floor(pet.gy)], w: 1, h: 1 };
           return this.hud.setCursor(CUR.pet);
         }
-        const person = this.pick(this.workers, cx, cy, w => w.height * 0.6, 0.4) ?? this.pick(this.guests.guests, cx, cy, q => q.height * 0.6, 0.4);
+        const person = this.pick(this.workers.filter(w => !w.away), cx, cy, w => w.height * 0.6, 0.4) ?? this.pick(this.guests.guests, cx, cy, q => q.height * 0.6, 0.4);
         if (person) {
           this.hoverAt = { at: () => [Math.floor(person.gx), Math.floor(person.gy)], w: 1, h: 1 };
           return this.hud.setCursor(CUR.menu);
@@ -4397,7 +4415,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // een ziek dier: meteen naar de dokter
       if (animal?.sick) return this.vetGame(animal);
       if (animal) return this.animalMenu(animal);
-      const worker = this.pick(this.workers, cx, cy, w => w.height * 0.6, 0.4);
+      const worker = this.pick(this.workers.filter(w => !w.away), cx, cy, w => w.height * 0.6, 0.4);
       if (worker) return this.workerMenu(worker);
       const guest = this.pick(this.guests.guests, cx, cy, q => q.height * 0.6, 0.4);
       if (guest) return this.guestMenu(guest);
@@ -4719,7 +4737,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Staat de fotograaf in de buurt, dan koopt een tevreden gast soms een foto: een munt. */
   private sellPhoto(guest: Guest, chance: number): void {
     if (guest.fun < 0.4 || Math.random() > chance) return;
-    const snapper = this.workers.find(w => w.role === 'photo' && w.paid && Math.hypot(w.gx - guest.gx, w.gy - guest.gy) < 3.5);
+    const snapper = this.workers.find(w => w.role === 'photo' && w.paid && !w.away && Math.hypot(w.gx - guest.gx, w.gy - guest.gy) < 3.5);
     if (!snapper) return;
     snapper.snap();
     this.view.burst(snapper.gx, snapper.gy, 0.6, 0xffffff, 5);
@@ -4915,6 +4933,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.guideAsk && (this.clock > this.guideAsk.until || !this.guests.guests.includes(this.guideAsk.teacher))) {
       this.guideAsk = null;
       this.hud.hideOffer();
+    }
+    // na tien uur 's avonds komt er geen klas meer binnen en gebeurt er niets nieuws: iedereen gaat naar huis
+    if (this.goingHome()) {
+      this.classDue = null;
+      return;
     }
     // de bus staat voor de poort (of blijft te lang weg): de klas stapt uit, en de juf of meester vraagt om hulp
     if (this.classDue && (this.road.busStopped() || this.clock > this.classDue.until)) {
@@ -5666,8 +5689,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       this.payWages();
     }
     if (this.guests.train?.arrived) sfx('train.toot', { volume: 0.3, every: 4 });
+    const vendorsHome = this.vendorsHome();
     for (const shop of this.shops) {
-      shop.vendor?.update(dt, (shop.busyNow ?? 0) > 0);
+      shop.vendor?.update(dt, (shop.busyNow ?? 0) > 0, vendorsHome);
       if (!shop.edge || shop.kind !== 'bench') this.view.animateShop(shop.mesh, shop.kind, this.clock, shop.busyNow ?? 0, shop.x * 3 + shop.y);
       // feest voorbij: de slingers gaan weer weg; een vieze kraam krijgt vlekken en vliegjes
       if (shop.partyUntil && this.clock > shop.partyUntil) {

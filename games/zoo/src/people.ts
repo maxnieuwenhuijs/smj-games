@@ -2710,6 +2710,12 @@ export class Guest implements Leader {
   private tourStep(w: GuestWorld, list: number[], reach: Set<number>): void {
     const t = this.tour!;
     this.wish = null;
+    // sluitingstijd: ook een klas of een feestje gaat nu naar huis
+    if (w.goingHome()) {
+      t.party = false;
+      t.stops = 0;
+      this.sendTo = undefined;
+    }
     if (t.party) {
       t.party = false;
       const spot = this.spotBeside(w, reach, 'playground');
@@ -4834,8 +4840,8 @@ export interface FixJob {
   gy: number;
 }
 export interface WorkerWorld {
-  /** Midden in de nacht (tussen twaalf en vijf) slaapt ook het personeel; vanaf vijf uur gaan ze weer aan het werk. */
-  deepNight(): boolean;
+  /** Is het personeel naar huis (van half twaalf 's avonds tot vijf uur 's ochtends)? Dan loopt elke werker naar de poort. */
+  staffHome(): boolean;
   grid: Grid;
   /** Voerbakken die bijgevuld moeten worden, met het voer dat erin hoort. */
   feedJobs(): { trough: KeeperTrough; food: FoodId }[];
@@ -4922,6 +4928,13 @@ export class Worker implements Leader {
   private stopTile = -1;
   /** Zoveel tellen houdt de fotograaf zijn camera nog omhoog (klik!). */
   private flash = 0;
+  /**
+   * 's Nachts is de werker naar huis: `homing` zolang hij naar de poort loopt, `away` zodra hij weg is (dan zie je
+   * hem niet en kun je hem niet aantikken). `homeIn`: zoveel tellen wacht hij nog; zo gaat niet iedereen tegelijk.
+   */
+  away = false;
+  private homing = false;
+  private homeIn = Math.random() * 10;
 
   constructor(gx: number, gy: number, readonly role: WorkerRole) {
     const person = makePerson(true, { shirt: 0x4fa35a, hat: ROLE_COLOR[role] });
@@ -5005,6 +5018,18 @@ export class Worker implements Leader {
     this.route = [];
     this.working = 0;
     this.dismiss();
+  }
+
+  /** Naar huis: de klus loslaten en naar de poort lopen. Is er geen weg naartoe, dan is de werker meteen weg. */
+  private goHome(w: WorkerWorld, claimed: Set<object>): void {
+    this.drop(claimed);
+    this.standFor = 0;
+    this.watching = false;
+    this.flash = 0;
+    this.homing = true;
+    if (this.walledIn(w)) this.stepOut(w);
+    const route = this.routeTo(w, new Set([ENTRANCE]));
+    this.route = route ? route.slice(1) : [];
   }
 
   /** De gids en de fotograaf lopen over het pad van de ene kijkplek naar de andere. */
@@ -5234,13 +5259,38 @@ export class Worker implements Leader {
       this.limbs[2].rotation.x = this.limbs[3].rotation.x = -2.5 * fall;
       return;
     }
-    if (w.deepNight()) {
-      // midden in de nacht staat de werker stil: het park is dicht (de rondleiding is afgelopen)
-      if (this.group.length) this.dismiss();
-      swing(this.limbs, 0);
-      return this.place();
+    const home = w.staffHome();
+    if (this.away) {
+      // thuis; 's ochtends komt de werker na een poosje weer binnen door de poort
+      if (home) return;
+      this.homeIn -= dt;
+      if (this.homeIn > 0) return;
+      this.away = false;
+      this.mesh.visible = true;
+      this.timer = 0.4;
     }
-    if (!this.paid) {
+    if (home && !this.homing) {
+      // sluitingstijd: de klus afmaken en dan naar huis, niet allemaal tegelijk
+      this.homeIn -= dt;
+      if (this.homeIn <= 0 && this.working <= 0) this.goHome(w, claimed);
+    } else if (!home) {
+      // (het werd ochtend terwijl hij nog onderweg was: gewoon weer aan het werk)
+      if (this.homing) this.route = [];
+      this.homing = false;
+      this.homeIn = Math.random() * 10;
+    }
+    if (this.homing && !this.route.length) {
+      // bij de poort: de werker is naar huis
+      this.homing = false;
+      this.away = true;
+      this.homeIn = 1 + Math.random() * 12;
+      this.mesh.visible = false;
+      const [ex, ey] = tileXY(ENTRANCE);
+      this.gx = ex + 0.5;
+      this.gy = ey + 0.5;
+      return;
+    }
+    if (!this.paid && !this.homing) {
       // geen loon: even wachten (en de rondleiding is afgelopen)
       if (this.group.length) this.dismiss();
       swing(this.limbs, 0);
@@ -5354,6 +5404,8 @@ export class Vendor {
   private faceSeed = Math.random();
   private phase = Math.random() * 6;
   private wave = 0;
+  /** 's Nachts is de verkoper naar huis: 0 = hij staat er, 1 = hij is weg (hij zakt achter de toonbank weg). */
+  private out = 0;
   /** Zo lang is de verkoper al met een klant bezig, en het doosje dat hij aangeeft. */
   private serveT = 0;
   private item: THREE.Mesh;
@@ -5382,8 +5434,15 @@ export class Vendor {
     this.wave = 1.3;
   }
 
-  /** `serving`: er staat een klant aan de toonbank. */
-  update(dt: number, serving = false): void {
+  /** `serving`: er staat een klant aan de toonbank. `home`: het is nacht, de verkoper gaat naar huis. */
+  update(dt: number, serving = false, home = false): void {
+    const gone = home && !serving ? 1 : 0;
+    if (this.out !== gone) {
+      this.out = gone > this.out ? Math.min(1, this.out + dt * 1.6) : Math.max(0, this.out - dt * 1.6);
+      this.mesh.visible = this.out < 1;
+      this.mesh.position.y = 0.03 - 0.55 * this.out;
+    }
+    if (this.out >= 1) return;
     this.phase += dt * 2;
     this.wave = Math.max(0, this.wave - dt);
     // het gezicht: een brede lach bij een verkoop en voor een klant, anders een gewone lach; knipperen gaat vanzelf

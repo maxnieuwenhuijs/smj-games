@@ -410,10 +410,16 @@ export const COIN_CAP = 99;
 export const DAY_SECONDS = 600;
 /**
  * De nacht in drie stukken, elk [van uur, tot uur, tellen]: de avond (21 tot 24 uur: donker, het park is nog open),
- * de slaapnacht (0 tot 5 uur: het park is dicht en alles slaapt; die duurt maar kort) en de vroege ochtend (5 tot 7
- * uur: het personeel is al aan het werk, de gasten komen om 7 uur).
+ * de slaapnacht (0 tot 5 uur: het park is dicht, alles slaapt en er is niemand meer; die duurt anderhalve minuut,
+ * zodat je het lege park echt ziet) en de vroege ochtend (5 tot 7 uur: het personeel komt weer binnen, de gasten
+ * komen om 7 uur).
  */
-export const NIGHT_PARTS: [number, number, number][] = [[21, 24, 90], [0, 5, 40], [5, 7, 40]];
+export const NIGHT_PARTS: [number, number, number][] = [[21, 24, 90], [0, 5, 90], [5, 7, 40]];
+/**
+ * Wie wanneer naar huis gaat, als uur op de klok: de gasten vanaf GUESTS_HOME, het personeel en de verkopers vanaf
+ * STAFF_HOME (half twaalf: de meeste gasten zijn dan al weg). Het personeel komt om STAFF_BACK weer binnen, de verkopers om VENDORS_BACK.
+ */
+export const GUESTS_HOME = 22, STAFF_HOME = 23.5, STAFF_BACK = 5, VENDORS_BACK = 6.5;
 export const NIGHT_SECONDS = NIGHT_PARTS.reduce((n, p) => n + p[2], 0);
 /** Het uur van de dag (7 = zeven uur 's ochtends, 21,5 = half tien 's avonds) op dit moment in de kring van dag en nacht. */
 export function hourAt(phase: number): number {
