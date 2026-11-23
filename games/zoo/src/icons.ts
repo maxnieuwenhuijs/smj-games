@@ -152,6 +152,8 @@ const ICONS = {
     `<path d="M10 31 l6 5 M14 27 l6 5" stroke="${SUN_D}" stroke-width="2"/><path d="M14 20 L30 32" stroke="${RED}" stroke-width="5" stroke-linecap="round"/>`,
   heart: HEART,
   star: `<path d="M24 4 L30 17 L44 19 L34 29 L36.5 43 L24 36.5 L11.5 43 L14 29 L4 19 L18 17Z" fill="${SUN}" stroke="${SUN_D}" stroke-width="2.5" stroke-linejoin="round"/>`,
+  /** Een ster die je nog niet hebt: grijs. */
+  star_empty: `<path d="M24 4 L30 17 L44 19 L34 29 L36.5 43 L24 36.5 L11.5 43 L14 29 L4 19 L18 17Z" fill="#dde1e6" stroke="#b4bac2" stroke-width="2.5" stroke-linejoin="round"/>`,
   trophy:
     `<path d="M13 10 H6 Q6 22 14 22 M35 10 H42 Q42 22 34 22" fill="none" stroke="${SUN_D}" stroke-width="4"/><path d="M13 7 H35 V18 Q35 30 24 30 Q13 30 13 18Z" fill="${SUN}"/>` +
     `<rect x="21" y="29" width="6" height="8" fill="${SUN_D}"/><rect x="14" y="36" width="20" height="6" rx="2" fill="${SUN_D}"/>`,

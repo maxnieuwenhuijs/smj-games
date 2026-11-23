@@ -4,6 +4,9 @@ import { isMuted, setMuted, sfx, type Voice } from './audio';
 import { portrait, type FigureId, type Mood, type Mouth } from './figures';
 import { icon } from './icons';
 
+/** Vijf sterren op een rij: de eerste `n` goud, de rest grijs. */
+const starRow = (n: number): string => [1, 2, 3, 4, 5].map(i => icon(i <= n ? 'star' : 'star_empty')).join('');
+
 /** Een knop: `icon` is kant-en-klare HTML (een plaatje uit icons.ts). */
 export interface ToolOption {
   id: string;
@@ -360,6 +363,8 @@ export class Hud {
       (guests === null ? '' : `<span class="pill" title="${t('wallet.guests')}">${icon('guest')}<b>${guests}</b></span>`) +
       (hour === null ? '' : `<span class="pill" title="${t('wallet.hour')}">${icon(sky ?? 'clock')}<b>${hour}</b></span>`) +
       (extra ? `<span class="pill extra">${extra}</span>` : '');
+    this.walletGuests = guests !== null;
+    this.placeStars();
   }
 
   // ------------------------------------------------------------ doelen
@@ -702,6 +707,72 @@ export class Hud {
     this.voice = null;
     this.speech.hidden = true;
     this.speechTap = null;
+  }
+
+  // ------------------------------------------------------------ sterren
+  /** De sterren van het park: een rijtje van vijf onder het aantal gasten. Een tik laat zien waarom. */
+  private starPill = el('button', 'pill rating');
+  private starCount = 0;
+  private walletGuests = false;
+  /** Wat er gebeurt als je op de sterren tikt. */
+  onStars: (() => void) | null = null;
+
+  /** Toont `n` van de vijf sterren (null: nog geen sterren in dit level). */
+  setStars(n: number | null): void {
+    if (!this.starPill.dataset.ready) {
+      this.starPill.dataset.ready = '1';
+      this.starPill.setAttribute('aria-label', t('stars'));
+      this.starPill.title = t('stars');
+      this.starPill.addEventListener('click', () => this.onStars?.());
+    }
+    this.starPill.hidden = n === null;
+    if (n !== null && n !== this.starCount) {
+      this.starCount = n;
+      this.starPill.innerHTML = starRow(n);
+    }
+    this.placeStars();
+  }
+
+  /** De sterren komen vlak onder het aantal gasten; zonder gasten staan ze er niet. */
+  private placeStars(): void {
+    const guests = this.walletGuests ? this.wallet.children[1] : null;
+    if (guests && !this.starPill.hidden) {
+      if (guests.nextSibling !== this.starPill) guests.after(this.starPill);
+    } else this.starPill.remove();
+  }
+
+  /** Er is een ster bij: de sterren springen op en er vliegen glinsters omheen. */
+  starsUp(): void {
+    this.starPill.classList.remove('up');
+    void this.starPill.offsetWidth;
+    this.starPill.classList.add('up');
+    for (let i = 0; i < 6; i++) {
+      const spark = el('i', 'spark', icon('sparkle'));
+      spark.style.left = `${8 + Math.random() * 84}%`;
+      spark.style.top = `${Math.random() * 100}%`;
+      spark.style.animationDelay = `${i * 0.12}s`;
+      this.starPill.append(spark);
+      setTimeout(() => spark.remove(), 1600);
+    }
+  }
+
+  /**
+   * Waarom het park zoveel sterren heeft, alleen met plaatjes: per ding een plaatje en een groen of oranje gezichtje.
+   * `rows`: wat goed gaat (good) en wat beter kan.
+   */
+  showStars(n: number, rows: { icon: string; label: string; good: boolean }[], ok: string): void {
+    const card = el('div', 'card guide parkstars');
+    card.append(el('div', 'row5', starRow(n)));
+    for (const r of rows) {
+      const row = el('div', `why ${r.good ? 'good' : 'ok'}`, `${r.icon}${icon(r.good ? 'smile_good' : 'smile_ok')}`);
+      row.setAttribute('aria-label', r.label);
+      row.title = r.label;
+      card.append(row);
+    }
+    card.append(this.okButton(card, ok));
+    this.openCard(card, () => {
+      this.overlay.hidden = true;
+    });
   }
 
   // ------------------------------------------------------------ level gehaald

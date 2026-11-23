@@ -3,6 +3,7 @@
 // Geen DOM en geen Three.js in dit bestand: het draait ook buiten de browser.
 import { ALSO, CLIMATE, GOAL_OWNER, LEVELS, SEASONS, SPECIES, type FenceNeed, type Goal, type Season, type SpeciesId, type WishId, TOY_OF, SPACE, herdOf, SERVES } from './data';
 import { STAFF, TEACHERS, type FigureId, type Mood, type TeacherId } from './figures';
+import { STAR_FACTORS, type StarFactor } from './stars';
 
 export type Vars = Record<string, string | number>;
 export type Tr = (key: string, vars?: Vars) => string;
@@ -186,6 +187,10 @@ export const say = {
   pettingOpen: (): Line => ({ who: 'host', mood: 'happy', key: 'say.petting.open' }),
   pettingSmall: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.petting.small' }),
   pettingGate: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.petting.gate' }),
+  /** De sterren van het park: de uitleg, een ster erbij (2 tot 5) en een tip als er een ster af ging. */
+  starsNew: (): Line => ({ who: 'director', mood: 'happy', key: 'say.stars.new' }),
+  stars: (n: number): Line => ({ who: 'director', mood: 'happy', key: `say.stars.${n}` }),
+  starsTip: (about: StarFactor): Line => ({ who: 'host', mood: 'happy', key: `say.stars.tip.${about}`, id: 'say.stars.tip' }),
 };
 
 /** De tekst van een zin, zoals hij op het scherm komt en wordt uitgesproken. */
@@ -292,6 +297,9 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
     say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate()]) add(line);
   add(say.eventNew());
+  add(say.starsNew());
+  for (let n = 2; n <= 5; n++) add(say.stars(n));
+  for (const about of STAR_FACTORS) add(say.starsTip(about));
   // elke variant van elk evenement; wat de klas zegt, is er in de stem van de juf en in die van de meester
   for (const [id, e] of Object.entries(EVENT_SAYS))
     for (const who of e.who ? [undefined] : TEACHERS)

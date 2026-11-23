@@ -963,5 +963,21 @@
   "mini.order.count": "Zet de getallen van klein naar groot.",
   "mini.done.good": "Goed gedaan!",
   "mini.done.try": "Knap geprobeerd!",
-  "mini.close": "Sluiten"
+  "mini.close": "Sluiten",
+  "stars": "Sterren van je park. Tik om te zien waarom.",
+  "stars.animals": "Blije dieren",
+  "stars.guests": "Blije gasten",
+  "stars.clean": "Een schoon park",
+  "stars.kinds": "Veel soorten dieren",
+  "stars.pretty": "Een mooi park",
+  "say.stars.new": "Zie je de sterren? Hoe blijer je park, hoe meer sterren en hoe meer gasten!",
+  "say.stars.2": "Je park heeft nu 2 sterren!",
+  "say.stars.3": "Je park heeft nu 3 sterren!",
+  "say.stars.4": "Je park heeft nu 4 sterren!",
+  "say.stars.5": "Je park heeft nu 5 sterren! Het allerbeste park!",
+  "say.stars.tip.animals": "Wil je meer sterren? Maak al je dieren blij.",
+  "say.stars.tip.guests": "Wil je meer sterren? Maak de gasten blij met kramen en bankjes.",
+  "say.stars.tip.clean": "Wil je meer sterren? Ruim de poep en het afval op.",
+  "say.stars.tip.kinds": "Wil je meer sterren? Zet er een nieuw soort dier bij.",
+  "say.stars.tip.pretty": "Wil je meer sterren? Maak het park mooi met bloemen en bomen."
 }

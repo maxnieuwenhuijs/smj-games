@@ -25,6 +25,7 @@ import { ENTRANCE, GuestManager, Train, Vendor, Worker, edgePose, edgeSides, sho
 import { SIGHT, type GuestCue, type Sight } from './people';
 import { PEN } from './people';
 import { Road } from './road';
+import { STAR_EVERY, STAR_FACTORS, STAR_GOOD, STAR_TIP_GAP, nextStars, parkScore, scoreOf, smoothScore, starFactors, starGuests, weakest, type StarFactor, type StarInput } from './stars';
 import { guestCard } from './traits';
 import { EDGE_SHIFT, View, toWorldX, toWorldZ, type TroughMesh } from './view';
 
@@ -239,6 +240,8 @@ export interface SaveData {
   told?: string[];
   /** Hoe graag schoolklassen komen (0 tot 3). */
   fans?: number;
+  /** De sterren van het park (1 tot 5), zodat het feestje bij het openen niet opnieuw komt. */
+  stars?: number;
 }
 
 export const slotKey = (slot: number): string => `zoo-slot-${slot}`;
@@ -525,6 +528,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private resumed = false;
   private lastEvent = '';
   private boostUntil = 0;
+  /** De sterren van het park (1 tot 5), de rustige score erachter, en over hoeveel tellen er weer gekeken wordt. */
+  stars = 3;
+  starScore = scoreOf(3);
+  starIn = STAR_EVERY;
+  /** Er ging een ster af: de gastvrouw geeft straks een tip. */
+  private starTip = false;
+  private starShown: number | null = -1;
   /** Het kaartje van een evenement dat nu op het scherm ligt: de speler mag helpen of het wegklikken. */
   private offer: { kind: EventKind; who: Guest | null; until: number; ask: Line } | null = null;
   /** Bij elke klas hoort een juf of een meester: die stelt de vraag, zegt hoe het ging en neemt afscheid. */
@@ -584,6 +594,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       turn: dir => this.view.rotate(dir),
       spin: () => this.spinGhost(),
     });
+    this.hud.onStars = () => this.showStars();
     this.guests = new GuestManager(this.view.scene, this);
     this.road = new Road(this.view.scene);
     const train = this.view.makeTrain();
@@ -655,6 +666,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     // een park dat al verder is, heeft zijn eerste gasten al lang gehad
     if (d.level > FEATURE.paths) this.told.add('guests');
     this.classFans = d.fans ?? 0;
+    this.stars = Math.max(1, Math.min(5, Math.round(d.stars ?? 3)));
+    this.starScore = scoreOf(this.stars);
     this.savedPens = (d.pens ?? []).map(p => ({ name: p.name, color: p.color, tile: tileIndex((p.tile % ow) + ox, Math.floor(p.tile / ow) + oy) }));
     for (const tr of d.troughs) this.addTrough(tr.x + ox, tr.y + oy, tr.food, tr.amount, tr.kind && TROUGH[tr.kind] ? tr.kind : 'wood', tr.rot);
     for (const b of d.beds ?? []) this.addBed(b.x + ox, b.y + oy, b.kind, b.rot);
@@ -772,6 +785,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       facts: [...this.facts],
       told: [...this.told],
       fans: this.classFans,
+      stars: this.stars,
     };
   }
 
@@ -917,7 +931,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   capacity(): number {
     if (!this.has('paths') || this.goingHome()) return 0;
-    const base = Math.min(guestsAt(this.level, this.view.speed), 2 + Math.floor(this.animals.filter(a => !a.young).length * 1.3));
+    const plain = Math.min(guestsAt(this.level, this.view.speed), 2 + Math.floor(this.animals.filter(a => !a.young).length * 1.3));
+    // meer sterren, meer gasten (maar nooit meer dan dit apparaat bijhoudt)
+    const base = Math.min(guestsAt(1e3, this.view.speed), Math.round(plain * starGuests(this.stars, this.level)));
     // was de beroemde gast tevreden, dan komen er een poos meer gasten
     return this.clock < this.boostUntil ? Math.round(base * 1.25) : base;
   }
@@ -5336,6 +5352,77 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   // ------------------------------------------------------------ elk beeldje
+  // ------------------------------------------------------------ sterren
+  /** Wat de sterren nu zien in het park. */
+  private starInput(crowd: { total: number; happy: number }): StarInput {
+    return {
+      animals: this.animals.length,
+      happyAnimals: this.animals.filter(a => a.happy).length,
+      guests: crowd.total,
+      happyGuests: crowd.happy,
+      litter: this.litter.length,
+      poops: this.poops.length,
+      dirty: this.shops.filter(sh => (sh.dirt ?? 0) >= 1).length,
+      kinds: this.parkSpecies().length,
+      decor: this.decors.length,
+      shopKinds: new Set(this.shops.filter(sh => !sh.off).map(sh => sh.kind)).size,
+      decorOpen: this.has('decor'),
+    };
+  }
+
+  /**
+   * De sterren van het park. De score volgt rustig wat er gebeurt; om de twintig tellen gaat er hooguit één ster bij
+   * of af. Een ster erbij is een klein feestje; gaat er een af, dan geeft de gastvrouw later een tip, zonder te mopperen.
+   * 's Nachts, als de gasten naar huis gaan, staan de sterren stil.
+   */
+  private rateStars(dt: number, crowd: { total: number; happy: number }): void {
+    const on = this.has('paths');
+    if (on && !this.goingHome() && !this.celebrating) {
+      const input = this.starInput(crowd);
+      this.starScore = smoothScore(this.starScore, parkScore(input), dt);
+      this.starIn -= dt;
+      if (this.starIn <= 0) {
+        this.starIn = STAR_EVERY;
+        const next = nextStars(this.starScore, this.stars);
+        if (next > this.stars) {
+          this.stars = next;
+          this.starTip = false;
+          this.hud.setStars(next);
+          this.hud.starsUp();
+          sfx('chime');
+          const [ex, ey] = tileXY(ENTRANCE);
+          this.floatAt(icon('star'), ex + 0.5, ey + 1, 2.3);
+          this.mention(say.stars(next), 60);
+        } else if (next < this.stars) {
+          this.stars = next;
+          this.starTip = true;
+        }
+      }
+      // de eerste keer: de directeur vertelt wat de sterren zijn (pas als de eerste gasten er zijn)
+      if (!this.told.has('stars') && this.told.has('guests') && crowd.total >= 3) {
+        this.alert(say.starsNew(), 1e9);
+        if (this.said.has('say.stars.new')) this.told.add('stars');
+      }
+      if (this.starTip && this.stars < 5) {
+        this.alert(say.starsTip(weakest(input)), STAR_TIP_GAP);
+        if (this.said.get('say.stars.tip') === this.clock) this.starTip = false;
+      }
+    }
+    const shown = on ? this.stars : null;
+    if (shown !== this.starShown) {
+      this.starShown = shown;
+      this.hud.setStars(shown);
+      this.view.setEntranceStars(shown);
+    }
+  }
+
+  /** Tik op de sterren: met plaatjes zien wat goed gaat (groen) en wat beter kan (oranje). */
+  private showStars(): void {
+    const f = starFactors(this.starInput(this.guests.stats()));
+    const pic: Record<StarFactor, IconId> = { animals: 'paw', guests: 'guest', clean: 'broom', kinds: 'kinds', pretty: 'flowers' };
+    this.hud.showStars(this.stars, STAR_FACTORS.map(k => ({ icon: icon(pic[k]), label: t(`stars.${k}`), good: f[k] >= STAR_GOOD })), t('guide.ok'));
+  }
+
   private evaluate(): void {
     this.syncTanks();
     this.syncPets();
@@ -5433,6 +5520,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       for (const a of this.animalsIn(region)) a.neglect = Math.min(a.neglect, NEGLECT_WARN);
     }
     this.checkBirths();
+    this.rateStars(0.4, crowd);
     // naast het uur: een plaatje van het seizoen, of een wolkje als het regent
     const skyIcon = this.rainLeft > 0 ? icon(this.season === 'winter' ? 'winter' : 'rain') : this.has('season') ? icon(this.season) : '';
     this.hud.setWallet(this.coins, COIN_CAP, this.has('paths') ? crowd.total : null, this.has('night') || this.has('keeper') ? this.clockText() : null, this.has('night') ? (this.night > 0.5 ? 'moon' : 'sun') : null, skyIcon);

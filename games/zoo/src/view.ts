@@ -194,6 +194,9 @@ const STONE_MAT = new THREE.MeshStandardMaterial({ color: 0xa9adb3, roughness: 1
 const ROCK_MAT = new THREE.MeshStandardMaterial({ color: 0x8f949c, roughness: 1 });
 const LEAF_MAT = new THREE.MeshStandardMaterial({ color: 0x5fa544, roughness: 1 });
 const WHITE_MAT = new THREE.MeshStandardMaterial({ color: 0xf7f4ec, roughness: 0.9 });
+/** De sterren van het park op het bord bij de ingang: goud als je ze hebt, anders grijs. */
+const STAR_GOLD_MAT = new THREE.MeshStandardMaterial({ color: 0xffd23f, roughness: 0.5, emissive: 0x6b4a00, emissiveIntensity: 0.35 });
+const STAR_GREY_MAT = new THREE.MeshStandardMaterial({ color: 0xc9ced4, roughness: 0.9 });
 /** Steeltjes van bloemen: blijven groen, ook in de herfst en de winter. */
 const STEM_MAT = new THREE.MeshStandardMaterial({ color: 0x5fa544, roughness: 1 });
 /** Voor vormen met een eigen kleur per hoekpunt (zie `paint`): zo is een bont ding toch één onderdeel. */
@@ -2548,6 +2551,39 @@ export class View {
     gate.add(sign, star);
     gate.traverse(o => { o.castShadow = true; });
     this.scene.add(gate);
+    this.entrance = { gate, star, x: x + 0.5, z };
+  }
+
+  /** De ingang: het bord met de ster in het midden, waar later de sterren van het park op komen. */
+  private entrance!: { gate: THREE.Group; star: THREE.Mesh; x: number; z: number };
+  private entranceStars: THREE.Mesh[] = [];
+
+  /**
+   * De sterren van het park op het bord boven de ingang: `n` goud, de rest grijs. Ze steken aan beide kanten door
+   * het bord, zodat je ze ook ziet als je het beeld draait. Bij null staat er weer één ster op het bord.
+   */
+  setEntranceStars(n: number | null): void {
+    const { gate, star, x, z } = this.entrance;
+    if (n !== null && !this.entranceStars.length) {
+      const shape = new THREE.Shape();
+      for (let i = 0; i < 10; i++) {
+        const r = i % 2 ? 0.065 : 0.15, a = Math.PI / 2 + (i * Math.PI) / 5;
+        if (i) shape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+        else shape.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.2, bevelEnabled: false }).translate(0, 0, -0.1);
+      for (let i = 0; i < 5; i++) {
+        const m = new THREE.Mesh(geo, STAR_GREY_MAT);
+        m.position.set(x + (i - 2) * 0.33, 1.6, z);
+        this.entranceStars.push(m);
+        gate.add(m);
+      }
+    }
+    star.visible = n === null;
+    this.entranceStars.forEach((m, i) => {
+      m.visible = n !== null;
+      m.material = n !== null && i < n ? STAR_GOLD_MAT : STAR_GREY_MAT;
+    });
   }
 
   /**

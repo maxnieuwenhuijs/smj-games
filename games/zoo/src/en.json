@@ -963,5 +963,21 @@
   "mini.order.count": "Put the numbers from small to big.",
   "mini.done.good": "Well done!",
   "mini.done.try": "Nice try!",
-  "mini.close": "Close"
+  "mini.close": "Close",
+  "stars": "Your park's stars. Tap to see why.",
+  "stars.animals": "Happy animals",
+  "stars.guests": "Happy guests",
+  "stars.clean": "A clean park",
+  "stars.kinds": "Lots of kinds of animals",
+  "stars.pretty": "A pretty park",
+  "say.stars.new": "Can you see the stars? The happier your park, the more stars and the more guests!",
+  "say.stars.2": "Your park has 2 stars now!",
+  "say.stars.3": "Your park has 3 stars now!",
+  "say.stars.4": "Your park has 4 stars now!",
+  "say.stars.5": "Your park has 5 stars now! The very best park!",
+  "say.stars.tip.animals": "Want more stars? Make all your animals happy.",
+  "say.stars.tip.guests": "Want more stars? Make the guests happy with stalls and benches.",
+  "say.stars.tip.clean": "Want more stars? Clean up the poop and the litter.",
+  "say.stars.tip.kinds": "Want more stars? Add a new kind of animal.",
+  "say.stars.tip.pretty": "Want more stars? Make the park pretty with flowers and trees."
 }
