@@ -1947,7 +1947,10 @@ export class Guest implements Leader {
     if (this.curious > 0.7) return 'look';
     if (this.purchases >= MAX_PURCHASES || this.fun < 0.5) return null;
     // iets lekkers of leuks: waar de gast de meeste zin in heeft
-    const treats: [Need, number][] = [['icecream', this.treat], ['balloon', this.balloon], ['hat', this.hat], ['souvenir', this.gift]];
+    // alleen wat er in dit level al te koop is: een hoedje of ballon vragen voordat die kraam bestaat, kan niet
+    const treats = ([['icecream', this.treat, 'icecream'], ['balloon', this.balloon, 'balloon'], ['hat', this.hat, 'hats'], ['souvenir', this.gift, 'souvenir']] as [Need, number, ShopKind][])
+      .filter(t => w.sells(t[2]));
+    if (!treats.length) return null;
     const [need, zin] = treats.sort((a, b) => b[1] - a[1])[0];
     return zin > 0.7 ? need : null;
   }

@@ -7,6 +7,7 @@ import { allLines, fill, goalLine, textOf, voiceId, type Tr } from './lines';
 import nl from './nl.json';
 import { AQUATIC, PROP, PROPS, WILD_KINDS, WILD_WANT, propPoints, wildRange, wildWant } from './data';
 import { DECOR, WAYFIND, WAYFIND_PATHS, canStray, wayfound } from './data';
+import { BONUS, TOY_FROM, TOY_OF, likesToy, type ToyKind } from './data';
 import { guestCard, guestFacts, guestNames } from './traits';
 
 /** Zet een hek om het blok tegels van (x0,y0) tot en met (x1,y1). */
@@ -446,6 +447,43 @@ describe('de weetjes van een gast', () => {
       const calm = guestCard(seed, false, 'nl', { calm: true }).facts;
       expect(calm).toHaveLength(3);
       for (const f of calm) expect(/^(Klimt|Rent|Springt|Loopt|Huppelt|Fietst|Kan op|Kan heel snel) /.test(f), f).toBe(false);
+    }
+  });
+});
+
+describe('wensen per level: alles wat iemand vraagt, kun je in dat level ook neerzetten', () => {
+  const levels = Array.from({ length: LEVELS.length + 1 }, (_, i) => i);
+  const feature = (k: string): number => (FEATURE as Record<string, number>)[k] ?? 0;
+
+  it('een gast vraagt alleen om een kraam als die er al is, en die kraam heeft dan meteen iets te koop', () => {
+    // wat een gast kan vragen, en bij welke kraam dat hoort (zie NEED_SHOP in people.ts)
+    const needs: Record<string, string> = {
+      food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', hat: 'hats', souvenir: 'souvenir',
+      play: 'playground', sit: 'bench', look: 'fountain', ride: 'carousel', umbrella: 'umbrellas', shelter: 'shelter',
+    };
+    for (const [need, shop] of Object.entries(needs)) {
+      expect(feature(shop), `${need}: ${shop} heeft geen level in FEATURE`).toBeGreaterThan(0);
+      const first = Math.min(...PRODUCTS.filter(p => p.shop === shop).map(p => p.from));
+      if (Number.isFinite(first)) expect(first, `${shop}: het eerste product komt later dan de kraam`).toBeLessThanOrEqual(feature(shop));
+    }
+    // regen en schuilen komen tegelijk met de paraplukraam en de schuilhut
+    expect(feature('shelter')).toBeLessThanOrEqual(feature('weather'));
+    // de weg kwijt kan pas als er wegwijzers zijn, en het donker pas als er lantaarns zijn
+    expect(canStray(DECOR.signpost.from - 1, WAYFIND_PATHS + 100)).toBe(false);
+    expect(DECOR.lantern.from).toBeLessThanOrEqual(feature('night'));
+  });
+
+  it('een dier wil alleen speelgoed, warmte of kou die in dat level al te koop is', () => {
+    for (const done of levels) {
+      const here = [...unlockedSpecies(done), ...(Object.keys(BONUS) as SpeciesId[]).filter(sp => BONUS[sp]! <= done)];
+      for (const sp of here) {
+        if (done >= FEATURE.fun && TOY_OF[sp]) {
+          const liked = (Object.keys(TOY_FROM) as ToyKind[]).filter(k => likesToy(sp, k));
+          expect(liked.some(k => TOY_FROM[k] <= done), `level ${done}: ${sp} wil speelgoed dat nog niet te koop is`).toBe(true);
+        }
+        const need = CLIMATE[sp];
+        if (done >= FEATURE.climate && need) expect(TOY_FROM[need], `level ${done}: ${sp} wil een ${need}`).toBeLessThanOrEqual(done);
+      }
     }
   });
 });
