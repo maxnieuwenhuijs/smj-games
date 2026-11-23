@@ -8,7 +8,8 @@
 // De proefspeler bouwt verblijven, voert, ruimt op, geneest en vangt zoals een speler dat doet, maar
 // zonder muis. Met T.honest = true vult hij de kas nooit bij: dan zie je of de munten kloppen.
 // Met T.kid = 8 doet hij maar één ding per acht seconden, zoals een kind: dan zie je of het zorgen bij
-// te houden is. T.lost telt de dieren die door verwaarlozing zijn opgehaald.
+// te houden is. T.lost telt de dieren die door verwaarlozing zijn opgehaald. Vanaf FEATURE.guard neemt hij een
+// bewaker aan en laat hij een ontsnapt dier eerst even aan hem over; T.byGuard telt de dieren die hij thuisbracht.
 const data = await import('/src/data.ts');
 const { goalProgress } = await import('/src/levels.ts');
 const models = await import('/src/models.ts');
@@ -51,6 +52,8 @@ export const T = {
   noHelp: false,   // true: neemt alleen verzorgers aan als een level erom vraagt
   nextAct: 0,
   lost: 0,
+  byGuard: 0,
+  looseSince: new Map(),
   home: {},        // soort -> nummer van de plek
   order: [],       // soorten in volgorde van bouwen
   pathsDone: false,
@@ -216,6 +219,14 @@ export const T = {
     }
   },
 
+  /** Is er een bewaker aan het werk, dan krijgt hij 45 tellen om een ontsnapt dier zelf thuis te brengen. */
+  leaveToGuard(a) {
+    const game = z();
+    if (!game.workers.some(w => w.role === 'guard' && !w.away && w.paid)) return false;
+    if (!this.looseSince.has(a)) this.looseSince.set(a, game.clock);
+    return game.clock - this.looseSince.get(a) < 45;
+  },
+
   /** Zoals een kind: één handeling per keer, het dringendste eerst. */
   careLikeAKid() {
     const game = z();
@@ -223,7 +234,7 @@ export const T = {
     this.nextAct = game.clock + this.kid;
     const sick = game.animals.find(a => a.sick);
     if (sick) return game.heal(sick);
-    const loose = game.animals.find(a => a.escaped);
+    const loose = game.animals.find(a => a.escaped && !this.leaveToGuard(a));
     if (loose) return this.catch(loose);
     // de bak van de dieren met de meeste honger
     let worst = null;
@@ -254,6 +265,13 @@ export const T = {
         original(a);
       };
       game.takeAwayCounted = true;
+      const done = game.guardDone.bind(game);
+      game.guardDone = (job, guard, force) => {
+        const was = job.animal.escaped;
+        const ok = done(job, guard, force);
+        if (ok && was && !job.animal.escaped) this.byGuard++;
+        return ok;
+      };
     }
     if (this.kid) return this.careLikeAKid();
     for (const sp of this.order) {
@@ -264,7 +282,7 @@ export const T = {
     for (const p of [...game.poops]) game.cleanPoop(p);
     for (const p of [...game.litter]) game.cleanLitter(p);
     for (const a of game.animals) if (a.sick) game.heal(a);
-    for (const a of game.animals.filter(k => k.escaped)) this.catch(a);
+    for (const a of game.animals.filter(k => k.escaped && !this.leaveToGuard(k))) this.catch(a);
   },
 
   /** Alles klaarzetten wat de doelen van dit level vragen. */
@@ -280,6 +298,8 @@ export const T = {
     // een hek dat flink versleten is, timmert de proefspeler weer vast
     for (const [key, phase] of [...game.wear]) if (phase >= 2) game.repair({ o: key[0], x: Number(key.slice(1).split(',')[0]), y: Number(key.split(',')[1]) });
     if (done >= FEATURE.keeper) for (const sp of this.order) gate(this.home[sp]);
+    // een bewaker brengt ontsnapte dieren weer naar huis
+    if (!this.noHelp && done >= FEATURE.guard && game.coins >= 12 && !game.workers.some(w => w.role === 'guard')) hire('guard');
     // een kind dat het druk krijgt, neemt personeel aan: van elk soort één per vijf verblijven
     if (this.kid && !this.noHelp && done >= FEATURE.keeper && game.coins >= 12 && game.pens.length >= 5) {
       const want = Math.ceil(game.pens.length / 5);
@@ -357,7 +377,7 @@ export const T = {
           return this.log;
         }
       }
-      this.log.push({ level: L + 1, seconds: Math.round(game.clock - start), topups: this.topups - tops, coins: game.coins, lost: this.lost });
+      this.log.push({ level: L + 1, seconds: Math.round(game.clock - start), topups: this.topups - tops, coins: game.coins, lost: this.lost, byGuard: this.byGuard });
     }
     return this.log;
   },

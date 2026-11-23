@@ -4829,7 +4829,13 @@ export interface KeeperTrough {
   food: string | null;
   amount: number;
 }
-export type WorkerRole = 'feed' | 'clean' | 'fix' | 'vet' | 'guide' | 'photo';
+export type WorkerRole = 'feed' | 'clean' | 'fix' | 'vet' | 'guide' | 'photo' | 'guard';
+/** Een ontsnapt dier dat de bewaker weer naar huis brengt. */
+export interface GuardJob {
+  animal: object;
+  gx: number;
+  gy: number;
+}
 /** Een ziek dier dat de dierenarts beter moet maken. */
 export interface VetJob {
   animal: object;
@@ -4871,10 +4877,21 @@ export interface WorkerWorld {
   tourGuests(gx: number, gy: number, n: number): Guest[];
   /** De gids staat met zijn groepje bij de dieren en vertelt erover. */
   tourStop(group: Guest[], tile: number): void;
+  /** Ontsnapte dieren, voor de bewaker. */
+  guardJobs(): GuardJob[];
+  /**
+   * De bewaker staat bij het ontsnapte dier en fluit: het loopt nu achter hem aan. Geeft de tegels in het verblijf
+   * waar hij het heen brengt, of null als er geen plek is.
+   */
+  guardMeet(job: GuardJob, guard: Worker): Set<number> | null;
+  /** De bewaker is met het dier in het verblijf. Is het dier er ook (of `force`), dan is het weer thuis: true. */
+  guardDone(job: GuardJob, guard: Worker, force: boolean): boolean;
+  /** Het lukt niet: het dier loopt weer los. `noGate`: er is geen poort om het verblijf in te komen. */
+  guardLet(job: GuardJob, noGate: boolean): void;
 }
 
 // Al het personeel draagt hetzelfde groene pak; de rol zie je aan de streep, de pet en wat ze dragen.
-const ROLE_COLOR: Record<WorkerRole, number> = { feed: 0xf5a623, clean: 0x4a90e2, fix: 0xe0584f, vet: 0xf7f4ec, guide: 0xffd23f, photo: 0x7a5cc9 };
+const ROLE_COLOR: Record<WorkerRole, number> = { feed: 0xf5a623, clean: 0x4a90e2, fix: 0xe0584f, vet: 0xf7f4ec, guide: 0xffd23f, photo: 0x7a5cc9, guard: 0x2f3a68 };
 const BAG_GEO = new THREE.BoxGeometry(0.15, 0.12, 0.09).translate(0, -0.2, 0.05);
 const CROSS_GEO = new THREE.BoxGeometry(0.07, 0.025, 0.012).translate(0, -0.2, 0.1);
 const CROSS2_GEO = new THREE.BoxGeometry(0.025, 0.07, 0.012).translate(0, -0.2, 0.1);
@@ -4891,6 +4908,10 @@ const BROOM_GEO = new THREE.BoxGeometry(0.025, 0.46, 0.025).translate(0, -0.1, 0
 const BRISTLE_GEO = new THREE.BoxGeometry(0.13, 0.07, 0.05).translate(0, -0.34, 0.06);
 const SACK_GEO = new THREE.BoxGeometry(0.13, 0.16, 0.1).translate(0, -0.2, 0.05);
 const PATCH_GEO = new THREE.BoxGeometry(0.07, 0.07, 0.01).translate(0, -0.2, 0.105);
+// de bewaker: een vangnet aan een stok
+const NETPOLE_GEO = new THREE.BoxGeometry(0.022, 0.46, 0.022).translate(0, -0.26, 0.06);
+const NETRING_GEO = new THREE.TorusGeometry(0.085, 0.014, 5, 14).rotateX(Math.PI / 2).translate(0, -0.56, 0.06);
+const NETBAG_GEO = new THREE.ConeGeometry(0.08, 0.13, 8, 1, true).rotateX(Math.PI).translate(0, -0.625, 0.06);
 
 /**
  * Een werker loopt door het hele park. Een voerder vult lege voerbakken, een schoonmaker veegt poep en raapt
@@ -4910,7 +4931,14 @@ export class Worker implements Leader {
   private head: THREE.Mesh;
   private faceSeed = Math.random();
   private route: number[] = [];
-  private job: { key: object; trough?: KeeperTrough; food?: FoodId; mess?: KeeperPoop; fix?: FixJob; heal?: VetJob } | null = null;
+  private job: { key: object; trough?: KeeperTrough; food?: FoodId; mess?: KeeperPoop; fix?: FixJob; heal?: VetJob; guard?: GuardJob } | null = null;
+  /**
+   * De bewaker: `leading` zolang het dier achter hem aan naar huis loopt. Over `recheck` tellen kijkt hij weer
+   * waar het dier is; `leadWait`: zo lang wacht hij al in het verblijf tot het dier er ook is.
+   */
+  private leading = false;
+  private recheck = 0;
+  private leadWait = 0;
   private timer = 0.5;
   private working = 0;
   private heading = 0;
@@ -4958,6 +4986,7 @@ export class Worker implements Leader {
     else if (role === 'vet') this.limbs[2].add(new THREE.Mesh(BAG_GEO, mat(0xf7f4ec)), new THREE.Mesh(CROSS_GEO, mat(0xe0584f)), new THREE.Mesh(CROSS2_GEO, mat(0xe0584f)));
     else if (role === 'guide') this.limbs[2].add(new THREE.Mesh(POLE_GEO, mat(0xa8743f)), new THREE.Mesh(PENNANT_GEO, mat(0xe0584f)));
     else if (role === 'photo') this.limbs[2].add(new THREE.Mesh(CAMERA_GEO, mat(0x38343c)), new THREE.Mesh(LENS_GEO, mat(0x9fd8f5)));
+    else if (role === 'guard') this.limbs[2].add(new THREE.Mesh(NETPOLE_GEO, mat(0xa8743f)), new THREE.Mesh(NETRING_GEO, mat(0xe0584f)), new THREE.Mesh(NETBAG_GEO, mat(0xf7f4ec)));
     else this.limbs[2].add(new THREE.Mesh(SACK_GEO, mat(0xb88a52)), new THREE.Mesh(PATCH_GEO, accent));
     this.gx = gx;
     this.gy = gy;
@@ -5020,7 +5049,61 @@ export class Worker implements Leader {
     this.job = null;
     this.route = [];
     this.working = 0;
+    this.leading = false;
     this.dismiss();
+  }
+
+  /** Loopt de bewaker nu met dit dier naar huis? */
+  leads(animal: object): boolean {
+    return this.leading && this.job?.key === animal && !this.away;
+  }
+
+  /** Waar het dier loopt dat achter de bewaker aan komt: zo ver (in tegels) achter hem op zijn spoor. */
+  leadPoint(back: number): [number, number] {
+    const i = this.trail.length - 1 - Math.ceil(back / 0.15);
+    return i >= 0 ? this.trail[i] : this.trail[0] ?? [this.gx, this.gy];
+  }
+
+  /** De bewaker: de kortste weg naar het ontsnapte dier (naar de tegel waar het staat of ernaast). */
+  private routeToAnimal(w: WorkerWorld, job: GuardJob): number[] | null {
+    const here = tileIndex(Math.floor(job.gx), Math.floor(job.gy));
+    return this.routeTo(w, new Set([here, ...w.grid.neighbors(here)]));
+  }
+
+  /** Het ontsnapte dier zoals het er nu bij staat, of null als het niet meer los loopt. */
+  private liveJob(w: WorkerWorld): GuardJob | null {
+    const key = this.job?.key;
+    return w.guardJobs().find(j => j.animal === key) ?? null;
+  }
+
+  /** De bewaker heeft gefloten: het dier komt achter hem aan en hij loopt naar het verblijf, door de poort. */
+  private startLead(w: WorkerWorld, claimed: Set<object>): void {
+    const job = this.liveJob(w);
+    this.working = 0;
+    if (!job || Math.hypot(job.gx - this.gx, job.gy - this.gy) > 1.8) {
+      // het dier is alweer verder gelopen (of al thuis): opnieuw kijken
+      this.drop(claimed);
+      this.timer = 0.3;
+      return;
+    }
+    const goals = w.guardMeet(job, this);
+    const route = goals ? this.routeTo(w, goals) : null;
+    if (!goals || !route) {
+      w.guardLet(job, !!goals);
+      this.drop(claimed);
+      this.timer = 2;
+      return;
+    }
+    // nog een tegel dieper het verblijf in, zodat het dier achter hem ook binnen staat
+    const end = route[route.length - 1], prev = route[route.length - 2] ?? this.tile;
+    const deeper = w.grid.neighbors(end).find(i => i !== prev && goals.has(i));
+    if (deeper !== undefined) route.push(deeper);
+    this.job = { key: job.animal, guard: job };
+    this.leading = true;
+    this.leadWait = 0;
+    this.recheck = 1;
+    this.trail = [[this.gx, this.gy]];
+    this.route = route.slice(1);
   }
 
   /** Naar huis: de klus loslaten en naar de poort lopen. Is er geen weg naartoe, dan is de werker meteen weg. */
@@ -5159,6 +5242,17 @@ export class Worker implements Leader {
       }
     } else if (this.role === 'guide' || this.role === 'photo') {
       return this.stroll(w);
+    } else if (this.role === 'guard') {
+      const jobs = w.guardJobs().filter(j => !claimed.has(j.animal)).map(j => ({ guard: j, at: [j.gx, j.gy] as [number, number] }));
+      for (const j of near(jobs)) {
+        const route = this.routeToAnimal(w, j.guard);
+        if (!route) continue;
+        this.job = { key: j.guard.animal, guard: j.guard };
+        claimed.add(j.guard.animal);
+        this.route = route.slice(1);
+        this.recheck = 1;
+        return;
+      }
     } else if (this.role === 'vet') {
       const jobs = w.vetJobs().filter(j => !claimed.has(j.animal)).map(j => ({ heal: j, at: [j.gx, j.gy] as [number, number] }));
       for (const j of near(jobs)) {
@@ -5325,6 +5419,16 @@ export class Worker implements Leader {
       this.working -= dt;
       swing(this.limbs, Math.sin(this.phase) * 0.3);
       this.limbs[2].rotation.x = -0.9 + Math.sin(this.phase * 1.3) * 0.5;
+      if (this.job?.guard) {
+        // de bewaker fluit: het net omhoog, en met de andere hand wenkt hij het dier
+        swing(this.limbs, 0);
+        this.limbs[2].rotation.x = -2.3;
+        this.limbs[3].rotation.x = -1.4 + Math.sin(this.phase * 0.9) * 0.5;
+      }
+      if (this.working <= 0 && this.job?.guard && !this.leading) {
+        this.startLead(w, claimed);
+        return this.place();
+      }
       if (this.working <= 0 && this.job) {
         if (this.job.trough && this.job.food) w.workerFill(this.job.trough, this.job.food);
         if (this.job.mess) w.workerClean(this.job.mess);
@@ -5343,8 +5447,29 @@ export class Worker implements Leader {
       const [tx, ty] = tileXY(next);
       const dx = tx + 0.5 - this.gx, dy = ty + 0.5 - this.gy;
       // met een groepje achter je aan loop je rustig; met een karretje ben je sneller
-      const dist = Math.hypot(dx, dy), step = (this.group.length ? 0.8 : this.cart ? 1.5 : 1.05) * dt;
-      if (this.group.length) {
+      const dist = Math.hypot(dx, dy), step = (this.group.length || this.leading ? 0.8 : this.cart ? 1.5 : 1.05) * dt;
+      if (this.job?.guard && (this.recheck -= dt) <= 0) {
+        // de bewaker kijkt af en toe waar het dier nu is: loopt het weg, dan gaat hij erachteraan
+        this.recheck = 1;
+        const job = this.liveJob(w);
+        if (!job) {
+          this.drop(claimed);
+          this.timer = 0.4;
+          return this.place();
+        }
+        const [lx, ly] = tileXY(this.route[this.route.length - 1]);
+        if (!this.leading && Math.hypot(lx + 0.5 - job.gx, ly + 0.5 - job.gy) > 1.5) {
+          const again = this.routeToAnimal(w, job);
+          if (!again) {
+            this.drop(claimed);
+            this.timer = 1;
+            return this.place();
+          }
+          this.route = again.slice(1);
+          if (!this.route.length) return this.place();
+        }
+      }
+      if (this.group.length || this.leading) {
         const last = this.trail[this.trail.length - 1];
         if (!last || Math.hypot(last[0] - this.gx, last[1] - this.gy) >= 0.15) {
           this.trail.push([this.gx, this.gy]);
@@ -5368,11 +5493,36 @@ export class Worker implements Leader {
       // het karretje duw je met twee handen; de gids houdt zijn vlaggetje hoog
       if (this.cart) this.limbs[2].rotation.x = this.limbs[3].rotation.x = -1.2;
       else if (this.group.length) this.limbs[2].rotation.x = -2.6;
+      else if (this.leading) this.limbs[3].rotation.x = -0.9 + Math.sin(this.phase * 0.5) * 0.3; // wenken: kom maar mee
       return this.place();
     }
     swing(this.limbs, 0);
     if (!this.job && this.timer > 1.4 && this.timer < 2.4) this.limbs[3].rotation.x = -2.5 + Math.sin(this.phase * 0.6) * 0.15;
-    if (this.job) {
+    if (this.job?.guard) {
+      if (this.leading) {
+        // in het verblijf: even wachten tot het dier er ook is, dan is het weer thuis
+        this.leadWait += dt;
+        if (w.guardDone(this.job.guard, this, this.leadWait > 4)) {
+          claimed.delete(this.job.key);
+          this.job = null;
+          this.leading = false;
+          this.timer = 1;
+          // en weer terug naar het pad, door de poort
+          const paths = w.pathTiles(), back = paths.size ? this.routeTo(w, paths) : null;
+          if (back) this.route = back.slice(1);
+        }
+        return this.place();
+      }
+      // bij het dier: ernaar kijken en fluiten
+      const job = this.liveJob(w);
+      if (!job) {
+        this.drop(claimed);
+        this.timer = 0.4;
+        return this.place();
+      }
+      if (Math.hypot(job.gx - this.gx, job.gy - this.gy) > 0.05) this.heading = Math.atan2(job.gx - this.gx, job.gy - this.gy);
+      this.working = 0.9;
+    } else if (this.job) {
       // aangekomen: naar het werk kijken en beginnen
       const [ax, ay] = this.job.trough ? [this.job.trough.x + 0.5, this.job.trough.y + 0.5] : this.job.fix ? [this.job.fix.gx, this.job.fix.gy] : this.job.heal ? [this.job.heal.gx, this.job.heal.gy] : [this.job.mess!.gx, this.job.mess!.gy];
       if (Math.hypot(ax - this.gx, ay - this.gy) > 0.05) this.heading = Math.atan2(ax - this.gx, ay - this.gy);

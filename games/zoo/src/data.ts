@@ -803,7 +803,63 @@ export const FEATURE = {
   keeper: 11,
   /** Vanaf hier kan er een dier ontsnappen. */
   escape: 30,
+  /** Een level later: de bewaker, die ontsnapte dieren weer naar huis brengt. */
+  guard: 31,
 };
+
+/**
+ * Hoe een dier ontsnapt (vanaf FEATURE.escape): springers springen over het hek, klimmers klimmen eroverheen,
+ * vogels vliegen eroverheen, sterke dieren duwen het hek om (dat stuk is dan kapot) en de rest glipt erdoor.
+ * Zeedieren ontsnappen nooit.
+ */
+export type EscapeWay = 'jump' | 'climb' | 'fly' | 'push' | 'slip';
+export const ESCAPE_WAY: Record<SpeciesId, EscapeWay | null> = {
+  // boerderij
+  pig: 'slip', cow: 'slip', sheep: 'slip', horse: 'jump', donkey: 'slip', goat: 'jump', alpaca: 'slip', chicken: 'fly', duck: 'fly', rabbit: 'slip',
+  // savanne
+  zebra: 'jump', giraffe: 'slip', lion: 'push', camel: 'slip', rhino: 'push', hippo: 'push', elephant: 'push', ostrich: 'jump', cheetah: 'jump', gazelle: 'jump',
+  // jungle
+  monkey: 'climb', parrot: 'fly', tiger: 'push', gorilla: 'push', crocodile: 'slip', panda: 'climb', peacock: 'fly', toucan: 'fly', sloth: 'climb', panther: 'jump',
+  // ijs
+  penguin: 'slip', seal: 'slip', polarbear: 'push', reindeer: 'jump', wolf: 'jump', arcticfox: 'jump', bear: 'push', yak: 'slip', owl: 'fly', walrus: 'push',
+  // verre landen
+  flamingo: 'fly', turtle: 'slip', otter: 'slip', beaver: 'slip', pelican: 'fly', koala: 'climb', redpanda: 'climb', lemur: 'climb', bison: 'push', kangaroo: 'jump',
+  // aquarium
+  dolphin: null, orca: null, ray: null, shark: null,
+};
+
+/**
+ * Hoe het dier deze keer ontsnapt. Met het verkeerde hek op zijn eigen manier; met het goede hek kan dat niet
+ * meer (de muur valt niet om, over het net kom je niet), en glipt het hooguit eens door een kier.
+ */
+export function escapeWay(sp: SpeciesId, wrongFence: boolean): EscapeWay | null {
+  const way = ESCAPE_WAY[sp];
+  if (!way) return null;
+  return !wrongFence && SPECIES[sp].need ? 'slip' : way;
+}
+
+/**
+ * Hoe graag een dier ontsnapt, van 0 tot 1: met het verkeerde hek altijd, een dier dat niet blij is vaak en een
+ * blij dier achter het goede hek bijna nooit. Een zeedier nooit.
+ */
+export const ESCAPE_CHANCE = { wrong: 1, sad: 0.6, happy: 0.04 };
+export function escapeChance(sp: SpeciesId, wrongFence: boolean, happy: boolean): number {
+  if (!ESCAPE_WAY[sp]) return 0;
+  return wrongFence ? ESCAPE_CHANCE.wrong : happy ? ESCAPE_CHANCE.happy : ESCAPE_CHANCE.sad;
+}
+
+/**
+ * Wie er ontsnapt: een gok, waarbij een dier met een grotere kans vaker aan de beurt is. Daarna lukt het nog
+ * met die kans; vraagt het level om een ontsnapt dier (`forGoal`), dan lukt het altijd. Null: niemand.
+ */
+export function pickEscaper<T>(list: { item: T; chance: number }[], forGoal: boolean, rnd: () => number = Math.random): T | null {
+  const options = list.filter(o => o.chance > 0);
+  const total = options.reduce((s, o) => s + o.chance, 0);
+  if (!total) return null;
+  let r = rnd() * total;
+  const pick = options.find(o => (r -= o.chance) < 0) ?? options[options.length - 1];
+  return forGoal || rnd() < pick.chance ? pick.item : null;
+}
 
 /** Welk figuur geeft de opdracht voor welk soort doel. */
 export const GOAL_OWNER: Record<GoalType, 'builder' | 'keeper' | 'host' | 'cashier'> = {

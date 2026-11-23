@@ -14,6 +14,7 @@ import {
   EDGE_DECOR, SMALL_DECOR, PARK_GROUPS, ATTRACTIONS, parkShopGroup, PROP, PROPS, WILD_PROPS, PARK_PROPS, WILD_KINDS, wildRange, wildWant, type PropKind, type WildKind, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, SEASONS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
 import { CLIMB_SECONDS, PUSH, SWING, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, sinceHit, sway, swingAt, tetherAt } from './data';
 import { WAYFIND, canStray, wayfound, type WaySign } from './data';
+import { ESCAPE_WAY, escapeChance, escapeWay, pickEscaper, type EscapeWay } from './data';
 import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region, type Side } from './grid';
 import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
 import { cursor, icon, type IconId } from './icons';
@@ -21,7 +22,7 @@ import { emptyStats, goalProgress, levelDone, type Stats } from './levels';
 import { CHEERS, EVENT_SAYS, NAMED, PRAISE, callText, goalLine, say, textOf, voiceId, wishLine, type EventPart, type Line } from './lines';
 import { TEACHERS, type TeacherId } from './figures';
 import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStatic, speciesIcon } from './models';
-import { ENTRANCE, GuestManager, Train, Vendor, Worker, edgePose, edgeSides, shopCenter, shopTiles, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type PetSpot, type ShopSpot, type VetJob, type WorkerRole, type WorkerWorld, type FixJob } from './people';
+import { ENTRANCE, GuestManager, Train, Vendor, Worker, edgePose, edgeSides, shopCenter, shopTiles, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type PetSpot, type ShopSpot, type VetJob, type WorkerRole, type WorkerWorld, type FixJob, type GuardJob } from './people';
 import { SIGHT, type GuestCue, type Sight } from './people';
 import { PEN } from './people';
 import { Road } from './road';
@@ -64,9 +65,9 @@ const TRICK_SOUND: Record<TrickSound, [string, number, number]> = {
 };
 const PAINT_TOOLS = new Set<ToolId>(['terrain', 'fence', 'erase', 'action']);
 const TROUGH_ICON: Record<TroughKind, IconId> = { wood: 'trough_empty', big: 'trough_big', silo: 'trough_silo' };
-const ROLE_ICON: Record<WorkerRole, IconId> = { feed: 'feed', clean: 'broom', fix: 'hammer', vet: 'vet', guide: 'guide', photo: 'photo' };
+const ROLE_ICON: Record<WorkerRole, IconId> = { feed: 'feed', clean: 'broom', fix: 'hammer', vet: 'vet', guide: 'guide', photo: 'photo', guard: 'guard' };
 /** Vanaf wanneer je welk personeel kunt aannemen, en wie een karretje kan krijgen. */
-const STAFF_FROM: Record<WorkerRole, keyof typeof FEATURE> = { feed: 'keeper', clean: 'keeper', fix: 'wear', photo: 'photo', guide: 'guide', vet: 'vet' };
+const STAFF_FROM: Record<WorkerRole, keyof typeof FEATURE> = { feed: 'keeper', clean: 'keeper', fix: 'wear', photo: 'photo', guide: 'guide', vet: 'vet', guard: 'guard' };
 const CART_ROLES: WorkerRole[] = ['feed', 'clean', 'fix', 'vet'];
 /** Zo lang moet de speler niets doen voor het hulphandje komt, zo lang blijft het, en zo lang duurt het tot het volgende. */
 const HAND_AFTER = 25;
@@ -93,6 +94,8 @@ const SICK_EVERY: [number, number] = [200, 320];
 const SICK_FOR_GOAL: [number, number] = [35, 55];
 const ESCAPE_EVERY: [number, number] = [280, 420];
 const ESCAPE_FOR_GOAL: [number, number] = [45, 70];
+/** Staat er een dier achter het verkeerde hek, dan ontsnapt er veel vaker een. */
+const ESCAPE_WRONG: [number, number] = [80, 130];
 const MAX_LITTER = 8;
 /** Zoveel stuks afval kun je tegelijk in je handen hebben. */
 const MAX_CARRY = 5;
@@ -471,6 +474,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private shuffleIn = 70;
   private sickIn = between(SICK_FOR_GOAL);
   private escapeIn = between(ESCAPE_FOR_GOAL);
+  /** Een sterk dier duwt het hek om: op dat moment (speltijd) valt dat stuk hek om en is het kapot. */
+  private pushes: { a: Animal; e: Edge; out: 1 | -1; at: number }[] = [];
+  /** Een dier dat de bewaker niet thuis kon brengen: tot dit moment probeert geen bewaker het opnieuw. */
+  private guardRest = new Map<Animal, number>();
   private celebrating = false;
   private toolsKey = '';
   /** Tot dit moment knippert de veger, omdat er net op een poepje is getikt. */
@@ -1658,6 +1665,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.level === FEATURE.climate) once(say.climateNew());
     if (this.level === FEATURE.wild) once(say.wildNew());
     if (this.level === FEATURE.night) once(say.nightNew());
+    if (this.level === FEATURE.guard) once(say.guardNew());
     if (this.level === BONUS.dolphin && hasSpecies('dolphin')) once(say.aquaNew());
     // vanaf nu kun je hulp aannemen: de verzorger vertelt hoe
     if (this.level === FEATURE.keeper) this.showStaffGuide();
@@ -3596,34 +3604,125 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.sayNow(say.healed());
   }
 
-  /** Een dier springt uit zijn verblijf en loopt buiten rond tot je het terugzet. */
-  private letEscape(): void {
+  /**
+   * Een dier ontsnapt uit zijn verblijf en loopt buiten rond tot je het terugzet. Elke soort op zijn eigen manier
+   * (`ESCAPE_WAY`): springen, klimmen, vliegen, het hek omduwen of erdoor glippen. Achter het verkeerde hek
+   * gebeurt het veel vaker; een blij dier achter het goede hek ontsnapt bijna nooit (`escapeChance`).
+   * `forGoal`: het level vraagt om een ontsnapt dier, dan ontsnapt er altijd een. Om te proberen (in de console):
+   * `only` laat juist dit dier ontsnappen, `how` op deze manier.
+   */
+  private letEscape(forGoal: boolean, only?: Animal, how?: EscapeWay): void {
     // een zeedier springt nooit uit zijn bak
-    const options = this.animals.filter(a => !a.sick && !a.escaped && !a.aquatic && this.grid.enclosureAt(...tileXY(a.tile)));
-    const sad = options.filter(a => !a.happy);
-    const from = sad.length && Math.random() < 0.6 ? sad : options;
-    const a = from[Math.floor(Math.random() * from.length)];
+    const options = (only ? [only] : this.animals).filter(a => !a.sick && !a.escaped && !a.led && ESCAPE_WAY[a.species] && this.grid.enclosureAt(...tileXY(a.tile)));
+    const a = pickEscaper(options.map(item => ({ item, chance: escapeChance(item.species, !!item.needsFence, item.happy) })), forGoal);
     if (!a) return;
     const region = this.grid.enclosureAt(...tileXY(a.tile))!;
+    const way = how ?? escapeWay(a.species, !!a.needsFence) ?? 'slip';
     const inside = new Set(region.tiles);
-    const outside: [number, number][] = [];
+    let best: { x: number; y: number; d: number; e: Edge; score: number } | null = null;
     for (const i of region.tiles) {
       const [x, y] = tileXY(i);
       for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
         const nx = x + dx, ny = y + dy;
-        if (this.grid.inBounds(nx, ny) && !inside.has(tileIndex(nx, ny)) && !this.grid.enclosureAt(nx, ny) && !this.taken(nx, ny)) outside.push([nx, ny]);
+        if (!this.grid.inBounds(nx, ny) || inside.has(tileIndex(nx, ny)) || this.grid.enclosureAt(nx, ny) || this.taken(nx, ny)) continue;
+        const e: Edge = dx ? { o: 'v', x: x + Math.max(0, dx), y } : { o: 'h', x, y: y + Math.max(0, dy) };
+        const kind = this.grid.getEdge(e);
+        // het hek dicht bij het dier; wie duwt, kiest liefst hout (dat valt om), wie glipt liefst een poort
+        const likes = (way === 'push' && kind === 1) || (way === 'slip' && (kind === 2 || kind === 8));
+        const score = Math.hypot(x + 0.5 - a.gx, y + 0.5 - a.gy) + Math.random() * 0.8 - (likes ? 1.5 : 0);
+        if (!best || score < best.score) best = { x: nx, y: ny, d: dx + dy, e, score };
       }
     }
-    if (!outside.length) return;
-    const [x, y] = outside[Math.floor(Math.random() * outside.length)];
-    a.escape(x + 0.5, y + 0.5);
+    if (!best) return;
+    const { e } = best, mid: [number, number] = e.o === 'h' ? [e.x + 0.5, e.y] : [e.x, e.y + 0.5];
+    a.homeTile = a.tile;
+    a.fledFence = a.needsFence;
+    const hit = a.escape(best.x + 0.5, best.y + 0.5, way, mid);
+    if (way === 'push' && this.grid.getEdge(e) === 1) this.pushes.push({ a, e, out: best.d > 0 ? 1 : -1, at: this.clock + hit });
     sfx('alarm');
     animalSound(a.species, a.young, 1, [a.gx, a.gy]);
     this.floatAt(icon('catch'), a.gx, a.gy, a.top + 0.25);
     if (!this.celebrating) {
-      this.sayNow(this.lineAbout(say.escaped(t, a.species), a));
+      this.sayNow(this.lineAbout(say.escaped(t, a.species, a.fledFence), a));
       this.callForHelp('name.help.2');
     }
+  }
+
+  /** Het sterke dier duwt tegen het hek: dat stuk valt om en is kapot, tot de klusser of jij het weer maakt. */
+  private knockDown(e: Edge, out: 1 | -1): void {
+    this.wear.set(edgeKey(e), 3);
+    this.syncWear();
+    this.view.topple(e, out);
+    sfx('fence', { volume: 1.2, rate: 0.7 });
+    const [x, y] = e.o === 'h' ? [e.x + 0.5, e.y] : [e.x, e.y + 0.5];
+    this.view.burst(x, y, 0.15, 0xc9b28a, 8);
+    this.floatAt(icon('hammer'), x, y, 0.7);
+  }
+
+  // ------------------------------------------------------------ de bewaker
+  /** Ontsnapte dieren, voor de bewaker. Niet het dier dat de speler vasthoudt of dat nog over het hek gaat. */
+  guardJobs(): GuardJob[] {
+    return this.animals
+      .filter(a => a.escaped && a !== this.moving && !a.bolting && (this.guardRest.get(a) ?? 0) <= this.clock)
+      .map(a => ({ animal: a, gx: a.gx, gy: a.gy }));
+  }
+
+  /**
+   * De bewaker fluit: het dier loopt achter hem aan. Hij brengt het naar zijn eigen verblijf, anders naar het
+   * dichtstbijzijnde verblijf met dezelfde soort, anders naar een leeg verblijf.
+   */
+  guardMeet(job: GuardJob, guard: Worker): Set<number> | null {
+    const a = job.animal as Animal;
+    if (!this.animals.includes(a) || !a.escaped) return null;
+    const room = (region: Region): Set<number> =>
+      new Set(region.tiles.filter(i => {
+        const [x, y] = tileXY(i);
+        return this.canHost(x, y, a) && this.walkable(i);
+      }));
+    const far = (pen: Pen): number => Math.hypot(pen.cx - a.gx, pen.cy - a.gy);
+    const others = (pen: Pen): Animal[] => this.animalsIn(pen.region.id).filter(b => b !== a);
+    const own = (pen: Pen): boolean => others(pen).some(b => b.species === a.species);
+    const home = a.homeTile >= 0 ? this.penAt(...tileXY(a.homeTile)) : undefined;
+    const same = this.pens.filter(own).sort((p, q) => far(p) - far(q));
+    const empty = this.pens.filter(pen => !others(pen).length).sort((p, q) => far(p) - far(q));
+    // het eigen verblijf, zolang daar intussen geen andere soort is komen wonen
+    const homes = home && (own(home) || !others(home).length) ? [home] : [];
+    for (const pen of [...homes, ...same, ...empty]) {
+      const tiles = room(pen.region);
+      if (!tiles.size) continue;
+      const back = 0.35 + a.info.length * MODEL_SCALE * 0.5;
+      a.heel(() => (guard.leads(a) ? guard.leadPoint(back) : null));
+      sfx('chime', { volume: 0.4, rate: 1.4 });
+      this.floatAt(icon('guard'), guard.gx, guard.gy, guard.height + 0.3);
+      return tiles;
+    }
+    return null;
+  }
+
+  guardDone(job: GuardJob, guard: Worker, force: boolean): boolean {
+    const a = job.animal as Animal;
+    if (!this.animals.includes(a) || !a.escaped) return true;
+    const [x, y] = tileXY(a.tile);
+    const home = !!this.grid.enclosureAt(x, y) && this.canHost(x, y, a);
+    if (!home && !force) return false;
+    if (!home) {
+      // het dier bleef hangen: dan zet de bewaker het bij zich neer, als het daar mag
+      const [gx, gy] = tileXY(guard.tile);
+      if (!this.canHost(gx, gy, a)) return true;
+      a.moveTo(guard.gx, guard.gy);
+    }
+    a.settle();
+    this.caught++;
+    sfx('place');
+    this.floatAt(icon('heart'), a.gx, a.gy, a.top + 0.2);
+    this.mention(say.guardBack(), 60);
+    return true;
+  }
+
+  guardLet(job: GuardJob, noGate: boolean): void {
+    const a = job.animal as Animal;
+    this.guardRest.set(a, this.clock + 20);
+    if (noGate) this.noGate(a.gx, a.gy);
   }
 
   private events(dt: number): void {
@@ -3637,12 +3736,21 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       }
     }
     if (this.has('escape')) {
-      if (this.goalOpen('caught')) this.escapeIn = Math.min(this.escapeIn, ESCAPE_FOR_GOAL[1]);
+      // vraagt het level erom, of staat er een dier achter het verkeerde hek, dan hoef je er niet lang op te wachten
+      const goal = this.goalOpen('caught');
+      const wrong = this.animals.some(a => a.needsFence && !a.escaped && ESCAPE_WAY[a.species]);
+      if (goal) this.escapeIn = Math.min(this.escapeIn, ESCAPE_FOR_GOAL[1]);
+      else if (wrong) this.escapeIn = Math.min(this.escapeIn, ESCAPE_WRONG[1]);
       this.escapeIn -= dt;
       if (this.escapeIn <= 0) {
-        this.escapeIn = between(this.goalOpen('caught') ? ESCAPE_FOR_GOAL : ESCAPE_EVERY);
-        if (!this.animals.some(a => a.escaped)) this.letEscape();
+        this.escapeIn = between(goal ? ESCAPE_FOR_GOAL : wrong ? ESCAPE_WRONG : ESCAPE_EVERY);
+        if (!this.animals.some(a => a.escaped)) this.letEscape(goal);
       }
+    }
+    // een sterk dier dat het hek omduwt: het hek valt pas om als het dier ertegenaan duwt
+    if (this.pushes.length) {
+      for (const p of this.pushes) if (this.clock >= p.at && p.a.escaped && p.a.bolting && this.grid.getEdge(p.e) === 1) this.knockDown(p.e, p.out);
+      this.pushes = this.pushes.filter(p => this.clock < p.at);
     }
     // het oor van de speler: het midden van het beeld. Ingezoomd hoor je alleen wat daar vlakbij is, maar wel goed;
     // uitgezoomd hoor je meer tegelijk, maar doffer en verder weg
@@ -5441,7 +5549,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const light = worst && (worst.wish === 'bed' || worst.wish === 'terrain' || worst.wish === 'friend' || worst.wish === 'fun' || worst.wish === 'climate' || worst.wish === 'wild' || worst.wish === 'space' || (worst.wish === 'enclosure' && !!worst.a.needsFence));
     if (worst && worst.age > (light ? ALERT_AFTER * 2 : ALERT_AFTER)) {
       const { a, wish } = worst;
-      this.alert(this.lineAbout(a.escaped ? say.escaped(t, a.species) : wish === 'enclosure' && a.fenceBroken ? say.broken() : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN, a.wildAsk ? `${a.wildAsk.group}.${a.wildAsk.more ? 'more' : 'less'}` : undefined), a));
+      this.alert(this.lineAbout(a.escaped ? say.escaped(t, a.species, a.fledFence) : wish === 'enclosure' && a.fenceBroken ? say.broken() : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN, a.wildAsk ? `${a.wildAsk.group}.${a.wildAsk.more ? 'more' : 'less'}` : undefined), a));
       if (a.neglect > NEGLECT_WARN * 1.5 && !this.hud.speaking) this.callForHelp('name.help.1');
     }
     // de gastvrouw let op de gasten

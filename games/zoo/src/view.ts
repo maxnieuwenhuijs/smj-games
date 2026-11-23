@@ -129,6 +129,8 @@ const WORN_GEOS = [
   mergeGeometries([boxAt(0.13, 0.5, 0.13, 0, 0.25, 0), boxAt(0.13, 0.46, 0.13, 1, 0.23, 0), plank(1, 0.5, 0.17, -0.04), plank(0.72, 0.33, 0.25, -0.36), postCap(0, 0.5), postCap(1, 0.46)])!,
   mergeGeometries([boxAt(0.13, 0.5, 0.13, 0, 0.25, 0), boxAt(0.13, 0.26, 0.13, 1, 0.13, 0), plank(0.95, 0.52, 0.05, 0.03), plank(0.6, 0.3, 0.17, -0.5), postCap(0, 0.5)])!,
 ];
+// De twee planken van een hek dat een sterk dier omduwt: die vallen om (zie `topple`)
+const FALL_GEO = mergeGeometries([plank(1, 0.5, 0.17, 0), plank(1, 0.5, 0.37, 0)])!;
 // De poort is van hetzelfde hout, maar hoger en met een deurtje: drie spijlen, een schoor en een klink.
 const GATE_GEO = mergeGeometries([
   boxAt(0.15, 0.72, 0.15, 0, 0.36, 0),
@@ -2426,6 +2428,8 @@ export class View {
   private hotMat = new THREE.MeshBasicMaterial({ color: 0xff7a3d, transparent: true, opacity: 0.95, depthWrite: false, depthTest: false });
   /** Spatters: kleine druppels die opspringen en weer vallen. */
   private drops: { mesh: THREE.Mesh; vx: number; vy: number; vz: number; life: number }[] = [];
+  /** Planken van een omgeduwd hek die omvallen: `tip` is de kant waarheen, `t` hoe lang het al duurt. */
+  private falls: { obj: THREE.Group; plank: THREE.Mesh; mat: THREE.MeshStandardMaterial; tip: number; t: number }[] = [];
   private dropGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
   private dropMat = new THREE.MeshBasicMaterial({ color: 0xe6f6ff });
   /** Waar het beeld rustig naartoe schuift (de knop 'dier in nood'). */
@@ -2803,6 +2807,22 @@ export class View {
       this.scene.add(mesh);
       this.drops.push({ mesh, vx: (Math.random() - 0.5) * 0.9, vy: 1.3 + Math.random() * 0.9, vz: (Math.random() - 0.5) * 0.9, life: 0.6 });
     }
+  }
+
+  /**
+   * Een sterk dier duwt een houten hek om: de planken kantelen naar buiten (`out`: 1 naar hoger x of y, -1 naar
+   * lager), stuiteren even op de grond en verdwijnen dan langzaam. Wat er blijft staan, is het kapotte hek.
+   */
+  topple(e: Edge, out: 1 | -1): void {
+    const mat = (WORN_MATS[0] as THREE.MeshStandardMaterial).clone();
+    mat.transparent = true;
+    const plank = new THREE.Mesh(FALL_GEO, mat);
+    plank.castShadow = true;
+    const obj = new THREE.Group().add(plank);
+    this.placeEdge(obj, e);
+    this.scene.add(obj);
+    // bij een staand hek ('v') wijst de eigen z-as de andere kant op
+    this.falls.push({ obj, plank, mat, tip: e.o === 'h' ? out : -out, t: 0 });
   }
 
   /** Een paar gekleurde spetters die vanaf hoogte `height` opspringen en weer vallen (confetti, kruimels, vonken). */
@@ -3939,6 +3959,18 @@ export class View {
       if (d.life <= 0 || d.mesh.position.y < 0) this.scene.remove(d.mesh);
     }
     if (this.drops.length) this.drops = this.drops.filter(d => d.life > 0 && d.mesh.position.y >= 0);
+    for (const f of this.falls) {
+      // eerst steeds sneller omvallen, dan een klein stuitertje, dan langzaam weg
+      f.t += dt;
+      const fall = Math.min(1, f.t / 0.45), bounce = f.t > 0.45 ? Math.abs(Math.sin(Math.min(1, (f.t - 0.45) / 0.3) * Math.PI)) * 0.12 : 0;
+      f.plank.rotation.x = f.tip * (fall * fall * 1.45 - bounce);
+      f.mat.opacity = Math.max(0, Math.min(1, (2.2 - f.t) / 0.6));
+      if (f.t > 2.2) {
+        this.scene.remove(f.obj);
+        f.mat.dispose();
+      }
+    }
+    if (this.falls.length) this.falls = this.falls.filter(f => f.t <= 2.2);
     if (this.fly) {
       const k = Math.min(1, dt * 5);
       this.target.x += (this.fly.x - this.target.x) * k;

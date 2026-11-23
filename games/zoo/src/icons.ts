@@ -749,6 +749,12 @@ const ICONS = {
     `<path d="M2 46 Q2 31 18 31 Q34 31 34 46Z" fill="#2bb5a8"/><path d="M28 38 L40 30" stroke="#2bb5a8" stroke-width="6" stroke-linecap="round"/><circle cx="40" cy="29" r="3.6" fill="${SKIN}"/>` +
     `<circle cx="18" cy="20" r="10" fill="${SKIN}"/><path d="M8 17 Q9 8 18 8 Q27 8 28 17Z" fill="#1f8f85"/><rect x="6" y="15.5" width="20" height="4" rx="2" fill="#177a71"/>` +
     `<circle cx="14.5" cy="23" r="1.7" fill="${INK}"/><circle cx="21.5" cy="23" r="1.7" fill="${INK}"/><path d="M14 26.5 Q18 30 22 26.5" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>`,
+  // de bewaker: donkerblauwe pet en een vangnet
+  guard:
+    `<path d="M38 44 L42 16" stroke="${WOOD_D}" stroke-width="3" stroke-linecap="round"/><ellipse cx="42" cy="10" rx="5.5" ry="7" fill="#fff" fill-opacity=".6" stroke="${RED}" stroke-width="2.5"/>` +
+    `<path d="M2 46 Q2 31 18 31 Q34 31 34 46Z" fill="#2f3a68"/><path d="M28 38 L39 30" stroke="#2f3a68" stroke-width="6" stroke-linecap="round"/><circle cx="39" cy="29" r="3.6" fill="${SKIN}"/>` +
+    `<circle cx="18" cy="20" r="10" fill="${SKIN}"/><path d="M8 17 Q9 8 18 8 Q27 8 28 17Z" fill="#2f3a68"/><rect x="6" y="15.5" width="20" height="4" rx="2" fill="#1f2748"/><circle cx="18" cy="12" r="2" fill="${SUN}"/>` +
+    `<circle cx="14.5" cy="23" r="1.7" fill="${INK}"/><circle cx="21.5" cy="23" r="1.7" fill="${INK}"/><path d="M14 26.5 Q18 30 22 26.5" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="36" r="2.2" fill="${SUN}"/>`,
   photo:
     `<rect x="16" y="7" width="14" height="9" rx="2.5" fill="#3d4f5a"/><rect x="7" y="9.5" width="7" height="5" rx="1.5" fill="${RED}"/><rect x="4" y="13" width="40" height="28" rx="6" fill="#3d4f5a"/>` +
     `<circle cx="24" cy="27" r="10" fill="#fff"/><circle cx="24" cy="27" r="7" fill="#4a90e2"/><circle cx="21.5" cy="24.5" r="2.2" fill="#fff" opacity=".8"/><rect x="35" y="17" width="5.5" height="4" rx="1.2" fill="${SUN}"/>`,
