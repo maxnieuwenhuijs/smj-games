@@ -39,8 +39,9 @@ const SLOTS = [];
 for (const y0 of [1, 5, 9, 13]) for (const [x0, x1] of [[-1, 1], [3, 5], [7, 9], [11, 13], [15, 17], [19, 21]]) SLOTS.push({ x0: x0 + OX, y0: y0 + OY, x1: x1 + OX, y1: y0 + 2 + OY });
 // Plekken voor winkels langs een zijpad bij de ingang (y = 17): gebouwen van 2 bij 2 eronder, losse dingen erboven.
 const BIG_SPOTS = [7, 11, 5, 13, 3, 15, 1, 17, 19, -1, 21, -3].map(x => [x + OX, 18 + OY]);
-// meer gasten vragen om meer kramen: die staan achter in het park, langs twee paden boven de verblijven (y = -1 en y = -5)
-for (const py of [-1, -5]) for (const x of [8, 11, 6, 13, 4, 15, 2, 17, 0, 19, -2, 21, -4]) BIG_SPOTS.push([x + OX, py - 2 + OY]);
+// meer gasten vragen om meer kramen: die staan achter in het park, langs twee paden boven de verblijven (y = -1 en y = -5).
+// Daar staat het pad onder de kraam: het derde getal is de rij van dat pad, zodat een ondiepe kraam er ook tegenaan staat
+for (const py of [-1, -5]) for (const x of [8, 11, 6, 13, 4, 15, 2, 17, 0, 19, -2, 21, -4]) BIG_SPOTS.push([x + OX, py - 2 + OY, py + OY]);
 // losse dingen staan op de noordrand van het zijpad
 const SMALL_SPOTS = [9, 11, 8, 12, 7, 13, 6, 14, 5, 15, 4, 16, 3, 17, 2, 18, 1, 19].map(x => [x + OX, 17 + OY]);
 
@@ -198,9 +199,11 @@ export const T = {
     const game = z();
     while (game.shops.filter(s => s.kind === kind).length < n) {
       const big = SHOP_SIZE[kind] > 1;
-      const spot = (big ? BIG_SPOTS : SMALL_SPOTS).find(([x, y]) => !game.shops.some(s => s.x === x && s.y === y && !!s.edge === !big));
+      const spot = (big ? BIG_SPOTS : SMALL_SPOTS).find(([x, y, py]) => !game.shops.some(s => s.x === x && (py === undefined ? s.y === y : s.y < py && s.y >= py - 2) && !!s.edge === !big));
       if (!spot || !this.pay(SHOP_PRICE[kind])) return;
-      game.addShop(spot[0], spot[1], kind, undefined, big ? undefined : 'h');
+      // achter in het park: de kraam staat met zijn voorkant tegen het pad, hoe diep hij ook is
+      const y = spot[2] === undefined ? spot[1] : spot[2] - (data.SHOP_DEEP[kind] ?? SHOP_SIZE[kind]);
+      game.addShop(spot[0], y, kind, undefined, big ? undefined : 'h');
     }
   },
 

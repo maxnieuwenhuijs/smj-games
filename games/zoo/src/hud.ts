@@ -358,10 +358,13 @@ export class Hud {
     const key = `${coins}/${guests}/${hour}/${sky}/${extra}`;
     if (key === this.walletKey) return;
     this.walletKey = key;
+    // twee rijen: bovenaan de sterren naast de munten, daaronder de tijd naast het aantal gasten
     this.wallet.innerHTML =
-      `<span class="pill${coins >= cap ? ' full' : ''}" title="${t('wallet.coins')}">${icon('coin')}<b>${coins}</b></span>` +
-      (guests === null ? '' : `<span class="pill" title="${t('wallet.guests')}">${icon('guest')}<b>${guests}</b></span>`) +
+      `<div class="wrow"><span class="pill${coins >= cap ? ' full' : ''}" title="${t('wallet.coins')}">${icon('coin')}<b>${coins}</b></span></div>` +
+      `<div class="wrow">` +
       (hour === null ? '' : `<span class="pill" title="${t('wallet.hour')}">${icon(sky ?? 'clock')}<b>${hour}</b></span>`) +
+      (guests === null ? '' : `<span class="pill" title="${t('wallet.guests')}">${icon('guest')}<b>${guests}</b></span>`) +
+      `</div>` +
       (extra ? `<span class="pill extra">${extra}</span>` : '');
     this.walletGuests = guests !== null;
     this.placeStars();
@@ -733,11 +736,11 @@ export class Hud {
     this.placeStars();
   }
 
-  /** De sterren komen vlak onder het aantal gasten; zonder gasten staan ze er niet. */
+  /** De sterren staan links naast de munten; zonder gasten staan ze er niet. */
   private placeStars(): void {
-    const guests = this.walletGuests ? this.wallet.children[1] : null;
-    if (guests && !this.starPill.hidden) {
-      if (guests.nextSibling !== this.starPill) guests.after(this.starPill);
+    const row = this.walletGuests ? this.wallet.querySelector('.wrow') : null;
+    if (row && !this.starPill.hidden) {
+      if (row.firstChild !== this.starPill) row.prepend(this.starPill);
     } else this.starPill.remove();
   }
 
