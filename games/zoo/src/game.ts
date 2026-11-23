@@ -30,7 +30,7 @@ import { ENTRANCE, GuestManager, Train, Vendor, Worker, edgePose, edgeSides, sho
 import { SIGHT, type GuestCue, type Sight } from './people';
 import { PEN } from './people';
 import { CableCar } from './people';
-import { CABLE, cableChairs, cableFit, cableLength, cableOpen, cablePairs, cablePoles } from './cable';
+import { CABLE, cableChairs, cableFit, cableLength, cableOpen, cablePairs, cablePoles, cableSlot } from './cable';
 import { Road } from './road';
 import { STAR_EVERY, STAR_FACTORS, STAR_GOOD, STAR_TIP_GAP, nextStars, parkScore, scoreOf, smoothScore, starFactors, starGuests, weakest, type StarFactor, type StarInput } from './stars';
 import { guestCard } from './traits';
@@ -218,7 +218,7 @@ export interface SaveData {
   decor?: { x: number; y: number; kind: DecorKind; edge?: 'h' | 'v'; rot?: number; q?: number }[];
   /** Natuur op een kwart tegel: `x`, `y` in vakjes (twee per tegel), `r` de draaiing in kwartslagen. */
   props?: { k: PropKind; x: number; y: number; r?: number }[];
-  shops?: { x: number; y: number; kind: ShopKind; sells?: string[]; edge?: 'h' | 'v'; turned?: boolean; face?: number; rot?: number; manual?: boolean; dirt?: number; link?: [number, number] }[];
+  shops?: { x: number; y: number; kind: ShopKind; sells?: string[]; edge?: 'h' | 'v'; turned?: boolean; face?: number; rot?: number; manual?: boolean; dirt?: number; link?: [number, number]; link2?: [number, number] }[];
   sold?: Record<string, number>;
   soldAt?: Record<string, number>;
   soldAll?: number;
@@ -405,6 +405,8 @@ interface ShopObj extends ShopSpot {
   show?: { clock: ShowClock; n: number; next: number; badge: HTMLElement | null; mood: string };
   /** Een huisje van de kabelbaan: waar zijn maatje staat, ten opzichte van dit huisje (zie cablePairs). */
   link?: [number, number];
+  /** Een tussenstation van de kabelbaan heeft een tweede maatje. */
+  link2?: [number, number];
 }
 interface PoopObj {
   gx: number;
@@ -741,6 +743,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       made.dirt = sh.dirt;
       // de kabelbaan: welk huisje bij welk hoort (een ouder spel heeft dit niet: dan staat er nog geen kabelbaan)
       if (sh.kind === 'cablecar' && Array.isArray(sh.link) && sh.link.length === 2) made.link = [Number(sh.link[0]), Number(sh.link[1])];
+      if (sh.kind === 'cablecar' && Array.isArray(sh.link2) && sh.link2.length === 2) made.link2 = [Number(sh.link2[0]), Number(sh.link2[1])];
     }
     this.syncLifts();
     for (const a of d.animals) {
@@ -802,7 +805,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       toys: this.toys.map(({ x, y, kind, rot }) => ({ x, y, kind, rot: rot || undefined })),
       decor: this.decors.map(({ x, y, kind, edge, rot, q }) => ({ x, y, kind, edge, rot: rot || undefined, q })),
       props: this.props.map(p => ({ k: p.kind, x: p.sx, y: p.sy, r: p.rot || undefined })),
-      shops: this.shops.map(({ x, y, kind, sells, edge, turned, set, rot, manual, dirt, link }) => ({ x, y, kind, sells, edge, turned, face: set, rot, manual, dirt: dirt ? Math.round(dirt * 100) / 100 : undefined, link })),
+      shops: this.shops.map(({ x, y, kind, sells, edge, turned, set, rot, manual, dirt, link, link2 }) => ({ x, y, kind, sells, edge, turned, face: set, rot, manual, dirt: dirt ? Math.round(dirt * 100) / 100 : undefined, link, link2 })),
       gw: W,
       gh: H,
       land: SIDES.filter(side => this.grid.owns(side)),
@@ -3495,15 +3498,15 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     // de tribune moet met haar rug tegen de glazen bak van de dolfijnen of orka's staan
     if (kind === 'show' && !this.showPool(x, y, w, h)) return false;
     // het tweede huisje van de kabelbaan staat in een rechte lijn met het eerste, niet te dichtbij en niet te ver
-    const open = kind === 'cablecar' ? this.cableOpen() : null;
+    const open = kind === 'cablecar' ? this.cableOpen({ x, y }) : null;
     if (open && cableFit(open, { x, y }) !== 'ok') return false;
     return true;
   }
 
   // ------------------------------------------------------------ de kabelbaan
   /** Het huisje van de kabelbaan dat nog op zijn maatje wacht (het volgende huisje hoort daarbij), of null. */
-  private cableOpen(): ShopObj | null {
-    return cableOpen(this.shops.filter(s => s.kind === 'cablecar'));
+  private cableOpen(at?: { x: number; y: number }): ShopObj | null {
+    return cableOpen(this.shops.filter(s => s.kind === 'cablecar'), at);
   }
 
   private liftKey = '';
@@ -3650,7 +3653,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       return this.nope(cx, cy);
     }
     if (!this.pay(SHOP_PRICE[kind], cx, cy)) return;
-    const partner = kind === 'cablecar' ? this.cableOpen() : null;
+    const partner = kind === 'cablecar' ? this.cableOpen({ x, y }) : null;
+    const slot = partner ? cableSlot(partner, this.shops.filter(s => s.kind === 'cablecar')) : 'link';
     // zelf gedraaid met de draaiknop? Dan blijft het zo staan; anders kijkt het vanzelf naar het pad
     // (een marktkraam houdt de stand waarin je hem neerzet, en draait uit zichzelf hooguit een halve slag)
     const made = this.quarter ? this.addShop(x, y, kind, undefined, undefined, undefined, turn, true)
@@ -3659,7 +3663,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // het tweede huisje: de twee horen nu bij elkaar en de kabel komt ertussen. Het eerste: de bouwer legt uit
       if (partner) {
         made.link = [partner.x - x, partner.y - y];
-        partner.link = [x - partner.x, y - partner.y];
+        partner[slot] = [x - partner.x, y - partner.y];
         this.syncLifts();
       } else if (this.shops.filter(s => s.kind === 'cablecar').length === 1) this.sayNow(say.cableOne());
     }
@@ -4448,7 +4452,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         const fits = this.shopFits(ax, ay, kind, rot);
         this.view.ghostShop(ax, ay, kind, fits, undefined, rot);
         // het tweede huisje van de kabelbaan: de kabel als lijn, groen als hij past en rood als niet
-        const open = kind === 'cablecar' ? this.cableOpen() : null;
+        const open = kind === 'cablecar' ? this.cableOpen({ x: ax, y: ay }) : null;
         if (open) this.view.ghostCable(open.x + 1, open.y + 1, ax + 1, ay + 1, fits);
         return this.hud.setCursor(CUR[this.shopKind()]);
       }

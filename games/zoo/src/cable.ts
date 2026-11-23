@@ -1,4 +1,5 @@
-// De kabelbaan: twee huisjes in een rechte lijn, met hoog boven het park een kabel waar stoeltjes aan hangen.
+// De kabelbaan: twee huisjes in een rechte lijn, met hoog boven het park een kabel waar stoeltjes aan hangen. Vanaf
+// het laatste huisje kun je verder bouwen: een tussenstation met een nieuw stuk kabel, rechtdoor of de hoek om.
 // Hier staan alleen de vaste getallen en de rekensommen; het beeld staat in view.ts, de ritjes in people.ts.
 
 /**
@@ -10,11 +11,15 @@
  */
 export const CABLE = { min: 5, max: 14, r: 0.34, low: 1.05, high: 2.9, ramp: 2.2, hang: 0.62, speed: 0.75, poleGap: 3.5, price: 2, back: 0.3 };
 
-/** Een huisje van de kabelbaan: de linkerbovenhoek, en waar zijn maatje staat (ten opzichte van hemzelf). */
+/**
+ * Een huisje van de kabelbaan: de linkerbovenhoek, en waar zijn maatjes staan (ten opzichte van hemzelf). Een
+ * tussenstation heeft er twee: `link` en `link2`.
+ */
 export interface CableEnd {
   x: number;
   y: number;
   link?: [number, number];
+  link2?: [number, number];
 }
 
 /** Past de kabel tussen deze twee huisjes? 'line': niet in een rechte lijn, 'near': te dichtbij, 'far': te ver weg. */
@@ -94,9 +99,12 @@ export function cablePassed(from: number, to: number, p: number, L: number): boo
   return f <= t ? f < p && p <= t : p > f || p <= t;
 }
 
+/** Wijst `a` naar `b` (met een van zijn twee maatjes)? */
+const pointsTo = (a: CableEnd, b: CableEnd): boolean =>
+  [a.link, a.link2].some(l => !!l && a.x + l[0] === b.x && a.y + l[1] === b.y);
+
 /** Hoort `b` bij `a`? Dan wijzen ze naar elkaar. */
-const linked = (a: CableEnd, b: CableEnd): boolean =>
-  !!a.link && !!b.link && a.x + a.link[0] === b.x && a.y + a.link[1] === b.y && b.x + b.link[0] === a.x && b.y + b.link[1] === a.y;
+const linked = (a: CableEnd, b: CableEnd): boolean => pointsTo(a, b) && pointsTo(b, a);
 
 /** De paren huisjes die samen een kabelbaan zijn: ze wijzen naar elkaar en de kabel past ertussen. */
 export function cablePairs<T extends CableEnd>(ends: T[]): [T, T][] {
@@ -107,9 +115,35 @@ export function cablePairs<T extends CableEnd>(ends: T[]): [T, T][] {
   return out;
 }
 
-/** Het huisje dat nog op zijn maatje wacht (het laatst gebouwde), of null: dan begin je een nieuwe kabelbaan. */
-export function cableOpen<T extends CableEnd>(ends: T[]): T | null {
-  const paired = new Set(cablePairs(ends).flat());
+/**
+ * Bij welk huisje hoort een nieuw huisje op plek `at`? Eerst het huisje dat nog op zijn maatje wacht (het laatst
+ * gebouwde). Wacht er niemand, dan mag de kabelbaan verder: vanaf een eindhuisje (dat maar één maatje heeft) als
+ * het nieuwe huisje er in een rechte lijn en op de goede afstand van staat, en niet terug over de kabel die er al
+ * hangt. Dan wordt dat eindhuisje een tussenstation. Anders null: dan begin je een nieuwe kabelbaan.
+ */
+export function cableOpen<T extends CableEnd>(ends: T[], at?: { x: number; y: number }): T | null {
+  const pairs = cablePairs(ends), paired = new Set(pairs.flat());
   for (let i = ends.length - 1; i >= 0; i--) if (!paired.has(ends[i])) return ends[i];
-  return null;
+  if (!at) return null;
+  let best: T | null = null;
+  for (const e of ends) {
+    const mine = pairs.filter(p => p.includes(e));
+    if (mine.length !== 1 || cableFit(e, at) !== 'ok') continue;
+    const other = mine[0][0] === e ? mine[0][1] : mine[0][0];
+    // niet terug over de kabel die er al hangt
+    if (Math.sign(other.x - e.x) === Math.sign(at.x - e.x) && Math.sign(other.y - e.y) === Math.sign(at.y - e.y)) continue;
+    if (!best || cableLength(e, at) < cableLength(best, at)) best = e;
+  }
+  return best;
+}
+
+/** In welk vakje van `e` komt een nieuw maatje: `link2` als `link` al bij een werkende kabelbaan hoort, anders `link`. */
+export function cableSlot<T extends CableEnd>(e: T, ends: T[]): 'link' | 'link2' {
+  const l = e.link;
+  if (!l) return 'link';
+  const busy = cablePairs(ends).some(([p, q]) => {
+    const other = p === e ? q : q === e ? p : null;
+    return !!other && e.x + l[0] === other.x && e.y + l[1] === other.y;
+  });
+  return busy ? 'link2' : 'link';
 }

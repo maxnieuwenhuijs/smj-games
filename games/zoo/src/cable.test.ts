@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CABLE, cableAt, cableChairs, cableFit, cableHeight, cableLoop, cableOpen, cablePairs, cablePassed, cablePoles, cableStop, type CableEnd } from './cable';
+import { CABLE, cableAt, cableChairs, cableFit, cableHeight, cableLoop, cableOpen, cablePairs, cablePassed, cablePoles, cableSlot, cableStop, type CableEnd } from './cable';
 
 describe('kabelbaan: waar het tweede huisje mag staan', () => {
   it('in een rechte lijn, niet te dichtbij en niet te ver', () => {
@@ -125,5 +125,29 @@ describe('kabelbaan: de kabel, de palen en de stoeltjes', () => {
     }
     expect(cableChairs(CABLE.min)).toBe(4);
     expect(cableChairs(CABLE.max)).toBe(8);
+  });
+});
+
+describe('kabelbaan: verder bouwen met een tussenstation', () => {
+  it('vanaf het laatste huisje rechtdoor of de hoek om, maar niet terug over de kabel', () => {
+    const a: CableEnd = { x: 0, y: 0, link: [8, 0] }, b: CableEnd = { x: 8, y: 0, link: [-8, 0] };
+    const ends = [a, b];
+    expect(cablePairs(ends)).toHaveLength(1);
+    // zonder plek: niemand wacht, dus een nieuwe kabelbaan
+    expect(cableOpen(ends)).toBeNull();
+    // de hoek om en rechtdoor: het huisje dat het dichtst bij staat wordt een tussenstation
+    expect(cableOpen(ends, { x: 8, y: 6 })).toBe(b);
+    expect(cableOpen(ends, { x: 16, y: 0 })).toBe(b);
+    expect(cableOpen(ends, { x: 0, y: -7 })).toBe(a);
+    // terug over de kabel die er al hangt, of niet in een rechte lijn: een nieuwe kabelbaan
+    expect(cableOpen(ends, { x: 3, y: 0 })).toBeNull();
+    expect(cableOpen(ends, { x: 12, y: 5 })).toBeNull();
+    // het nieuwe maatje komt in het tweede vakje, en dan zijn er twee stukken kabel
+    expect(cableSlot(b, ends)).toBe('link2');
+    const c: CableEnd = { x: 8, y: 6, link: [0, -6] };
+    b.link2 = [0, 6];
+    expect(cablePairs([a, b, c])).toHaveLength(2);
+    // een tussenstation met twee maatjes gaat niet nog een keer verder
+    expect(cableOpen([a, b, c], { x: 8, y: -7 })).toBeNull();
   });
 });
