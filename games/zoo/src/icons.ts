@@ -723,6 +723,11 @@ const ICONS = {
     '<rect x="8" y="3" width="32" height="26" rx="6" fill="#4a90e2"/><g fill="#fff"><rect x="13" y="13" width="15" height="8" rx="2"/><rect x="25" y="8" width="9" height="13" rx="1.5"/><rect x="15.5" y="8.5" width="4" height="6" rx="1"/><circle cx="18" cy="23" r="3"/><circle cx="29" cy="23" r="3"/></g>' +
     '<rect x="27.5" y="10.5" width="4" height="4" rx="1" fill="#4a90e2"/><rect x="22" y="29" width="4" height="10" fill="#3d4f5a"/>' +
     `<rect x="3" y="38" width="42" height="7" rx="2" fill="#b9c2c9"/><rect x="3" y="38" width="42" height="2.5" rx="1.25" fill="${SUN}"/>`,
+  // de tribune: drie bankjes boven elkaar, met erboven een springende dolfijn met een bal op zijn neus
+  show:
+    `<path d="M4 45 V38 H14 V31 H24 V24 H44 V45Z" fill="#9fb4c4"/><rect x="4" y="35" width="12" height="4" rx="2" fill="${RED}"/><rect x="14" y="28" width="12" height="4" rx="2" fill="${SUN}"/><rect x="24" y="21" width="20" height="4" rx="2" fill="#4a90e2"/>` +
+    `<path d="M6 22 Q12 6 28 8 Q22 11 20 15 Q14 15 10 23Z" fill="#7fa9cc"/><path d="M8 23 L3 27 M8 23 L5 18" stroke="#7fa9cc" stroke-width="3" stroke-linecap="round"/>` +
+    `<path d="M16 9 L19 4 L21 10Z" fill="#7fa9cc"/><circle cx="25" cy="10" r="1.3" fill="${INK}"/><circle cx="33" cy="6" r="4" fill="${RED}"/>`,
   umbrellas:
     `<g fill="none" stroke="${WOOD_D}" stroke-width="2.5" stroke-linecap="round"><path d="M13.5 11 L11.5 5 Q10.5 1.5 7.5 3.5"/><path d="M34.5 11 L36.5 5 Q37.5 1.5 40.5 3.5"/><path d="M24 9 V5 Q24 2 27 2 Q30 2 30 5"/></g>` +
     `<path d="M10.5 10.5 L16.5 9 L20 30 L16 30Z" fill="${RED}"/><path d="M31.5 9 L37.5 10.5 L32 30 L28 30Z" fill="${SUN}"/><path d="M21 8 H27 L26 30 H22Z" fill="#4a90e2"/>` +

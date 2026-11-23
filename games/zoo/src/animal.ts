@@ -763,6 +763,32 @@ export class Animal {
     this.doTrick('dance', 2.4 + Math.random(), 'Happy');
   }
 
+  /**
+   * De dierenshow bij de tribune op (gx, gy): kunstje nummer `n`. Om de beurt uit het water springen, een rondje
+   * draaien, door de hoepel (als die er is), met de vinnen klappen en nog een sprong. Geeft terug of het lukte
+   * (niet als het dier slaapt, ziek is of nog midden in een sprong zit).
+   */
+  showTrick(w: AnimalWorld, n: number, hoop: Toy | null, gx: number, gy: number): boolean {
+    if (this.sick || this.escaped || this.sleeping || this.drugged || this.trick?.kind === 'leap' || this.trick?.kind === 'breach') return false;
+    // nog op weg naar de hoepel: eerst daar doorheen
+    if (this.playAt && this.state === 'walk') return false;
+    const step = n % 5;
+    this.stop();
+    this.state = 'idle';
+    if (step === 2 && hoop && this.comePlay(w, hoop)) return true;
+    if (!this.sink) this.show('hop');
+    else if (step === 1) this.show('spin');
+    else if (step === 3) {
+      this.show('clap');
+      w.splash(this.gx, this.gy);
+      w.trickSound(this, 'clap');
+    } else this.breach(w);
+    if (step === 1 || step === 3) this.face(gx, gy);
+    this.acting = true;
+    w.showOff(this);
+    return true;
+  }
+
   /** Kort gebaar, bijvoorbeeld blij na het voeren. */
   emote(name: 'Happy' | 'Sad' | 'Play', seconds: number): void {
     this.trick = null;

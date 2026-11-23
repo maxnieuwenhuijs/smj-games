@@ -14,7 +14,9 @@ import {
   EDGE_DECOR, SMALL_DECOR, PARK_GROUPS, ATTRACTIONS, parkShopGroup, PROP, PROPS, WILD_PROPS, PARK_PROPS, WILD_KINDS, wildRange, wildWant, type PropKind, type WildKind, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, SEASONS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
 import { CLIMB_SECONDS, PUSH, SWING, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, sinceHit, sway, swingAt, tetherAt } from './data';
 import { WAYFIND, canStray, wayfound, type WaySign } from './data';
+import { SHOW_STARS, SHOW_TIME, newShow, showReady, showSoon, showTick, type ShowClock } from './data';
 import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region, type Side } from './grid';
+import { glassSides } from './grid';
 import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
 import { cursor, icon, type IconId } from './icons';
 import { emptyStats, goalProgress, levelDone, type Stats } from './levels';
@@ -386,6 +388,11 @@ interface ShopObj extends ShopSpot {
   warn?: HTMLElement;
   /** Het poppetje dat in de kraam werkt, als er een is. */
   vendor: Vendor | null;
+  /**
+   * De tribune: de klok van de show, het hoeveelste kunstje, wanneer het volgende komt, en het bordje erboven als
+   * de dieren niet kunnen (sip of slapend).
+   */
+  show?: { clock: ShowClock; n: number; next: number; badge: HTMLElement | null; mood: string };
 }
 interface PoopObj {
   gx: number;
@@ -2208,6 +2215,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
    * een halve slag. `like`: zo staat hij nu (of zo komt hij te staan).
    */
   private autoRot(x: number, y: number, kind: ShopKind, like = 0): number {
+    // de tribune kijkt naar het water: haar rug (waar de bankjes naartoe kijken) tegen de bak van glas
+    const pool = kind === 'show' ? this.showPool(x, y, ...shopSpan(kind, like)) : null;
+    if (pool) return (pool.side + 2) % 4;
     const sides = this.pathSides(x, y, ...shopSpan(kind, like));
     const turns = SHOP_DEEP[kind] ? [like % 2, (like % 2) + 2] : [0, 1, 2, 3];
     return turns.reduce((best, r) => (sides[r] > sides[best] ? r : best), turns[0]);
@@ -3335,7 +3345,22 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         const terrain = this.grid.terrain[tileIndex(tx, ty)];
         if (isPath(terrain) || terrain === WATER) return false;
       }
+    // de tribune moet met haar rug tegen de glazen bak van de dolfijnen of orka's staan
+    if (kind === 'show' && !this.showPool(x, y, w, h)) return false;
     return true;
+  }
+
+  /**
+   * De bak van glas met dolfijnen of orka's die tegen dit blok aan ligt, en aan welke kant (0 = zuid, 1 = oost,
+   * 2 = noord, 3 = west). Daar kijkt de tribune naartoe.
+   */
+  private showPool(x: number, y: number, w: number, h: number): { side: number; region: Region } | null {
+    return glassSides(this.grid, x, y, w, h).find(g => this.showStars(g.region.id).length) ?? null;
+  }
+
+  /** De dolfijnen en orka's in dit verblijf. */
+  private showStars(regionId: number): Animal[] {
+    return this.animalsIn(regionId).filter(a => SHOW_STARS.includes(a.species) && !a.escaped);
   }
 
   /** De tegels rondom een blok van `w` bij `h` tegels. */
@@ -3395,7 +3420,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const turn = rot ?? this.autoRot(x, y, kind);
     const [w, h] = shopSpan(kind, turn);
     const cx = x + w / 2, cy = y + h / 2;
-    if (!this.shopFits(x, y, kind, turn)) return this.nope(cx, cy);
+    if (!this.shopFits(x, y, kind, turn)) {
+      // de tribune past wel, maar staat niet bij de dolfijnen: de bouwer zegt waar hij moet
+      if (kind === 'show' && this.shopFits(x, y, 'tower', turn)) this.alert(say.showWhere(), 25);
+      return this.nope(cx, cy);
+    }
     if (!this.pay(SHOP_PRICE[kind], cx, cy)) return;
     // zelf gedraaid met de draaiknop? Dan blijft het zo staan; anders kijkt het vanzelf naar het pad
     // (een marktkraam houdt de stand waarin je hem neerzet, en draait uit zichzelf hooguit een halve slag)
@@ -3418,6 +3447,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const s = this.view.toScreen(...blockCenter(shop), 1.5);
     const items: ToolOption[] = [
       { id: '__turn', icon: icon('turn'), label: t('shop.turn') },
+      // de tribune: tik voor een show, en hoe lang het nog duurt tot de volgende
+      ...(shop.kind === 'show' ? [{ id: '__show', icon: icon('show'), label: t('show.now') }] : []),
       ...options.map(id => ({ id, icon: this.productIcon(id), label: this.productName(id), on: shop.sells.includes(id) })),
     ];
     this.hud.showMenu(s.x, s.y, t(`shop.${shop.kind}`), items, id => {
@@ -3430,12 +3461,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         sfx('place');
         return this.shopMenu(shop);
       }
+      if (id === '__show') return this.showNow(shop);
       if (!shop.sells.includes(id)) shop.sells = [...shop.sells, id].slice(-slotsOf(shop.kind));
       else if (shop.sells.length > 1) shop.sells = shop.sells.filter(k => k !== id);
       shop.vendor?.sold();
       sfx('place');
       this.shopMenu(shop);
-    }, options.length ? `<b class="ask">${t('shop.sells')}</b>` : '');
+    }, options.length ? `<b class="ask">${t('shop.sells')}</b>` : shop.kind === 'show' ? this.showCountdown(shop) : '');
   }
 
   private placeAnimal(x: number, y: number): void {
@@ -4236,6 +4268,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       } else if (shop) {
         this.view.scene.remove(shop.mesh);
         shop.warn?.remove();
+        shop.show?.badge?.remove();
         this.shops = this.shops.filter(k => k !== shop);
         this.earn(refund(SHOP_PRICE[shop.kind]), ...shopCenter(shop));
       }
@@ -4755,6 +4788,120 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   trainRuns(): boolean {
     return !!this.guests.train?.running;
+  }
+
+  // ------------------------------------------------------------ de dierenshow
+  /** Hoe ver de show bij deze tribune is: 0 = er is geen show, 1 = de gasten komen zitten, 2 = de kunstjes. */
+  showLive(shop: ShopSpot): number {
+    const phase = (shop as ShopObj).show?.clock.phase;
+    return phase === 'tricks' ? 2 : phase === 'call' ? 1 : 0;
+  }
+
+  /** Een gast heeft de hele show gezien: een munt in de kas. */
+  showPaid(shop: ShopSpot, guest: Guest): void {
+    this.soldAt.show = (this.soldAt.show ?? 0) + 1;
+    this.earn(1, guest.gx, guest.gy);
+    sfx('cheer', { volume: 0.35, every: 4, at: shopCenter(shop) });
+  }
+
+  private showState(shop: ShopObj): NonNullable<ShopObj['show']> {
+    return (shop.show ??= { clock: newShow(), n: 0, next: 0, badge: null, mood: '' });
+  }
+
+  /** Kan er nu een show zijn? Het park is open en de gasten gaan nog niet naar huis. */
+  private showOpen(shop: ShopObj): boolean {
+    return this.has('paths') && !shop.off && !this.closed() && !this.goingHome();
+  }
+
+  /** De bak bij de tribune en hoe het met de dolfijnen en orka's daarin gaat. */
+  private showCast(shop: ShopObj): { pool: { side: number; region: Region } | null; stars: Animal[]; ready: ReturnType<typeof showReady> } {
+    const pool = this.showPool(shop.x, shop.y, ...shopTiles(shop));
+    const stars = pool ? this.showStars(pool.region.id) : [];
+    return { pool, stars, ready: showReady(stars) };
+  }
+
+  /** Een tik op 'Nu een show!': de show begint over een paar tellen. Kunnen de dieren niet, dan zie je waarom. */
+  private showNow(shop: ShopObj): void {
+    const [cx, cy] = blockCenter(shop), { ready } = this.showCast(shop);
+    if (ready !== 'ok' || !this.showOpen(shop)) {
+      this.floatAt(icon(ready === 'sleep' ? 'sleep' : ready === 'ok' ? 'cross' : 'smile_bad'), cx, cy, 1.9);
+      sfx('nope', { every: 0.3 });
+      return;
+    }
+    if (showSoon(this.showState(shop).clock)) {
+      this.floatAt(icon('show'), cx, cy, 1.9);
+      sfx('tap');
+    }
+  }
+
+  /** Onder de naam in het menu van de tribune: een klokje met hoe lang het nog duurt tot de volgende show. */
+  private showCountdown(shop: ShopObj): string {
+    const c = this.showState(shop).clock;
+    if (c.phase !== 'wait') return `<b class="ask">${icon('show')}</b>`;
+    const left = Math.max(0, Math.ceil(c.left));
+    return `<b class="ask">${icon('clock')} ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</b>`;
+  }
+
+  /**
+   * Elk beeldje: de klok van de show bij elke tribune. Als het tijd is, klinkt de bel en komen de gasten in de buurt
+   * zitten; daarna doen de dolfijnen en orka's om de beurt kunstjes (door de hoepel als die er is). Kunnen ze niet
+   * (verdrietig, ziek of in slaap), dan gaat de show niet door en staat er een sip gezichtje of zzz boven de tribune.
+   */
+  private updateShows(dt: number): void {
+    for (const shop of this.shops) {
+      if (shop.kind !== 'show') continue;
+      const s = this.showState(shop), open = this.showOpen(shop), { pool, stars, ready } = this.showCast(shop);
+      const [cx, cy] = blockCenter(shop);
+      // de bankjes kijken naar het water (ook in een geladen spel, waar de dieren pas na de tribune terugkomen)
+      const facing = pool ? (pool.side + 2) % 4 : null;
+      if (facing !== null && !shop.manual && shop.rot !== facing) {
+        shop.rot = facing;
+        this.view.poseShop(shop.mesh, shop.x, shop.y, shop.kind, undefined, facing);
+      }
+      const what = showTick(s.clock, dt, open, ready === 'ok');
+      if (what === 'call') {
+        // de bel: kom kijken! De gasten in de buurt lopen naar de tribune
+        sfx('alarm', { volume: 0.6, at: [cx, cy] });
+        this.floatAt(icon('show'), cx, cy, 1.9);
+        this.guests.callToShow(shop, SHOW_TIME.reach);
+        // de eerste keer roept de gastvrouw het ook nog
+        if (!this.told.has('show.first')) {
+          this.told.add('show.first');
+          this.lines.push(this.lineAbout(say.showFirst(), { gx: cx, gy: cy }));
+        }
+      } else if (what === 'tricks') {
+        s.n = 0;
+        s.next = 0;
+      } else if (what === 'end') {
+        // klaar: applaus
+        sfx('cheer', { volume: 0.5, every: 2, at: [cx, cy] });
+        this.guests.cheerNear(cx, cy, 2.5);
+      } else if (what === 'skip') sfx('sad', { volume: 0.4, at: [cx, cy] });
+      if (s.clock.phase === 'tricks' && pool) {
+        s.next -= dt;
+        if (s.next <= 0) {
+          s.next = SHOW_TIME.trick;
+          const hoop = this.toys.find(toy => toy.kind === 'hoop' && this.grid.regionOf[tileIndex(toy.x, toy.y)] === pool.region.id) ?? null;
+          // elk dier een ander kunstje: de een springt, de ander draait een rondje
+          stars.forEach((a, i) => a.showTrick(this, s.n + i, hoop, cx, cy));
+          s.n++;
+        }
+      }
+      // het bordje boven de tribune: sip (of zzz) als de dieren nu niet kunnen
+      const mood = ready === 'ok' || !open ? '' : ready === 'sleep' ? 'sleep' : 'smile_bad';
+      if (mood !== s.mood) {
+        s.mood = mood;
+        s.badge ??= this.hud.makeBadge('');
+        if (mood) s.badge.innerHTML = icon(mood as IconId);
+      }
+      if (s.badge) {
+        s.badge.hidden = !mood;
+        if (mood) {
+          const p = this.view.toScreen(cx, cy, 2.1);
+          s.badge.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -100%)`;
+        }
+      }
+    }
   }
 
   binned(bin: ShopSpot): void {
@@ -5741,6 +5888,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       } else moving.scale.y = 1 + 0.25 * Math.sin(this.clock * 5 + shop.x);
     }
     this.events(dt);
+    this.updateShows(dt);
 
     for (const p of this.puddles) {
       p.life -= dt;
