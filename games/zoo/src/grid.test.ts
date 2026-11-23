@@ -3,7 +3,8 @@ import { CLIMATE, FEATURE, LEVELS, MAX_GUESTS, PALS, PATH_KINDS, PRODUCTS, SHOPS
 import en from './en.json';
 import { BASE_LAND, FULL_LAND, Grid, H, PLOT, W, edgeAlong, nearestEdge, tileIndex, type Edge } from './grid';
 import { emptyStats, goalProgress, levelDone } from './levels';
-import { allLines, fill, goalLine, textOf, voiceId, type Tr } from './lines';
+import { allLines, fill, goalLine, speciesVars, textOf, voiceId, type Tr } from './lines';
+import { ESCAPE_WAY, escapeChance, escapeWay, pickEscaper } from './data';
 import nl from './nl.json';
 import { AQUATIC, PROP, PROPS, WILD_KINDS, WILD_WANT, propPoints, wildRange, wildWant } from './data';
 import { DECOR, WAYFIND, WAYFIND_PATHS, canStray, wayfound } from './data';
@@ -693,5 +694,72 @@ describe('de dierenshow', () => {
     expect(showReady([ok, { ...ok, happy: false }])).toBe('sad');
     expect(showReady([ok, { ...ok, sick: true }])).toBe('sad');
     expect(showReady([{ ...ok, happy: false }, { ...ok, sleeping: true }])).toBe('sleep');
+  });
+});
+
+describe('ontsnappen', () => {
+  it('elk landdier ontsnapt op zijn eigen manier, een zeedier nooit', () => {
+    for (const sp of Object.keys(SPECIES) as SpeciesId[]) {
+      if (AQUATIC.includes(sp)) expect(ESCAPE_WAY[sp], sp).toBeNull();
+      else expect(['jump', 'climb', 'fly', 'push', 'slip'], sp).toContain(ESCAPE_WAY[sp]);
+    }
+  });
+
+  it('wie het hek omduwt, heeft een stenen muur nodig', () => {
+    for (const sp of Object.keys(SPECIES) as SpeciesId[]) if (ESCAPE_WAY[sp] === 'push') expect(SPECIES[sp].need, sp).toBe('wall');
+  });
+
+  it('het goede hek houdt de eigen manier tegen: dan glipt een dier hooguit door een kier', () => {
+    expect(escapeWay('lion', true)).toBe('push');
+    expect(escapeWay('monkey', true)).toBe('climb');
+    expect(escapeWay('parrot', true)).toBe('fly');
+    expect(escapeWay('lion', false)).toBe('slip');
+    expect(escapeWay('monkey', false)).toBe('slip');
+    // zonder eigen hek is elk hek goed
+    expect(escapeWay('goat', false)).toBe('jump');
+    expect(escapeWay('dolphin', true)).toBeNull();
+  });
+
+  it('achter het verkeerde hek ontsnapt een dier het vaakst, blij achter het goede hek bijna nooit', () => {
+    for (const sp of Object.keys(SPECIES) as SpeciesId[]) {
+      if (AQUATIC.includes(sp)) {
+        expect(escapeChance(sp, true, false)).toBe(0);
+        continue;
+      }
+      expect(escapeChance(sp, true, true)).toBe(1);
+      expect(escapeChance(sp, false, false)).toBeLessThan(1);
+      expect(escapeChance(sp, false, true)).toBeLessThan(0.05);
+      expect(escapeChance(sp, false, true)).toBeGreaterThan(0);
+    }
+  });
+
+  it('wie ontsnapt: het verkeerde hek gaat voor, en vraagt het level erom dan ontsnapt er altijd een', () => {
+    const happy = { item: 'blij', chance: escapeChance('monkey', false, true) };
+    const wrong = { item: 'verkeerd', chance: escapeChance('monkey', true, false) };
+    const sea = { item: 'zee', chance: escapeChance('shark', true, false) };
+    // zonder doel: een blij dier achter het goede hek lukt het (bijna) nooit
+    let n = 0;
+    for (let i = 0; i < 1000; i++) if (pickEscaper([happy, sea], false)) n++;
+    expect(n).toBeLessThan(100);
+    // met een doel wel, maar nooit een zeedier
+    for (let i = 0; i < 50; i++) expect(pickEscaper([happy, sea], true)).toBe('blij');
+    expect(pickEscaper([sea], true)).toBeNull();
+    // het verkeerde hek wint bijna altijd
+    let w = 0;
+    for (let i = 0; i < 1000; i++) if (pickEscaper([happy, happy, wrong], false) === 'verkeerd') w++;
+    expect(w).toBeGreaterThan(900);
+  });
+
+  it('de melding noemt het hek dat helpt, en de bewaker heeft een naam en een zin', () => {
+    const tr: Tr = (key, vars) => fill((nl as Record<string, string>)[key] ?? key, vars);
+    for (const need of ['wall', 'net'] as const) {
+      expect((nl as Record<string, string>)[`say.escaped.${need}`]).toBeTruthy();
+      expect((en as Record<string, string>)[`say.escaped.${need}`]).toBeTruthy();
+    }
+    expect(textOf(tr, { who: 'keeper', mood: 'happy', key: 'say.guard.back' })).not.toBe('say.guard.back');
+    for (const key of ['staff.guard', 'say.hired.guard', 'say.guard.back', 'say.guard.new']) expect((en as Record<string, string>)[key], key).toBeTruthy();
+    expect(FEATURE.guard).toBeGreaterThanOrEqual(FEATURE.escape);
+    const texts = allLines(tr).map(l => l.text);
+    expect(texts).toContain(tr('say.escaped.net', speciesVars(tr, 'monkey')));
   });
 });

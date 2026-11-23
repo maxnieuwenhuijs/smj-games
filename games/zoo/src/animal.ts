@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import {
   ALSO, AQUATIC, CLIMATE, MIX_TILES, MUD_LOVERS, PETTABLE, TANK_WATER, TOY_DRINK, TOY_LIFT, type Nature, type Rare, type Terrain, type ToyKind,
-  MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, palsOf, scares, wildRange, WILD_KINDS, type PropGroup, type WildKind, type FenceNeed, type SpeciesId, type Variant, type WishId,
+  MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, palsOf, scares, wildRange, WILD_KINDS, type PropGroup, type WildKind, type FenceNeed, type SpeciesId, type Variant, type WishId, type EscapeWay,
 } from './data';
 import { CLIMB_SECONDS, PUSH, ROCK_SECONDS, SWING, SWING_SECONDS, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, swingAt, type Beat } from './data';
 import { MURK, murkyWater } from './data';
@@ -147,7 +147,15 @@ type Trick = Solo | 'nuzzle' | 'greet' | 'dance' | 'leap' | 'look' | 'tunnel' | 
   // voor de gasten: uit het water springen (een zeedier) en op de buik glijden
   | 'breach' | 'slide'
   // bang in een hoekje: klein maken en trillen
-  | 'tremble';
+  | 'tremble'
+  // ontsnappen: over, door of tegen het hek (zie `escape`)
+  | 'bolt';
+/** Hoe lang het ontsnappen zelf duurt (na het rennen naar het hek), en welke animatie uit het model erbij hoort. */
+const BOLT: Record<EscapeWay, [number, string]> = { jump: [1.1, 'Run'], climb: [1.9, 'Walk'], fly: [1.5, 'Run'], push: [1.7, 'Walk'], slip: [1.4, 'Walk'] };
+/** Op dit stukje van het omduwen valt het hek om. */
+const BOLT_HIT = 0.45;
+/** Zo hoog is een hek ongeveer: daar moet een dier overheen. */
+const FENCE_TOP = 0.55;
 const SHOW: Record<Solo, [number, string]> = {
   hop: [1.6, 'Happy'], spin: [1.1, 'Play'], roll: [2.6, 'Lie'], shake: [0.9, 'Idle'], wiggle: [1.4, 'Idle'], stretch: [2.2, 'Idle'],
   sniff: [2.62, 'Eat'], dig: [2.2, 'Eat'], bow: [1.8, 'Idle'], jumpturn: [1.8, 'Happy'], sway: [2.95, 'Idle'], peek: [2.6, 'Idle'], survey: [5.24, 'Idle'],
@@ -247,6 +255,10 @@ export class Animal {
   sick = false;
   /** Ontsnapt: het dier loopt buiten zijn verblijf rond tot je het terugzet. */
   escaped = false;
+  /** Het hek dat het nodig had toen het ontsnapte (het hek was verkeerd), of null. Voor de melding. */
+  fledFence: FenceNeed | null = null;
+  /** De tegel waar het dier woonde voor het ontsnapte: daar brengt de bewaker het het liefst weer heen. */
+  homeTile = -1;
   happy = false;
   unmet: WishId | null = 'enclosure';
   /**
@@ -281,6 +293,13 @@ export class Animal {
   fenceBroken = false;
   /** Het speelgoed waar het dier naartoe loopt om mee te spelen. */
   private playAt: Toy | null = null;
+  /**
+   * Het ontsnappen: eerst rennen van (fx, fy) naar (ix, iy) vlak voor het hek (`run` tellen), dan op de eigen
+   * manier over of door het hek bij (ex, ey) naar (tx, ty) buiten (`seconds` tellen). (nx, ny): de kant naar buiten.
+   */
+  private bolt: { way: EscapeWay; fx: number; fy: number; ix: number; iy: number; ex: number; ey: number; tx: number; ty: number; nx: number; ny: number; run: number; seconds: number } | null = null;
+  /** Loopt achter de bewaker aan: steeds naar het punt dat dit geeft; null betekent dat de bewaker het dier loslaat. */
+  private leash: (() => [number, number] | null) | null = null;
   /** De sprong door de hoepel: van waar naar waar. */
   private leap: { fx: number; fy: number; tx: number; ty: number; top: number; seconds: number } | null = null;
   /** Een zeedier: leeft alleen in water. */
@@ -521,6 +540,119 @@ export class Animal {
         this.gy = this.leap.fy + (this.leap.ty - this.leap.fy) * p;
         y += Math.sin(p * Math.PI) * this.leap.top;
         pitch = -Math.cos(p * Math.PI) * 0.95;
+      } else if (k.kind === 'bolt' && this.bolt) {
+        const b = this.bolt;
+        const at = (ax: number, ay: number, bx: number, by: number, q: number): void => {
+          this.gx = ax + (bx - ax) * q;
+          this.gy = ay + (by - ay) * q;
+        };
+        // vlak voor het hek (mx, my) en net erachter (ox, oy)
+        const mx = b.ex - b.nx * 0.12, my = b.ey - b.ny * 0.12, ox = b.ex + b.nx * 0.25, oy = b.ey + b.ny * 0.25;
+        if (u < b.run) at(b.fx, b.fy, b.ix, b.iy, u / b.run);
+        else {
+          const p = clamp((u - b.run) / b.seconds, 0, 1);
+          if (b.way === 'jump') {
+            // springen: door de knieen, een hoge boog over het hek, en zacht landen
+            if (p < 0.2) {
+              const s = Math.sin((p / 0.2) * Math.PI);
+              at(b.ix, b.iy, b.ix, b.iy, 0);
+              sy = 1 - 0.18 * s;
+              sx = sz = 1 + 0.06 * s;
+            } else if (p < 0.85) {
+              const q = (p - 0.2) / 0.65;
+              at(b.ix, b.iy, b.tx, b.ty, q);
+              y += Math.sin(q * Math.PI) * (FENCE_TOP + 0.25 + tall * 0.25);
+              pitch = -Math.cos(q * Math.PI) * 0.5;
+              sy = 1.06;
+            } else {
+              const s = Math.sin(((p - 0.85) / 0.15) * Math.PI);
+              at(b.tx, b.ty, b.tx, b.ty, 0);
+              sy = 1 - 0.15 * s;
+              sx = sz = 1 + 0.05 * s;
+            }
+          } else if (b.way === 'climb') {
+            // klimmen: rechtop tegen het hek, met kleine rukjes omhoog, bovenop voorover en aan de andere kant naar beneden
+            if (p < 0.15) {
+              const q = p / 0.15;
+              at(b.ix, b.iy, mx, my, q);
+              pitch = -1.15 * q;
+            } else if (p < 0.55) {
+              const q = (p - 0.15) / 0.4;
+              at(mx, my, mx, my, 0);
+              pitch = -1.15;
+              y += q * FENCE_TOP + Math.abs(Math.sin(q * Math.PI * 5)) * 0.03;
+            } else if (p < 0.72) {
+              const q = (p - 0.55) / 0.17;
+              at(mx, my, b.ex, b.ey, q);
+              y += FENCE_TOP + Math.sin(q * Math.PI) * 0.06;
+              pitch = -1.15 + q * 2;
+            } else {
+              const q = (p - 0.72) / 0.28;
+              at(b.ex, b.ey, b.tx, b.ty, q);
+              y += FENCE_TOP * (1 - q) * (1 - q);
+              pitch = 0.85 * (1 - q);
+            }
+          } else if (b.way === 'fly') {
+            // vliegen: een hupje, fladderend over het hek en neerstrijken
+            if (p < 0.15) {
+              const s = Math.sin((p / 0.15) * Math.PI);
+              at(b.ix, b.iy, b.ix, b.iy, 0);
+              sy = 1 - 0.15 * s;
+            } else if (p < 0.88) {
+              const q = (p - 0.15) / 0.73, e = q * q * (3 - 2 * q);
+              at(b.ix, b.iy, b.tx, b.ty, e);
+              y += Math.sin(q * Math.PI) * (FENCE_TOP + 0.6) + Math.sin(u * 26) * 0.03;
+              roll = Math.sin(u * 15) * 0.14;
+              sx = 1 + Math.sin(u * 30) * 0.08;
+              pitch = -0.2;
+            } else {
+              const s = Math.sin(((p - 0.88) / 0.12) * Math.PI);
+              at(b.tx, b.ty, b.tx, b.ty, 0);
+              sy = 1 - 0.12 * s;
+            }
+          } else if (b.way === 'push') {
+            // omduwen: kop omlaag en een stapje terug, dan ertegenaan, het hek valt om, even schudden en eroverheen
+            const bx = b.ix - b.nx * 0.12, by = b.iy - b.ny * 0.12;
+            if (p < 0.3) {
+              const q = p / 0.3;
+              at(b.ix, b.iy, bx, by, q);
+              pitch = 0.2 * q;
+            } else if (p < BOLT_HIT) {
+              const q = (p - 0.3) / (BOLT_HIT - 0.3);
+              at(bx, by, mx, my, q * q);
+              pitch = 0.2;
+            } else if (p < 0.6) {
+              const q = (p - BOLT_HIT) / (0.6 - BOLT_HIT);
+              at(mx, my, mx, my, 0);
+              pitch = 0.2 * (1 - q);
+              roll = Math.sin(u * 32) * 0.08 * (1 - q);
+            } else {
+              const q = (p - 0.6) / 0.4;
+              at(mx, my, b.tx, b.ty, q);
+              y += Math.sin(Math.min(1, q * 2) * Math.PI) * 0.07;
+            }
+          } else {
+            // erdoor glippen: heel smal maken, wiebelend door de kier, en er met een hupje uit
+            const wiggle = Math.sin(u * 18) * 0.16;
+            if (p < 0.3) {
+              const q = p / 0.3;
+              at(b.ix, b.iy, mx, my, q);
+              sx = 1 - 0.32 * q;
+              yaw += wiggle * q;
+            } else if (p < 0.7) {
+              const q = (p - 0.3) / 0.4;
+              at(mx, my, ox, oy, q);
+              sx = 0.68;
+              sy = 0.92;
+              yaw += wiggle;
+            } else {
+              const q = (p - 0.7) / 0.3;
+              at(ox, oy, b.tx, b.ty, q);
+              sx = 0.68 + 0.32 * q;
+              y += Math.sin(q * Math.PI) * tall * 0.25;
+            }
+          }
+        }
       } else if (k.kind === 'spin') yaw += u * 7.5;
       else if (k.kind === 'roll') roll = Math.sin(u * 2.4) * 1.25;
       else if (k.kind === 'shake') roll = Math.sin(u * 40) * 0.16;
@@ -841,6 +973,7 @@ export class Animal {
       if (k === 'nuzzle') return 'cuddle';
       if (k === 'greet' || k === 'look') return 'greet';
       if (k === 'leap') return 'leap';
+      if (k === 'bolt') return 'run';
       if (k === 'sniff' || k === 'dig') return 'sniff';
       if (k === 'peek' || k === 'survey') return 'watch';
       return 'play';
@@ -870,6 +1003,7 @@ export class Animal {
   }
 
   private stop(): void {
+    this.leash = null;
     this.trick = null;
     this.fast = false;
     this.pal = null;
@@ -939,11 +1073,69 @@ export class Animal {
     this.emote('Happy', 1.6);
   }
 
-  /** Springt uit het verblijf en gaat rondlopen. */
-  escape(gx: number, gy: number): void {
-    this.moveTo(gx, gy);
+  /**
+   * Ontsnapt uit het verblijf en gaat rondlopen, met (gx, gy) buiten het verblijf. Met `way` en `edge` (het midden
+   * van het stuk hek waar het overheen gaat) zie je het: eerst naar het hek rennen, dan springen, klimmen, vliegen,
+   * het hek omduwen of erdoor glippen. Geeft terug na hoeveel tellen het dier tegen het hek duwt.
+   */
+  escape(gx: number, gy: number, way?: EscapeWay, edge?: [number, number]): number {
+    if (!way || !edge) {
+      this.moveTo(gx, gy);
+      this.escaped = true;
+      this.emote('Play', 1.2);
+      return 0;
+    }
+    this.stop();
     this.escaped = true;
-    this.emote('Play', 1.2);
+    const [ex, ey] = edge, len = Math.hypot(gx - ex, gy - ey) || 1, nx = (gx - ex) / len, ny = (gy - ey) / len;
+    const ix = ex - nx * 0.35, iy = ey - ny * 0.35;
+    const d = Math.hypot(ix - this.gx, iy - this.gy), run = Math.min(1.4, d / 1.8);
+    const [seconds, clip] = BOLT[way];
+    this.bolt = { way, fx: this.gx, fy: this.gy, ix, iy, ex, ey, tx: gx, ty: gy, nx, ny, run, seconds };
+    if (d > 0.05) this.heading = Math.atan2(ix - this.gx, iy - this.gy);
+    this.doTrick('bolt', run + seconds + 0.1, run > 0.05 ? 'Run' : clip);
+    return run + seconds * BOLT_HIT;
+  }
+
+  /** Is het dier nog bezig met ontsnappen (over of door het hek)? */
+  get bolting(): boolean {
+    return !!this.bolt && this.trick?.kind === 'bolt';
+  }
+
+  /** De bewaker heeft gefloten: het dier loopt achter hem aan, naar het punt dat `to` geeft (null: hij laat los). */
+  heel(to: () => [number, number] | null): void {
+    this.stop();
+    this.leash = to;
+    this.state = 'emote';
+    this.timeLeft = 0.5;
+    this.play('Idle');
+  }
+
+  /** Loopt het dier achter de bewaker aan? */
+  get led(): boolean {
+    return !!this.leash;
+  }
+
+  /** De bewaker heeft het dier thuisgebracht: het is niet meer ontsnapt en blij. */
+  settle(): void {
+    this.leash = null;
+    this.escaped = false;
+    this.fledFence = null;
+    this.emote('Happy', 1.4);
+  }
+
+  /** Achter de bewaker aan: lopen zolang hij nog een stukje voor is, anders even stilstaan. */
+  private follow(to: [number, number], dt: number): void {
+    const dx = to[0] - this.gx, dy = to[1] - this.gy, dist = Math.hypot(dx, dy);
+    if (dist > 0.12) {
+      // een stuk achter: even rennen om bij te komen
+      const far = dist > 1, step = Math.min(dist, (far ? 1.4 : 0.85) * dt);
+      this.gx += (dx / dist) * step;
+      this.gy += (dy / dist) * step;
+      this.turnTo(Math.atan2(dx, dy), dt);
+      if (far) this.play('Run', this.young ? 2 : 1.5);
+      else this.play('Walk', this.young ? 2.6 : 1.9);
+    } else this.play('Idle');
   }
 
   /** Wordt opgetild en ergens anders neergezet. */
@@ -2077,6 +2269,13 @@ export class Animal {
       // de plons hoor je alleen als het dier in het water landt
       if (w.grid.terrain[this.tile] === WATER_TILE) w.trickSound(this, 'splash');
     }
+    if (this.bolt && this.trick?.kind !== 'bolt') this.bolt = null;
+    if (this.bolt && this.trick) {
+      // ontsnappen: eerst naar het hek kijken, dan naar buiten; met de animatie die erbij hoort
+      const b = this.bolt, toEdge = this.trick.t < b.run;
+      this.turnTo(toEdge ? Math.atan2(b.ix - this.gx, b.iy - this.gy) : Math.atan2(b.nx, b.ny), dt * 1.5);
+      this.play(toEdge ? 'Run' : BOLT[b.way][1], toEdge ? 1.5 : 1.2);
+    }
     if (this.dash && this.trick?.kind !== 'tunnel' && this.trick?.kind !== 'under' && this.trick?.kind !== 'swing' && this.trick?.kind !== 'slide') this.dash = null;
     // voor de gasten: het geluid bij een kunstje (even na het begin), het water van de olifant, en meedraven met een kind
     if (this.cryIn > 0) {
@@ -2101,6 +2300,18 @@ export class Animal {
     this.hunger = Math.min(1, this.hunger + dt * HUNGER_PER_SEC * w.hungerRate() * (this.young ? 0.5 : 1));
     this.poopIn -= dt * w.poopRate();
     if (this.scaredOf) this.watchHunter(dt, w);
+    if (this.leash) {
+      // achter de bewaker aan, naar huis
+      const to = this.leash();
+      if (to) {
+        this.follow(to, dt);
+        this.keepInside(dt, w);
+        this.place();
+        return;
+      }
+      this.leash = null;
+      this.timeLeft = 0.3;
+    }
 
     if (this.state === 'walk') {
       const next = this.route[0];

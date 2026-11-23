@@ -144,7 +144,14 @@ export const say = {
   moved: (name: string): Line => ({ who: 'keeper', mood: 'happy', key: 'say.moved', vars: { name } }),
   sick: (tr: Tr, sp: SpeciesId): Line => wishLine(tr, 'health', sp, null, false),
   healed: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.healed' }),
-  escaped: (tr: Tr, sp: SpeciesId): Line => ({ who: 'keeper', mood: 'urgent', key: 'say.escaped', vars: speciesVars(tr, sp), id: `say.escaped.${sp}` }),
+  /** Een dier is ontsnapt. `need`: het hek was verkeerd; dan zegt de verzorger ook welk hek helpt. */
+  escaped: (tr: Tr, sp: SpeciesId, need?: FenceNeed | null): Line => ({
+    who: 'keeper', mood: 'urgent', key: need && need !== 'glass' ? `say.escaped.${need}` : 'say.escaped', vars: speciesVars(tr, sp), id: `say.escaped.${sp}`,
+  }),
+  /** De bewaker heeft een ontsnapt dier weer thuisgebracht. */
+  guardBack: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.guard.back' }),
+  /** Vanaf FEATURE.guard kun je een bewaker aannemen. */
+  guardNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.guard.new' }),
   caught: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.caught' }),
   hired: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.hired' }),
   tipKeeper: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.tip.keeper' }),
@@ -157,7 +164,7 @@ export const say = {
   host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident' | 'nopath' | 'dark' | 'astray' | 'rain' | 'wide', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
   busy: (kind: string): Line => ({ who: 'host', mood: 'worried', key: `host.busy.${kind}` }),
   cash: (key: 'short' | 'full' | 'wage'): Line => ({ who: 'cashier', mood: key === 'full' ? 'happy' : 'worried', key: `cash.${key}` }),
-  hiredAs: (role: 'feed' | 'clean' | 'fix' | 'vet' | 'guide' | 'photo'): Line => ({ who: 'keeper', mood: 'happy', key: `say.hired.${role}` }),
+  hiredAs: (role: 'feed' | 'clean' | 'fix' | 'vet' | 'guide' | 'photo' | 'guard'): Line => ({ who: 'keeper', mood: 'happy', key: `say.hired.${role}` }),
   /** Het weetje van een diersoort, verteld door de verzorger. */
   fact: (sp: SpeciesId): Line => ({ who: 'keeper', mood: 'happy', key: `fact.${sp}` }),
   climateNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.climate.new' }),
@@ -294,6 +301,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
     add(say.wrongFood(tr, sp));
     add(say.taken(tr, sp));
     add(say.escaped(tr, sp));
+    if (need && need !== 'glass') add(say.escaped(tr, sp, need));
     add(say.fact(sp));
     // bang voor een roofdier: één zin per roofdier en dier dat bang voor hem is
     for (const prey of PREY_OF[sp] ?? []) add(say.scared(tr, prey, sp));
@@ -301,6 +309,8 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.safeNew());
   add(say.healed());
   add(say.caught());
+  add(say.guardBack());
+  add(say.guardNew());
   add(say.hired());
   add(say.funNew());
   add(say.broken());
@@ -343,5 +353,6 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.hiredAs('vet'));
   add(say.hiredAs('guide'));
   add(say.hiredAs('photo'));
+  add(say.hiredAs('guard'));
   return [...out.values()];
 }
