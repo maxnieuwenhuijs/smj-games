@@ -8,6 +8,7 @@ import nl from './nl.json';
 import { AQUATIC, PROP, PROPS, WILD_KINDS, WILD_WANT, propPoints, wildRange, wildWant } from './data';
 import { DECOR, WAYFIND, WAYFIND_PATHS, canStray, wayfound } from './data';
 import { BONUS, TOY_FROM, TOY_OF, likesToy, type ToyKind } from './data';
+import { PETTABLE, PREY_OF, WISH_ORDER, huntersOf, scares } from './data';
 import { guestCard, guestFacts, guestNames } from './traits';
 
 /** Zet een hek om het blok tegels van (x0,y0) tot en met (x1,y1). */
@@ -485,5 +486,56 @@ describe('wensen per level: alles wat iemand vraagt, kun je in dat level ook nee
         if (done >= FEATURE.climate && need) expect(TOY_FROM[need], `level ${done}: ${sp} wil een ${need}`).toBeLessThanOrEqual(done);
       }
     }
+  });
+});
+
+describe('bang voor elkaar: roofdieren en de dieren die bang voor ze zijn', () => {
+  const hunters = Object.keys(PREY_OF) as SpeciesId[];
+
+  it('elk roofdier en elk dier dat bang is, bestaat ook echt, en niemand is bang voor zichzelf', () => {
+    for (const h of hunters) {
+      expect(SPECIES[h], h).toBeTruthy();
+      expect(PREY_OF[h]!.length, h).toBeGreaterThan(0);
+      expect(new Set(PREY_OF[h]).size, `${h} noemt een dier twee keer`).toBe(PREY_OF[h]!.length);
+      for (const p of PREY_OF[h]!) {
+        expect(SPECIES[p], `${h}: ${p}`).toBeTruthy();
+        expect(p, h).not.toBe(h);
+        // een roofdier is zelf nooit bang voor een ander roofdier: het blijft eenvoudig
+        expect(PREY_OF[p], `${p} is roofdier en bang voor ${h}`).toBeUndefined();
+      }
+    }
+    expect(scares('lion', 'zebra')).toBe(true);
+    expect(scares('zebra', 'lion')).toBe(false);
+    expect(huntersOf('zebra')).toContain('lion');
+    expect(huntersOf('lion')).toEqual([]);
+  });
+
+  it('vriendjes zijn nooit bang voor elkaar', () => {
+    for (const [a, b] of PALS) {
+      expect(scares(a, b), `${a} en ${b}`).toBe(false);
+      expect(scares(b, a), `${b} en ${a}`).toBe(false);
+    }
+  });
+
+  it('een zeedier is alleen bang voor een zeedier, en een zeedier maakt alleen zeedieren bang', () => {
+    for (const h of hunters)
+      for (const p of PREY_OF[h]!) expect(AQUATIC.includes(h), `${h} en ${p}`).toBe(AQUATIC.includes(p));
+  });
+
+  it('in de kinderboerderij woont geen roofdier', () => {
+    for (const sp of PETTABLE) expect(PREY_OF[sp], sp).toBeUndefined();
+  });
+
+  it('de wens komt in het level waarin het eerste roofdier er is', () => {
+    const available = (done: number): SpeciesId[] => [...unlockedSpecies(done), ...(Object.keys(BONUS) as SpeciesId[]).filter(sp => BONUS[sp]! <= done)];
+    expect(available(FEATURE.safe - 1).some(sp => PREY_OF[sp]), 'er is al eerder een roofdier').toBe(false);
+    expect(available(FEATURE.safe).some(sp => PREY_OF[sp]), 'er is nog geen roofdier').toBe(true);
+    // de wens staat in het rijtje, zodat je hem in het menu van het dier ziet
+    expect(WISH_ORDER).toContain('safe');
+  });
+
+  it('de verzorger zegt wie voor wie bang is', () => {
+    const tr: Tr = (key, vars) => fill((nl as Record<string, string>)[key] ?? `?${key}?`, vars);
+    expect(allLines(tr).map(l => l.text)).toContain("De zebra's zijn bang voor de leeuw! Geef ze elk een eigen verblijf.");
   });
 });

@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import {
   ALSO, AQUATIC, CLIMATE, MIX_TILES, MUD_LOVERS, PETTABLE, TANK_WATER, TOY_DRINK, TOY_LIFT, type Nature, type Rare, type Terrain, type ToyKind,
-  MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, palsOf, wildRange, WILD_KINDS, type PropGroup, type WildKind, type FenceNeed, type SpeciesId, type Variant, type WishId,
+  MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, palsOf, scares, wildRange, WILD_KINDS, type PropGroup, type WildKind, type FenceNeed, type SpeciesId, type Variant, type WishId,
 } from './data';
 import { CLIMB_SECONDS, PUSH, ROCK_SECONDS, SWING, SWING_SECONDS, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, swingAt, type Beat } from './data';
 import { Grid, tileIndex, tileXY } from './grid';
@@ -81,6 +81,10 @@ export interface AnimalWorld {
   wantsClimate(): boolean;
   /** Willen dieren al groen en steen in hun verblijf (vanaf FEATURE.wild)? */
   wantsWild(): boolean;
+  /** Zijn dieren al bang voor een roofdier in hun verblijf (vanaf FEATURE.safe)? */
+  wantsSafe(): boolean;
+  /** Een bang dier schrikt en rent weg: een uitroepteken boven zijn kop. */
+  fright(animal: Animal): void;
   /** Hoeveel bomen, planten en stenen er in dit verblijf staan (in stuks), en hoeveel tegels land het heeft. */
   wildIn(region: { id: number; tiles: number[] }): Record<WildKind, number> & { land: number };
   /** Staat er op deze tegel een boom of een rots? Daar loopt een dier omheen. */
@@ -138,7 +142,9 @@ type Trick = Solo | 'nuzzle' | 'greet' | 'dance' | 'leap' | 'look' | 'tunnel' | 
   // bij het speelgoed dat zelf beweegt: schommelen, wippen, stootjes geven, klimmen en ergens onderdoor lopen
   | 'swing' | 'rock' | 'punch' | 'climb' | 'under'
   // voor de gasten: uit het water springen (een zeedier) en op de buik glijden
-  | 'breach' | 'slide';
+  | 'breach' | 'slide'
+  // bang in een hoekje: klein maken en trillen
+  | 'tremble';
 const SHOW: Record<Solo, [number, string]> = {
   hop: [1.6, 'Happy'], spin: [1.1, 'Play'], roll: [2.6, 'Lie'], shake: [0.9, 'Idle'], wiggle: [1.4, 'Idle'], stretch: [2.2, 'Idle'],
   sniff: [2.62, 'Eat'], dig: [2.2, 'Eat'], bow: [1.8, 'Idle'], jumpturn: [1.8, 'Happy'], sway: [2.95, 'Idle'], peek: [2.6, 'Idle'], survey: [5.24, 'Idle'],
@@ -176,6 +182,8 @@ const SEEK_FOOD = 0.4;
 const HUNGRY = 0.6;
 /** Hoe snel een dier loopt, naar zijn karakter. */
 const PACE: Record<Nature, number> = { plain: 1, shy: 0.85, playful: 1.2, sleepy: 0.85, brave: 1 };
+/** Komt het roofdier dichterbij dan dit (in tegels), dan rent een bang dier weg. */
+const FEAR_NEAR = 2;
 /** Dingen voor dieren op het land: een zeedier doet er niets mee. */
 const LAND_TOYS: string[] = ['hill', 'rocks', 'frame', 'tunnel', 'drink', 'fall', 'lamp', 'icebox', 'tyre', 'rocker', 'tetherball', 'logarch', 'tyreswing', 'pole'];
 /** Zoveel ruimte blijft er tussen het lijf van een dier en het hek. */
@@ -245,6 +253,10 @@ export class Animal {
   wildAsk: { kind: WildKind; group: PropGroup; more: boolean; by: number } | null = null;
   /** Het karakter: verlegen, speels, slaperig of dapper. Je ziet het aan hoe het dier loopt en wat het doet. */
   nature: Nature = 'plain';
+  /** Het roofdier in het verblijf waar dit dier bang voor is (vanaf FEATURE.safe), of null. */
+  scaredOf: SpeciesId | null = null;
+  /** Over zoveel tellen kijkt een bang dier weer of het roofdier dichtbij is. */
+  private fearIn = 0;
   /** Een zeldzame kleur (zie `setRare`). */
   rare: Rare | null = null;
 
@@ -553,6 +565,14 @@ export class Animal {
         pitch = -s * 0.12;
         yaw += Math.sin(u * 3.4) * 0.75 * s;
       } else if (k.kind === 'survey') yaw += Math.sin(u * 1.2) * 1.1; // rondkijken: langzaam heen en weer draaien
+      else if (k.kind === 'tremble') {
+        // bang: een beetje ineengedoken, en snel en klein trillen (af en toe wat harder)
+        const s = swell(u, Math.max(u, this.timeLeft + u), 0.3), hard = 0.6 + 0.4 * Math.max(0, Math.sin(u * 2.3));
+        sy = 1 - 0.07 * s;
+        sx = sz = 1 + 0.02 * s;
+        roll = Math.sin(u * 47) * 0.045 * s * hard;
+        yaw += Math.sin(u * 31) * 0.03 * s * hard;
+      }
       else if (k.kind === 'look') {
         // naar een gast kijken: iets langer, kopje scheef
         const s = clamp(Math.min(u * 2, (2.6 - u) * 2), 0, 1);
@@ -759,7 +779,7 @@ export class Animal {
 
   /** Feest: het dier danst (als een level gehaald is). */
   cheer(): void {
-    if (this.sick || this.escaped || this.anim === 'Sleep') return;
+    if (this.sick || this.escaped || this.anim === 'Sleep' || this.scaredOf) return;
     this.doTrick('dance', 2.4 + Math.random(), 'Happy');
   }
 
@@ -780,6 +800,8 @@ export class Animal {
     if (this.sick) return 'sick';
     if (this.anim === 'Sleep') return 'sleep';
     const k = this.trick?.kind;
+    // bang voor het roofdier: zit trillend in een hoekje (rennen, eten en lopen zie je gewoon)
+    if (this.scaredOf && (k === 'tremble' || this.state === 'rest' || this.state === 'idle' || this.anim === 'Sad')) return 'scared';
     if (k) {
       if (k === 'hop' || k === 'jumpturn' || k === 'dance' || k === 'spin' || k === 'breach' || k === 'prance' || k === 'bob') return 'jump';
       if (k === 'wave' || k === 'hoof' || k === 'beg' || k === 'lean' || k === 'roar' || k === 'howl' || k === 'stomp') return 'greet';
@@ -917,8 +939,12 @@ export class Animal {
     this.needsFence = region && info.need && w.grid.penKind(region) !== NEED_KIND[info.need] ? info.need : null;
     this.fenceBroken = !!region && w.brokenPen(region.id);
     const result: Record<WishId, boolean> = {
-      health: !this.sick, enclosure: !!region && !this.needsFence && !this.fenceBroken, food: this.hunger < HUNGRY, bed: false, terrain: false, friend: false, clean: false, space: true, fun: true, climate: true, wild: true,
+      health: !this.sick, enclosure: !!region && !this.needsFence && !this.fenceBroken, food: this.hunger < HUNGRY, bed: false, terrain: false, friend: false, clean: false, space: true, fun: true, climate: true, wild: true, safe: true,
     };
+    // een roofdier in hetzelfde verblijf: daar is dit dier bang voor
+    const hunter = region && w.wantsSafe() ? this.hunterNear(w) : null;
+    this.scaredOf = hunter?.species ?? null;
+    result.safe = !hunter;
     if (region && this.tameIn(w, region.id)) {
       // in de kinderboerderij wonen de boerderijdieren door elkaar: een stukje eigen grond, een slaapplek en wat gezelschap is genoeg
       const own = TERRAINS.indexOf(info.terrain);
@@ -1272,14 +1298,14 @@ export class Animal {
 
   /** Iemand tikt op het speelgoed: het dier komt eraan en gaat ermee spelen. Lukt dat (is er een weg)? */
   comePlay(w: AnimalWorld, toy: Toy): boolean {
-    if (this.sick || this.escaped || this.trick || this.anim === 'Sleep' || !this.uses(toy)) return false;
+    if (this.sick || this.escaped || this.trick || this.anim === 'Sleep' || this.scaredOf || !this.uses(toy)) return false;
     const blocked = (i: number): boolean => isTroughTile(w, i) || this.dry(w, i);
     return this.goPlay(w, toy, w.grid.regionOf[this.tile], blocked, true);
   }
 
   /** Het eigen verblijf, als het dier nu iets nieuws kan gaan doen (niet bezig, ziek, ontsnapt of in slaap). */
   private freePen(w: AnimalWorld): { id: number; tiles: number[] } | null {
-    if (this.sick || this.escaped || this.sleeping || this.busy) return null;
+    if (this.sick || this.escaped || this.sleeping || this.busy || this.scaredOf) return null;
     const [x, y] = tileXY(this.tile);
     return w.grid.enclosureAt(x, y);
   }
@@ -1619,6 +1645,68 @@ export class Animal {
     return true;
   }
 
+  /** Het dichtstbijzijnde roofdier in het eigen verblijf waar dit dier bang voor is, of null. */
+  private hunterNear(w: AnimalWorld): Animal | null {
+    if (this.escaped) return null;
+    const region = w.grid.regionOf[this.tile];
+    let best: Animal | null = null, bestD = Infinity;
+    for (const a of w.animals) {
+      if (a === this || a.escaped || w.grid.regionOf[a.tile] !== region || !scares(a.species, this.species)) continue;
+      const d = Math.hypot(a.gx - this.gx, a.gy - this.gy);
+      if (d < bestD) {
+        bestD = d;
+        best = a;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * De weg naar het hoekje van het verblijf dat het verst van het roofdier af ligt (een van de tegels die bijna even
+   * ver zijn: zo kruipen de bange dieren daar bij elkaar). Null als het dier daar al zit (en niet hoeft te rennen).
+   */
+  private hideFrom(w: AnimalWorld, hunter: Animal, run: boolean): number[] | null {
+    const [x, y] = tileXY(this.tile);
+    const region = w.grid.enclosureAt(x, y);
+    if (!region) return null;
+    const blocked = (i: number): boolean => isTroughTile(w, i) || this.dry(w, i);
+    const away = (i: number): number => Math.hypot(tileXY(i)[0] + 0.5 - hunter.gx, tileXY(i)[1] + 0.5 - hunter.gy);
+    const free = region.tiles.filter(i => !blocked(i));
+    if (!free.length) return null;
+    const most = Math.max(...free.map(away));
+    const far = free.filter(i => away(i) >= most - 0.9);
+    if (!run && far.includes(this.tile)) return null;
+    const route = w.grid.path(this.tile, far[Math.floor(Math.random() * far.length)], blocked);
+    return route && route.length > 1 ? route : null;
+  }
+
+  /**
+   * Een bang dier kijkt steeds of het roofdier te dichtbij komt. Zo ja, dan schrikt het (een uitroepteken) en rent
+   * het naar het verste hoekje; kan het niet verder weg, dan trilt het waar het is. Wat het aan het eten is, eet het op.
+   */
+  private watchHunter(dt: number, w: AnimalWorld): void {
+    this.fearIn -= dt;
+    if (this.fearIn > 0) return;
+    this.fearIn = 0.5 + Math.random() * 0.5;
+    const k = this.trick?.kind;
+    const calm = !this.sick && !this.escaped && !this.drugged && !this.perched && !this.fast && !this.dash && !this.leap && !this.hit && !this.fetch &&
+      (this.state === 'idle' || this.state === 'rest' || this.state === 'walk' || (this.state === 'emote' && (!k || k === 'tremble' || k === 'look' || k === 'sniff' || k === 'shake')));
+    const hunter = calm ? this.hunterNear(w) : null;
+    if (!hunter || Math.hypot(hunter.gx - this.gx, hunter.gy - this.gy) >= FEAR_NEAR) return;
+    const route = this.hideFrom(w, hunter, true);
+    if (route) {
+      this.stop();
+      this.startWalk(route);
+      this.fast = true;
+      this.play('Run', this.young ? 2 : 1.5);
+      w.fright(this);
+    } else if (k !== 'tremble') {
+      this.stop();
+      this.doTrick('tremble', 2 + Math.random(), 'Idle');
+      this.face(hunter.gx, hunter.gy);
+    }
+  }
+
   /**
    * De zon komt op: het dier slaapt nog zoveel seconden door en wordt dan wakker met een flinke rek. Zo worden
    * de dieren een voor een wakker.
@@ -1652,6 +1740,8 @@ export class Animal {
     }
     // midden in de nacht slaapt elk dier, ook wie honger heeft: het park is dicht
     if (w.deepNight() && !this.escaped) {
+      // een bang dier slaapt niet rustig: het schrikt steeds even wakker en trilt
+      if (this.scaredOf && Math.random() < 0.5) return this.doTrick('tremble', 2.5 + Math.random() * 2, 'Sit');
       this.trick = null;
       this.state = 'rest';
       this.timeLeft = 4 + Math.random() * 3;
@@ -1659,7 +1749,7 @@ export class Animal {
       return;
     }
     // 's nachts liggen de meeste dieren te slapen (wie honger heeft, gaat eerst eten)
-    if (w.isNight() && this.hunger < HUNGRY && Math.random() < (nature === 'sleepy' ? 0.85 : 0.65)) return this.rest('Lie', 5 + Math.random() * 4);
+    if (w.isNight() && !this.scaredOf && this.hunger < HUNGRY && Math.random() < (nature === 'sleepy' ? 0.85 : 0.65)) return this.rest('Lie', 5 + Math.random() * 4);
     if (!region) {
       if (this.escaped) {
         // buiten rondlopen: een paar stappen naar een willekeurige kant
@@ -1707,6 +1797,31 @@ export class Animal {
           this.startWalk(route);
           return;
         }
+      }
+    }
+    // bang voor een roofdier in het verblijf: wegkruipen in het hoekje dat het verst van hem af ligt, en daar
+    // trillen en naar hem kijken. Spelen of rustig slapen doet het dier niet.
+    const hunter = this.scaredOf ? this.hunterNear(w) : null;
+    if (hunter) {
+      const route = this.hideFrom(w, hunter, false);
+      if (route) return this.startWalk(route);
+      const r = Math.random();
+      if (r < 0.45) this.doTrick('tremble', 2.5 + Math.random() * 2, 'Idle');
+      else if (r < 0.7) this.rest('Sit', 3 + Math.random() * 2);
+      else if (r < 0.85) this.emote('Sad', 2.5);
+      else {
+        this.state = 'idle';
+        this.timeLeft = 1.5 + Math.random();
+        this.play('Idle');
+      }
+      return this.face(hunter.gx, hunter.gy);
+    }
+    // een roofdier doet niets met de dieren die bang voor hem zijn: hooguit kijkt het even nieuwsgierig
+    if (Math.random() < 0.1) {
+      const prey = w.animals.find(a => a !== this && !a.escaped && a.scaredOf === this.species && w.grid.regionOf[a.tile] === region.id);
+      if (prey) {
+        this.doTrick('look', 2.6, 'Idle');
+        return this.face(prey.gx, prey.gy);
       }
     }
     if (w.raining() && !this.aquatic) {
@@ -1952,6 +2067,7 @@ export class Animal {
     if (swims && this.state === 'walk' && Math.random() < dt * 2.2) w.splash(this.gx, this.gy);
     this.hunger = Math.min(1, this.hunger + dt * HUNGER_PER_SEC * w.hungerRate() * (this.young ? 0.5 : 1));
     this.poopIn -= dt * w.poopRate();
+    if (this.scaredOf) this.watchHunter(dt, w);
 
     if (this.state === 'walk') {
       const next = this.route[0];

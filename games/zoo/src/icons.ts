@@ -546,6 +546,10 @@ const ICONS = {
   // een vraagteken: boven een gast die de weg kwijt is
   question:
     '<path d="M14 17 Q14 6 24 6 Q34 6 34 16 Q34 22 28 25 Q24 27 24 32" fill="none" stroke="#4a90e2" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="24" cy="42" r="4" fill="#4a90e2"/>',
+  // bang: een oranje rondje met een wit uitroepteken
+  scared:
+    `<circle cx="24" cy="24" r="20" fill="#f08a24" stroke="#fff" stroke-width="3"/>` +
+    '<path d="M24 11 V28" stroke="#fff" stroke-width="7" stroke-linecap="round"/><circle cx="24" cy="36.5" r="4" fill="#fff"/>',
   boulder:
     '<path d="M5 40 L10 22 L22 14 L36 20 L43 40Z" fill="#8f949c"/><path d="M22 14 L26 28 L36 20" fill="none" stroke="#6f747c" stroke-width="2"/>',
   picnic:

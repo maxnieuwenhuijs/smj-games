@@ -14,6 +14,7 @@ import {
   EDGE_DECOR, SMALL_DECOR, PARK_GROUPS, ATTRACTIONS, parkShopGroup, PROP, PROPS, WILD_PROPS, PARK_PROPS, WILD_KINDS, wildRange, wildWant, type PropKind, type WildKind, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, SEASONS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
 import { CLIMB_SECONDS, PUSH, SWING, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, sinceHit, sway, swingAt, tetherAt } from './data';
 import { WAYFIND, canStray, wayfound, type WaySign } from './data';
+import { scares } from './data';
 import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region, type Side } from './grid';
 import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
 import { cursor, icon, type IconId } from './icons';
@@ -1209,6 +1210,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         if (doing === 'play' || doing === 'jump' || doing === 'roll' || doing === 'leap' || doing === 'happy' || a.showing) mood |= PEN.playing;
         // vlak bij het hek, of het dier liet zich net horen: daar schrikt een gast van
         if (Math.hypot(a.gx - x - 0.5, a.gy - y - 0.5) < 1.1 || (a === this.loud && this.clock - this.loudAt < 1.5)) mood |= PEN.scare;
+        // een bang dier dat wegrent: daar schrikt een gast ook even van
+        if (a.scaredOf && doing === 'run') mood |= PEN.scare;
       }
     }
     return awake || mood & PEN.sick ? mood : mood | PEN.asleep;
@@ -1673,6 +1676,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.level === FEATURE.petting) once(say.pettingNew());
     if (this.level === FEATURE.climate) once(say.climateNew());
     if (this.level === FEATURE.wild) once(say.wildNew());
+    if (this.level === FEATURE.safe) once(say.safeNew());
     if (this.level === FEATURE.night) once(say.nightNew());
     if (this.level === BONUS.dolphin && hasSpecies('dolphin')) once(say.aquaNew());
     // vanaf nu kun je hulp aannemen: de verzorger vertelt hoe
@@ -3153,6 +3157,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.bubbles.get(a)?.remove();
     this.bubbles.delete(a);
     this.unmet.delete(a);
+    this.frightAt.delete(a);
     this.reacted.delete(a);
     if (this.moving === a) this.moving = null;
     this.animals = this.animals.filter(x => x !== a);
@@ -3472,8 +3477,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     // bij het eerste dier van een soort: een weetje
     this.tellFact(species, false);
     this.floatAt(a.name, a.gx, a.gy, a.top + 0.2, `word ${sexOf(a) === 'male' ? 'boy' : 'girl'}`);
-    // past het dier wel, maar is het verblijf te klein? Dat zie en hoor je meteen
-    if ((SPACE[species] ?? 0) > region.tiles.length) {
+    // een roofdier en een dier dat bang voor hem is in één verblijf: dat zie en hoor je meteen
+    const others = this.animalsIn(region.id).filter(o => o !== a);
+    const prey = others.find(o => scares(species, o.species)), hunter = others.find(o => scares(o.species, species));
+    if (this.has('safe') && (prey || hunter)) {
+      for (const p of prey ? others.filter(o => scares(species, o.species)) : [a]) this.fright(p);
+      this.sayNow(say.scared(t, prey ? prey.species : species, prey ? species : hunter!.species));
+    } else if ((SPACE[species] ?? 0) > region.tiles.length) {
       this.floatAt(icon('grow'), a.gx, a.gy, a.top + 0.8);
       this.sayNow(wishLine(t, 'space', species, null, false));
     }
@@ -3728,6 +3738,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // bij een groepsdier staat erbij hoeveel er nog bij moeten
       case 'friend': return speciesIcon(a.species) + (a.lonely > 1 ? `<i class="count">+${a.lonely}</i>` : icon('plus', 'badge'));
       case 'clean': return icon('poop');
+      // bang: de kop van het roofdier, met een uitroepteken
+      case 'safe': return speciesIcon(a.scaredOf ?? 'lion') + icon('scared', 'badge');
     }
   }
 
@@ -3791,7 +3803,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       '<span class="live"><canvas class="portrait3d" width="144" height="144"></canvas><b class="doing"></b></span>' +
       icon(sexOf(a) === 'male' ? 'boy' : 'girl') +
       (a.rare ? icon('rare') : '') + (a.nature !== 'plain' ? `<span class="wish ok" title="${t(`nature.${a.nature}`)}">${icon(`nature_${a.nature}` as IconId)}</span>` : '') +
-      '<span class="needs">' + WISH_ORDER.filter(k => (k !== 'health' || a.sick) && (k !== 'fun' || (this.has('fun') && !!TOY_OF[a.species])) && (k !== 'space' || !!SPACE[a.species]) && (k !== 'climate' || (this.has('climate') && !!CLIMATE[a.species])) && (k !== 'wild' || (this.has('wild') && !!wildWant(a.species)))).map(k =>
+      '<span class="needs">' + WISH_ORDER.filter(k => (k !== 'health' || a.sick) && (k !== 'safe' || !wishes.safe) && (k !== 'fun' || (this.has('fun') && !!TOY_OF[a.species])) && (k !== 'space' || !!SPACE[a.species]) && (k !== 'climate' || (this.has('climate') && !!CLIMATE[a.species])) && (k !== 'wild' || (this.has('wild') && !!wildWant(a.species)))).map(k =>
         // bij de grond staat elk stukje van de mix apart: zo zie je wat er nog bij moet
         k === 'terrain'
           ? [SPECIES[a.species].terrain, ...(ALSO[a.species] ?? [])].map((kind, i) => {
@@ -4592,6 +4604,20 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   wantsWild(): boolean {
     return this.has('wild');
+  }
+
+  wantsSafe(): boolean {
+    return this.has('safe');
+  }
+
+  /** Wanneer elk bang dier voor het laatst schrok: het uitroepteken komt niet vaker dan eens in de paar tellen. */
+  private frightAt = new Map<Animal, number>();
+
+  /** Een bang dier schrikt van het roofdier en rent weg: een uitroepteken boven zijn kop. */
+  fright(animal: Animal): void {
+    if (this.clock - (this.frightAt.get(animal) ?? -99) < 4) return;
+    this.frightAt.set(animal, this.clock);
+    this.floatAt(icon('scared'), animal.px, animal.py, animal.top + 0.2);
   }
 
   /** Een bui begint: de eerste keer vertelt de gastvrouw wat je kunt doen, en er komen plassen. */
@@ -5470,8 +5496,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         this.floatAt(icon('heart'), a.gx, a.gy, a.top);
         sfx('heart', { volume: 0.5, every: 1.5 });
       }
-      // zorgwensen (ziek, verblijf, voer, schoon) tellen zwaarder dan het soort hek, ondergrond, slaapplek en een vriendje
-      const care = a.unmet === 'health' || (a.unmet === 'enclosure' && !a.needsFence) || a.unmet === 'food' || a.unmet === 'clean';
+      // zorgwensen (ziek, verblijf, bang, voer, schoon) tellen zwaarder dan het soort hek, ondergrond, slaapplek en een vriendje
+      const care = a.unmet === 'health' || (a.unmet === 'enclosure' && !a.needsFence) || a.unmet === 'safe' || a.unmet === 'food' || a.unmet === 'clean';
       // verveling, te weinig ruimte en een kapot hek maken een dier ongelukkig, maar het wordt er nooit voor opgehaald
       const calm = a.unmet === 'fun' || a.unmet === 'climate' || a.unmet === 'wild' || a.unmet === 'space' || (a.unmet === 'terrain' && a.mixOnly) || (a.unmet === 'enclosure' && a.fenceBroken && !a.escaped);
       const rate = a.unmet === null ? -2 : calm ? 0 : care ? 1 : 0.4;
@@ -5497,7 +5523,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.needyAll = this.animals
       .filter(a => {
         if (a.escaped || a.sick) return true;
-        const care = a.unmet === 'health' || (a.unmet === 'enclosure' && !a.needsFence) || a.unmet === 'food' || a.unmet === 'clean';
+        const care = a.unmet === 'health' || (a.unmet === 'enclosure' && !a.needsFence) || a.unmet === 'safe' || a.unmet === 'food' || a.unmet === 'clean';
         return care && this.clock - (this.unmet.get(a)?.since ?? this.clock) > 20;
       })
       .sort((p, q) => rank(q) - rank(p) || q.neglect - p.neglect);
@@ -5529,7 +5555,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const light = worst && (worst.wish === 'bed' || worst.wish === 'terrain' || worst.wish === 'friend' || worst.wish === 'fun' || worst.wish === 'climate' || worst.wish === 'wild' || worst.wish === 'space' || (worst.wish === 'enclosure' && !!worst.a.needsFence));
     if (worst && worst.age > (light ? ALERT_AFTER * 2 : ALERT_AFTER)) {
       const { a, wish } = worst;
-      this.alert(this.lineAbout(a.escaped ? say.escaped(t, a.species) : wish === 'enclosure' && a.fenceBroken ? say.broken() : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN, a.wildAsk ? `${a.wildAsk.group}.${a.wildAsk.more ? 'more' : 'less'}` : undefined), a));
+      this.alert(this.lineAbout(a.escaped ? say.escaped(t, a.species) : wish === 'enclosure' && a.fenceBroken ? say.broken() : wish === 'safe' && a.scaredOf ? say.scared(t, a.species, a.scaredOf) : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN, a.wildAsk ? `${a.wildAsk.group}.${a.wildAsk.more ? 'more' : 'less'}` : undefined), a));
       if (a.neglect > NEGLECT_WARN * 1.5 && !this.hud.speaking) this.callForHelp('name.help.1');
     }
     // de gastvrouw let op de gasten
