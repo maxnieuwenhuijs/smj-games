@@ -215,8 +215,8 @@ export type DecorKind =
   // meer licht voor de nacht: een tuinlampje, een lampion, een fakkel en een hoge straatlamp met twee lampen
   | 'gardenlight' | 'lampion' | 'torch' | 'streetlamp';
 /**
- * Sier is alleen om naar te kijken. Borden hebben een taak: de wegwijzer en de plattegrond wijzen de weg, in het
- * gastenboek schrijven gasten. Handig is waar gasten iets mee doen (de picknicktafel staat bij het bankje en de wc).
+ * Sier is alleen om naar te kijken. Borden wijzen de weg (de wegwijzer en de plattegrond). Handig is waar gasten
+ * iets mee doen: de picknicktafel en het gastenboek staan bij het bankje en de wc.
  */
 export type DecorGroup = 'green' | 'water' | 'art' | 'light' | 'signs' | 'service';
 export const DECOR_GROUPS: DecorGroup[] = ['green', 'water', 'art', 'light', 'signs', 'service'];
@@ -232,7 +232,7 @@ export const DECOR: Record<DecorKind, { group: DecorGroup; price: number; from: 
   topiary: { group: 'art', price: 12, from: 23 }, arch: { group: 'art', price: 10, from: 24 }, totem: { group: 'art', price: 10, from: 29 },
   snowman: { group: 'art', price: 6, from: 31 }, campfire: { group: 'light', price: 8, from: 33 }, windmill: { group: 'art', price: 18, from: 36 },
   statue: { group: 'art', price: 20, from: 38 }, clocktower: { group: 'art', price: 25, from: 41 },
-  guestbook: { group: 'signs', price: 6, from: 9 }, mapboard: { group: 'signs', price: 8, from: 12 }, bunting: { group: 'art', price: 4, from: 13 }, lightstring: { group: 'light', price: 6, from: 15 },
+  guestbook: { group: 'service', price: 6, from: 9 }, mapboard: { group: 'signs', price: 8, from: 12 }, bunting: { group: 'art', price: 4, from: 13 }, lightstring: { group: 'light', price: 6, from: 15 },
   gardenlight: { group: 'light', price: 3, from: 16 }, lampion: { group: 'light', price: 5, from: 18 }, torch: { group: 'light', price: 4, from: 20 }, streetlamp: { group: 'light', price: 9, from: 26 },
 };
 /**
