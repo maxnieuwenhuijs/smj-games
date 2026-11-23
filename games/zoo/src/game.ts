@@ -29,6 +29,8 @@ import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStat
 import { ENTRANCE, GuestManager, Train, Vendor, Worker, edgePose, edgeSides, shopCenter, shopTiles, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type PetSpot, type ShopSpot, type VetJob, type WorkerRole, type WorkerWorld, type FixJob, type GuardJob } from './people';
 import { SIGHT, type GuestCue, type Sight } from './people';
 import { PEN } from './people';
+import { CableCar } from './people';
+import { CABLE, cableChairs, cableFit, cableLength, cableOpen, cablePairs, cablePoles } from './cable';
 import { Road } from './road';
 import { STAR_EVERY, STAR_FACTORS, STAR_GOOD, STAR_TIP_GAP, nextStars, parkScore, scoreOf, smoothScore, starFactors, starGuests, weakest, type StarFactor, type StarInput } from './stars';
 import { guestCard } from './traits';
@@ -216,7 +218,7 @@ export interface SaveData {
   decor?: { x: number; y: number; kind: DecorKind; edge?: 'h' | 'v'; rot?: number; q?: number }[];
   /** Natuur op een kwart tegel: `x`, `y` in vakjes (twee per tegel), `r` de draaiing in kwartslagen. */
   props?: { k: PropKind; x: number; y: number; r?: number }[];
-  shops?: { x: number; y: number; kind: ShopKind; sells?: string[]; edge?: 'h' | 'v'; turned?: boolean; face?: number; rot?: number; manual?: boolean; dirt?: number }[];
+  shops?: { x: number; y: number; kind: ShopKind; sells?: string[]; edge?: 'h' | 'v'; turned?: boolean; face?: number; rot?: number; manual?: boolean; dirt?: number; link?: [number, number] }[];
   sold?: Record<string, number>;
   soldAt?: Record<string, number>;
   soldAll?: number;
@@ -401,6 +403,8 @@ interface ShopObj extends ShopSpot {
    * de dieren niet kunnen (sip of slapend).
    */
   show?: { clock: ShowClock; n: number; next: number; badge: HTMLElement | null; mood: string };
+  /** Een huisje van de kabelbaan: waar zijn maatje staat, ten opzichte van dit huisje (zie cablePairs). */
+  link?: [number, number];
 }
 interface PoopObj {
   gx: number;
@@ -733,8 +737,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         // een kraam draait uit zichzelf alleen een halve slag: zo blijft hij op zijn eigen tegels staan
         rot = sh.manual ? was : this.autoRot(x, y, sh.kind, was);
       }
-      this.addShop(x, y, sh.kind, sh.sells, undefined, undefined, rot, sh.manual).dirt = sh.dirt;
+      const made = this.addShop(x, y, sh.kind, sh.sells, undefined, undefined, rot, sh.manual);
+      made.dirt = sh.dirt;
+      // de kabelbaan: welk huisje bij welk hoort (een ouder spel heeft dit niet: dan staat er nog geen kabelbaan)
+      if (sh.kind === 'cablecar' && Array.isArray(sh.link) && sh.link.length === 2) made.link = [Number(sh.link[0]), Number(sh.link[1])];
     }
+    this.syncLifts();
     for (const a of d.animals) {
       if (!modelReady(`${a.species}_${a.variant}`)) continue;
       const animal = this.addAnimal(a.species, a.variant, a.gx + ox, a.gy + oy, a.name, a.nature ?? 'plain', a.rare);
@@ -794,7 +802,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       toys: this.toys.map(({ x, y, kind, rot }) => ({ x, y, kind, rot: rot || undefined })),
       decor: this.decors.map(({ x, y, kind, edge, rot, q }) => ({ x, y, kind, edge, rot: rot || undefined, q })),
       props: this.props.map(p => ({ k: p.kind, x: p.sx, y: p.sy, r: p.rot || undefined })),
-      shops: this.shops.map(({ x, y, kind, sells, edge, turned, set, rot, manual, dirt }) => ({ x, y, kind, sells, edge, turned, face: set, rot, manual, dirt: dirt ? Math.round(dirt * 100) / 100 : undefined })),
+      shops: this.shops.map(({ x, y, kind, sells, edge, turned, set, rot, manual, dirt, link }) => ({ x, y, kind, sells, edge, turned, face: set, rot, manual, dirt: dirt ? Math.round(dirt * 100) / 100 : undefined, link })),
       gw: W,
       gh: H,
       land: SIDES.filter(side => this.grid.owns(side)),
@@ -993,7 +1001,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   cheer(guest: Guest): void {
-    this.floatAt(icon('heart'), guest.gx, guest.gy, guest.height + 0.2);
+    // (wie in de kabelbaan zit, krijgt het hartje boven zijn stoeltje)
+    this.floatAt(icon('heart'), guest.gx, guest.gy, guest.height + guest.air + 0.2);
     sfx('cheer', { volume: 0.3, every: 5, at: [guest.gx, guest.gy] });
     this.sellPhoto(guest, 0.8);
   }
@@ -3485,7 +3494,80 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       }
     // de tribune moet met haar rug tegen de glazen bak van de dolfijnen of orka's staan
     if (kind === 'show' && !this.showPool(x, y, w, h)) return false;
+    // het tweede huisje van de kabelbaan staat in een rechte lijn met het eerste, niet te dichtbij en niet te ver
+    const open = kind === 'cablecar' ? this.cableOpen() : null;
+    if (open && cableFit(open, { x, y }) !== 'ok') return false;
     return true;
+  }
+
+  // ------------------------------------------------------------ de kabelbaan
+  /** Het huisje van de kabelbaan dat nog op zijn maatje wacht (het volgende huisje hoort daarbij), of null. */
+  private cableOpen(): ShopObj | null {
+    return cableOpen(this.shops.filter(s => s.kind === 'cablecar'));
+  }
+
+  private liftKey = '';
+  private liftCheck = 0;
+
+  /**
+   * Zorgt dat er bij elk paar huisjes een kabelbaan hangt, en haalt de kabel weg als een huisje weg is. Verandert
+   * er niets aan de huisjes, dan gebeurt er niets.
+   */
+  private syncLifts(): void {
+    const pairs = cablePairs(this.shops.filter(s => s.kind === 'cablecar'));
+    const key = pairs.map(([p, q]) => `${p.x},${p.y}>${q.x},${q.y}`).join(';');
+    if (key === this.liftKey) return;
+    this.liftKey = key;
+    const keep: CableCar[] = [];
+    for (const lift of this.guests.lifts) {
+      if (pairs.some(([p, q]) => lift.a === p && lift.b === q)) keep.push(lift);
+      else {
+        lift.drop();
+        this.view.scene.remove(lift.model.group);
+        lift.model.group.traverse(o => (o as THREE.Mesh).geometry?.dispose());
+      }
+    }
+    for (const [p, q] of pairs) {
+      if (keep.some(l => l.a === p && l.b === q)) continue;
+      const len = cableLength(p, q), ux = Math.sign(q.x - p.x), uy = Math.sign(q.y - p.y), [ax, ay] = shopCenter(p);
+      // een paal staat niet midden in een gebouw: daar hangt de kabel gewoon wat verder door
+      const poles = cablePoles(len).filter(t => !this.shopAt(Math.floor(ax + ux * t), Math.floor(ay + uy * t)));
+      keep.push(new CableCar(p, q, this.view.makeCable(len, poles, cableChairs(len), ax, ay, ux, uy)));
+    }
+    this.guests.lifts = keep;
+  }
+
+  /** Rijdt de kabelbaan bij dit huisje, en mag je nu instappen? */
+  liftRuns(shop: ShopSpot): boolean {
+    return this.guests.lifts.some(l => l.serves(shop));
+  }
+
+  /** De soorten die onder dit punt wonen (een stukje eromheen): dat zie je vanuit een stoeltje. */
+  liftView(gx: number, gy: number): string[] {
+    const near = this.animals.filter(a => !a.escaped && Math.hypot(a.gx - gx, a.gy - gy) < 1.6).map(a => a.species);
+    return [...new Set(near)];
+  }
+
+  /** Een gast is met de kabelbaan geweest: hij betaalt voor zijn ritje. */
+  liftPaid(shop: ShopSpot, _guest: Guest): void {
+    this.soldAt.cablecar = (this.soldAt.cablecar ?? 0) + 1;
+    const [cx, cy] = shopCenter(shop);
+    this.earn(CABLE.price, cx, cy);
+  }
+
+  /** Elk beeldje: de kabelbanen bijhouden, en de eerste keer dat er een opengaat zegt de gastvrouw het. */
+  private updateLifts(dt: number): void {
+    this.liftCheck -= dt;
+    if (this.liftCheck <= 0) {
+      this.liftCheck = 1;
+      this.syncLifts();
+    }
+    if (this.told.has('cable.first')) return;
+    const open = this.guests.lifts.find(l => l.boarding);
+    if (!open) return;
+    this.told.add('cable.first');
+    const [cx, cy] = shopCenter(open.a);
+    this.lines.push(this.lineAbout(say.cableFirst(), { gx: cx, gy: cy }));
   }
 
   /**
@@ -3561,13 +3643,24 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!this.shopFits(x, y, kind, turn)) {
       // de tribune past wel, maar staat niet bij de dolfijnen: de bouwer zegt waar hij moet
       if (kind === 'show' && this.shopFits(x, y, 'tower', turn)) this.alert(say.showWhere(), 25);
+      // het huisje van de kabelbaan past wel, maar staat niet in een rechte lijn met het eerste (of te dichtbij of te ver)
+      if (kind === 'cablecar' && this.shopFits(x, y, 'tower', turn)) this.alert(say.cableWhere(), 25);
       return this.nope(cx, cy);
     }
     if (!this.pay(SHOP_PRICE[kind], cx, cy)) return;
+    const partner = kind === 'cablecar' ? this.cableOpen() : null;
     // zelf gedraaid met de draaiknop? Dan blijft het zo staan; anders kijkt het vanzelf naar het pad
     // (een marktkraam houdt de stand waarin je hem neerzet, en draait uit zichzelf hooguit een halve slag)
-    if (this.quarter) this.addShop(x, y, kind, undefined, undefined, undefined, turn, true);
-    else this.addShop(x, y, kind, undefined, undefined, undefined, SHOP_DEEP[kind] ? turn : undefined);
+    const made = this.quarter ? this.addShop(x, y, kind, undefined, undefined, undefined, turn, true)
+      : this.addShop(x, y, kind, undefined, undefined, undefined, SHOP_DEEP[kind] ? turn : undefined);
+    if (kind === 'cablecar') {
+      // het tweede huisje: de twee horen nu bij elkaar en de kabel komt ertussen. Het eerste: de bouwer legt uit
+      if (partner) {
+        made.link = [partner.x - x, partner.y - y];
+        partner.link = [x - partner.x, y - partner.y];
+        this.syncLifts();
+      } else if (this.shops.filter(s => s.kind === 'cablecar').length === 1) this.sayNow(say.cableOne());
+    }
     this.sweepProps();
     sfx('place');
     this.floatAt(icon('sparkle'), cx, cy, 0.8);
@@ -4350,7 +4443,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
           return this.hud.setCursor(CUR[this.shopKind()]);
         }
         const [ax, ay, rot] = this.shopPose(g, kind);
-        this.view.ghostShop(ax, ay, kind, this.shopFits(ax, ay, kind, rot), undefined, rot);
+        const fits = this.shopFits(ax, ay, kind, rot);
+        this.view.ghostShop(ax, ay, kind, fits, undefined, rot);
+        // het tweede huisje van de kabelbaan: de kabel als lijn, groen als hij past en rood als niet
+        const open = kind === 'cablecar' ? this.cableOpen() : null;
+        if (open) this.view.ghostCable(open.x + 1, open.y + 1, ax + 1, ay + 1, fits);
         return this.hud.setCursor(CUR[this.shopKind()]);
       }
       case 'animal': {
@@ -4523,6 +4620,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         shop.show?.badge?.remove();
         this.shops = this.shops.filter(k => k !== shop);
         this.earn(refund(SHOP_PRICE[shop.kind]), ...shopCenter(shop));
+        // een huisje van de kabelbaan weg: de kabel gaat ook weg, en wie erin zat, stapt uit
+        if (shop.kind === 'cablecar') this.syncLifts();
       }
     }
   }
@@ -6243,6 +6342,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
     this.events(dt);
     this.updateShows(dt);
+    this.updateLifts(dt);
 
     for (const p of this.puddles) {
       p.life -= dt;

@@ -745,6 +745,12 @@ const ICONS = {
     `<path d="M4 45 V38 H14 V31 H24 V24 H44 V45Z" fill="#9fb4c4"/><rect x="4" y="35" width="12" height="4" rx="2" fill="${RED}"/><rect x="14" y="28" width="12" height="4" rx="2" fill="${SUN}"/><rect x="24" y="21" width="20" height="4" rx="2" fill="#4a90e2"/>` +
     `<path d="M6 22 Q12 6 28 8 Q22 11 20 15 Q14 15 10 23Z" fill="#7fa9cc"/><path d="M8 23 L3 27 M8 23 L5 18" stroke="#7fa9cc" stroke-width="3" stroke-linecap="round"/>` +
     `<path d="M16 9 L19 4 L21 10Z" fill="#7fa9cc"/><circle cx="25" cy="10" r="1.3" fill="${INK}"/><circle cx="33" cy="6" r="4" fill="${RED}"/>`,
+  // de kabelbaan: twee bergen met sneeuw, en daarboven een schuine kabel met twee stoeltjes eraan
+  cablecar:
+    '<path d="M2 45 L16 22 L24 32 L33 17 L46 45Z" fill="#9fb4c4"/><path d="M16 22 L12 28.5 L16 27 L19.5 29Z M33 17 L29 23.5 L33 22 L37 25Z" fill="#fff"/>' +
+    '<path d="M2 6 L46 17" stroke="#3d4f5a" stroke-width="2.5" stroke-linecap="round"/><path d="M14 9 V20 M34 14 V25" stroke="#3d4f5a" stroke-width="2"/>' +
+    `<rect x="7" y="13" width="4" height="10" rx="2" fill="${RED}"/><rect x="7" y="19" width="14" height="4" rx="2" fill="${RED}"/>` +
+    `<rect x="27" y="18" width="4" height="10" rx="2" fill="${SUN}"/><rect x="27" y="24" width="14" height="4" rx="2" fill="${SUN}"/>`,
   umbrellas:
     `<g fill="none" stroke="${WOOD_D}" stroke-width="2.5" stroke-linecap="round"><path d="M13.5 11 L11.5 5 Q10.5 1.5 7.5 3.5"/><path d="M34.5 11 L36.5 5 Q37.5 1.5 40.5 3.5"/><path d="M24 9 V5 Q24 2 27 2 Q30 2 30 5"/></g>` +
     `<path d="M10.5 10.5 L16.5 9 L20 30 L16 30Z" fill="${RED}"/><path d="M31.5 9 L37.5 10.5 L32 30 L28 30Z" fill="${SUN}"/><path d="M21 8 H27 L26 30 H22Z" fill="#4a90e2"/>` +

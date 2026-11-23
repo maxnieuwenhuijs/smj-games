@@ -201,6 +201,10 @@ export const say = {
   /** De tribune past hier niet: die moet tegen de bak van de dolfijnen staan. En de eerste show begint. */
   showWhere: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.show.where' }),
   showFirst: (): Line => ({ who: 'host', mood: 'happy', key: 'say.show.first' }),
+  /** De kabelbaan: het eerste huisje staat, het tweede past daar niet, en hij gaat voor het eerst open. */
+  cableOne: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.cable.one' }),
+  cableWhere: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.cable.where' }),
+  cableFirst: (): Line => ({ who: 'host', mood: 'happy', key: 'say.cable.first' }),
   dirty: (): Line => ({ who: 'host', mood: 'worried', key: 'say.dirty' }),
   vetHow: (): Line => ({ who: 'keeper', mood: 'worried', key: 'say.vet.how' }),
   pettingNew: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.petting.new' }),
@@ -324,7 +328,8 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   for (const season of SEASONS) add(say.season(season));
   for (const ask of ['green.more', 'green.less', 'stone.more', 'stone.less']) add(wishLine(tr, 'wild', 'pig', null, false, ask));
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
-    say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.filterTip(), say.showWhere(), say.showFirst()]) add(line);
+    say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.filterTip(), say.showWhere(), say.showFirst(),
+    say.cableOne(), say.cableWhere(), say.cableFirst()]) add(line);
   add(say.eventNew());
   add(say.starsNew());
   for (let n = 2; n <= 5; n++) add(say.stars(n));
