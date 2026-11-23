@@ -716,6 +716,8 @@
   "toy.tyreswing.a": "a tyre swing",
   "toy.pole": "Climbing pole",
   "toy.pole.a": "a climbing pole",
+  "toy.filter": "Water filter",
+  "toy.filter.a": "a water filter",
   "alert.fun": "{The} is bored and wants {toy}.",
   "say.fun.new": "New: toys and plants! Every animal has its own favourite.",
   "cheer.1": "Your animals look so happy!",
@@ -727,6 +729,8 @@
   "cheer.7": "You built that so nicely!",
   "cheer.8": "The till is ringing nicely. Good job!",
   "alert.clean": "The pen is dirty. Grab the broom and sweep up the poops!",
+  "alert.murky": "The water is dirty! Tap the tank with the broom to make it clean again.",
+  "say.filter.tip": "Put a water filter in the tank. Then the water stays clean much longer.",
   "alert.wrongfood": "{The} does not like that.",
 
   "host.first": "Here come the first guests!",

@@ -186,6 +186,9 @@ export const say = {
   pettingOpen: (): Line => ({ who: 'host', mood: 'happy', key: 'say.petting.open' }),
   pettingSmall: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.petting.small' }),
   pettingGate: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.petting.gate' }),
+  /** Het water in een bak van glas is vies, en de tip daarna: een waterfilter. */
+  murky: (): Line => ({ who: 'keeper', mood: 'worried', key: 'alert.murky' }),
+  filterTip: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.filter.tip' }),
 };
 
 /** De tekst van een zin, zoals hij op het scherm komt en wordt uitgesproken. */
@@ -290,7 +293,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   for (const season of SEASONS) add(say.season(season));
   for (const ask of ['green.more', 'green.less', 'stone.more', 'stone.less']) add(wishLine(tr, 'wild', 'pig', null, false, ask));
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
-    say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate()]) add(line);
+    say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.filterTip()]) add(line);
   add(say.eventNew());
   // elke variant van elk evenement; wat de klas zegt, is er in de stem van de juf en in die van de meester
   for (const [id, e] of Object.entries(EVENT_SAYS))

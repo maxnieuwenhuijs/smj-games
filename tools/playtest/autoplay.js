@@ -216,6 +216,19 @@ export const T = {
     }
   },
 
+  /** Maakt bakken van glas schoon waarvan het water minstens zo vies is als `from` (hooguit `max` bakken). Geeft het aantal. */
+  cleanTanks(from, max = Infinity) {
+    const game = z();
+    if (!game.cleanTank || !game.tankPens) return 0;
+    let n = 0;
+    for (const pen of [...game.tankPens]) {
+      if (n >= max || (pen.murk ?? 0) < from) continue;
+      game.cleanTank(pen, true);
+      n++;
+    }
+    return n;
+  },
+
   /** Zoals een kind: één handeling per keer, het dringendste eerst. */
   careLikeAKid() {
     const game = z();
@@ -240,6 +253,8 @@ export const T = {
     const dirty = game.pens.map(p => ({ p, n: game.poopsIn(p.region.id) })).sort((a, b) => b.n - a.n)[0];
     if (dirty && dirty.n >= 2) return game.poopsOf(dirty.p.region.id).forEach(p => game.cleanPoop(p));
     if (game.litter.length) return game.cleanLitter(game.litter[0]);
+    // een bak met vies water: één tik met de veger
+    if (this.cleanTanks(data.MURK?.dirty ?? 0.6, 1)) return;
     if (worst) return game.feed(worst.tr, SPECIES[worst.sp].food);
     if (dirty && dirty.n) game.cleanPoop(game.poopsOf(dirty.p.region.id)[0]);
   },
@@ -263,6 +278,8 @@ export const T = {
     }
     for (const p of [...game.poops]) game.cleanPoop(p);
     for (const p of [...game.litter]) game.cleanLitter(p);
+    // het water in de bakken van glas: met de veger schoonmaken voordat de zeedieren het vies vinden
+    this.cleanTanks(data.MURK?.job ?? 0.45);
     for (const a of game.animals) if (a.sick) game.heal(a);
     for (const a of game.animals.filter(k => k.escaped)) this.catch(a);
   },

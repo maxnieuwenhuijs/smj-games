@@ -204,8 +204,16 @@ const MATTE_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness
 const NET_MAT = new THREE.MeshStandardMaterial({ color: 0x3f7f6b, roughness: 0.7 });
 const GLASS_FRAME_MAT = new THREE.MeshStandardMaterial({ color: 0xd9e6ee, roughness: 0.5 });
 const GLASS_MAT = new THREE.MeshStandardMaterial({ color: 0xbfe6f7, roughness: 0.15, transparent: true, opacity: 0.32, depthWrite: false });
-/** Het water in een bak van glas: een doorzichtig blok per tegel. */
-const TANK_MAT = new THREE.MeshStandardMaterial({ color: 0x4fb4e6, roughness: 0.2, transparent: true, opacity: 0.42, depthWrite: false });
+/**
+ * Het water in een bak van glas: een doorzichtig blok per tegel. De kleur zit per tegel in het blok zelf (wit
+ * materiaal keer de kleur van de tegel): helder blauw, en hoe viezer het water, hoe groener en grijzer.
+ */
+const TANK_MAT = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, transparent: true, opacity: 0.42, depthWrite: false });
+const TANK_CLEAR = new THREE.Color(0x4fb4e6), TANK_MURKY = new THREE.Color(0x7d8f63);
+/** Vuiltjes die in vies water zweven: bruingroene vlokjes, hooguit SPECKS per tegel. */
+const SPECK_MAT = new THREE.MeshStandardMaterial({ color: 0x5e5a32, roughness: 1 });
+const SPECK_GEO = new THREE.IcosahedronGeometry(0.03, 0);
+const SPECKS = 4;
 const DARK_MAT = new THREE.MeshStandardMaterial({ color: 0x5a3d22, roughness: 1 });
 const std = (color: number, roughness = 0.9): THREE.MeshStandardMaterial => new THREE.MeshStandardMaterial({ color, roughness });
 /** Een tweede, donkerder tint blad; kleurt net als LEAF_MAT mee met de seizoenen. */
@@ -568,6 +576,7 @@ const TOY_PARTS: Record<ToyKind, Part[]> = {
   fall: [],
   lamp: [],
   icebox: [],
+  filter: [],
   frame: [],
   tunnel: [],
   // en het speelgoed dat zelf beweegt ook
@@ -1168,6 +1177,21 @@ TOY_PARTS.icebox = [
     blob(0.25, 1, 0.2, 0.9, -0.12, 0.41, -0.08), blob(0.15, 1, 0.25, 1, 0.24, 0.265, 0.2), blob(0.11, 1, 0.25, 1, -0.22, 0.185, 0.3),
     tube(0.44, 0.47, 0.02, 0, 0.01, 0), blob(0.07, 1, 0.8, 1, 0.34, 0.04, -0.2), blob(0.05, 1, 0.8, 1, -0.38, 0.03, 0.08),
   ]), WHITE_MAT, false],
+];
+// waterfilter: een blauw kastje met een ruitje, twee lampjes en een rooster waar het water in gaat, een pijp die boven
+// het water uitkomt, en als laatste onderdeel de bellen (het spel laat ze omhoog borrelen, zie animateToys in game.ts)
+const BUBBLE_MAT = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, transparent: true, opacity: 0.8 });
+TOY_PARTS.filter = [
+  [painted(
+    [0x4a90e2, boxAt(0.42, 0.48, 0.32, 0, 0.29, 0)],
+    [0x2f6fb8, boxAt(0.46, 0.06, 0.36, 0, 0.55, 0), boxAt(0.46, 0.05, 0.36, 0, 0.025, 0)],
+    [0x9fd8f5, boxAt(0.26, 0.1, 0.02, 0, 0.4, 0.165)],
+    [0xffd23f, dot(0.032, -0.08, 0.22, 0.17)],
+    [0x6cc04a, dot(0.032, 0.08, 0.22, 0.17)],
+    [0x24558f, ...[0.16, 0.26, 0.36].map(y => boxAt(0.02, 0.04, 0.22, -0.215, y, 0))],
+  ), PAINT_MAT],
+  [merge([tube(0.045, 0.045, 0.34, 0.12, 0.74, -0.06), tube(0.065, 0.065, 0.04, 0.12, 0.91, -0.06)]), std(0x8a8f98, 0.5)],
+  [merge([[0.12, 0.98, -0.06, 0.05], [0.16, 1.08, -0.03, 0.036], [0.09, 1.16, -0.08, 0.028], [-0.12, 0.64, 0.06, 0.04], [-0.05, 0.72, -0.08, 0.03]].map(([x, y, z, r]) => ball(r, x, y, z))), BUBBLE_MAT, false],
 ];
 // klimrek: een vlonder op vier palen (bovenop is het vrij: daar staat een dier), een ladder, sporten en een touw
 TOY_PARTS.frame = [
@@ -2391,6 +2415,10 @@ export class View {
   /** Het water in de bakken van glas. */
   private tank: THREE.InstancedMesh | null = null;
   private tankKey = '';
+  /** De vuiltjes in vies water, en per vuiltje waar het zweeft (x, hoogte, z, en een eigen tel om op en neer te gaan). */
+  private specks: THREE.InstancedMesh | null = null;
+  private speckAt: [number, number, number, number][] = [];
+  private speckTime = 0;
   private raycaster = new THREE.Raycaster();
   private plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private tmp = new THREE.Vector3();
@@ -3159,22 +3187,72 @@ export class View {
    * Het water in de bakken van glas: op elke watertegel in zo'n bak staat een doorzichtig blok water, zodat
    * je de dieren erin ziet zwemmen. `tiles`: de tegels (x, y) waar water in een glazen bak ligt.
    */
-  syncTanks(tiles: [number, number][], height: number): void {
+  syncTanks(tiles: [number, number][], height: number, murk: number[] = []): void {
     const key = tiles.map(t => t.join(',')).join(';');
-    if (key === this.tankKey) return;
-    this.tankKey = key;
-    if (this.tank) {
-      this.scene.remove(this.tank);
-      this.tank.dispose();
-      this.tank = null;
+    if (key !== this.tankKey) {
+      this.tankKey = key;
+      if (this.tank) {
+        this.scene.remove(this.tank);
+        this.tank.dispose();
+        this.tank = null;
+      }
+      if (this.specks) {
+        this.scene.remove(this.specks);
+        this.specks.dispose();
+        this.specks = null;
+      }
+      if (!tiles.length) return;
+      this.tank = new THREE.InstancedMesh(new THREE.BoxGeometry(1, height, 1).translate(0, height / 2 + 0.005, 0), TANK_MAT, tiles.length);
+      const m = new THREE.Matrix4();
+      tiles.forEach(([x, y], i) => this.tank!.setMatrixAt(i, m.makeTranslation(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5))));
+      this.tank.renderOrder = 2;
+      this.tank.frustumCulled = false;
+      this.scene.add(this.tank);
+      // de vuiltjes: elke tegel heeft er een paar op een vaste plek, zodat ze niet verspringen als het water viezer wordt
+      this.specks = new THREE.InstancedMesh(SPECK_GEO, SPECK_MAT, tiles.length * SPECKS);
+      this.specks.frustumCulled = false;
+      this.specks.count = 0;
+      this.speckAt = [];
+      tiles.forEach(([x, y]) => {
+        for (let k = 0; k < SPECKS; k++) {
+          const r = (n: number): number => (Math.sin((x * 12.9898 + y * 78.233 + k * 37.719 + n * 4.13) * 43758.5453) % 1 + 1) % 1;
+          this.speckAt.push([toWorldX(x + 0.15 + r(1) * 0.7), height * (0.25 + r(2) * 0.6), toWorldZ(y + 0.15 + r(3) * 0.7), r(4) * 6]);
+        }
+      });
+      this.scene.add(this.specks);
     }
-    if (!tiles.length) return;
-    this.tank = new THREE.InstancedMesh(new THREE.BoxGeometry(1, height, 1).translate(0, height / 2 + 0.005, 0), TANK_MAT, tiles.length);
-    const m = new THREE.Matrix4();
-    tiles.forEach(([x, y], i) => this.tank!.setMatrixAt(i, m.makeTranslation(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5))));
-    this.tank.renderOrder = 2;
-    this.tank.frustumCulled = false;
-    this.scene.add(this.tank);
+    if (!this.tank) return;
+    // de kleur van het water op elke tegel, en zoveel vuiltjes als het vies is (pas vanaf een beetje troebel)
+    const color = new THREE.Color();
+    this.speckShown = [];
+    tiles.forEach((_, i) => {
+      const dirt = Math.max(0, Math.min(1, murk[i] ?? 0));
+      this.tank!.setColorAt(i, color.copy(TANK_CLEAR).lerp(TANK_MURKY, dirt));
+      const n = Math.min(SPECKS, Math.round(Math.max(0, dirt - 0.2) * 1.25 * SPECKS));
+      for (let k = 0; k < n; k++) this.speckShown.push(i * SPECKS + k);
+    });
+    if (this.tank.instanceColor) this.tank.instanceColor.needsUpdate = true;
+    if (this.specks) {
+      this.specks.count = this.speckShown.length;
+      this.placeSpecks();
+    }
+  }
+
+  /** Welke vuiltjes er nu te zien zijn (hun plek in `speckAt`). */
+  private speckShown: number[] = [];
+
+  /** De vuiltjes zweven langzaam op en neer en draaien een beetje. */
+  private placeSpecks(): void {
+    if (!this.specks || !this.speckShown.length) return;
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
+    this.speckShown.forEach((at, i) => {
+      const [x, h, zz, seed] = this.speckAt[at];
+      const t = this.speckTime * 0.6 + seed;
+      p.set(x + Math.sin(t * 0.7) * 0.04, h + Math.sin(t) * 0.035, zz + Math.cos(t * 0.5) * 0.04);
+      q.setFromEuler(e.set(t, t * 0.7, 0));
+      this.specks!.setMatrixAt(i, m.compose(p, q, one));
+    });
+    this.specks.instanceMatrix.needsUpdate = true;
   }
 
   // ------------------------------------------------------------ voerbak
@@ -3928,6 +4006,8 @@ export class View {
       this.resize();
     }
     this.ground.update(dt);
+    this.speckTime += dt;
+    this.placeSpecks();
     this.stepWeather(dt);
     this.placeRainbow();
     for (const d of this.drops) {

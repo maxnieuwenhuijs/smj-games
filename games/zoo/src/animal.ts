@@ -5,6 +5,7 @@ import {
   MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, palsOf, wildRange, WILD_KINDS, type PropGroup, type WildKind, type FenceNeed, type SpeciesId, type Variant, type WishId,
 } from './data';
 import { CLIMB_SECONDS, PUSH, ROCK_SECONDS, SWING, SWING_SECONDS, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, swingAt, type Beat } from './data';
+import { MURK, murkyWater } from './data';
 import { Grid, tileIndex, tileXY } from './grid';
 import { MODEL_SCALE, modelInfo, spawnModel, type ModelInfo, type Spawned } from './models';
 import { toWorldX, toWorldZ } from './view';
@@ -56,6 +57,8 @@ export interface AnimalWorld {
   nudgeToy(toy: Toy, piece: number, fromX: number, fromY: number): boolean;
   animals: Animal[];
   poopsIn(regionId: number): number;
+  /** Hoe vies het water in dit verblijf is (0 tot 1); 0 als het geen bak van glas is. */
+  murkIn(regionId: number): number;
   dropPoop(gx: number, gy: number): void;
   dropPuddle(gx: number, gy: number): void;
   /** Een dier poept of plast: af en toe hoor je dat. */
@@ -951,7 +954,8 @@ export class Animal {
       this.lonely = Math.max(0, herdOf(this.species) - w.animals.filter(a => (a.species === this.species || friends.includes(a.species)) && w.grid.regionOf[a.tile] === region.id).length);
       result.friend = this.lonely === 0;
       result.space = region.tiles.length >= (SPACE[this.species] ?? 0);
-      result.clean = w.poopsIn(region.id) <= MAX_POOPS_CLEAN;
+      // een zeedier wil ook schoon water in zijn bak
+      result.clean = w.poopsIn(region.id) <= MAX_POOPS_CLEAN && !(this.aquatic && murkyWater(w.murkIn(region.id)));
       result.bed = w.beds.some(b => b.kind === info.bed && w.grid.regionOf[tileIndex(b.x, b.y)] === region.id);
       const fav = TOY_OF[this.species];
       result.fun = !fav || !w.wantsFun() || w.toys.some(t => likesToy(this.species, t.kind) && w.grid.regionOf[tileIndex(t.x, t.y)] === region.id);
@@ -988,7 +992,8 @@ export class Animal {
 
   /** Doet dit dier iets met dit ding? Een zeedier niet met dingen voor op het land. */
   private uses(toy: Toy): boolean {
-    return !this.aquatic || !LAND_TOYS.includes(toy.kind);
+    // met het waterfilter speelt niemand: dat is een machine
+    return toy.kind !== 'filter' && (!this.aquatic || !LAND_TOYS.includes(toy.kind));
   }
 
   /** De tegels vanwaar het dier met dit ding speelt: ernaast, erbovenop (heuvel, rotsen, klimrek) of voor de ingang (tunnel). */
@@ -1709,6 +1714,8 @@ export class Animal {
         }
       }
     }
+    // in heel vies water is een zeedier verdrietig
+    if (this.aquatic && w.murkIn(region.id) >= MURK.sad && Math.random() < 0.35) return this.emote('Sad', 3);
     if (w.raining() && !this.aquatic) {
       if (MUD_LOVERS.includes(this.species)) {
         // regen is feest: in een plas gaan rollen

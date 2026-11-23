@@ -14,6 +14,7 @@ import {
   EDGE_DECOR, SMALL_DECOR, PARK_GROUPS, ATTRACTIONS, parkShopGroup, PROP, PROPS, WILD_PROPS, PARK_PROPS, WILD_KINDS, wildRange, wildWant, type PropKind, type WildKind, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, SEASONS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
 import { CLIMB_SECONDS, PUSH, SWING, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, sinceHit, sway, swingAt, tetherAt } from './data';
 import { WAYFIND, canStray, wayfound, type WaySign } from './data';
+import { MURK, murkAfter, murkLoad, murkyWater } from './data';
 import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region, type Side } from './grid';
 import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
 import { cursor, icon, type IconId } from './icons';
@@ -200,7 +201,7 @@ export interface SaveData {
   animals: { species: SpeciesId; variant: Variant; gx: number; gy: number; hunger: number; name?: string; sick?: boolean; escaped?: boolean; nature?: Nature; rare?: Rare }[];
   poops: { gx: number; gy: number }[];
   /** `keeper`, `feeder` en `cleaner` komen uit oudere spellen, toen een werker bij één verblijf hoorde. */
-  pens?: { tile: number; name: string; color?: number; keeper?: boolean; feeder?: boolean; cleaner?: boolean }[];
+  pens?: { tile: number; name: string; color?: number; keeper?: boolean; feeder?: boolean; cleaner?: boolean; murk?: number }[];
   /** Het personeel dat door het park loopt. */
   staff?: { role: WorkerRole; gx: number; gy: number; suit?: number; cart?: boolean }[];
   beds?: { x: number; y: number; kind: BedKind; rot?: number }[];
@@ -408,6 +409,8 @@ interface Pen {
   closedUntil: number;
   /** Per soort: hoe lang een jongen en een meisje al samen blij zijn. */
   love: Record<string, number>;
+  /** Hoe vies het water is, als het een bak van glas is: 0 (helder) tot 1 (zie MURK). */
+  murk: number;
 }
 
 const sexOf = (a: Animal): Sex => (a.variant === 'male' || a.variant === 'young_m' ? 'male' : 'female');
@@ -490,7 +493,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Alle dieren in nood; `needy` is daarvan één per diersoort (wat je links in beeld ziet). */
   private needyAll: Animal[] = [];
   private marked: { a: Animal; until: number } | null = null;
-  private savedPens: { tile: number; name: string; color?: number }[] = [];
+  private savedPens: { tile: number; name: string; color?: number; murk?: number }[] = [];
   /** Het personeel, en de klussen die al iemand doet. */
   workers: Worker[] = [];
   private claimed = new Set<object>();
@@ -655,7 +658,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     // een park dat al verder is, heeft zijn eerste gasten al lang gehad
     if (d.level > FEATURE.paths) this.told.add('guests');
     this.classFans = d.fans ?? 0;
-    this.savedPens = (d.pens ?? []).map(p => ({ name: p.name, color: p.color, tile: tileIndex((p.tile % ow) + ox, Math.floor(p.tile / ow) + oy) }));
+    this.savedPens = (d.pens ?? []).map(p => ({ name: p.name, color: p.color, murk: p.murk, tile: tileIndex((p.tile % ow) + ox, Math.floor(p.tile / ow) + oy) }));
     for (const tr of d.troughs) this.addTrough(tr.x + ox, tr.y + oy, tr.food, tr.amount, tr.kind && TROUGH[tr.kind] ? tr.kind : 'wood', tr.rot);
     for (const b of d.beds ?? []) this.addBed(b.x + ox, b.y + oy, b.kind, b.rot);
     for (const b of d.toys ?? []) this.addToy(b.x + ox, b.y + oy, b.kind, b.rot);
@@ -757,7 +760,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       litter: this.litter.map(({ gx, gy }) => ({ gx, gy })),
       guests: this.guests.snapshot(),
       wear: Object.fromEntries(this.wear),
-      pens: this.pens.map(p => ({ tile: p.region.tiles[0], name: p.name, color: p.color || undefined })),
+      pens: this.pens.map(p => ({ tile: p.region.tiles[0], name: p.name, color: p.color || undefined, murk: p.murk ? Math.round(p.murk * 1000) / 1000 : undefined })),
       staff: this.workers.map(w => ({ role: w.role, gx: w.gx, gy: w.gy, suit: w.suit || undefined, cart: w.cart || undefined })),
       beds: this.beds.map(({ x, y, kind, rot }) => ({ x, y, kind, rot: rot || undefined })),
       toys: this.toys.map(({ x, y, kind, rot }) => ({ x, y, kind, rot: rot || undefined })),
@@ -1775,10 +1778,41 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Poep, afval en vieze kramen: bij elke vieze kraam hoort één vast briefje, zodat er maar één schoonmaker op afgaat. */
   private grime = new Map<ShopObj, { gx: number; gy: number; shop: ShopObj }>();
+  /** Bakken met troebel water: de schoonmaker gaat buiten tegen het glas staan en poetst. Eén vast briefje per bak. */
+  private murky = new Map<Pen, { gx: number; gy: number; tank: Pen }>();
   cleanJobs(): KeeperPoop[] {
     for (const shop of [...this.grime.keys()]) if (!this.shops.includes(shop) || (shop.dirt ?? 0) < 1) this.grime.delete(shop);
     for (const shop of this.shops) if ((shop.dirt ?? 0) >= 1 && !this.grime.has(shop)) this.grime.set(shop, { gx: blockCenter(shop)[0], gy: blockCenter(shop)[1], shop });
-    return [...this.poops, ...this.litter, ...this.grime.values()];
+    for (const [pen, job] of [...this.murky]) if (!this.tankPens.includes(pen) || pen.murk < MURK.job || !this.glassSpot(pen, job)) this.murky.delete(pen);
+    for (const pen of this.tankPens) {
+      if (pen.murk < MURK.job || this.murky.has(pen)) continue;
+      const spot = this.glassSpot(pen);
+      if (spot) this.murky.set(pen, { gx: spot[0], gy: spot[1], tank: pen });
+    }
+    return [...this.poops, ...this.litter, ...this.grime.values(), ...this.murky.values()];
+  }
+
+  /**
+   * Een plek buiten de bak, vlak tegen het glas, waar de schoonmaker kan staan: het liefst op het pad. Met `job`: staat
+   * die plek er nog? Geeft het punt (een stukje naar het glas toe) of null.
+   */
+  private glassSpot(pen: Pen, job?: { gx: number; gy: number }): [number, number] | null {
+    const inside = new Set(pen.region.tiles);
+    let best: [number, number] | null = null;
+    for (const e of this.grid.borderEdges(pen.region)) {
+      if (this.grid.getEdge(e) !== 5) continue;
+      // de tegel aan de buitenkant van dit stuk glas, en de kant waar het glas zit
+      const [ox, oy, dx, dy] = e.o === 'h' ? (inside.has(tileIndex(e.x, e.y)) ? [e.x, e.y - 1, 0, 1] : [e.x, e.y, 0, -1]) : inside.has(tileIndex(e.x, e.y)) ? [e.x - 1, e.y, 1, 0] : [e.x, e.y, -1, 0];
+      if (!this.grid.inBounds(ox, oy) || this.grid.enclosureAt(ox, oy) || !this.walkable(tileIndex(ox, oy))) continue;
+      const at: [number, number] = [ox + 0.5 + dx * 0.3, oy + 0.5 + dy * 0.3];
+      if (job) {
+        if (Math.floor(job.gx) === ox && Math.floor(job.gy) === oy) return at;
+        continue;
+      }
+      if (isPath(this.grid.terrain[tileIndex(ox, oy)])) return at;
+      best ??= at;
+    }
+    return best;
   }
 
   /** Voor de klusser: elk versleten hek is een klus. Hetzelfde hek geeft steeds hetzelfde briefje, zodat er maar één klusser op afgaat. */
@@ -1809,6 +1843,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   workerClean(mess: KeeperPoop): void {
     const grimy = (mess as { shop?: ShopObj }).shop;
     if (grimy) return this.cleanShop(grimy, false);
+    const tank = (mess as { tank?: Pen }).tank;
+    if (tank) {
+      this.murky.delete(tank);
+      return this.cleanTank(tank, false);
+    }
     const p = mess as PoopObj;
     if (this.poops.includes(p)) this.keeperClean(p);
     else if (this.litter.includes(p)) {
@@ -1854,7 +1893,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       else {
         const saved = this.savedPens.find(s => tiles.has(s.tile));
         const name = saved?.name ?? this.pickName('names.pens', [...old, ...next].map(p => p.name));
-        pen = { name, color: saved?.color ?? 0, region, cx: 0, cy: 0, ax: 0, ay: 0, sign: this.hud.makeSign(t('pen.closed')), closedUntil: 0, love: {} };
+        pen = { name, color: saved?.color ?? 0, region, cx: 0, cy: 0, ax: 0, ay: 0, sign: this.hud.makeSign(t('pen.closed')), closedUntil: 0, love: {}, murk: saved?.murk ?? 0 };
         if (announce) this.celebratePen(pen, !old.length && !next.length && this.level === 0);
       }
       pen.region = region;
@@ -2609,12 +2648,73 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** De watertegels in bakken van glas: daar staat het water hoog en zwemmen de dieren erin. */
   private tankTiles = new Set<number>();
+  /** De verblijven met een bak van glas vol water: daar kan het water vies worden. */
+  private tankPens: Pen[] = [];
   private syncTanks(): void {
-    const tiles: number[] = [];
-    for (const pen of this.pens)
-      if (this.grid.penKind(pen.region) === 5) for (const i of pen.region.tiles) if (this.grid.terrain[i] === WATER) tiles.push(i);
+    const tiles: number[] = [], murk: number[] = [];
+    this.tankPens = [];
+    for (const pen of this.pens) {
+      if (this.grid.penKind(pen.region) !== 5) continue;
+      const before = tiles.length;
+      for (const i of pen.region.tiles) if (this.grid.terrain[i] === WATER) {
+        tiles.push(i);
+        murk.push(pen.murk);
+      }
+      if (tiles.length > before) this.tankPens.push(pen);
+    }
     this.tankTiles = new Set(tiles);
-    this.view.syncTanks(tiles.map(i => tileXY(i)), TANK_WATER);
+    this.view.syncTanks(tiles.map(i => tileXY(i)), TANK_WATER, murk);
+  }
+
+  /** Hoe vies het water in dit verblijf is; 0 als het geen bak van glas is. */
+  murkIn(regionId: number): number {
+    return this.tankPens.find(p => p.region.id === regionId)?.murk ?? 0;
+  }
+
+  /** De bak van glas waar deze tegel in ligt, als dat er een is. */
+  private tankAt(x: number, y: number): Pen | undefined {
+    const pen = this.penAt(x, y);
+    return pen && this.tankPens.includes(pen) ? pen : undefined;
+  }
+
+  /**
+   * Het water in de bakken wordt langzaam vies (vanaf FEATURE.murk, niet midden in de nacht): sneller met meer en
+   * grotere zeedieren, veel langzamer met een waterfilter in de bak.
+   */
+  private updateMurk(dt: number): void {
+    if (!this.has('murk') || this.deepNight()) return;
+    for (const pen of this.tankPens) {
+      let load = 0;
+      for (const a of this.animals) if (!a.escaped && this.grid.regionOf[a.tile] === pen.region.id) load += murkLoad(a.species, a.young);
+      if (!load) continue;
+      const filter = this.toys.some(toy => toy.kind === 'filter' && this.grid.regionOf[tileIndex(toy.x, toy.y)] === pen.region.id);
+      pen.murk = murkAfter(pen.murk, load, filter, dt);
+    }
+  }
+
+  /**
+   * De bak schoonmaken (met de veger, of de schoonmaker doet het): bellen en sterretjes, en het water is weer helder.
+   * `mine`: de speler deed het zelf; was het water echt vies, dan is er een munt.
+   */
+  cleanTank(pen: Pen, mine: boolean): void {
+    if (pen.murk <= 0.02) return;
+    const was = pen.murk;
+    pen.murk = 0;
+    const tiles = pen.region.tiles.filter(i => this.tankTiles.has(i));
+    this.view.flash(tiles);
+    sfx('animal.splash', { volume: 0.5, every: 0.3, at: [pen.cx, pen.cy] });
+    sfx('chime', { volume: 0.5, every: 0.3 });
+    for (let k = 0; k < Math.min(8, tiles.length * 2); k++) {
+      const [tx, ty] = tileXY(tiles[Math.floor(Math.random() * tiles.length)]);
+      const gx = tx + 0.2 + Math.random() * 0.6, gy = ty + 0.2 + Math.random() * 0.6;
+      setTimeout(() => {
+        this.view.burst(gx, gy, TANK_WATER, 0xffffff, 4);
+        this.floatAt(icon('sparkle'), gx, gy, TANK_WATER + 0.2);
+      }, k * 90);
+    }
+    this.syncTanks();
+    if (mine && was >= MURK.job) this.earn(1, pen.cx, pen.cy);
+    for (const a of this.animalsIn(pen.region.id)) if (AQUATIC.includes(a.species)) this.react(a, 'good');
   }
 
   /**
@@ -2655,6 +2755,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (toy.loose) {
         // het ding zelf blijft staan; alleen de losse stukken bewegen, en alleen als er een niet op zijn plek ligt
         if (toy.live) this.rollToy(toy, dt);
+        continue;
+      }
+      if (toy.kind === 'filter') {
+        // het waterfilter borrelt altijd: de bellen gaan omhoog en beginnen dan weer onderaan
+        const bubbles = m.children[m.children.length - 1];
+        const u = (this.clock * 0.5 + toy.x * 0.37) % 1;
+        if (bubbles) bubbles.position.y = u * 0.22;
         continue;
       }
       if (toy.playUntil === undefined) continue;
@@ -3309,6 +3416,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const region = this.grid.enclosureAt(x, y);
     if (!region) return this.nope(x + 0.5, y + 0.5);
     const kind = this.option.toy as ToyKind;
+    // het waterfilter hoort in een bak van glas, in het water
+    if (kind === 'filter' && !this.tankTiles.has(tileIndex(x, y))) return this.nope(x + 0.5, y + 0.5);
     if (this.taken(x, y) || !this.pay(TOY_PRICE[kind] ?? PRICE.toy, x + 0.5, y + 0.5)) return;
     this.addToy(x, y, kind, this.quarter);
     this.uncover(x, y);
@@ -3316,8 +3425,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.floatAt(icon('sparkle'), x + 0.5, y + 0.5);
     // elk dier laat zien wat het ervan vindt: groen als dit zijn lievelingsding is (dan speelt het meteen), anders geel
     for (const a of this.animalsIn(region.id)) {
-      const fav = likesToy(a.species, kind) || CLIMATE[a.species] === kind;
-      if (fav) a.emote('Play', 2);
+      const fav = likesToy(a.species, kind) || CLIMATE[a.species] === kind || (kind === 'filter' && AQUATIC.includes(a.species));
+      if (fav) a.emote(kind === 'filter' ? 'Happy' : 'Play', 2);
       this.react(a, fav ? 'good' : 'ok', true);
     }
     this.backToHand();
@@ -3711,8 +3820,14 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       case 'terrain': return icon(a.missing ?? info.terrain);
       // bij een groepsdier staat erbij hoeveel er nog bij moeten
       case 'friend': return speciesIcon(a.species) + (a.lonely > 1 ? `<i class="count">+${a.lonely}</i>` : icon('plus', 'badge'));
-      case 'clean': return icon('poop');
+      // een zeedier in vies water: een vieze druppel; anders de poep
+      case 'clean': return icon(this.murkyFor(a) ? 'murky' : 'poop');
     }
+  }
+
+  /** Zwemt dit zeedier in vies water? */
+  private murkyFor(a: Animal): boolean {
+    return AQUATIC.includes(a.species) && murkyWater(this.murkIn(this.grid.regionOf[a.tile]));
   }
 
   // ------------------------------------------------------------ menu's
@@ -3760,7 +3875,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (wish === 'clean') {
       const region = this.grid.regionOf[a.tile];
       const poops = this.poops.filter(p => this.grid.regionOf[tileIndex(Math.floor(p.gx), Math.floor(p.gy))] === region).length;
-      return Math.max(0.08, 1 - poops / (MAX_POOPS_CLEAN + 2));
+      const water = AQUATIC.includes(a.species) ? 1 - this.murkIn(region) : 1;
+      return Math.max(0.08, Math.min(water, 1 - poops / (MAX_POOPS_CLEAN + 2)));
     }
     return ok ? 1 : 0.12;
   }
@@ -4374,6 +4490,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const worn = g ? this.wornAt(g.gx, g.gy) : null;
     const item = g ? this.shops.find(sh => sh.edge && Math.hypot(edgePose(sh)[0] - g.gx, edgePose(sh)[1] - g.gy) < 0.38) : undefined;
     const grimy = inside ? this.shopAt(x, y) : undefined;
+    const tank = inside ? this.tankAt(x, y) : undefined;
     // de klas zoekt een dier: een tik op een verblijf met dieren is het antwoord
     if (this.guideAsk && g && this.guideTap(g.gx, g.gy)) return;
     if (this.tool === 'action') {
@@ -4381,6 +4498,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (item?.kind === 'bin' && this.carry) return this.dump(item);
       // een vieze kraam veeg je schoon met de veger
       if (grimy && (grimy.dirt ?? 0) >= 1) return this.option.action === 'broom' ? this.cleanShop(grimy, true) : this.pointTo('broom', x + 0.5, y + 0.5);
+      // een bak met troebel water ook: een tik met de veger en het water is weer helder
+      if (tank && g && !mess && tank.murk > 0.05) {
+        if (this.option.action === 'broom') return this.cleanTank(tank, true);
+        if (murkyWater(tank.murk)) return this.pointTo('broom', g.gx, g.gy);
+      }
       if (mess) this.pointTo('broom', mess.gx, mess.gy);
       else if (litter) this.pointTo('picker', litter.gx, litter.gy);
       else if (worn && g) this.pointTo('hammer', g.gx, g.gy);
@@ -4389,6 +4511,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!this.pickAnimal(cx, cy, 0.35)) {
       if (litter && this.tool === 'hand') return this.pointTo('picker', litter.gx, litter.gy);
       if (mess) return this.pointTo('broom', mess.gx, mess.gy);
+      if (tank && this.tool === 'hand' && murkyWater(tank.murk) && g) return this.pointTo('broom', g.gx, g.gy);
     }
     if (this.tool === 'hand' && g) {
       // een tik op een bankje, bloembak of afvalbak draait het om (ook als er iemand op zit)
@@ -5441,7 +5564,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const light = worst && (worst.wish === 'bed' || worst.wish === 'terrain' || worst.wish === 'friend' || worst.wish === 'fun' || worst.wish === 'climate' || worst.wish === 'wild' || worst.wish === 'space' || (worst.wish === 'enclosure' && !!worst.a.needsFence));
     if (worst && worst.age > (light ? ALERT_AFTER * 2 : ALERT_AFTER)) {
       const { a, wish } = worst;
-      this.alert(this.lineAbout(a.escaped ? say.escaped(t, a.species) : wish === 'enclosure' && a.fenceBroken ? say.broken() : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN, a.wildAsk ? `${a.wildAsk.group}.${a.wildAsk.more ? 'more' : 'less'}` : undefined), a));
+      const murky = wish === 'clean' && !a.escaped && this.murkyFor(a);
+      // vies water: na de melding vertelt de verzorger dat een waterfilter helpt (als die er nog niet in staat)
+      if (murky && this.said.has('alert.murky') && !this.toys.some(toy => toy.kind === 'filter' && this.grid.regionOf[tileIndex(toy.x, toy.y)] === this.grid.regionOf[a.tile])) this.mention(say.filterTip(), 600);
+      this.alert(this.lineAbout(a.escaped ? say.escaped(t, a.species) : murky ? say.murky() : wish === 'enclosure' && a.fenceBroken ? say.broken() : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN, a.wildAsk ? `${a.wildAsk.group}.${a.wildAsk.more ? 'more' : 'less'}` : undefined), a));
       if (a.neglect > NEGLECT_WARN * 1.5 && !this.hud.speaking) this.callForHelp('name.help.1');
     }
     // de gastvrouw let op de gasten
@@ -5651,6 +5777,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // de veger: alle poepjes; de prikker: al het afval, en de afvalbakken zodra je iets bij je hebt
       for (const p of this.option.action === 'broom' ? this.poops : this.litter) spots.push({ gx: p.gx, gy: p.gy, hot: p === hot, r: p === hot ? 1.5 : 1 });
       if (this.option.action === 'broom') for (const sh of this.shops) if ((sh.dirt ?? 0) >= 1) spots.push({ gx: blockCenter(sh)[0], gy: blockCenter(sh)[1], hot: true, r: 3 });
+      // en elke bak met vies water
+      if (this.option.action === 'broom') for (const pen of this.tankPens) if (murkyWater(pen.murk)) spots.push({ gx: pen.cx, gy: pen.cy, hot: true, r: 3 });
       if (this.option.action === 'picker' && this.carry)
         for (const bin of this.shops) if (bin.kind === 'bin') spots.push({ gx: edgePose(bin)[0], gy: edgePose(bin)[1], hot: true, r: 1.6 });
     } else if (hot) spots.push({ gx: hot.gx, gy: hot.gy, hot: true, r: 1.4 });
@@ -5680,6 +5808,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.guests.update(dt);
     this.road.update(dt, this.night);
     this.animateToys(dt);
+    this.updateMurk(dt);
     if (this.staffGhost?.worker.mesh.visible) this.staffGhost.worker.dangle(this.staffGhost.gx, this.staffGhost.gy, this.clock, this.staffGhost.ok);
     this.animateProps();
     for (const worker of this.workers) worker.update(dt, this, this.claimed);
