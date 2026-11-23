@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, SHOP_DEEP, shopSpan, TERRAINS, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
-  BUMPER_CARS, FERRIS, RESTAURANT_TABLES, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, bumperCar, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
+  BUMPER_CARS, FERRIS, RESTAURANT_TABLES, SHOW_ROWS, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, bumperCar, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
 } from './data';
 import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type Land, type Side } from './grid';
 import { roadside } from './road';
@@ -569,6 +569,8 @@ const SHOP_PARTS: Record<ShopKind, Part[]> = {
   shelter: [],
   station: [],
   umbrellas: [],
+  // de tribune voor de dierenshow
+  show: [],
 };
 // Iets leuks in een verblijf: een bal, een struik met bessen, een boomstam en een bloemperk.
 const TOY_PARTS: Record<ToyKind, Part[]> = {
@@ -1088,6 +1090,44 @@ SHOP_PARTS.umbrellas = [
   [merge(BROLLY_SPOTS.map(([x, z, tx, tz]) => brolly(brollyGrip(), x, z, tx, tz))), DARK_MAT],
 ];
 
+// Tribune voor de dierenshow: drie treden met elk een bankje in rood, geel en blauw. De gasten zitten met hun rug
+// naar het pad (de voorkant) en kijken naar het water erachter. Aan het pad staat een rond bord met een dolfijn
+// die een bal op zijn neus houdt, en bij het water wapperen twee vlaggetjes.
+const SHOW_SIGN: P3 = [0.64, 1.3, 0.86];
+const SHOW_BENCH = [0xe0584f, 0xffd23f, 0x4a90e2];
+const showDolphin = (): THREE.BufferGeometry =>
+  painted(
+    [0x7fa9cc, blob(0.07, 2, 0.72, 0.42, 0, 0, 0), blob(0.03, 1.7, 0.7, 0.7, 0.15, -0.01, 0), cone(0.032, 0.07, -0.01, 0.07, 0, 3), beam(0.024, [-0.12, 0, 0], [-0.19, 0.05, 0]), beam(0.024, [-0.12, 0, 0], [-0.19, -0.05, 0])],
+    [0xf7f4ec, blob(0.05, 1.8, 0.4, 0.4, 0.02, -0.026, 0.012)],
+    [0x22201c, dot(0.012, 0.09, 0.016, 0.03)],
+    [0xe0584f, ball(0.035, 0.2, 0.08, 0)],
+  ).rotateZ(0.42).translate(SHOW_SIGN[0], SHOW_SIGN[1], SHOW_SIGN[2] + 0.04);
+SHOP_PARTS.show = [
+  floorOf(),
+  // de treden, en een witte rand langs de voorkant van elke trede
+  [merge(SHOW_ROWS.map(r => boxAt(1.76, r.h - 0.1, 0.55, 0, (r.h - 0.1) / 2, r.z))), std(0x9fb4c4, 0.9)],
+  [merge(SHOW_ROWS.map(r => boxAt(1.78, 0.02, 0.04, 0, r.h - 0.09, r.z - 0.26))), WHITE_MAT],
+  // de bankjes: een zitting, een leuning en twee pootjes
+  [painted(...SHOW_ROWS.map((r, i): [number, ...THREE.BufferGeometry[]] => [
+    SHOW_BENCH[i], boxAt(1.6, 0.05, 0.2, 0, r.h - 0.025, r.z + 0.02), boxAt(1.6, 0.14, 0.04, 0, r.h + 0.1, r.z + 0.14),
+  ]), [0x6c7078, ...SHOW_ROWS.flatMap(r => [-0.72, 0.72].flatMap(x => [boxAt(0.05, 0.06, 0.16, x, r.h - 0.08, r.z + 0.02), boxAt(0.04, 0.2, 0.04, x, r.h + 0.03, r.z + 0.14)]))]), PAINT_MAT],
+  // de zijkanten: blauw, trapsgewijs omhoog
+  [merge(SHOW_ROWS.flatMap(r => [-0.89, 0.89].map(x => boxAt(0.04, r.h - 0.04, 0.55, x, (r.h - 0.04) / 2, r.z)))), P_BLUE],
+  // het bord: een paal, een rond bord met een gele rand en de dolfijn erop (los, zodat het kan wiebelen)
+  [tube(0.025, 0.03, SHOW_SIGN[1], SHOW_SIGN[0], SHOW_SIGN[1] / 2, SHOW_SIGN[2]), METAL],
+  [painted(
+    [0x9fd8f5, new THREE.CylinderGeometry(0.26, 0.26, 0.04, 18).rotateX(Math.PI / 2).translate(...SHOW_SIGN)],
+    [0xffd23f, new THREE.TorusGeometry(0.26, 0.025, 6, 20).translate(...SHOW_SIGN)],
+  ), PAINT_MAT],
+  [showDolphin(), PAINT_MAT],
+  // twee vlaggetjes aan de kant van het water
+  [merge([-0.84, 0.84].map(x => tube(0.016, 0.02, 1.1, x, 0.55, -0.84))), METAL],
+  [painted(
+    [0xe0584f, new THREE.BoxGeometry(0.26, 0.15, 0.02).translate(-0.84 + 0.13, 1.0, -0.84)],
+    [0xffd23f, new THREE.BoxGeometry(0.26, 0.15, 0.02).translate(0.84 - 0.13, 1.0, -0.84)],
+  ), PAINT_MAT],
+];
+
 // Bij het wc-gebouw: een bordje met een mannetje en een vrouwtje tussen de deuren, twee deurmatten, een rand
 // onder het dak en een luchtpijp erop. Achteraan in de lijst, zodat de nummers van de andere onderdelen blijven.
 SHOP_PARTS.toilet.push([painted(
@@ -1123,6 +1163,7 @@ const SHOP_BOB: Partial<Record<ShopKind, Bob[]>> = {
   restaurant: RESTAURANT_TABLES.map(([x, z], i): Bob => ({ parts: [10 + i], at: [x, 1.32, z], amp: 0.012, sway: 0.05 })),
   station: [{ parts: [8, 9], at: [SIGN_AT[0], 1.3, SIGN_AT[2]], amp: 0, sway: 0.07 }],
   umbrellas: [{ parts: [2, 3, 4, 5], at: [0, 0.3, 0], amp: 0, sway: 0.06 }],
+  show: [{ parts: [6, 7], at: [SHOW_SIGN[0], 1.05, SHOW_SIGN[2]], amp: 0, sway: 0.07 }],
 };
 // De wc-deuren: elk om zijn buitenste rand, met de klink aan de binnenkant.
 const DOOR_GEOS = [-1, 1].map(side => boxAt(0.5, 0.86, 0.05, -side * 0.25, 0.45, 0));

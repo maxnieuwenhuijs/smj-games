@@ -9,7 +9,9 @@ export type BedKind = 'straw' | 'shed' | 'rock' | 'shade' | 'nest' | 'cave' | 'c
 export type ShopKind = 'foodstall' | 'drinkstall' | 'bench' | 'toilet' | 'icecream' | 'balloon' | 'flowers' | 'bin' | 'souvenir' | 'playground' | 'hats' | 'fountain' | 'carousel'
   | 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline'
   // uitkijktoren, restaurant, reuzenrad, botsauto's, schuilhut, treinhalte en een bak met paraplu's
-  | 'tower' | 'restaurant' | 'ferris' | 'bumper' | 'shelter' | 'station' | 'umbrellas';
+  | 'tower' | 'restaurant' | 'ferris' | 'bumper' | 'shelter' | 'station' | 'umbrellas'
+  // de tribune bij de dolfijnen: daar is af en toe een dierenshow
+  | 'show';
 export type FenceOption = 'fence' | 'gate' | 'wall' | 'net' | 'glass' | 'window' | 'picket' | 'petgate';
 /** Wat voor hek een dier nodig heeft: sterke dieren een stenen muur, klimmers en vliegers een hoog net. */
 export type FenceNeed = 'wall' | 'net' | 'glass';
@@ -282,7 +284,7 @@ export const SERVICE_SHOPS: ShopKind[] = ['toilet', 'bench', 'bin', 'umbrellas',
 export const parkShopGroup = (kind: ShopKind): ParkGroup | null =>
   kind === 'flowers' ? 'green' : SERVICE_SHOPS.includes(kind) ? 'service' : null;
 /** Onder de knop Attracties staan de speeltoestellen (groep Speeltuin) en de grote attracties. */
-export const ATTRACTIONS: ShopKind[] = ['fountain', 'tower', 'carousel', 'station', 'bumper', 'ferris'];
+export const ATTRACTIONS: ShopKind[] = ['fountain', 'tower', 'show', 'carousel', 'station', 'bumper', 'ferris'];
 /** Palen waar een slinger tussen komt: staan er twee in één lijn, hooguit zoveel tegels uit elkaar, dan hangt er vanzelf een slinger. */
 export const STRING_REACH = 5;
 export const STRING_HEIGHT = 1.25;
@@ -323,7 +325,7 @@ export const likesToy = (sp: SpeciesId, kind: string): boolean => TOY_OF[sp] ===
  * glijbaan, later de schommel, de wipwap, de wipkip en de trampoline). 'playground' bestaat nog als naam voor
  * 'iets om te spelen' (de wens van een gast) en voor oude parken, waar hij bij het laden een glijbaan wordt.
  */
-export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'slide', 'swing', 'seesaw', 'springer', 'trampoline', 'icecream', 'flowers', 'bin', 'umbrellas', 'shelter', 'balloon', 'hats', 'souvenir', 'restaurant', 'fountain', 'tower', 'carousel', 'station', 'bumper', 'ferris'];
+export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'slide', 'swing', 'seesaw', 'springer', 'trampoline', 'icecream', 'flowers', 'bin', 'umbrellas', 'shelter', 'balloon', 'hats', 'souvenir', 'restaurant', 'fountain', 'tower', 'carousel', 'station', 'bumper', 'ferris', 'show'];
 /** Waar een gast naar kijkt (zin in iets moois) en waar hij in rijdt (zin in een ritje). */
 export const LOOKS: ShopKind[] = ['fountain', 'tower'];
 export const RIDES: ShopKind[] = ['carousel', 'ferris', 'bumper', 'station'];
@@ -382,7 +384,7 @@ export const FENCE_COLORS: Record<1 | 3 | 4 | 5 | 7, number[]> = {
 /** Hoeveel tegels breed en diep een winkel is: gebouwen 2 bij 2, losse dingen 1 bij 1. */
 export const SHOP_SIZE: Record<ShopKind, number> = {
   foodstall: 2, drinkstall: 2, toilet: 2, playground: 2, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2, icecream: 2, balloon: 2, hats: 2, souvenir: 2, bench: 1, flowers: 1, bin: 1, fountain: 2, carousel: 2,
-  tower: 2, restaurant: 2, ferris: 2, bumper: 2, shelter: 2, station: 2, umbrellas: 1,
+  tower: 2, restaurant: 2, ferris: 2, bumper: 2, shelter: 2, station: 2, umbrellas: 1, show: 2,
 };
 /**
  * Een marktkraam is twee tegels breed maar maar één tegel diep: zijn lange kant is de voorkant. Alle andere
@@ -516,7 +518,7 @@ export const SHOP_PRICE: Record<ShopKind, number> = {
   foodstall: 4, drinkstall: 4, bench: 2, toilet: 5, icecream: 8, balloon: 12, flowers: 2, bin: 2, souvenir: 16, playground: 6, slide: 5, swing: 6, seesaw: 6, springer: 5, trampoline: 8, hats: 14,
   // de grote attracties: daar spaar je voor
   fountain: 30, carousel: 60,
-  tower: 25, restaurant: 30, ferris: 80, bumper: 45, shelter: 10, station: 20, umbrellas: 6,
+  tower: 25, restaurant: 30, ferris: 80, bumper: 45, shelter: 10, station: 20, umbrellas: 6, show: 30,
 };
 /** Een kraam wordt vies van het verkopen (vanaf FEATURE.upkeep): na vijftig keer is hij vies en koopt een derde van de gasten er niets meer. */
 export const DIRT_PER_USE = 0.02;
@@ -824,6 +826,8 @@ export const FEATURE = {
   /** De grote attracties: een fontein om naar te kijken en een draaimolen om in te rijden. */
   fountain: 15, carousel: 25,
   tower: 20, restaurant: 24, ferris: 35, bumper: 30, shelter: 10, station: 27, umbrellas: 10,
+  /** De tribune voor de dierenshow: even na de dolfijn. */
+  show: 22,
   /** Een ruit in het hek, het weer (regen), seizoenen, kramen die vies worden, warmte en kou. */
   window: 13, weather: 10, season: 16, upkeep: 17, climate: 31,
   /** Bijzondere gasten: rolstoel en kinderwagen, een schoolklas, een verjaardag, een beroemde gast, een verdwaald kind. */
@@ -889,4 +893,77 @@ export const MAX_POOPS_CLEAN = 3;
  */
 export function migrateLevel(level: number, version: number): number {
   return version < 2 && level > 7 ? level + 3 : level;
+}
+
+// ------------------------------------------------------------ de dierenshow
+/** Deze dieren doen de show bij de tribune: de dolfijn en de orka. */
+export const SHOW_STARS: SpeciesId[] = ['dolphin', 'orca'];
+/**
+ * De dierenshow (vanaf FEATURE.show), in tellen: `first` tot de eerste show, `every` tussen twee shows, `retry` tot
+ * een nieuwe poging als de dieren niet konden, `call` om naar de tribune te lopen, `tricks` zo lang doen de dieren
+ * kunstjes, `soon` zo snel begint de show na een tik, `trick` om de zoveel tellen een nieuw kunstje. `reach`: gasten
+ * tot zoveel tegels ver komen kijken; `seats`: zoveel plekken heeft de tribune.
+ */
+export const SHOW_TIME = { first: 45, every: 150, retry: 30, call: 10, tricks: 18, soon: 3, trick: 2.6, reach: 10, seats: 9 };
+/** De drie bankjes van de tribune, van voor (bij het water) naar achter: waar ze staan (z) en hoe hoog je zit (h). */
+export const SHOW_ROWS = [{ z: -0.5, h: 0.24 }, { z: 0.05, h: 0.46 }, { z: 0.6, h: 0.68 }];
+export type ShowPhase = 'wait' | 'call' | 'tricks';
+/** Hoe ver een tribune is met haar show: wachten, de gasten roepen of de kunstjes, en hoeveel tellen dat nog duurt. */
+export interface ShowClock {
+  phase: ShowPhase;
+  left: number;
+}
+export const newShow = (): ShowClock => ({ phase: 'wait', left: SHOW_TIME.first });
+/**
+ * Eén stapje van de klok van de show. `open`: het park is open en de gasten gaan nog niet naar huis (anders wacht de
+ * klok). `ready`: de dieren kunnen (blij en wakker). Geeft terug wat er net gebeurde: 'call' (de bel: kom kijken),
+ * 'tricks' (de kunstjes beginnen), 'end' (klaar), 'skip' (de dieren konden niet) of null.
+ */
+export function showTick(c: ShowClock, dt: number, open: boolean, ready: boolean): 'call' | 'tricks' | 'end' | 'skip' | null {
+  if (c.phase === 'wait') {
+    if (!open) return null;
+    c.left -= dt;
+    if (c.left > 0) return null;
+    if (!ready) {
+      c.left = SHOW_TIME.retry;
+      return 'skip';
+    }
+    c.phase = 'call';
+    c.left = SHOW_TIME.call;
+    return 'call';
+  }
+  c.left -= dt;
+  // sluitingstijd: de show houdt op
+  if (!open) {
+    c.phase = 'wait';
+    c.left = SHOW_TIME.every;
+    return 'end';
+  }
+  if (c.left > 0) return null;
+  if (c.phase === 'call') {
+    // de dieren zijn intussen in slaap gevallen of verdrietig: dan geen show
+    if (!ready) {
+      c.phase = 'wait';
+      c.left = SHOW_TIME.retry;
+      return 'skip';
+    }
+    c.phase = 'tricks';
+    c.left = SHOW_TIME.tricks;
+    return 'tricks';
+  }
+  c.phase = 'wait';
+  c.left = SHOW_TIME.every;
+  return 'end';
+}
+/** Een tik op de tribune: de volgende show begint over een paar tellen. Geeft false als er al een show bezig is. */
+export function showSoon(c: ShowClock): boolean {
+  if (c.phase !== 'wait') return false;
+  c.left = Math.min(c.left, SHOW_TIME.soon);
+  return true;
+}
+/** Kunnen de dieren een show doen? 'none': er zijn er geen, 'sleep': er slaapt er een, 'sad': er is er een niet blij of ziek. */
+export function showReady(stars: readonly { happy: boolean; sleeping: boolean; sick: boolean }[]): 'ok' | 'none' | 'sleep' | 'sad' {
+  if (!stars.length) return 'none';
+  if (stars.some(a => a.sleeping)) return 'sleep';
+  return stars.every(a => a.happy && !a.sick) ? 'ok' : 'sad';
 }

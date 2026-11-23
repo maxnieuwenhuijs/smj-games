@@ -253,6 +253,30 @@ export class Grid {
 }
 
 /**
+ * De verblijven die met glas (of een kijkruit) tegen dit blok van `w` bij `h` tegels aan liggen, en aan welke kant
+ * van het blok: 0 = zuid, 1 = oost, 2 = noord, 3 = west (zoals de draaiing van een gebouw). Voor de tribune: die
+ * staat met haar rug tegen de bak van de dolfijnen.
+ */
+export function glassSides(grid: Grid, x: number, y: number, w: number, h: number): { side: number; region: Region }[] {
+  const out: { side: number; region: Region }[] = [];
+  const look = (side: number, e: Edge, tx: number, ty: number): void => {
+    const kind = grid.getEdge(e);
+    if (kind !== 5 && kind !== 6) return;
+    const region = grid.enclosureAt(tx, ty);
+    if (region && !out.some(o => o.region === region && o.side === side)) out.push({ side, region });
+  };
+  for (let i = 0; i < w; i++) {
+    look(0, { o: 'h', x: x + i, y: y + h }, x + i, y + h);
+    look(2, { o: 'h', x: x + i, y }, x + i, y - 1);
+  }
+  for (let i = 0; i < h; i++) {
+    look(1, { o: 'v', x: x + w, y: y + i }, x + w, y + i);
+    look(3, { o: 'v', x, y: y + i }, x - 1, y + i);
+  }
+  return out;
+}
+
+/**
  * De rand in één richting waar een punt langs loopt. Bij slepen kijken we alleen naar randen in de
  * sleeprichting, zodat er op de hoeken geen losse dwarshekjes bijkomen.
  */

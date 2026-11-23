@@ -11,6 +11,8 @@ import { BONUS, TOY_FROM, TOY_OF, likesToy, type ToyKind } from './data';
 import { PETTABLE, PREY_OF, WISH_ORDER, huntersOf, scares } from './data';
 import { MURK, murkAfter, murkLoad, murkRate, murkyWater } from './data';
 import { guestCard, guestFacts, guestNames } from './traits';
+import { ATTRACTIONS, SHOW_STARS, SHOW_TIME, newShow, showReady, showSoon, showTick } from './data';
+import { glassSides } from './grid';
 
 /** Zet een hek om het blok tegels van (x0,y0) tot en met (x1,y1). */
 function fenceBox(g: Grid, x0: number, y0: number, x1: number, y1: number): Edge[] {
@@ -475,6 +477,13 @@ describe('wensen per level: alles wat iemand vraagt, kun je in dat level ook nee
     expect(DECOR.lantern.from).toBeLessThanOrEqual(feature('night'));
   });
 
+  it('de tribune voor de dierenshow komt pas als er dolfijnen zijn', () => {
+    expect(FEATURE.show).toBeGreaterThanOrEqual(BONUS.dolphin!);
+    for (const sp of SHOW_STARS) expect(AQUATIC).toContain(sp);
+    expect(ATTRACTIONS).toContain('show');
+    expect(SHOPS).toContain('show');
+  });
+
   it('een dier wil alleen speelgoed, warmte of kou die in dat level al te koop is', () => {
     for (const done of levels) {
       const here = [...unlockedSpecies(done), ...(Object.keys(BONUS) as SpeciesId[]).filter(sp => BONUS[sp]! <= done)];
@@ -602,5 +611,87 @@ describe('bang voor elkaar: roofdieren en de dieren die bang voor ze zijn', () =
   it('de verzorger zegt wie voor wie bang is', () => {
     const tr: Tr = (key, vars) => fill((nl as Record<string, string>)[key] ?? `?${key}?`, vars);
     expect(allLines(tr).map(l => l.text)).toContain("De zebra's zijn bang voor de leeuw! Geef ze elk een eigen verblijf.");
+  });
+});
+
+describe('de dierenshow', () => {
+  /** Een bak van glas van (x0,y0) tot en met (x1,y1). */
+  const glassBox = (g: Grid, x0: number, y0: number, x1: number, y1: number, kind: 1 | 5 = 5): void => {
+    for (const e of fenceBox(g, x0, y0, x1, y1)) g.setEdge(e, kind);
+  };
+
+  it('de tribune ziet de bak van glas waar ze tegenaan staat, en aan welke kant', () => {
+    const g = new Grid(FULL_LAND);
+    glassBox(g, 10, 10, 13, 12);
+    // pal onder de bak (zuidkant van de bak): het glas ligt aan de noordkant van de tribune
+    const below = glassSides(g, 11, 13, 2, 2);
+    expect(below).toHaveLength(1);
+    expect(below[0].side).toBe(2);
+    expect(below[0].region).toBe(g.enclosureAt(10, 10));
+    // links ervan: het glas ligt aan de oostkant
+    expect(glassSides(g, 8, 10, 2, 2).map(s => s.side)).toEqual([1]);
+    // een tegel ertussen: dan staat ze er niet tegenaan
+    expect(glassSides(g, 11, 14, 2, 2)).toHaveLength(0);
+  });
+
+  it('een houten hek telt niet, een kijkruit in het hek wel', () => {
+    const g = new Grid(FULL_LAND);
+    glassBox(g, 10, 10, 13, 12, 1);
+    expect(glassSides(g, 11, 13, 2, 2)).toHaveLength(0);
+    g.setEdge({ o: 'h', x: 12, y: 13 }, 6);
+    expect(glassSides(g, 11, 13, 2, 2).map(s => s.side)).toEqual([2]);
+  });
+
+  it('de show komt op tijd: eerst de bel, dan de kunstjes, dan weer wachten', () => {
+    const c = newShow();
+    expect(c.phase).toBe('wait');
+    expect(showTick(c, SHOW_TIME.first - 1, true, true)).toBeNull();
+    expect(showTick(c, 1, true, true)).toBe('call');
+    expect(c.phase).toBe('call');
+    expect(showTick(c, SHOW_TIME.call, true, true)).toBe('tricks');
+    // de kunstjes duren een kwart tot een halve minuut
+    expect(SHOW_TIME.tricks).toBeGreaterThanOrEqual(15);
+    expect(SHOW_TIME.tricks).toBeLessThanOrEqual(30);
+    expect(showTick(c, SHOW_TIME.tricks - 1, true, true)).toBeNull();
+    expect(showTick(c, 1, true, true)).toBe('end');
+    expect(c).toEqual({ phase: 'wait', left: SHOW_TIME.every });
+  });
+
+  it('als het park dicht is of de gasten naar huis gaan, wacht de klok; een show die bezig is, stopt', () => {
+    const c = newShow();
+    expect(showTick(c, 1000, false, true)).toBeNull();
+    expect(c.left).toBe(SHOW_TIME.first);
+    showTick(c, SHOW_TIME.first, true, true);
+    expect(c.phase).toBe('call');
+    expect(showTick(c, 1, false, true)).toBe('end');
+    expect(c.phase).toBe('wait');
+  });
+
+  it('zijn de dieren sip of in slaap, dan gaat de show niet door en komt er later een nieuwe poging', () => {
+    const c = newShow();
+    expect(showTick(c, SHOW_TIME.first, true, false)).toBe('skip');
+    expect(c).toEqual({ phase: 'wait', left: SHOW_TIME.retry });
+    // vallen ze in slaap terwijl de gasten gaan zitten: ook geen show
+    showTick(c, SHOW_TIME.retry, true, true);
+    expect(showTick(c, SHOW_TIME.call, true, false)).toBe('skip');
+    expect(c.phase).toBe('wait');
+  });
+
+  it('een tik op de tribune haalt de show naar voren, maar niet midden in een show', () => {
+    const c = newShow();
+    expect(showSoon(c)).toBe(true);
+    expect(c.left).toBe(SHOW_TIME.soon);
+    expect(showTick(c, SHOW_TIME.soon, true, true)).toBe('call');
+    expect(showSoon(c)).toBe(false);
+    expect(c.phase).toBe('call');
+  });
+
+  it('alleen blije, wakkere dieren doen de show', () => {
+    const ok = { happy: true, sleeping: false, sick: false };
+    expect(showReady([])).toBe('none');
+    expect(showReady([ok, ok])).toBe('ok');
+    expect(showReady([ok, { ...ok, happy: false }])).toBe('sad');
+    expect(showReady([ok, { ...ok, sick: true }])).toBe('sad');
+    expect(showReady([{ ...ok, happy: false }, { ...ok, sleeping: true }])).toBe('sleep');
   });
 });

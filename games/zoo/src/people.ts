@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { PLUSH, PRODUCTS, SEEK_REACH, STALLS, type FoodId, type ShopKind } from './data';
 import { Grid, H, W, tileIndex, tileXY } from './grid';
 import { BUMPER_CARS, DARK_FUN, FERRIS, LOOKS, PETTING_GUESTS, PLAY, RESTAURANT_TABLES, RIDES, SUIT_COLORS, TOWER_TOP, TRAIN, bumperCar, isPath } from './data';
+import { SHOW_ROWS, SHOW_TIME } from './data';
 import { toWorldX, toWorldZ } from './view';
 import { arrivalPath, busPath, exitPath, pavementY } from './road';
 import { FaceCrowd, beardColor, faceFor, giveFace, setFace } from './faces';
@@ -235,6 +236,10 @@ export interface GuestWorld {
   puddleOn(tile: number): boolean;
   /** Spetters op deze plek. */
   splash(gx: number, gy: number): void;
+  /** Hoe ver de show bij deze tribune is: 0 = er is geen show, 1 = de gasten komen zitten, 2 = de dieren doen kunstjes. */
+  showLive(shop: ShopSpot): number;
+  /** Een gast heeft de hele show gezien: hij betaalt een munt. */
+  showPaid(shop: ShopSpot, guest: Guest): void;
 }
 
 /** Een ding in het park waar gasten iets mee doen: een versiering, een bloembak of een afvalbak. */
@@ -734,12 +739,12 @@ type MoreIdle = 'yawn' | 'sigh' | 'peek' | 'rainbow' | 'fidget';
 /** Zoveel gasten kan één kraam, wc, bankje of attractie tegelijk helpen; de rest staat in de rij. */
 const AT_ONCE: Partial<Record<ShopKind, number>> = {
   toilet: 2, bench: 2, playground: 3, carousel: 4, fountain: 6, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2,
-  tower: 4, restaurant: 6, ferris: FERRIS.cabins, bumper: BUMPER_CARS, shelter: 6, station: 8, umbrellas: 2,
+  tower: 4, restaurant: 6, ferris: FERRIS.cabins, bumper: BUMPER_CARS, shelter: 6, station: 8, umbrellas: 2, show: SHOW_TIME.seats,
 };
-/** Zo lang duurt het voor een gast geholpen is. */
+/** Zo lang duurt het voor een gast geholpen is. Op de tribune blijft hij zitten tot de show voorbij is. */
 const SERVE_TIME: Partial<Record<ShopKind, number>> = {
   foodstall: 6, drinkstall: 6, icecream: 6, balloon: 4, hats: 4, souvenir: 4, toilet: 9, bench: 8, playground: 6, carousel: 8, fountain: 4, slide: 6, swing: 7, seesaw: 7, springer: 6, trampoline: 6,
-  tower: 9, restaurant: 11, ferris: 14, bumper: 10, shelter: 4, station: 4, umbrellas: 2,
+  tower: 9, restaurant: 11, ferris: 14, bumper: 10, shelter: 4, station: 4, umbrellas: 2, show: 4,
 };
 const WC_TIME = SERVE_TIME.toilet ?? 9, BENCH_TIME = SERVE_TIME.bench ?? 8;
 /**
@@ -764,7 +769,7 @@ let strayRoom = 0;
 /** Waar een gast op de wc nu staat, welke kant hij op gaat en de plek voor zijn deur; elke keer opnieuw ingevuld door `wcPose`. */
 const WC_AT = { x: 0, y: 0, dx: 0, dy: 0, fx: 0, fy: 0, hidden: false, moving: false };
 /** Waar een gast op of in gaat zitten of staan (in plaats van iets te kopen aan een toonbank). */
-const SEATED: ShopKind[] = ['bench', ...PLAY, ...LOOKS, ...RIDES, 'restaurant', 'shelter'];
+const SEATED: ShopKind[] = ['bench', ...PLAY, ...LOOKS, ...RIDES, 'restaurant', 'shelter', 'show'];
 /**
  * Wie wil spelen, vindt elk speeltoestel goed; wie een ritje wil, elke attractie; wie iets moois wil zien de
  * fontein of de uitkijktoren; en in het restaurant kun je eten én drinken.
@@ -1025,6 +1030,10 @@ export class Guest implements Leader {
   /** De speler heeft de weg gewezen: bij de volgende stop van het rondje loopt het groepje eerst naar deze padtegel. */
   sendTo?: number;
   private partyShop: ShopSpot | null = null;
+  /** Op de tribune: hoe ver de show is (zie showLive). Bij de kunstjes klapt en juicht de gast. */
+  private showMood = 0;
+  /** Heeft de gast al een show gezien? Dan komt hij niet nog eens. */
+  sawShow = false;
   /** Een verdwaald kind staat te huilen tot de speler erop tikt; dan rent het naar `seeker`. */
   lost = false;
   private seeker: Guest | null = null;
@@ -1332,6 +1341,22 @@ export class Guest implements Leader {
     return !this.special && !this.leaving && !this.inside && !this.riding && !this.walkway && !this.wheels && this.astray <= 0 && (this.state === 'idle' || this.state === 'walk' || this.state === 'watch') && !this.errand && !this.sight;
   }
 
+  /**
+   * De bel van de dierenshow: de gast loopt naar de tribune (`door`: de padtegel ervoor) en gaat er zitten. Lukt
+   * dat? Alleen een gast die nergens mee bezig is en nog geen show zag, gaat mee.
+   */
+  toShow(w: GuestWorld, reach: Set<number>, shop: ShopSpot, door: number): boolean {
+    if (!this.free || this.sawShow || this.shop || this.pen || this.partyShop) return false;
+    if (door !== this.tile && !this.go(w, reach, door)) return false;
+    this.sawShow = true;
+    this.shop = shop;
+    this.face = shopCenter(shop);
+    this.act = null;
+    this.idle = null;
+    if (door === this.tile) this.arrive(w);
+    return true;
+  }
+
   /** Wacht de gast bij deze halte op het treintje? */
   get waitingAt(): ShopSpot | null {
     return this.state === 'sit' && !this.riding && this.shop?.kind === 'station' ? this.shop : null;
@@ -1482,7 +1507,7 @@ export class Guest implements Leader {
 
   /** Wat de gast nu doet, voor het menu van de gast: de weg kwijt, op weg naar huis, of gewoon zijn bezigheid. */
   get doing(): string {
-    return this.astray > 0 ? 'astray' : this.leaving ? 'leaving' : this.state;
+    return this.astray > 0 ? 'astray' : this.leaving ? 'leaving' : this.state === 'sit' && this.shop?.kind === 'show' ? 'show' : this.state;
   }
 
   get happy(): boolean {
@@ -1737,6 +1762,24 @@ export class Guest implements Leader {
         put(mix(here, seat, k), k > 0.5 ? facing : this.heading);
         legs(leg * k);
         arms(arm * k);
+        return;
+      }
+      if (kind === 'show') {
+        // op de tribune: drie bankjes van drie, met het gezicht naar het water achter de tribune
+        const row = SHOW_ROWS[Math.floor(this.seat / 3) % SHOW_ROWS.length], col = (this.seat % 3) - 1;
+        put(mix(here, at(col * 0.52, row.h + 0.01 - sit, row.z), k), k > 0.5 ? turn + Math.PI : this.heading);
+        legs(-1.4 * k);
+        if (k > 0.9 && this.showMood === 2) {
+          // de kunstjes: klappen, en af en toe juichen met de armen in de lucht
+          const t = this.phase * 0.9 + this.seat * 1.7;
+          if (Math.sin(t * 0.07) > 0.55) arms(-2.8);
+          else {
+            const clap = Math.abs(Math.sin(t)) * 0.5;
+            arms(-1.25);
+            this.limbs[2].rotation.z = -clap;
+            this.limbs[3].rotation.z = clap;
+          }
+        } else if (k > 0.9) arms(-0.4);
         return;
       }
       if (kind === 'carousel') {
@@ -3104,6 +3147,15 @@ export class Guest implements Leader {
       this.fire('rub'); // dat was lekker
     } else if (this.state === 'sit' && kind === 'shelter') {
       this.fun = Math.min(1, this.fun + 0.05);
+    } else if (this.state === 'sit' && kind === 'show') {
+      // de hele show gezien: blij, een munt in de kas en juichend weer op pad
+      this.showMood = 0;
+      if (this.rode && this.shop && w.shops.includes(this.shop)) {
+        this.fun = Math.min(1, this.fun + 0.3);
+        this.curious = 0;
+        this.joy = 1.4;
+        w.showPaid(this.shop, this);
+      }
     } else if (this.state === 'sit') {
       // op het bankje: hoe moeier de gast was, hoe meer hij ervan opknapt
       this.fun = Math.min(1, this.fun + 0.05 + 0.1 * Math.min(1, this.tired / 0.75));
@@ -3472,6 +3524,12 @@ export class Guest implements Leader {
           this.waitT += dt;
           this.timer = this.waitT > 75 || !w.trainRuns() ? Math.min(this.timer, 0.2) : Math.max(this.timer, 1);
         } else if (this.shop.kind === 'shelter' && rain) this.timer = Math.max(this.timer, 1.5); // schuilen tot het droog is
+        else if (this.shop.kind === 'show') {
+          // op de tribune: blijven zitten tot de show voorbij is (wie te laat kwam, staat meteen weer op)
+          this.showMood = w.showLive(this.shop);
+          if (this.showMood === 2) this.rode = true;
+          this.timer = this.showMood ? Math.max(this.timer, 1) : Math.min(this.timer, this.rode ? 1.2 : 0.3);
+        }
       }
       this.timer -= dt;
       if (this.timer <= 0 && !this.finish(w)) {
@@ -4806,6 +4864,20 @@ export class GuestManager {
   /** De gasten in de buurt van dit punt juichen (bij het feest, of als het verdwaalde kind terug is). */
   cheerNear(gx: number, gy: number, r: number): void {
     for (const g of this.guests) if (Math.hypot(g.gx - gx, g.gy - gy) < r) g.joy = Math.max(g.joy, 1 + Math.random());
+  }
+
+  /**
+   * De bel van de dierenshow: de gasten die dichtbij rondlopen (tot `r` tegels), gaan op de tribune zitten, de
+   * dichtstbijzijnde eerst, tot hij vol is. Geeft terug hoeveel er komen.
+   */
+  callToShow(shop: ShopSpot, r: number): number {
+    const door = doorOf(this.world, this.reach, shop);
+    if (door === null) return 0;
+    const [cx, cy] = shopCenter(shop), dist = (g: Guest): number => Math.hypot(g.gx - cx, g.gy - cy);
+    const near = this.guests.filter(g => g.free && !g.sawShow && dist(g) <= r).sort((p, q) => dist(p) - dist(q));
+    let n = 0;
+    for (const g of near) if (n < SHOW_TIME.seats && g.toShow(this.world, this.reach, shop, door)) n++;
+    return n;
   }
 
   stats(): { total: number; happy: number; lacking: Record<string, number> } {
