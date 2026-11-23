@@ -273,7 +273,7 @@ const quarterAt = (q?: number): [number, number] => (q === undefined ? [0.5, 0.5
 /** Het kwart van de tegel onder de vinger. */
 const quarterOf = (gx: number, gy: number): number => (gx - Math.floor(gx) >= 0.5 ? 1 : 0) + (gy - Math.floor(gy) >= 0.5 ? 2 : 0);
 /** De groepen onder de knop Park, met hun plaatje. Klein, Handig en Speeltuin zet je anders neer dan de rest. */
-const PARK_GROUP_ICON: Record<string, IconId> = { green: 'tree', water: 'pond', art: 'flag', light: 'lantern', small: 'parkprops', service: 'toilet', play: 'slide' };
+const PARK_GROUP_ICON: Record<string, IconId> = { green: 'tree', water: 'pond', art: 'flag', light: 'lantern', small: 'parkprops', signs: 'signpost', service: 'toilet', play: 'slide' };
 /** Natuur: een graspol, steen of boom. `sx`, `sy`: het vakje linksboven (twee vakjes per tegel). */
 interface PropObj {
   kind: PropKind;

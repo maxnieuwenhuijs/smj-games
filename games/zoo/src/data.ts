@@ -214,8 +214,12 @@ export type DecorKind =
   | 'guestbook' | 'mapboard' | 'bunting' | 'lightstring'
   // meer licht voor de nacht: een tuinlampje, een lampion, een fakkel en een hoge straatlamp met twee lampen
   | 'gardenlight' | 'lampion' | 'torch' | 'streetlamp';
-export type DecorGroup = 'green' | 'water' | 'art' | 'light';
-export const DECOR_GROUPS: DecorGroup[] = ['green', 'water', 'art', 'light'];
+/**
+ * Sier is alleen om naar te kijken. Borden hebben een taak: de wegwijzer en de plattegrond wijzen de weg, in het
+ * gastenboek schrijven gasten. Handig is waar gasten iets mee doen (de picknicktafel staat bij het bankje en de wc).
+ */
+export type DecorGroup = 'green' | 'water' | 'art' | 'light' | 'signs' | 'service';
+export const DECOR_GROUPS: DecorGroup[] = ['green', 'water', 'art', 'light', 'signs', 'service'];
 export const DECOR: Record<DecorKind, { group: DecorGroup; price: number; from: number }> = {
   tree: { group: 'green', price: 4, from: 5 }, roses: { group: 'green', price: 3, from: 5 }, hedge: { group: 'green', price: 3, from: 6 },
   tulips: { group: 'green', price: 3, from: 7 }, pine: { group: 'green', price: 4, from: 8 }, mushrooms: { group: 'green', price: 2, from: 9 },
@@ -223,12 +227,12 @@ export const DECOR: Record<DecorKind, { group: DecorGroup; price: number; from: 
   pumpkins: { group: 'green', price: 3, from: 19 }, bamboogrove: { group: 'green', price: 5, from: 21 }, cherry: { group: 'green', price: 8, from: 27 },
   pond: { group: 'water', price: 10, from: 10 }, well: { group: 'water', price: 8, from: 16 }, birdbath: { group: 'water', price: 6, from: 22 },
   waterfall: { group: 'water', price: 15, from: 26 }, pump: { group: 'water', price: 8, from: 34 },
-  boulder: { group: 'art', price: 2, from: 5 }, signpost: { group: 'art', price: 4, from: 7 }, flag: { group: 'art', price: 5, from: 11 },
-  lantern: { group: 'light', price: 5, from: 14 }, picnic: { group: 'art', price: 8, from: 15 }, scarecrow: { group: 'art', price: 6, from: 18 },
+  boulder: { group: 'art', price: 2, from: 5 }, signpost: { group: 'signs', price: 4, from: 7 }, flag: { group: 'art', price: 5, from: 11 },
+  lantern: { group: 'light', price: 5, from: 14 }, picnic: { group: 'service', price: 8, from: 15 }, scarecrow: { group: 'art', price: 6, from: 18 },
   topiary: { group: 'art', price: 12, from: 23 }, arch: { group: 'art', price: 10, from: 24 }, totem: { group: 'art', price: 10, from: 29 },
   snowman: { group: 'art', price: 6, from: 31 }, campfire: { group: 'light', price: 8, from: 33 }, windmill: { group: 'art', price: 18, from: 36 },
   statue: { group: 'art', price: 20, from: 38 }, clocktower: { group: 'art', price: 25, from: 41 },
-  guestbook: { group: 'art', price: 6, from: 9 }, mapboard: { group: 'art', price: 8, from: 12 }, bunting: { group: 'art', price: 4, from: 13 }, lightstring: { group: 'light', price: 6, from: 15 },
+  guestbook: { group: 'signs', price: 6, from: 9 }, mapboard: { group: 'signs', price: 8, from: 12 }, bunting: { group: 'art', price: 4, from: 13 }, lightstring: { group: 'light', price: 6, from: 15 },
   gardenlight: { group: 'light', price: 3, from: 16 }, lampion: { group: 'light', price: 5, from: 18 }, torch: { group: 'light', price: 4, from: 20 }, streetlamp: { group: 'light', price: 9, from: 26 },
 };
 /**
@@ -241,7 +245,7 @@ export const SMALL_DECOR: DecorKind[] = ['mushrooms', 'cactus', 'pumpkins', 'bir
  * De groepen onder de knop Park, van links naar rechts. In een groep staan versieringen, klein spul en gebouwtjes
  * door elkaar: de bloembak staat bij Groen, wc en bankje bij Handig.
  */
-export const PARK_GROUPS = ['green', 'water', 'art', 'light', 'small', 'service'] as const;
+export const PARK_GROUPS = ['green', 'water', 'art', 'light', 'small', 'signs', 'service'] as const;
 export type ParkGroup = (typeof PARK_GROUPS)[number];
 export const SERVICE_SHOPS: ShopKind[] = ['toilet', 'bench', 'bin', 'umbrellas', 'shelter'];
 /** In welke groep onder Park dit gebouwtje staat; niets als het onder de knop Winkel hoort. */
