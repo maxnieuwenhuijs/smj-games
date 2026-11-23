@@ -9,6 +9,7 @@ import { AQUATIC, PROP, PROPS, WILD_KINDS, WILD_WANT, propPoints, wildRange, wil
 import { DECOR, WAYFIND, WAYFIND_PATHS, canStray, wayfound } from './data';
 import { BONUS, TOY_FROM, TOY_OF, likesToy, type ToyKind } from './data';
 import { PETTABLE, PREY_OF, WISH_ORDER, huntersOf, scares } from './data';
+import { MURK, murkAfter, murkLoad, murkRate, murkyWater } from './data';
 import { guestCard, guestFacts, guestNames } from './traits';
 
 /** Zet een hek om het blok tegels van (x0,y0) tot en met (x1,y1). */
@@ -486,6 +487,70 @@ describe('wensen per level: alles wat iemand vraagt, kun je in dat level ook nee
         if (done >= FEATURE.climate && need) expect(TOY_FROM[need], `level ${done}: ${sp} wil een ${need}`).toBeLessThanOrEqual(done);
       }
     }
+  });
+
+  it('een zeedier vraagt pas om schoon water als je de bak kunt schoonmaken en er een waterfilter te koop is', () => {
+    // het water wordt pas vies als er een zeedier kan zijn, en dan is het waterfilter er al
+    expect(FEATURE.murk).toBeGreaterThanOrEqual(Math.min(...AQUATIC.map(sp => BONUS[sp]!)));
+    expect(TOY_FROM.filter).toBeLessThanOrEqual(FEATURE.murk);
+    for (const done of levels) {
+      const sea = AQUATIC.filter(sp => BONUS[sp]! <= done);
+      if (!sea.length || done < FEATURE.murk) continue;
+      expect(TOY_FROM.filter, `level ${done}: geen waterfilter`).toBeLessThanOrEqual(done);
+      // de schoonmaker kan ook al helpen
+      expect(FEATURE.keeper, `level ${done}: geen schoonmaker`).toBeLessThanOrEqual(done);
+    }
+  });
+});
+
+describe('vies water in de bak', () => {
+  it('grotere zeedieren maken het water sneller vies, een jong half zo snel, een landdier niet', () => {
+    expect(murkLoad('dolphin')).toBe(1);
+    expect(murkLoad('orca')).toBeGreaterThan(murkLoad('dolphin'));
+    expect(murkLoad('ray')).toBeLessThan(murkLoad('dolphin'));
+    expect(murkLoad('dolphin', true)).toBe(0.5);
+    expect(murkLoad('seal')).toBe(0);
+    expect(murkLoad('pig')).toBe(0);
+  });
+
+  it('meer dieren: sneller vies; met een waterfilter vier keer zo langzaam', () => {
+    expect(murkRate(0, false)).toBe(0);
+    expect(murkRate(2, false)).toBeCloseTo(murkRate(1, false) * 2);
+    expect(murkRate(3, true)).toBeCloseTo(murkRate(3, false) * MURK.filter);
+    expect(MURK.filter).toBeLessThan(0.5);
+  });
+
+  it('drie dolfijnen maken het water in een paar minuten vies, met een filter duurt het veel langer', () => {
+    const load = 3 * murkLoad('dolphin');
+    const minutes = (filter: boolean): number => MURK.dirty / murkRate(load, filter) / 60;
+    expect(minutes(false)).toBeGreaterThan(3);
+    expect(minutes(false)).toBeLessThan(12);
+    expect(minutes(true)).toBeGreaterThan(minutes(false) * 3);
+    expect(murkyWater(murkAfter(0, load, false, minutes(false) * 60 - 5))).toBe(false);
+    expect(murkyWater(murkAfter(0, load, false, minutes(false) * 60 + 5))).toBe(true);
+  });
+
+  it('het water wordt nooit viezer dan 1 en zonder dieren blijft het zoals het is', () => {
+    expect(murkAfter(0.9, 10, false, 10000)).toBe(1);
+    expect(murkAfter(0.3, 0, false, 10000)).toBe(0.3);
+    expect(murkAfter(0, 1, false, 0)).toBe(0);
+  });
+
+  it('de schoonmaker poetst al voordat de dieren het vies vinden; verdrietig pas als het heel vies is', () => {
+    expect(MURK.job).toBeLessThan(MURK.dirty);
+    expect(MURK.dirty).toBeLessThan(MURK.sad);
+    expect(MURK.sad).toBeLessThanOrEqual(1);
+    expect(murkyWater(MURK.dirty - 0.01)).toBe(false);
+    expect(murkyWater(MURK.dirty)).toBe(true);
+  });
+
+  it('de melding en de tip over het water staan in beide talen', () => {
+    for (const table of [nl, en] as Record<string, string>[])
+      for (const key of ['alert.murky', 'say.filter.tip', 'toy.filter', 'toy.filter.a']) expect(table[key], key).toBeTruthy();
+    const tr: Tr = (key, vars) => fill((nl as Record<string, string>)[key] ?? `?${key}?`, vars);
+    const texts = allLines(tr).map(l => l.text);
+    expect(texts).toContain(textOf(tr, { who: 'keeper', mood: 'worried', key: 'alert.murky' }));
+    expect(texts).toContain(textOf(tr, { who: 'keeper', mood: 'happy', key: 'say.filter.tip' }));
   });
 });
 

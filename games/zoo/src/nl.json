@@ -719,6 +719,8 @@
   "toy.tyreswing.a": "een bandenschommel",
   "toy.pole": "Klimpaal",
   "toy.pole.a": "een klimpaal",
+  "toy.filter": "Waterfilter",
+  "toy.filter.a": "een waterfilter",
   "alert.fun": "{The} verveelt zich en wil {toy}.",
   "say.fun.new": "Nieuw: speelgoed en planten! Elk dier heeft een eigen lievelingsding.",
   "cheer.1": "Wat zien je dieren er blij uit!",
@@ -730,6 +732,8 @@
   "cheer.7": "Wat heb je dat mooi gebouwd!",
   "cheer.8": "De kas rinkelt lekker. Goed bezig!",
   "alert.clean": "Het hok is vies. Pak de veger en veeg de poepjes weg!",
+  "alert.murky": "Het water is vies! Tik met de veger op de bak, dan wordt het weer schoon.",
+  "say.filter.tip": "Zet een waterfilter in de bak. Dan blijft het water veel langer schoon.",
   "alert.wrongfood": "Dat lust {the} niet.",
 
   "host.first": "Daar zijn de eerste gasten!",

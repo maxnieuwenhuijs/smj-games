@@ -31,7 +31,9 @@ export type ToyKind = 'ball' | 'bush' | 'log' | 'flowerbed' | 'hoop'
   // heuvel, rotsen, drinkvijver, waterval, warmtelamp, ijsblok, klimrek en tunnel
   | 'hill' | 'rocks' | 'drink' | 'fall' | 'lamp' | 'icebox' | 'frame' | 'tunnel'
   // speelgoed dat zelf beweegt: een losse autoband, een wipplank, een slingerbal, een kruipboog, een bandenschommel en een klimpaal
-  | 'tyre' | 'rocker' | 'tetherball' | 'logarch' | 'tyreswing' | 'pole';
+  | 'tyre' | 'rocker' | 'tetherball' | 'logarch' | 'tyreswing' | 'pole'
+  // een waterfilter voor in een bak van glas: daarmee blijft het water langer schoon
+  | 'filter';
 
 /** De volgorde is ook de waarde in het opslagbestand: nieuwe soorten komen achteraan. */
 export const TERRAINS: Terrain[] = ['grass', 'mud', 'sand', 'water', 'path', 'snow', 'forest', 'stones', 'ice', 'swamp', 'meadow', 'steppe', 'gravel', 'planks', 'flowerpath', 'bridge', 'brick', 'cobble', 'marble'];
@@ -70,16 +72,18 @@ export const SEASONAL: Terrain[] = ['grass', 'forest', 'meadow', 'steppe'];
 export const FOODS: FoodId[] = ['veg', 'hay', 'fruit', 'grain', 'meat', 'leaves', 'fish', 'bamboo'];
 export const BEDS: BedKind[] = ['straw', 'shed', 'rock', 'shade', 'nest', 'cave', 'climb', 'coral'];
 export const TOYS: ToyKind[] = ['ball', 'bush', 'log', 'flowerbed', 'hoop', 'tunnel', 'drink', 'hill', 'rocks', 'frame', 'fall', 'lamp', 'icebox',
-  'tyre', 'rocker', 'tetherball', 'logarch', 'tyreswing', 'pole'];
+  'tyre', 'rocker', 'tetherball', 'logarch', 'tyreswing', 'pole', 'filter'];
 /** Na hoeveel gehaalde levels je iets voor in het verblijf vrijspeelt, en wat het kost (anders PRICE.toy). */
 export const TOY_FROM: Record<ToyKind, number> = {
   ball: 9, bush: 9, log: 9, flowerbed: 9, tunnel: 11, drink: 12, hill: 14, rocks: 17, hoop: 20, frame: 22, fall: 27, lamp: 25, icebox: 30,
   // het bewegende speelgoed komt er één voor één bij, steeds in een level waarin er geen ander speelgoed vrijkomt
   tyre: 13, rocker: 16, tetherball: 19, logarch: 23, tyreswing: 28, pole: 32,
+  // het waterfilter komt tegelijk met het aquarium (BONUS.dolphin)
+  filter: 20,
 };
 export const TOY_PRICE: Partial<Record<ToyKind, number>> = {
   hill: 4, rocks: 3, drink: 3, fall: 8, lamp: 5, icebox: 5, frame: 6, tunnel: 4,
-  tyre: 3, rocker: 4, tetherball: 4, logarch: 5, tyreswing: 6, pole: 6,
+  tyre: 3, rocker: 4, tetherball: 4, logarch: 5, tyreswing: 6, pole: 6, filter: 6,
 };
 /** Hier klimt een dier bovenop: zo hoog staat het dan (in tegels). */
 export const TOY_LIFT: Partial<Record<ToyKind, number>> = { hill: 0.34, rocks: 0.3, frame: 0.8, rocker: 0.21, pole: 1 };
@@ -797,6 +801,22 @@ export function wildRange(sp: SpeciesId, land: number): Record<WildKind, [number
 export const bonusSpecies = (done: number): SpeciesId[] => (Object.keys(BONUS) as SpeciesId[]).filter(sp => BONUS[sp]! <= done);
 /** Zo hoog staat het water in een bak van glas. */
 export const TANK_WATER = 0.42;
+/**
+ * Vies water (vanaf FEATURE.murk): het water in een bak van glas wordt langzaam troebel, van 0 (helder) tot 1. Hoe
+ * meer en hoe grotere zeedieren erin zwemmen, hoe sneller. `perSec`: zoveel erbij per tel voor één dolfijn (drie
+ * dolfijnen maken het water in zes minuten vies). Met een waterfilter in de bak gaat het `filter` keer zo snel.
+ * Vanaf `dirty` vinden de zeedieren het water vies, vanaf `sad` zijn ze er verdrietig van. Vanaf `job` gaat een
+ * schoonmaker de bak al poetsen, zodat het water met hulp schoon blijft.
+ */
+export const MURK = { perSec: 1 / 1800, filter: 0.25, dirty: 0.6, sad: 0.85, job: 0.45 };
+/** Hoeveel een dier het water vies maakt: een zeedier naar zijn grootte (een dolfijn is 1), een jong half zoveel. */
+export const murkLoad = (sp: SpeciesId, young = false): number => (AQUATIC.includes(sp) ? ((SPACE[sp] ?? 9) / 9) * (young ? 0.5 : 1) : 0);
+/** Zoveel wordt het water per tel viezer, met deze dieren (`load`, opgeteld met murkLoad) en wel of geen waterfilter. */
+export const murkRate = (load: number, filter: boolean): number => load * MURK.perSec * (filter ? MURK.filter : 1);
+/** Hoe vies het water is na `seconds` tellen. Nooit meer dan 1. */
+export const murkAfter = (murk: number, load: number, filter: boolean, seconds: number): number => Math.min(1, Math.max(0, murk + murkRate(load, filter) * seconds));
+/** Vinden de zeedieren dit water vies? */
+export const murkyWater = (murk: number): boolean => murk >= MURK.dirty;
 
 /** Vanaf hoeveel gehaalde levels iets meedoet. */
 export const FEATURE = {
@@ -831,6 +851,8 @@ export const FEATURE = {
   escape: 30,
   /** Vanaf hier zijn dieren bang voor een roofdier in hun verblijf: dan komt de leeuw (zie PREY_OF). */
   safe: 13,
+  /** Vanaf hier wordt het water in de bakken van glas langzaam vies: tegelijk met het aquarium en het waterfilter. */
+  murk: 20,
 };
 
 /** Welk figuur geeft de opdracht voor welk soort doel. */

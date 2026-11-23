@@ -368,6 +368,17 @@ const ICONS = {
     `<path d="M24 44 V30 M24 34 Q14 32 14 20 M24 30 Q34 28 34 16 M14 26 Q8 24 9 16 M34 24 Q40 22 40 14" fill="none" stroke="#f06aa6" stroke-width="5" stroke-linecap="round"/><ellipse cx="24" cy="44" rx="16" ry="3.5" fill="#8f949c"/><circle cx="14" cy="19" r="3.2" fill="#f7a8c8"/><circle cx="34" cy="15" r="3.2" fill="#f7a8c8"/><circle cx="9" cy="15" r="2.6" fill="#f7a8c8"/><circle cx="40" cy="13" r="2.6" fill="#f7a8c8"/>`,
   hoop:
     `<ellipse cx="24" cy="18" rx="14" ry="14" fill="none" stroke="${RED}" stroke-width="5"/><path d="M12 10 A14 14 0 0 1 36 10" fill="none" stroke="#fff7e0" stroke-width="5" stroke-dasharray="6 6"/><path d="M24 32 V44" stroke="#8a857a" stroke-width="4" stroke-linecap="round"/><ellipse cx="24" cy="44" rx="9" ry="2.5" fill="#6ec3e8"/>`,
+  // waterfilter: een kastje met een pijp, bellen die omhoog gaan en een blauwe golf eronder
+  filter:
+    `<ellipse cx="24" cy="42" rx="19" ry="4" fill="#6ec3e8"/><rect x="12" y="20" width="22" height="21" rx="4" fill="#4a90e2" stroke="#2f6fb8" stroke-width="2"/>` +
+    `<rect x="16" y="25" width="14" height="5" rx="2" fill="#9fd8f5"/><circle cx="18" cy="35" r="2.2" fill="${SUN}"/><circle cx="25" cy="35" r="2.2" fill="${GREEN}"/>` +
+    `<path d="M30 20 V12 H36" fill="none" stroke="${GREY}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>` +
+    '<circle cx="39" cy="9" r="3" fill="#fff" stroke="#6ec3e8" stroke-width="1.6"/><circle cx="42" cy="3.5" r="2" fill="#fff" stroke="#6ec3e8" stroke-width="1.4"/><circle cx="35" cy="4" r="1.6" fill="#fff" stroke="#6ec3e8" stroke-width="1.2"/>',
+  // vies water: een grote druppel, groenig grijs, met bruine vlekjes erin
+  murky:
+    '<path d="M24 4 C35 18 40 26 40 32 C40 40 33 45 24 45 C15 45 8 40 8 32 C8 26 13 18 24 4Z" fill="#8a9a6e" stroke="#5f6e48" stroke-width="2.5" stroke-linejoin="round"/>' +
+    '<ellipse cx="18" cy="31" rx="3.4" ry="2.4" fill="#6b4a22"/><ellipse cx="29" cy="36" rx="2.8" ry="2" fill="#6b4a22"/><ellipse cx="27" cy="25" rx="2" ry="1.5" fill="#6b4a22"/><circle cx="20" cy="39" r="1.4" fill="#6b4a22"/>' +
+    '<path d="M15 22 Q17 16 21 12" fill="none" stroke="#c9d6b0" stroke-width="2.4" stroke-linecap="round"/>',
   world_aqua:
     '<path d="M4 28 Q12 22 20 28 T36 28 T52 28 V46 H4Z" fill="#6ec3e8"/><path d="M8 26 Q16 4 34 16 Q42 12 44 8 Q45 16 40 20 Q34 34 14 30 Q10 30 8 26Z" fill="#7f8a96"/><path d="M14 27 Q24 30 36 22 Q32 31 16 30Z" fill="#e6ecef"/><circle cx="17" cy="20" r="1.6" fill="#1e1e22"/><path d="M26 11 L31 3 L34 14Z" fill="#6c7783"/>',
   // dag en nacht
