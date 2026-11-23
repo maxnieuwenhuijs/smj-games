@@ -200,7 +200,7 @@ const SHOP_SETS: Record<string, ShopKind[]> = {
   gebouwen: ['toilet', 'restaurant', 'shelter', 'station'],
   klein: ['bench', 'flowers', 'bin', 'umbrellas'],
   speeltuin: ['slide', 'swing', 'seesaw', 'springer', 'trampoline'],
-  attracties: ['fountain', 'carousel', 'tower', 'bumper', 'ferris', 'show'],
+  attracties: ['fountain', 'carousel', 'tower', 'bumper', 'ferris', 'show', 'cablecar'],
 };
 const GROUPS: Record<string, Item[]> = {
   bedden: BEDS.map(bed),

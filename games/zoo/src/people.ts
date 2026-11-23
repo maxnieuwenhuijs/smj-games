@@ -5,6 +5,7 @@ import { PLUSH, PRODUCTS, SEEK_REACH, STALLS, type FoodId, type ShopKind } from 
 import { Grid, H, W, tileIndex, tileXY } from './grid';
 import { BUMPER_CARS, DARK_FUN, FERRIS, LOOKS, PETTING_GUESTS, PLAY, RESTAURANT_TABLES, RIDES, SUIT_COLORS, TOWER_TOP, TRAIN, bumperCar, isPath } from './data';
 import { SHOW_ROWS, SHOW_TIME } from './data';
+import { CABLE, cableAt, cableLength, cableLoop, cablePassed, cableStop } from './cable';
 import { toWorldX, toWorldZ } from './view';
 import { arrivalPath, busPath, exitPath, pavementY } from './road';
 import { FaceCrowd, beardColor, faceFor, giveFace, setFace } from './faces';
@@ -240,6 +241,12 @@ export interface GuestWorld {
   showLive(shop: ShopSpot): number;
   /** Een gast heeft de hele show gezien: hij betaalt een munt. */
   showPaid(shop: ShopSpot, guest: Guest): void;
+  /** Rijdt de kabelbaan bij dit huisje, en mag je nu instappen? */
+  liftRuns(shop: ShopSpot): boolean;
+  /** Welke soorten er onder dit punt wonen: dat ziet een gast vanuit de kabelbaan. */
+  liftView(gx: number, gy: number): string[];
+  /** Een gast is met de kabelbaan geweest: hij betaalt voor zijn ritje. */
+  liftPaid(shop: ShopSpot, guest: Guest): void;
 }
 
 /** Een ding in het park waar gasten iets mee doen: een versiering, een bloembak of een afvalbak. */
@@ -740,11 +747,13 @@ type MoreIdle = 'yawn' | 'sigh' | 'peek' | 'rainbow' | 'fidget';
 const AT_ONCE: Partial<Record<ShopKind, number>> = {
   toilet: 2, bench: 2, playground: 3, carousel: 4, fountain: 6, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2,
   tower: 4, restaurant: 6, ferris: FERRIS.cabins, bumper: BUMPER_CARS, shelter: 6, station: 8, umbrellas: 2, show: SHOW_TIME.seats,
+  // op het perron van de kabelbaan wachten er vier, elk in een hoekje; wie in een stoeltje zit, telt niet meer mee
+  cablecar: 4,
 };
 /** Zo lang duurt het voor een gast geholpen is. Op de tribune blijft hij zitten tot de show voorbij is. */
 const SERVE_TIME: Partial<Record<ShopKind, number>> = {
   foodstall: 6, drinkstall: 6, icecream: 6, balloon: 4, hats: 4, souvenir: 4, toilet: 9, bench: 8, playground: 6, carousel: 8, fountain: 4, slide: 6, swing: 7, seesaw: 7, springer: 6, trampoline: 6,
-  tower: 9, restaurant: 11, ferris: 14, bumper: 10, shelter: 4, station: 4, umbrellas: 2, show: 4,
+  tower: 9, restaurant: 11, ferris: 14, bumper: 10, shelter: 4, station: 4, umbrellas: 2, show: 4, cablecar: 4,
 };
 const WC_TIME = SERVE_TIME.toilet ?? 9, BENCH_TIME = SERVE_TIME.bench ?? 8;
 /**
@@ -1045,8 +1054,16 @@ export class Guest implements Leader {
   /** Tot deze leeftijd raakt de gast niet nog eens de weg kwijt; en of de juf bij deze stop al getwijfeld heeft. */
   private strayFree = 0;
   private doubted = false;
-  /** In het treintje. */
-  riding: Train | null = null;
+  /** In het treintje, of in een stoeltje van de kabelbaan. */
+  riding: Train | CableCar | null = null;
+  /**
+   * In de kabelbaan: op welke plek (twee per stoeltje), hoe hoog de gast nu zit, welke soorten hij al onder zich zag
+   * en hoe lang hij nog naar beneden wijst.
+   */
+  liftSeat = 0;
+  air = 0;
+  private airSeen: string[] = [];
+  private peek = 0;
   private rode = false;
   private waitT = 0;
   /** In de kinderboerderij: 1 = op weg naar het poortje, 2 = naar binnen, 3 = aan het aaien, 4 = weer naar buiten. */
@@ -1362,6 +1379,67 @@ export class Guest implements Leader {
     return this.state === 'sit' && !this.riding && this.shop?.kind === 'station' ? this.shop : null;
   }
 
+  /** Staat de gast op het perron van dit huisje van de kabelbaan te wachten op een stoeltje? */
+  get liftWaiting(): ShopSpot | null {
+    return this.state === 'sit' && !this.riding && !this.rode && this.shop?.kind === 'cablecar' ? this.shop : null;
+  }
+
+  /** Instappen in de kabelbaan, op plek `seat` (twee per stoeltje). */
+  liftOn(car: CableCar, seat: number): void {
+    this.riding = car;
+    this.liftSeat = seat;
+    this.airSeen = [];
+    this.peek = 0;
+    this.timer = 5;
+    this.idle = null;
+  }
+
+  /**
+   * Uitstappen bij een huisje (`shop`): de gast stapt van het perron het pad op (`tile`). Zonder huisje (de kabelbaan
+   * is weg) staat hij meteen op het pad.
+   */
+  liftOff(shop: ShopSpot | null, tile: number): void {
+    const [x, y] = tileXY(tile);
+    this.riding = null;
+    this.air = 0;
+    this.gx = x + 0.5;
+    this.gy = y + 0.5;
+    if (shop) {
+      this.rode = true;
+      this.shop = shop;
+      this.seat = this.liftSeat % 4;
+      this.face = shopCenter(shop);
+      this.timer = 0.7;
+    } else {
+      this.state = 'idle';
+      this.shop = null;
+      this.errand = null;
+      this.timer = 0.3;
+    }
+  }
+
+  /** In de kabelbaan: het stoeltje is hier, zo hoog. */
+  fly(gx: number, gy: number, h: number): void {
+    this.gx = gx;
+    this.gy = gy;
+    this.air = h;
+  }
+
+  /** Vanuit de kabelbaan ziet de gast een dier onder zich: blij, en extra blij bij zijn lievelingsdier. */
+  overlook(w: GuestWorld, species: string): void {
+    if (this.airSeen.includes(species)) return;
+    this.airSeen.push(species);
+    this.fun = Math.min(1, this.fun + 0.05);
+    this.peek = 2.2;
+    if (species !== this.fav) return;
+    if (!this.favSeen) {
+      this.favSeen = true;
+      this.fun = Math.min(1, this.fun + 0.25);
+    }
+    w.cheer(this);
+    this.joy = 1.8;
+  }
+
   snapshot(): GuestSave {
     return {
       gx: this.gx, gy: this.gy, child: this.child, fun: this.fun, age: this.age, stay: this.stay,
@@ -1395,6 +1473,8 @@ export class Guest implements Leader {
 
   /** De kraam waar de gast nu geholpen wordt of voor in de rij staat. */
   get using(): ShopSpot | null {
+    // wie in een stoeltje van de kabelbaan zit, staat niet meer op het perron
+    if (this.riding instanceof CableCar) return null;
     return this.state === 'buy' || this.state === 'sit' || this.state === 'queue' ? this.shop : null;
   }
 
@@ -1507,7 +1587,7 @@ export class Guest implements Leader {
 
   /** Wat de gast nu doet, voor het menu van de gast: de weg kwijt, op weg naar huis, of gewoon zijn bezigheid. */
   get doing(): string {
-    return this.astray > 0 ? 'astray' : this.leaving ? 'leaving' : this.state === 'sit' && this.shop?.kind === 'show' ? 'show' : this.state;
+    return this.astray > 0 ? 'astray' : this.leaving ? 'leaving' : this.state === 'sit' && this.shop?.kind === 'show' ? 'show' : this.riding instanceof CableCar ? 'cable' : this.state;
   }
 
   get happy(): boolean {
@@ -1625,6 +1705,32 @@ export class Guest implements Leader {
       m.visible = !WC_AT.hidden;
       m.position.set(toWorldX(WC_AT.x), this.hop, toWorldZ(WC_AT.y));
       m.rotation.set(0, this.heading, 0);
+      return;
+    }
+    if (this.riding instanceof CableCar) {
+      // in een stoeltje van de kabelbaan: benen naar voren, en naar beneden kijken naar de dieren
+      this.riding.seatPose(this.liftSeat, m);
+      this.limbs[0].rotation.x = this.limbs[1].rotation.x = -1.35 + Math.sin(this.phase * 0.3 + this.liftSeat) * (this.child ? 0.25 : 0.08);
+      if (this.joy > 0) return; // het lievelingsdier: juichen met de armen omhoog (zie gesture)
+      const mood = Math.sin(this.phase * 0.04 + this.liftSeat * 2.1);
+      if (this.peek > 0) {
+        // daar is een dier: wijzen naar beneden, en wie naast je zit zwaait ernaar
+        this.head.rotation.x = 0.5;
+        if (this.liftSeat % 2) {
+          this.limbs[2].rotation.x = -2.3;
+          this.limbs[2].rotation.z = Math.sin(this.phase * 0.85) * 0.45;
+        } else this.limbs[3].rotation.x = -0.9 + Math.sin(this.phase * 0.3) * 0.08;
+      } else if (mood > 0.4) {
+        // even zwaaien naar de mensen beneden
+        this.limbs[2].rotation.x = -2.6;
+        this.limbs[2].rotation.z = 0.3 + Math.sin(this.phase * 0.85) * 0.45;
+        this.head.rotation.x = 0.3;
+      } else {
+        // de handen op de beugel, en rustig rondkijken
+        this.limbs[2].rotation.x = this.limbs[3].rotation.x = -1.1;
+        this.head.rotation.x = 0.3;
+        this.head.rotation.y = Math.sin(this.phase * 0.03 + this.liftSeat) * 0.6;
+      }
       return;
     }
     if (this.riding) {
@@ -1871,6 +1977,18 @@ export class Guest implements Leader {
         }
         return;
       }
+      if (kind === 'cablecar') {
+        // op het perron van de kabelbaan: in een hoekje wachten (daar zwaaien de stoeltjes niet langs), met het
+        // gezicht naar het grote wiel. Af en toe zwaaien naar wie er al in zit.
+        const p = at((this.seat & 1 ? 1 : -1) * 0.6, 0.12, (this.seat & 2 ? 1 : -1) * 0.6);
+        put(mix(here, p, k), k > 0.5 ? Math.atan2(cx - p[0], cy - p[2]) : this.heading);
+        if (k > 0.9 && Math.sin(this.phase * 0.05 + this.seat * 1.7) > 0.6) {
+          this.limbs[2].rotation.x = -2.7;
+          this.limbs[2].rotation.z = Math.sin(this.phase * 0.85) * 0.45;
+          this.head.rotation.x = -0.3;
+        }
+        return;
+      }
       if (kind === 'station') {
         // op het perron wachten tot het treintje komt
         put(mix(here, at(((this.seat % 4) - 1.5) * 0.36, 0.12, this.seat < 4 ? -0.45 : -0.15), k), k > 0.5 ? turn : this.heading);
@@ -1947,6 +2065,9 @@ export class Guest implements Leader {
       if (!sameUse(shop.kind, kind) || (product && shop.kind === kind && !shop.sells.includes(product))) continue;
       // het treintje rijdt pas als er twee haltes zijn
       if (shop.kind === 'station' && !w.trainRuns()) continue;
+      // de kabelbaan pas met twee huisjes aan het pad, en niet als het park bijna dichtgaat (en niet met een rolstoel
+      // of kinderwagen: die past niet in een stoeltje)
+      if (shop.kind === 'cablecar' && (this.wheels || !w.liftRuns(shop))) continue;
       if (shop.edge) {
         // wat op een rand staat, gebruik je vanaf het pad ernaast
         for (const n of edgeSides(shop)) if (reach.has(n)) options.push({ shop, tile: n });
@@ -3124,6 +3245,20 @@ export class Guest implements Leader {
         this.fun = Math.min(1, this.fun + 0.3);
         this.joy = 1;
       } else this.postpone('ride');
+    } else if (this.state === 'sit' && kind === 'cablecar') {
+      // uitgestapt bij het andere huisje: blij, en hoe meer soorten hij van bovenaf zag, hoe blijer; dan betalen
+      if (this.rode && this.shop && w.shops.includes(this.shop)) {
+        this.rideWish = 0;
+        this.curious = 0;
+        this.fun = Math.min(1, this.fun + 0.25 + 0.04 * Math.min(5, this.airSeen.length));
+        this.joy = Math.max(this.joy, 1);
+        w.guestSound('guest.laugh', this);
+        w.liftPaid(this.shop, this);
+      } else if (!this.rode) {
+        // geen stoeltje gekregen (of de kabelbaan stopte): later nog eens
+        this.postpone('ride');
+        this.postpone('look');
+      }
     } else if (this.state === 'sit' && kind && RIDES.includes(kind)) {
       w.guestSound('guest.laugh', this);
       this.rideWish = 0;
@@ -3480,7 +3615,8 @@ export class Guest implements Leader {
       return;
     }
     // afval: zichtbaar in de hand, in de bak als er een vlakbij staat, anders valt het na een poosje op het pad
-    if (this.trash > 0 || this.litter) this.carryTrash(dt, w);
+    // (hoog in de kabelbaan houd je je afval nog even vast)
+    if ((this.trash > 0 || this.litter) && !(this.riding instanceof CableCar)) this.carryTrash(dt, w);
     if (this.astray > 0) this.roam(dt, w, reach);
     else if (this.state === 'walk') {
       // een blij kind zet het af en toe op een rennen
@@ -3519,10 +3655,16 @@ export class Guest implements Leader {
       else if (!(this.state === 'buy' && this.shuffle(dt, reach)) && face) this.turnTo(face[0] - this.gx, face[1] - this.gy, dt);
       if (this.state === 'sit' && this.shop) {
         // in het treintje blijf je zitten tot de volgende halte; op het perron wacht je tot het komt
-        if (this.riding) this.timer = Math.max(this.timer, 1);
-        else if (this.shop.kind === 'station' && !this.rode) {
+        if (this.riding) {
+          this.timer = Math.max(this.timer, 1);
+          this.peek = Math.max(0, this.peek - dt);
+        } else if (this.shop.kind === 'station' && !this.rode) {
           this.waitT += dt;
           this.timer = this.waitT > 75 || !w.trainRuns() ? Math.min(this.timer, 0.2) : Math.max(this.timer, 1);
+        } else if (this.shop.kind === 'cablecar' && !this.rode) {
+          // op het perron van de kabelbaan: wachten tot er een stoeltje langs het wiel komt
+          this.waitT += dt;
+          this.timer = this.waitT > 60 || !w.liftRuns(this.shop) ? Math.min(this.timer, 0.2) : Math.max(this.timer, 1);
         } else if (this.shop.kind === 'shelter' && rain) this.timer = Math.max(this.timer, 1.5); // schuilen tot het droog is
         else if (this.shop.kind === 'show') {
           // op de tribune: blijven zitten tot de show voorbij is (wie te laat kwam, staat meteen weer op)
@@ -4586,11 +4728,163 @@ export class Train {
   }
 }
 
+// ------------------------------------------------------------ de kabelbaan
+/** Het beeld van één kabelbaan (zie View.makeCable): de groep, de stoeltjes en de twee grote wielen. */
+export interface CableModel {
+  group: THREE.Object3D;
+  chairs: THREE.Object3D[];
+  wheels: THREE.Object3D[];
+}
+/** Wie er in een stoeltje zit, naar welk huisje hij gaat en of hij daarna nog terug rijdt. */
+interface CableRider {
+  g: Guest;
+  to: ShopSpot;
+  back: boolean;
+}
+const CABLE_V = new THREE.Vector3();
+
+/**
+ * Eén kabelbaan tussen twee huisjes. De stoeltjes gaan steeds rond: heen aan de ene kant van de kabel en terug aan
+ * de andere. Bij elk huisje stapt eruit wie daar moet zijn en stapt in wie op het perron stond te wachten. Elk
+ * stoeltje heeft twee plekken. 's Nachts, als het park dicht is, staan de stoeltjes stil.
+ */
+export class CableCar {
+  readonly len: number;
+  /** Het midden van het eerste huisje en de richting naar het tweede (een van de vier windrichtingen). */
+  private ax: number;
+  private ay: number;
+  private ux: number;
+  private uy: number;
+  private loop: number;
+  /** Hoe ver het eerste stoeltje langs de lus is, en hoe hard het nu gaat (0 = stil, 1 = gewoon). */
+  private s = 0;
+  private go = 0;
+  private riders: (CableRider | null)[];
+  private doors: [number | null, number | null] = [null, null];
+  private checkIn = 0;
+  private lookIn = 0;
+  private clock = Math.random() * 10;
+  /** Kunnen gasten nu instappen? Beide huisjes staan aan het pad en het park is open. */
+  boarding = false;
+
+  constructor(readonly a: ShopSpot, readonly b: ShopSpot, readonly model: CableModel) {
+    this.len = cableLength(a, b);
+    this.ux = Math.sign(b.x - a.x);
+    this.uy = Math.sign(b.y - a.y);
+    [this.ax, this.ay] = shopCenter(a);
+    this.loop = cableLoop(this.len);
+    this.riders = new Array(model.chairs.length * 2).fill(null);
+  }
+
+  /** Hoort dit huisje bij deze kabelbaan, en kun je er nu instappen? */
+  serves(shop: ShopSpot): boolean {
+    return this.boarding && (shop === this.a || shop === this.b);
+  }
+
+  /** Iedereen eruit (een huisje is weggehaald): bij het huisje waar ze instapten, of anders bij de ingang. */
+  drop(): void {
+    this.riders.forEach((r, i) => {
+      if (r?.g.riding === this) r.g.liftOff(null, this.doors[0] ?? this.doors[1] ?? ENTRANCE);
+      this.riders[i] = null;
+    });
+  }
+
+  /** Een punt langs de lus in rastercoördinaten: `a` tegels langs de lijn en `side` opzij. */
+  private grid(a: number, side: number): [number, number] {
+    return [this.ax + this.ux * a - this.uy * side, this.ay + this.uy * a + this.ux * side];
+  }
+
+  /** Waar plek `seat` nu is: de gast zit erin, met het gezicht in de rijrichting en hij schommelt mee. */
+  seatPose(seat: number, m: THREE.Object3D): void {
+    const chair = this.model.chairs[seat >> 1];
+    CABLE_V.set(seat % 2 ? 0.12 : -0.12, -CABLE.hang + 0.03 - 0.2 * m.scale.y, -0.02);
+    chair.localToWorld(CABLE_V);
+    m.position.copy(CABLE_V);
+    chair.getWorldQuaternion(m.quaternion);
+  }
+
+  /** Waar het stoeltje van plek `seat` is en hoe hoog de kabel daar hangt: voor het wolkje en voor wat de gast onder zich ziet. */
+  private seatSpot(seat: number): { gx: number; gy: number; h: number } {
+    const c = cableAt(this.len, this.s + ((seat >> 1) * this.loop) / this.model.chairs.length);
+    const [gx, gy] = this.grid(c.a, c.side);
+    return { gx, gy, h: c.h };
+  }
+
+  update(dt: number, w: GuestWorld, reach: Set<number>, guests: Guest[]): void {
+    this.clock += dt;
+    this.checkIn -= dt;
+    if (this.checkIn <= 0) {
+      this.checkIn = 1;
+      this.doors = [doorOf(w, reach, this.a), doorOf(w, reach, this.b)];
+    }
+    for (let i = 0; i < this.riders.length; i++) if (this.riders[i] && (this.riders[i]!.g.gone || this.riders[i]!.g.riding !== this)) this.riders[i] = null;
+    const linked = this.doors[0] !== null && this.doors[1] !== null;
+    this.boarding = linked && !w.goingHome() && !w.closed();
+    const aboard = this.riders.some(r => r);
+    // 's nachts staan de stoeltjes stil; wie er nog in zit, wordt eerst naar een huisje gebracht
+    const target = (linked && !w.closed()) || aboard ? 1 : 0;
+    this.go += (target - this.go) * Math.min(1, dt * 0.8);
+    if (this.go < 0.01 && !target) this.go = 0;
+    const n = this.model.chairs.length, before = this.s;
+    this.s = (this.s + CABLE.speed * this.go * dt) % this.loop;
+    for (let i = 0; i < n; i++) {
+      const off = (i * this.loop) / n;
+      for (const end of [0, 1] as const) {
+        if (!cablePassed(before + off, this.s + off, cableStop(this.len, end), this.loop)) continue;
+        const here = end ? this.b : this.a, there = end ? this.a : this.b, door = this.doors[end];
+        // bij het wiel: eerst uitstappen, dan instappen
+        for (const k of [i * 2, i * 2 + 1]) {
+          const r = this.riders[k];
+          if (r && r.to === here) {
+            if (r.back) {
+              // nog een keer: terug naar waar hij instapte
+              r.back = false;
+              r.to = there;
+            } else {
+              r.g.liftOff(door === null ? null : here, door ?? this.doors[1 - end] ?? ENTRANCE);
+              this.riders[k] = null;
+            }
+          }
+          if (this.riders[k] || !this.boarding) continue;
+          const g = guests.find(q => q.liftWaiting === here);
+          if (!g) continue;
+          g.liftOn(this, k);
+          this.riders[k] = { g, to: there, back: Math.random() < CABLE.back };
+        }
+      }
+    }
+    // de stoeltjes, met een beetje schommelen; de grote wielen draaien mee
+    const { chairs, wheels, group } = this.model;
+    for (let i = 0; i < n; i++) {
+      const c = cableAt(this.len, this.s + (i * this.loop) / n);
+      const chair = chairs[i];
+      chair.position.set(c.a, c.h, c.side);
+      chair.rotation.order = 'YXZ';
+      const t = this.clock * 1.6 + i * 1.7, turning = Math.abs(c.mz) > 0.05 ? 1 : 0;
+      chair.rotation.set(Math.sin(t * 0.7) * 0.05 * this.go, Math.atan2(c.mx, c.mz), (Math.sin(t) * 0.05 + turning * 0.1) * this.go);
+    }
+    for (const wheel of wheels) wheel.rotation.y += (CABLE.speed * this.go * dt) / CABLE.r;
+    group.updateMatrixWorld(true);
+    // wie erin zit, kijkt naar beneden: welke dieren zijn daar?
+    this.lookIn -= dt;
+    const look = this.lookIn <= 0;
+    if (look) this.lookIn = 0.4;
+    this.riders.forEach((r, k) => {
+      if (!r) return;
+      const spot = this.seatSpot(k);
+      r.g.fly(spot.gx, spot.gy, spot.h - CABLE.hang);
+      if (look && spot.h > CABLE.low + 0.4) for (const sp of w.liftView(spot.gx, spot.gy)) r.g.overlook(w, sp);
+    });
+  }
+}
+
 // ------------------------------------------------------------ alle gasten samen
 export class GuestManager {
   guests: Guest[] = [];
   /** Het treintje, zodra het beeld er een heeft gemaakt. */
   train: Train | null = null;
+  /** De kabelbanen: één per paar huisjes (het spel houdt deze lijst bij). */
+  lifts: CableCar[] = [];
   private spawnIn = 2;
   private list: number[] = [];
   private reach = new Set<number>();
@@ -4774,6 +5068,8 @@ export class GuestManager {
     let astray = 0;
     for (const g of this.guests) if (g.astray > 0) astray++;
     strayRoom = Math.max(STRAY.most, Math.floor(this.guests.length * STRAY.share)) - astray;
+    // eerst de stoeltjes van de kabelbaan, dan de gasten: wie erin zit, zit zo precies op zijn stoeltje
+    for (const lift of this.lifts) lift.update(dt, this.world, this.reach, this.guests);
     for (const g of this.guests) g.update(dt, this.world, this.list, this.reach);
     for (const g of this.guests) g.showFace();
     if (this.guests.some(g => g.gone)) this.guests = this.guests.filter(g => !g.gone);

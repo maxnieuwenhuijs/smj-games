@@ -14,6 +14,7 @@ import { MURK, murkAfter, murkLoad, murkRate, murkyWater } from './data';
 import { guestCard, guestFacts, guestNames } from './traits';
 import { ATTRACTIONS, SHOW_STARS, SHOW_TIME, newShow, showReady, showSoon, showTick } from './data';
 import { glassSides } from './grid';
+import { LOOKS, RIDES } from './data';
 
 /** Zet een hek om het blok tegels van (x0,y0) tot en met (x1,y1). */
 function fenceBox(g: Grid, x0: number, y0: number, x1: number, y1: number): Edge[] {
@@ -485,6 +486,25 @@ describe('wensen per level: alles wat iemand vraagt, kun je in dat level ook nee
     for (const sp of SHOW_STARS.filter(s => s !== 'seal')) expect(AQUATIC).toContain(sp);
     expect(ATTRACTIONS).toContain('show');
     expect(SHOPS).toContain('show');
+  });
+
+  it('de kabelbaan komt in de wereld van ijs en bergen, niet tegelijk met een andere attractie', () => {
+    // FEATURE telt gehaalde levels: 30 t/m 39 is level 31 t/m 40
+    expect(FEATURE.cablecar).toBeGreaterThanOrEqual(30);
+    expect(FEATURE.cablecar).toBeLessThan(40);
+    for (const kind of ATTRACTIONS) if (kind !== 'cablecar') expect(feature(kind), `${kind} komt tegelijk met de kabelbaan`).not.toBe(FEATURE.cablecar);
+    expect(ATTRACTIONS).toContain('cablecar');
+    expect(SHOPS).toContain('cablecar');
+    expect(SHOP_SIZE.cablecar).toBe(2);
+    // wie een ritje wil of iets moois wil zien, kan de kabelbaan kiezen: die wensen zijn er dan al
+    expect(RIDES).toContain('cablecar');
+    expect(LOOKS).toContain('cablecar');
+    expect(feature('carousel')).toBeLessThanOrEqual(FEATURE.cablecar);
+    expect(feature('fountain')).toBeLessThanOrEqual(FEATURE.cablecar);
+    for (const key of ['shop.cablecar', 'say.cable.one', 'say.cable.where', 'say.cable.first', 'guest.doing.cable']) {
+      expect((nl as Record<string, string>)[key], key).toBeTruthy();
+      expect((en as Record<string, string>)[key], key).toBeTruthy();
+    }
   });
 
   it('een dier wil alleen speelgoed, warmte of kou die in dat level al te koop is', () => {

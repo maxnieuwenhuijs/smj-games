@@ -11,7 +11,9 @@ export type ShopKind = 'foodstall' | 'drinkstall' | 'bench' | 'toilet' | 'icecre
   // uitkijktoren, restaurant, reuzenrad, botsauto's, schuilhut, treinhalte en een bak met paraplu's
   | 'tower' | 'restaurant' | 'ferris' | 'bumper' | 'shelter' | 'station' | 'umbrellas'
   // de tribune bij de dolfijnen: daar is af en toe een dierenshow
-  | 'show';
+  | 'show'
+  // een huisje van de kabelbaan: twee in een rechte lijn, met stoeltjes hoog boven de dieren
+  | 'cablecar';
 export type FenceOption = 'fence' | 'gate' | 'wall' | 'net' | 'glass' | 'window' | 'picket' | 'petgate';
 /** Wat voor hek een dier nodig heeft: sterke dieren een stenen muur, klimmers en vliegers een hoog net. */
 export type FenceNeed = 'wall' | 'net' | 'glass';
@@ -284,7 +286,7 @@ export const SERVICE_SHOPS: ShopKind[] = ['toilet', 'bench', 'bin', 'umbrellas',
 export const parkShopGroup = (kind: ShopKind): ParkGroup | null =>
   kind === 'flowers' ? 'green' : SERVICE_SHOPS.includes(kind) ? 'service' : null;
 /** Onder de knop Attracties staan de speeltoestellen (groep Speeltuin) en de grote attracties. */
-export const ATTRACTIONS: ShopKind[] = ['fountain', 'tower', 'show', 'carousel', 'station', 'bumper', 'ferris'];
+export const ATTRACTIONS: ShopKind[] = ['fountain', 'tower', 'show', 'carousel', 'station', 'bumper', 'ferris', 'cablecar'];
 /** Palen waar een slinger tussen komt: staan er twee in één lijn, hooguit zoveel tegels uit elkaar, dan hangt er vanzelf een slinger. */
 export const STRING_REACH = 5;
 export const STRING_HEIGHT = 1.25;
@@ -325,10 +327,10 @@ export const likesToy = (sp: SpeciesId, kind: string): boolean => TOY_OF[sp] ===
  * glijbaan, later de schommel, de wipwap, de wipkip en de trampoline). 'playground' bestaat nog als naam voor
  * 'iets om te spelen' (de wens van een gast) en voor oude parken, waar hij bij het laden een glijbaan wordt.
  */
-export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'slide', 'swing', 'seesaw', 'springer', 'trampoline', 'icecream', 'flowers', 'bin', 'umbrellas', 'shelter', 'balloon', 'hats', 'souvenir', 'restaurant', 'fountain', 'tower', 'carousel', 'station', 'bumper', 'ferris', 'show'];
-/** Waar een gast naar kijkt (zin in iets moois) en waar hij in rijdt (zin in een ritje). */
-export const LOOKS: ShopKind[] = ['fountain', 'tower'];
-export const RIDES: ShopKind[] = ['carousel', 'ferris', 'bumper', 'station'];
+export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'slide', 'swing', 'seesaw', 'springer', 'trampoline', 'icecream', 'flowers', 'bin', 'umbrellas', 'shelter', 'balloon', 'hats', 'souvenir', 'restaurant', 'fountain', 'tower', 'carousel', 'station', 'bumper', 'ferris', 'show', 'cablecar'];
+/** Waar een gast naar kijkt (zin in iets moois) en waar hij in rijdt (zin in een ritje). De kabelbaan is allebei. */
+export const LOOKS: ShopKind[] = ['fountain', 'tower', 'cablecar'];
+export const RIDES: ShopKind[] = ['carousel', 'ferris', 'bumper', 'station', 'cablecar'];
 /** Maten van de grote attracties; het beeld en de gasten gebruiken dezelfde getallen. Alles ten opzichte van het midden van het gebouw. */
 export const FERRIS = { hub: 2.25, radius: 1.5, cabins: 6, speed: 0.45 };
 export const TOWER_TOP = 1.75;
@@ -384,7 +386,7 @@ export const FENCE_COLORS: Record<1 | 3 | 4 | 5 | 7, number[]> = {
 /** Hoeveel tegels breed en diep een winkel is: gebouwen 2 bij 2, losse dingen 1 bij 1. */
 export const SHOP_SIZE: Record<ShopKind, number> = {
   foodstall: 2, drinkstall: 2, toilet: 2, playground: 2, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2, icecream: 2, balloon: 2, hats: 2, souvenir: 2, bench: 1, flowers: 1, bin: 1, fountain: 2, carousel: 2,
-  tower: 2, restaurant: 2, ferris: 2, bumper: 2, shelter: 2, station: 2, umbrellas: 1, show: 2,
+  tower: 2, restaurant: 2, ferris: 2, bumper: 2, shelter: 2, station: 2, umbrellas: 1, show: 2, cablecar: 2,
 };
 /**
  * Een marktkraam is twee tegels breed maar maar één tegel diep: zijn lange kant is de voorkant. Alle andere
@@ -519,6 +521,8 @@ export const SHOP_PRICE: Record<ShopKind, number> = {
   // de grote attracties: daar spaar je voor
   fountain: 30, carousel: 60,
   tower: 25, restaurant: 30, ferris: 80, bumper: 45, shelter: 10, station: 20, umbrellas: 6, show: 30,
+  // één huisje van de kabelbaan: je hebt er twee nodig
+  cablecar: 25,
 };
 /** Een kraam wordt vies van het verkopen (vanaf FEATURE.upkeep): na vijftig keer is hij vies en koopt een derde van de gasten er niets meer. */
 export const DIRT_PER_USE = 0.02;
@@ -828,6 +832,8 @@ export const FEATURE = {
   tower: 20, restaurant: 24, ferris: 35, bumper: 30, shelter: 10, station: 27, umbrellas: 10,
   /** De tribune voor de dierenshow: even na de dolfijn. */
   show: 22,
+  /** De kabelbaan: in de wereld van ijs en bergen, waar hij het best past. */
+  cablecar: 32,
   /** Een ruit in het hek, het weer (regen), seizoenen, kramen die vies worden, warmte en kou. */
   window: 13, weather: 10, season: 16, upkeep: 17, climate: 31,
   /** Bijzondere gasten: rolstoel en kinderwagen, een schoolklas, een verjaardag, een beroemde gast, een verdwaald kind. */

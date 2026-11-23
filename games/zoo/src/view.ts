@@ -7,6 +7,7 @@ import {
 } from './data';
 import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type Land, type Side } from './grid';
 import { roadside } from './road';
+import { CABLE, cableHeight } from './cable';
 import { Ground, aroundTexture } from './ground';
 
 const SQRT2 = Math.SQRT2;
@@ -573,6 +574,8 @@ const SHOP_PARTS: Record<ShopKind, Part[]> = {
   umbrellas: [],
   // de tribune voor de dierenshow
   show: [],
+  // een huisje van de kabelbaan
+  cablecar: [],
 };
 // Iets leuks in een verblijf: een bal, een struik met bessen, een boomstam en een bloemperk.
 const TOY_PARTS: Record<ToyKind, Part[]> = {
@@ -1130,6 +1133,56 @@ SHOP_PARTS.show = [
   ), PAINT_MAT],
 ];
 
+// Huisje van de kabelbaan: een houten perron met vier palen en een rood puntdak. Onder het dak hangt aan een as het
+// grote wiel; dat wiel, de kabel en de stoeltjes komen pas als er twee huisjes zijn (zie makeCable). De gasten
+// wachten in de hoekjes. Voor staat een rond bord met een stoeltje, en in de winter ligt er sneeuw op het dak.
+const CABLE_SIGN: P3 = [0.4, 1.3, 0.93];
+/** Sneeuw op de kabelbaan: alleen in de winter te zien (zie applySeason). */
+const CABLE_SNOW_MAT = std(0xf7fbff, 1);
+CABLE_SNOW_MAT.visible = false;
+const cableRoof = (lift: number, thick: number, deep: number): THREE.BufferGeometry =>
+  merge([-1, 1].map(s => new THREE.BoxGeometry(2.04 - lift, thick, deep).rotateX(s * 0.5).translate(0, 1.92 + lift, s * 0.5)));
+SHOP_PARTS.cablecar = [
+  floorOf(0xcfc6b6),
+  [boxAt(1.72, 0.1, 1.72, 0, 0.07, 0), std(0xd9b98c), false],
+  [merge([
+    ...CORNERS.map(([x, z]) => boxAt(0.1, 1.55, 0.1, x * 0.8, 0.895, z * 0.8)),
+    boxAt(1.7, 0.07, 0.07, 0, 1.64, 0.8), boxAt(1.7, 0.07, 0.07, 0, 1.64, -0.8), boxAt(0.07, 0.07, 1.7, 0.8, 1.64, 0), boxAt(0.07, 0.07, 1.7, -0.8, 1.64, 0),
+  ]), WOOD_MAT],
+  [cableRoof(0, 0.07, 1.16), P_RED],
+  [boxAt(2.1, 0.08, 0.12, 0, 2.2, 0), std(0xb8433b)],
+  [cableRoof(0.05, 0.05, 1.08), CABLE_SNOW_MAT, false],
+  // de as van het wiel en de motor erboven, onder de nok
+  [tube(0.045, 0.045, 0.8, 0, 1.46, 0), METAL],
+  [merge([boxAt(0.34, 0.2, 0.3, 0, 1.94, 0), tube(0.1, 0.1, 0.06, 0, 1.82, 0)]), P_YELLOW],
+  // het bord: een paal, en een blauw rond bord met een wit stoeltje aan de kabel (los, zodat het kan wiebelen)
+  [tube(0.025, 0.03, CABLE_SIGN[1], CABLE_SIGN[0], CABLE_SIGN[1] / 2, CABLE_SIGN[2]), METAL],
+  [new THREE.CylinderGeometry(0.2, 0.2, 0.04, 16).rotateX(Math.PI / 2).translate(...CABLE_SIGN), P_BLUE],
+  [merge([
+    new THREE.BoxGeometry(0.32, 0.025, 0.07).rotateZ(-0.15).translate(CABLE_SIGN[0], CABLE_SIGN[1] + 0.1, CABLE_SIGN[2]),
+    boxAt(0.02, 0.12, 0.07, CABLE_SIGN[0], CABLE_SIGN[1] + 0.04, CABLE_SIGN[2]),
+    boxAt(0.15, 0.03, 0.07, CABLE_SIGN[0] + 0.01, CABLE_SIGN[1] - 0.03, CABLE_SIGN[2]),
+    boxAt(0.03, 0.1, 0.07, CABLE_SIGN[0] - 0.055, CABLE_SIGN[1] + 0.005, CABLE_SIGN[2]),
+  ]), WHITE_MAT],
+];
+/** De kleuren van de stoeltjes, om de beurt. */
+const CHAIR_COLORS = [0xe0584f, 0xffd23f, 0x4a90e2, 0x6cc04a, 0xf08a24, 0xa06ad9, 0xf06aa6, 0x2bb5a8];
+const CABLE_MAT = std(0x3d4f5a, 0.6);
+/**
+ * Een stoeltje voor twee, met zijn draaipunt aan de kabel en zijn voorkant naar +z: een klem, een stang naar de
+ * rugleuning, een zitting en een rug in een vrolijke kleur, armleuningen en een beugel voor.
+ */
+const chairGeo = (color: number): THREE.BufferGeometry => {
+  const y = -CABLE.hang;
+  return painted(
+    [color, boxAt(0.5, 0.05, 0.26, 0, y, -0.02), boxAt(0.5, 0.26, 0.04, 0, y + 0.16, -0.15)],
+    [0x8a8f98,
+      boxAt(0.08, 0.08, 0.14, 0, -0.02, 0), beam(0.035, [0, -0.04, 0], [0, y + 0.33, -0.16]), boxAt(0.52, 0.03, 0.03, 0, y + 0.32, -0.16),
+      ...[-1, 1].flatMap(s => [boxAt(0.03, 0.3, 0.03, s * 0.25, y + 0.17, -0.16), boxAt(0.03, 0.03, 0.3, s * 0.25, y + 0.2, 0.01)]),
+      boxAt(0.52, 0.025, 0.025, 0, y + 0.2, 0.16)],
+  );
+};
+
 // Bij het wc-gebouw: een bordje met een mannetje en een vrouwtje tussen de deuren, twee deurmatten, een rand
 // onder het dak en een luchtpijp erop. Achteraan in de lijst, zodat de nummers van de andere onderdelen blijven.
 SHOP_PARTS.toilet.push([painted(
@@ -1166,6 +1219,7 @@ const SHOP_BOB: Partial<Record<ShopKind, Bob[]>> = {
   station: [{ parts: [8, 9], at: [SIGN_AT[0], 1.3, SIGN_AT[2]], amp: 0, sway: 0.07 }],
   umbrellas: [{ parts: [2, 3, 4, 5], at: [0, 0.3, 0], amp: 0, sway: 0.06 }],
   show: [{ parts: [6, 7], at: [SHOW_SIGN[0], 1.05, SHOW_SIGN[2]], amp: 0, sway: 0.07 }],
+  cablecar: [{ parts: [9, 10], at: [CABLE_SIGN[0], 1.1, CABLE_SIGN[2]], amp: 0, sway: 0.07 }],
 };
 // De wc-deuren: elk om zijn buitenste rand, met de klink aan de binnenkant.
 const DOOR_GEOS = [-1, 1].map(side => boxAt(0.5, 0.86, 0.05, -side * 0.25, 0.45, 0));
@@ -2489,6 +2543,8 @@ export class View {
   private ghostTileMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.94, 0.94).rotateX(-Math.PI / 2), this.ghostTileMat);
   private ghostRingMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.85, depthWrite: false });
   private ghostRing = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.44, 28).rotateX(-Math.PI / 2), this.ghostRingMat);
+  /** De lijn waar de kabel van de kabelbaan komt (zie ghostCable). */
+  private ghostCableMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 0.07, 0.07), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.75, depthWrite: false }));
   private ghostAnimals = new Map<string, THREE.Object3D>();
   private ghosts: THREE.Object3D[] = [];
 
@@ -2596,7 +2652,7 @@ export class View {
 
     this.ghostTileMesh.position.y = 0.012;
     this.ghostRing.position.y = 0.014;
-    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostWallMesh, this.ghostNetMesh, this.ghostGlassMesh, this.ghostWindowMesh, this.ghostPicketMesh, this.ghostPetgateMesh, this.ghostTroughMesh, ...Object.values(this.ghostBeds), ...Object.values(this.ghostToys), ...Object.values(this.ghostDecors), ...Object.values(this.ghostProps), ...Object.values(this.ghostShops), this.ghostTileMesh, this.ghostRing];
+    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostWallMesh, this.ghostNetMesh, this.ghostGlassMesh, this.ghostWindowMesh, this.ghostPicketMesh, this.ghostPetgateMesh, this.ghostTroughMesh, ...Object.values(this.ghostBeds), ...Object.values(this.ghostToys), ...Object.values(this.ghostDecors), ...Object.values(this.ghostProps), ...Object.values(this.ghostShops), this.ghostTileMesh, this.ghostRing, this.ghostCableMesh];
     for (const g of this.ghosts) {
       g.visible = false;
       g.traverse(o => { o.renderOrder = 5; });
@@ -2807,6 +2863,7 @@ export class View {
     groundColor(this.outerMat.color.setHex(this.worldGround), season);
     SEASON_LEAVES.forEach((l, i) => leafColor(l.mat.color, l.summer, season, i, l.pink));
     BLOSSOM_MAT.visible = season === 'spring';
+    CABLE_SNOW_MAT.visible = season === 'winter';
     if (tiles && this.grid) this.paintTerrain(this.grid);
   }
 
@@ -4059,6 +4116,75 @@ export class View {
       this.scene.add(part);
     }
     return (this.train = { loco, wagons });
+  }
+
+  /**
+   * Een kabelbaan van `len` tegels, van het midden van het eerste huisje (ax, ay) in richting (ux, uy): twee kabels
+   * (heen en terug) die bij de huisjes laag om een groot wiel gaan en daartussen hoog over het park hangen, palen op
+   * `poles` tegels, en `chairs` stoeltjes. In de groep loopt +x van het eerste naar het tweede huisje. Het spel
+   * zet de stoeltjes zelf op hun plek en draait de wielen.
+   */
+  makeCable(len: number, poles: number[], chairs: number, ax: number, ay: number, ux: number, uy: number): { group: THREE.Group; chairs: THREE.Object3D[]; wheels: THREE.Object3D[] } {
+    const group = new THREE.Group();
+    group.position.set(toWorldX(ax), 0, toWorldZ(ay));
+    group.rotation.y = Math.atan2(-uy, ux);
+    const r = CABLE.r, rope: THREE.BufferGeometry[] = [];
+    const steps = Math.max(2, Math.ceil(len / 0.25));
+    for (const side of [-r, r])
+      for (let i = 0; i < steps; i++) {
+        const t0 = (len * i) / steps, t1 = (len * (i + 1)) / steps;
+        rope.push(beam(0.03, [t0, cableHeight(t0, len), side], [t1, cableHeight(t1, len), side]));
+      }
+    for (const end of [0, len]) rope.push(new THREE.TorusGeometry(r, 0.016, 4, 24).rotateX(Math.PI / 2).translate(end, CABLE.low, 0));
+    const ropeMesh = new THREE.Mesh(merge(rope), CABLE_MAT);
+    ropeMesh.castShadow = true;
+    group.add(ropeMesh);
+    // de palen: een voet van steen, een blauwe paal, een gele dwarsbalk met rode wieltjes onder de kabel en sneeuw erop
+    if (poles.length) {
+      const stand: [number, ...THREE.BufferGeometry[]][] = [[0xb9b2a6], [0x5b7c99], [0xffd23f], [0xe0584f]];
+      const snow: THREE.BufferGeometry[] = [];
+      for (const t of poles) {
+        const h = cableHeight(t, len);
+        stand[0].push(boxAt(0.32, 0.08, 0.32, t, 0.04, 0));
+        stand[1].push(tube(0.06, 0.09, h + 0.06, t, (h + 0.06) / 2, 0));
+        stand[2].push(boxAt(0.09, 0.07, 2 * r + 0.3, t, h + 0.07, 0));
+        for (const side of [-r, r]) stand[3].push(new THREE.CylinderGeometry(0.055, 0.055, 0.05, 10).rotateX(Math.PI / 2).translate(t, h + 0.01, side));
+        snow.push(boxAt(0.1, 0.035, 2 * r + 0.3, t, h + 0.122, 0), ball(0.07, t, h + 0.11, 0));
+      }
+      const pole = new THREE.Mesh(painted(...stand), PAINT_MAT);
+      pole.castShadow = true;
+      group.add(pole, new THREE.Mesh(merge(snow), CABLE_SNOW_MAT));
+    }
+    // de grote wielen in de huisjes: een rode rand met spaken en een gele naaf
+    const wheelGeo = painted(
+      [0xe0584f, new THREE.TorusGeometry(r, 0.035, 6, 24).rotateX(Math.PI / 2)],
+      [0x8a8f98, ...[0, 1, 2].map(k => boxAt(2 * r, 0.025, 0.035, 0, 0, 0).rotateY((k * Math.PI) / 3))],
+      [0xffd23f, tube(0.07, 0.07, 0.07, 0, 0, 0)],
+    );
+    const wheels = [0, len].map(end => {
+      const wheel = new THREE.Mesh(wheelGeo, PAINT_MAT);
+      wheel.position.set(end, CABLE.low, 0);
+      group.add(wheel);
+      return wheel;
+    });
+    const seats = Array.from({ length: chairs }, (_, i) => {
+      const chair = new THREE.Mesh(chairGeo(CHAIR_COLORS[i % CHAIR_COLORS.length]), PAINT_MAT);
+      chair.castShadow = true;
+      group.add(chair);
+      return chair;
+    });
+    this.scene.add(group);
+    return { group, chairs: seats, wheels };
+  }
+
+  /** Het voorbeeld van de kabel: een lijn hoog boven het park van het ene huisje naar het andere, groen of rood. */
+  ghostCable(ax: number, ay: number, bx: number, by: number, ok: boolean): void {
+    const m = this.ghostCableMesh, dx = bx - ax, dy = by - ay;
+    (m.material as THREE.MeshBasicMaterial).color.setHex(ok ? OK_COLOR : BAD_COLOR);
+    m.position.set(toWorldX((ax + bx) / 2), CABLE.high, toWorldZ((ay + by) / 2));
+    m.rotation.set(0, Math.atan2(-dy, dx), 0);
+    m.scale.set(Math.max(0.1, Math.hypot(dx, dy)), 1, 1);
+    m.visible = true;
   }
 
   /**
