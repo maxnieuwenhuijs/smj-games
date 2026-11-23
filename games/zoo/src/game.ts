@@ -5090,7 +5090,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private showCast(shop: ShopObj): { pool: { side: number; region: Region } | null; stars: Animal[]; ready: ReturnType<typeof showReady> } {
     const pool = this.showPool(shop.x, shop.y, ...shopTiles(shop));
     const stars = pool ? this.showDolphins(pool.region.id) : [];
-    return { pool, stars, ready: showReady(stars) };
+    // overdag liggen dolfijnen vaak even te rusten: bij de bel worden ze wakker. Alleen 's nachts slapen ze echt
+    return { pool, stars, ready: showReady(stars.map(a => ({ happy: a.happy, sick: a.sick, sleeping: a.sleeping && this.isNight() }))) };
   }
 
   /** Een tik op 'Nu een show!': de show begint over een paar tellen. Kunnen de dieren niet, dan zie je waarom. */
@@ -5137,6 +5138,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         sfx('alarm', { volume: 0.6, at: [cx, cy] });
         this.floatAt(icon('show'), cx, cy, 1.9);
         this.guests.callToShow(shop, SHOW_TIME.reach);
+        // wie lag te rusten, staat op voor de show
+        stars.forEach((a, i) => a.dawn(0.3 + i * 0.4));
         // de eerste keer roept de gastvrouw het ook nog
         if (!this.told.has('show.first')) {
           this.told.add('show.first');

@@ -924,6 +924,11 @@ export class Animal {
    * (niet als het dier slaapt, ziek is of nog midden in een sprong zit).
    */
   showTrick(w: AnimalWorld, n: number, hoop: Toy | null, gx: number, gy: number): boolean {
+    // lag het dier nog te rusten, dan staat het nu op; bij het volgende kunstje doet het mee
+    if (this.sleeping && !this.sick) {
+      this.dawn(0.1);
+      return false;
+    }
     if (this.sick || this.escaped || this.sleeping || this.drugged || this.trick?.kind === 'leap' || this.trick?.kind === 'breach') return false;
     // nog op weg naar de hoepel: eerst daar doorheen
     if (this.playAt && this.state === 'walk') return false;

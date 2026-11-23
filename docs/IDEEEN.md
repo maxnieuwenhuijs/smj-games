@@ -60,7 +60,7 @@ Een lijst om uit te kiezen. Achter wat er al in het spel zit, staat **Gebouwd.**
 
 43. **Dierenarts in dienst** die zieke dieren zelf beter maakt. *Klein.* **Gebouwd.**
 44. **Tuinman** die bloemen water geeft en gras maait. *Klein.*
-45. **Bewaker** die ontsnapte dieren terugbrengt. *Klein.*
+45. **Bewaker** die ontsnapte dieren terugbrengt. *Klein.* **Gebouwd.**
 46. **Gids** die gasten rondleidt (zie 42). *Middel.* **Gebouwd.**
 47. **Personeel beter maken**: na een tijd werkt een werker sneller. *Klein.*
 48. **Pauzehuisje**: personeel dat kan uitrusten, werkt langer door. *Middel.*
@@ -86,7 +86,7 @@ Een lijst om uit te kiezen. Achter wat er al in het spel zit, staat **Gebouwd.**
 62. **Medailles**: brons, zilver en goud voor bijvoorbeeld 10, 50 en 100 blije dieren. *Klein.*
 63. **Bekerkast** bij de ingang waar je prijzen in ziet staan. *Middel.*
 64. **Dagopdracht**: elke dag één kleine opdracht met een extra beloning. *Klein.*
-65. **Sterren voor het park**: één tot vijf sterren op het bord bij de ingang. *Klein.*
+65. **Sterren voor het park**: één tot vijf sterren op het bord bij de ingang. *Klein.* **Gebouwd.**
 66. **Fotoalbum**: maak zelf foto's van je dieren en bewaar ze. *Middel.*
 67. **Diploma's** om te printen: "Beste dierenverzorger". *Klein.*
 68. **Dierenweetjes**: bij elk nieuw dier een ingesproken weetje. *Middel.* **Gebouwd.**
