@@ -3,8 +3,11 @@
 import type * as THREE from 'three';
 import { saveSet, t } from '@smj/shared';
 import { Animal, type AnimalWorld, type TrickSound, type Trough, type WildSpot } from './animal';
-import { miniOpen, playMini, type MiniOptions } from './minigame';
-import { ambience, animalSound, hasVoice, heard, layer, listen, music, playTune, playVoice, reshuffle, sfx } from './audio';
+import { miniOpen, playMini, type MiniKind, type MiniOptions } from './minigame';
+import { pickSetup } from './miniask';
+import { cardOpen } from './playcard';
+import { playVet } from './vetgame';
+import { ambience, animalSound, hasVoice, heard, isMuted, layer, listen, music, playTune, playVoice, reshuffle, sfx } from './audio';
 import {
   BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, SHOP_DEEP, shopSpan, herdOf, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WORLDS, migrateLevel, unlockedSpecies, worldOf,
@@ -149,47 +152,75 @@ const MUD = TERRAINS.indexOf('mud');
 type EventKind = 'schoolclass' | 'party' | 'celeb' | 'lost' | 'delivery' | 'photo' | 'build' | 'bedtime' | 'crates' | 'till' | 'mayor' | 'guess';
 type CardEvent = Exclude<EventKind, 'lost'>;
 const EVENT_KINDS: EventKind[] = ['schoolclass', 'party', 'celeb', 'lost', 'delivery', 'photo', 'build', 'bedtime', 'crates', 'till', 'mayor', 'guess'];
-/** Welk puzzeltje er bij een kaartje hoort, en hoe het eruitziet (zie MiniOptions). */
-type MiniSetup = Pick<MiniOptions, 'kind' | 'animals' | 'first' | 'sizeIcons' | 'guess'>;
+/**
+ * Een puzzeltje dat bij een kaartje kan horen, en hoe het eruitziet (zie MiniOptions). `says`: dit puzzeltje heeft een
+ * eigen vraag (een sleutel van EVENT_SAYS in lines.ts); zonder past het bij de gewone vraag van het evenement.
+ */
+type MiniSetup = Pick<MiniOptions, 'kind' | 'animals' | 'first' | 'things' | 'guess'> & { says?: string };
+/** De plaatjes waarmee geteld, gerekend en gelegd wordt: voer voor de dieren, spullen van een feestje en van de bouwer. */
+const FEED_THINGS: IconId[] = ['crate', 'hay', 'fruit', 'veg', 'fish'];
+const PARTY_THINGS: IconId[] = ['balloon_red', 'cake', 'hat_party', 'balloon_blue', 'gift', 'balloon_yellow'];
+const BUILD_THINGS: IconId[] = ['log', 'nail', 'wallbrick', 'hammer', 'trowel'];
 /**
  * Elk evenement met een kaartje. `from`: vanaf welk level (een sleutel van FEATURE). `sound`: het geluid waarmee het
- * zich aankondigt. `mini`: het puzzeltje. `coins`: de munten als het lukt. `boost`: zoveel tellen meer gasten als het
- * lukt. Wie erbij praat en wat die zegt, staat in lines.ts (EVENT_SAYS).
+ * zich aankondigt. `minis`: de puzzeltjes die erbij passen; elke keer komt er een andere (zie pickMini). `coins`: de
+ * munten als het lukt. `boost`: zoveel tellen meer gasten als het lukt. Wie erbij praat en wat die zegt, staat in
+ * lines.ts (EVENT_SAYS).
  */
-const EVENTS: Record<CardEvent, { from: keyof typeof FEATURE; icon: IconId; sound: string; mini: MiniSetup; coins: number; boost?: number }> = {
+const EVENTS: Record<CardEvent, { from: keyof typeof FEATURE; icon: IconId; sound: string; minis: MiniSetup[]; coins: number; boost?: number }> = {
   // de klas: zie CLASS_TASKS voor wat ze kan vragen
-  schoolclass: { from: 'schoolclass', icon: 'schoolclass', sound: 'guest.kid', mini: { kind: 'sum' }, coins: 4 },
-  // de jarige: cadeautjes op volgorde
-  party: { from: 'party', icon: 'cake', sound: 'party', mini: { kind: 'order', sizeIcons: ['balloon_red', 'cake', 'hat_party', 'balloon_blue'] }, coins: 3 },
-  // de beroemde gast: een woord
-  celeb: { from: 'celeb', icon: 'star', sound: 'fanfare', mini: { kind: 'spell' }, coins: 2 },
-  // de vrachtwagen met voer: kisten tellen
-  delivery: { from: 'schoolclass', icon: 'truck', sound: 'train.toot', mini: { kind: 'sum' }, coins: 6 },
-  // de fotograaf van de krant: het woord onder de foto
-  photo: { from: 'celeb', icon: 'photo', sound: 'camera', mini: { kind: 'spell' }, coins: 0, boost: 150 },
-  // de bouwer is aan het timmeren: zijn spullen van klein naar groot
-  build: { from: 'window', icon: 'hammer', sound: 'fence', mini: { kind: 'order', first: 'size', sizeIcons: ['log', 'fence', 'hammer'] }, coins: 3 },
-  // de verzorger telt de dieren als het donker wordt
-  bedtime: { from: 'night', icon: 'moon', sound: 'animal.owl', mini: { kind: 'sum' }, coins: 3 },
-  // de verzorger heeft nieuwe kisten met voer: op volgorde zetten
-  crates: { from: 'cart', icon: 'crate', sound: 'place', mini: { kind: 'order', first: 'count', sizeIcons: ['crate', 'hay', 'fruit'] }, coins: 4 },
+  schoolclass: { from: 'schoolclass', icon: 'schoolclass', sound: 'guest.kid', minis: [{ kind: 'sum' }], coins: 4 },
+  // de jarige: cadeautjes op volgorde of tellen, of een spelletje op het feest
+  party: {
+    from: 'party', icon: 'cake', sound: 'party', coins: 3,
+    minis: [{ kind: 'order', things: PARTY_THINGS }, { kind: 'count', things: PARTY_THINGS, says: 'party.count' }, { kind: 'memory', things: PARTY_THINGS, says: 'party.game' }, { kind: 'pattern', things: PARTY_THINGS, says: 'party.game' }],
+  },
+  // de beroemde gast: een woord, of hij wil iets weten over de dieren
+  celeb: { from: 'celeb', icon: 'star', sound: 'fanfare', coins: 2, minis: [{ kind: 'spell' }, { kind: 'shadow', says: 'celeb.quiz' }, { kind: 'eat', says: 'celeb.quiz' }, { kind: 'sound', says: 'celeb.quiz' }] },
+  // de vrachtwagen met voer: de kisten tellen, optellen, vergelijken of op volgorde zetten
+  delivery: {
+    from: 'schoolclass', icon: 'truck', sound: 'train.toot', coins: 6,
+    minis: [{ kind: 'count', things: FEED_THINGS }, { kind: 'sum', things: FEED_THINGS }, { kind: 'more', things: FEED_THINGS }, { kind: 'order', first: 'count', things: FEED_THINGS }],
+  },
+  // de fotograaf van de krant: het woord onder de foto, een veel te donkere foto, of zijn foto's liggen door elkaar
+  photo: { from: 'celeb', icon: 'photo', sound: 'camera', coins: 0, boost: 150, minis: [{ kind: 'spell' }, { kind: 'shadow', says: 'photo.shadow' }, { kind: 'memory', animals: true, says: 'photo.pairs' }] },
+  // de bouwer is aan het timmeren: zijn spullen van klein naar groot, tellen, of het rijtje van zijn hek
+  build: {
+    from: 'window', icon: 'hammer', sound: 'fence', coins: 3,
+    minis: [{ kind: 'order', first: 'size', things: BUILD_THINGS }, { kind: 'count', things: BUILD_THINGS, says: 'build.count' }, { kind: 'pattern', things: BUILD_THINGS, says: 'build.pattern' }],
+  },
+  // de verzorger telt de dieren als het donker wordt, of vraagt wie waar slaapt
+  bedtime: { from: 'night', icon: 'moon', sound: 'animal.owl', coins: 3, minis: [{ kind: 'count', animals: true }, { kind: 'sum', animals: true }, { kind: 'bed', says: 'bedtime.bed' }] },
+  // de verzorger heeft nieuwe kisten met voer: op volgorde zetten, of welk dier eet wat
+  crates: {
+    from: 'cart', icon: 'crate', sound: 'place', coins: 4,
+    minis: [{ kind: 'order', first: 'count', things: ['crate', 'hay', 'fruit'] }, { kind: 'order', first: 'size', things: FEED_THINGS }, { kind: 'eat', says: 'crates.eat' }],
+  },
   // de kassier telt de munten in de kassa
-  till: { from: 'upkeep', icon: 'coin', sound: 'coin', mini: { kind: 'sum' }, coins: 5 },
-  // de burgemeester wil weten hoe een dier heet; daarna vertelt hij iedereen over het park
-  mayor: { from: 'tower', icon: 'mayor', sound: 'fanfare', mini: { kind: 'spell', animals: true }, coins: 0, boost: 120 },
+  till: { from: 'upkeep', icon: 'coin', sound: 'coin', coins: 5, minis: [{ kind: 'sum', things: ['coin'] }, { kind: 'count', things: ['coin'] }, { kind: 'more', things: ['coin'] }] },
+  // de burgemeester wil weten hoe een dier heet, of alles over de dieren; daarna vertelt hij iedereen over het park
+  mayor: {
+    from: 'tower', icon: 'mayor', sound: 'fanfare', coins: 0, boost: 120,
+    minis: [{ kind: 'spell', animals: true }, { kind: 'eat', says: 'mayor.quiz' }, { kind: 'bed', says: 'mayor.quiz' }, { kind: 'sound', says: 'mayor.quiz' }],
+  },
   // een gast laat je raden wat zijn lievelingsdier is (de hints komen uit guessMini); goed: hij loopt er meteen heen
-  guess: { from: 'guess', icon: 'guess', sound: 'guest.kid', mini: { kind: 'guess' }, coins: 1 },
+  guess: { from: 'guess', icon: 'guess', sound: 'guest.kid', minis: [{ kind: 'guess' }], coins: 1 },
 };
 /** Wat een klas kan vragen. `guide`: de weg wijzen in het park zelf; de rest is een puzzeltje met een eigen kaartje. */
-type ClassTask = 'sum' | 'count' | 'draw' | 'line' | 'guide';
-const CLASS_TASKS: Record<Exclude<ClassTask, 'guide'>, { label: string; mini: MiniSetup }> = {
-  sum: { label: 'event.schoolclass', mini: { kind: 'sum' } },
+type ClassTask = 'sum' | 'count' | 'draw' | 'line' | 'quiz' | 'game' | 'guide';
+const CLASS_TASKS: Record<Exclude<ClassTask, 'guide'>, { label: string; minis: MiniSetup[] }> = {
+  // een som, met dingen of met de dieren uit het park
+  sum: { label: 'event.schoolclass', minis: [{ kind: 'sum' }, { kind: 'sum', animals: true }] },
   // zijn alle kinderen er nog?
-  count: { label: 'event.class.count', mini: { kind: 'sum' } },
+  count: { label: 'event.class.count', minis: [{ kind: 'count', things: ['guest'] }, { kind: 'sum', things: ['guest'] }] },
   // de naam van het dier bij de tekening
-  draw: { label: 'event.class.draw', mini: { kind: 'spell', animals: true } },
+  draw: { label: 'event.class.draw', minis: [{ kind: 'spell', animals: true }] },
   // de kinderen in de rij, van klein naar groot
-  line: { label: 'event.class.line', mini: { kind: 'order', first: 'size', sizeIcons: ['guest', 'cap_red', 'cap_blue'] } },
+  line: { label: 'event.class.line', minis: [{ kind: 'order', first: 'size', things: ['guest', 'cap_red', 'cap_blue'] }] },
+  // de klas leert over de dieren: wat eet het, wie slaapt waar, van wie is de schaduw, wie maakt dit geluid
+  quiz: { label: 'event.class.quiz', minis: [{ kind: 'eat' }, { kind: 'bed' }, { kind: 'shadow' }, { kind: 'sound' }] },
+  // een spelletje met de klas
+  game: { label: 'event.class.game', minis: [{ kind: 'memory', animals: true }, { kind: 'pattern' }, { kind: 'odd' }, { kind: 'more' }] },
 };
 /** De juf heeft een oranje vest aan, de meester een groene trui: zo lopen ze ook door het park. */
 const TEACHER_SHIRT: Record<TeacherId, number> = { teacher: 0xf08a24, master: 0x4f9a5a };
@@ -7760,8 +7791,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.offerEvent(kind, group);
   }
 
-  /** Een zin bij een evenement: nooit dezelfde variant als de vorige keer. `teacher`: wie er praat bij een klas. */
-  private eventLine(id: string, part: EventPart, teacher?: TeacherId): Line {
+  /**
+   * Een zin bij een evenement: nooit dezelfde variant als de vorige keer. `teacher`: wie er praat bij een klas.
+   * `says`: het puzzeltje heeft eigen zinnen; heeft het er geen voor dit moment, dan klinkt die van het evenement.
+   */
+  private eventLine(event: string, part: EventPart, teacher?: TeacherId, says?: string): Line {
+    const id = says && EVENT_SAYS[says]?.[part] ? says : event;
     const n = EVENT_SAYS[id][part], key = `${id}.${part}`;
     let i = Math.floor(Math.random() * n);
     // dezelfde als de vorige keer? Dan een van de andere
@@ -7774,7 +7809,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private classTask(): { task: ClassTask; species: SpeciesId | null } {
     const species = this.guideSpecies();
     // de allereerste klassen vragen iets eenvoudigs: een som, of de weg
-    const tasks: ClassTask[] = this.level > FEATURE.schoolclass ? ['sum', 'count', 'draw', 'line'] : ['sum'];
+    const tasks: ClassTask[] = this.level > FEATURE.schoolclass ? ['sum', 'count', 'draw', 'line', 'quiz', 'game'] : ['sum'];
     // de weg wijzen telt dubbel: dat spel is in het park zelf en mag vaak komen
     if (species) tasks.push('guide', 'guide');
     const fresh = tasks.filter(k => k !== this.lastTask);
@@ -7793,9 +7828,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     // een klas komt elke keer met iets anders
     const { task, species } = kind === 'schoolclass' ? this.classTask() : { task: null, species: null };
     const plan = task && task !== 'guide' ? CLASS_TASKS[task] : null;
-    const mini = (kind === 'guess' && who ? this.guessMini(who) : null) ?? plan?.mini ?? def.mini;
+    // de weg wijzen is in het park zelf: daar hoort geen puzzeltje bij
+    const { says, ...mini } = task === 'guide' ? def.minis[0] : (kind === 'guess' && who ? this.guessMini(who) : null) ?? this.pickMini(plan ? `class.${task}` : kind, plan?.minis ?? def.minis);
     const picture = icon(def.icon);
-    const line = this.eventLine(task ? `class.${task}` : kind, 'ask', who ? this.classTeacher.get(who) : undefined);
+    const line = this.eventLine(task ? `class.${task}` : kind, 'ask', who ? this.classTeacher.get(who) : undefined, says);
     // gaat het over gasten in het park, dan brengt een tik op de vraag je naar ze toe
     const ask = who ? this.lineAbout(line, who) : line;
     sfx(def.sound, { volume: 0.5 });
@@ -7806,12 +7842,31 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
     this.offer = { kind, who, until: this.clock + 50, ask };
     this.hud.showOffer(picture, t(plan?.label ?? `event.${kind}`), () => {
+      // er ligt al een kaart met een spelletje: het kaartje wacht tot die klaar is
+      if (this.playing()) return;
       this.closeOffer();
       if (species && who) return this.startGuide(species, who);
       this.hud.hush();
-      // wie om hulp vroeg, leest ook de uitleg van het puzzeltje voor
-      playMini({ ...mini, picture, say: text => void playVoice(voiceId(line.who, text)), onDone: r => this.endEvent(kind, who, r.skipped ? 'skip' : r.won ? 'won' : 'lost') });
+      // wie om hulp vroeg, leest ook de uitleg van het puzzeltje voor; de vragen gaan het liefst over je eigen dieren
+      playMini({
+        ...mini, picture, park: this.parkSpecies(), sound: sp => animalSound(sp, false, 1), say: text => void playVoice(voiceId(line.who, text)),
+        onDone: r => this.endEvent(kind, who, r.skipped ? 'skip' : r.won ? 'won' : 'lost', false, says),
+      });
     }, () => this.closeOffer());
+  }
+
+  /** Bij elk kaartje de puzzeltjes die al geweest zijn, en de soort van het laatste puzzeltje: zo is het steeds iets anders. */
+  private usedMinis = new Map<string, MiniSetup[]>();
+  private lastMiniKind: MiniKind | '' = '';
+
+  /** Kiest het puzzeltje voor dit kaartje (`key`: het evenement of wat de klas vraagt). Zonder geluid komt er geen geluidspuzzel. */
+  private pickMini(key: string, minis: MiniSetup[]): MiniSetup {
+    const used = this.usedMinis.get(key) ?? [];
+    const mini = pickSetup(minis, used, this.lastMiniKind, m => m.kind !== 'sound' || !isMuted());
+    // allemaal geweest: dan begint het rondje opnieuw, met dit puzzeltje als laatste
+    this.usedMinis.set(key, minis.every(m => m === mini || used.includes(m)) ? [mini] : [...used, mini]);
+    this.lastMiniKind = mini.kind;
+    return mini;
   }
 
   /** Het kaartje is aangetikt, weggeklikt of te lang blijven liggen. Wegklikken: het evenement gaat gewoon door, zonder beloning. */
@@ -7868,7 +7923,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
    * (munten, een blije klas die vaker terugkomt, of een tijdje meer gasten). Niet gelukt: een sip geluidje en geen
    * beloning. Weggeklikt: er gebeurt niets.
    */
-  private endEvent(kind: CardEvent, who: Guest | null, how: 'won' | 'lost' | 'skip', guided = false): void {
+  private endEvent(kind: CardEvent, who: Guest | null, how: 'won' | 'lost' | 'skip', guided = false, says?: string): void {
     if (how === 'skip') return;
     const def = EVENTS[kind];
     const here = who && this.guests.guests.includes(who) ? who : null;
@@ -7876,8 +7931,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const gx = here ? here.gx : ex + 0.5, gy = here ? here.gy : ey + 0.5;
     const won = how === 'won';
     // bij een klas zegt de juf of de meester van die klas hoe het ging
-    const says = kind === 'schoolclass' ? (guided ? 'class.guide' : 'class') : kind;
-    const line = this.eventLine(says, won ? 'good' : 'bad', who ? this.classTeacher.get(who) : undefined);
+    const event = kind === 'schoolclass' ? (guided ? 'class.guide' : 'class') : kind;
+    const line = this.eventLine(event, won ? 'good' : 'bad', who ? this.classTeacher.get(who) : undefined, says);
     this.sayNow(here ? this.lineAbout(line, here) : line);
     if (!won) {
       sfx('sad', { volume: 0.4 });
@@ -7990,16 +8045,26 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   // ------------------------------------------------------------ dokter, weetjes, vieze kramen en dingen aantikken
-  /** De dokter: eerst de thermometer, dan een pleister, dan een drankje. Daarna is het dier beter. */
+  /** Ligt er een kaart met een spelletje over het park (een puzzeltje, de dokter of een hek maken)? Dan staat het park stil en komt er geen kaart bij. */
+  private playing(): boolean {
+    return miniOpen() || cardOpen();
+  }
+
+  /**
+   * De dokter: een paar kleine spelletjes met het zieke dier (zie vetgame.ts), elke keer andere. Zijn ze gedaan, dan is
+   * het dier beter; klik je de kaart weg, dan blijft het ziek. De verzorger leest de uitleg van elk spelletje voor.
+   */
   private vetGame(a: Animal): void {
-    if (!this.told.has('vet')) {
-      this.told.add('vet');
-      this.sayNow(say.vetHow());
-    }
+    if (this.playing()) return;
+    this.hud.hush();
     animalSound(a.species, a.young, 0.6, [a.gx, a.gy]);
-    const step = (id: string): { id: string; icon: string; label: string } => ({ id, icon: icon(id as IconId), label: t(`vet.${id}`) });
-    this.hud.showVet(t('vet.title'), speciesIcon(a.species), [step('thermo'), step('plaster'), step('syrup')], () => {
-      if (this.animals.includes(a) && a.sick) this.heal(a);
+    playVet({
+      picture: speciesIcon(a.species),
+      say: text => void playVoice(voiceId('keeper', text)),
+      voice: () => animalSound(a.species, a.young, 0.8),
+      onDone: cured => {
+        if (cured && this.animals.includes(a) && a.sick) this.heal(a);
+      },
     });
   }
 
@@ -8486,8 +8551,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   update(dt: number): void {
-    // tijdens een puzzeltje staat het park even stil: een kind mag er rustig over doen
-    if (miniOpen()) return;
+    // tijdens een puzzeltje, bij de dokter en bij het maken van een hek staat het park even stil: een kind mag er rustig over doen
+    if (this.playing()) return;
     this.wildCache = null;
     this.clock += dt;
     // de loopstand: lopen en kijken, voor de camera beweegt; zolang je loopt komt het hulphandje niet

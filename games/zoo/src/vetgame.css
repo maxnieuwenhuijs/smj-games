@@ -1,0 +1,146 @@
+/* De spelletjes van de dokter (zie vetgame.ts), op de kaart uit playcard.ts. Alle namen beginnen met vg-. */
+/* --vg is hoe breed het plaatje van het dier is; alles op het dier is daar een deel van */
+#playcard[data-kind='vet'] { --vg: min(280px, 70vw, 38vh); }
+
+/* ---------- de patiënt ---------- */
+/* ruimte erboven: het dier springt straks op, en mag dan niet over de uitleg heen */
+.vg-patient { position: relative; width: var(--vg); height: var(--vg); margin: 22px 0 4px; --sick: 1; }
+/* een ronde schijf achter het dier: blauwgrijs als het ziek is, zonnig geel als het beter is */
+.vg-patient::before {
+  content: ''; position: absolute; inset: -5%; border-radius: 50%; background: #e3eef6; transition: background 0.4s;
+}
+.vg-patient.well::before { background: #fff1b8; }
+/* ziek: grijs en wat dof; na elk spelletje komt er kleur terug (--sick loopt van 1 naar 0) */
+.vg-pic {
+  position: absolute; inset: 0; display: block; font-size: var(--vg); transform-origin: 0 0;
+  filter: grayscale(calc(var(--sick) * 0.85)) brightness(calc(1 - var(--sick) * 0.07)); transition: filter 0.5s, transform 0.3s;
+}
+.vg-layer { position: absolute; inset: 0; }
+.vg-pad { position: absolute; inset: 0; z-index: 2; }
+.vg-patient.sick { animation: vg-sick 2.8s ease-in-out infinite; }
+.vg-patient.hop { animation: vg-hop 0.5s ease-out; }
+.vg-patient.ouch { animation: vg-ouch 0.35s ease-in-out; }
+.vg-patient.well { animation: vg-cheer 0.35s ease-in-out infinite alternate; }
+@keyframes vg-sick { 50% { transform: translateY(5px); } }
+@keyframes vg-hop { 35% { transform: translateY(-16px) scale(1.04, 0.97); } 70% { transform: translateY(2px) scale(0.98, 1.02); } }
+@keyframes vg-ouch { 25% { transform: translateX(-6px) rotate(-2deg); } 75% { transform: translateX(6px) rotate(2deg); } }
+@keyframes vg-cheer { from { transform: translateY(5px) scale(1.03, 0.96); } to { transform: translateY(-14px) scale(1.05); } }
+
+/* iets wat op het dier ligt of de vinger volgt: het midden staat op zijn plek, en je tikt er dwars doorheen */
+.vg-tool { position: absolute; display: flex; pointer-events: none; font-size: calc(var(--vg) * 0.3); transform: translate(-50%, -50%); z-index: 3; }
+.vg-tool svg { display: block; }
+
+/* onder het dier: het gereedschap van dit spelletje */
+.vg-tray { width: 100%; min-height: 84px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+
+/* ---------- koorts meten ---------- */
+.vg-inmouth { left: 74%; top: 70%; font-size: calc(var(--vg) * 0.36); transform: translate(-50%, -50%) rotate(8deg); }
+.vg-patient.held .vg-inmouth { animation: vg-wiggle 0.3s ease-in-out infinite; }
+.vg-patient.held .vg-pic { transform: scale(1, 0.97) translateY(3%); }
+@keyframes vg-wiggle { 50% { transform: translate(-50%, -50%) rotate(16deg); } }
+/* de thermometer op zijn kant: links de bol, dan de buis die volloopt, en aan het eind een ster */
+.vg-gauge { width: min(300px, 100%); display: flex; align-items: center; padding: 8px 0; }
+.vg-bulb { flex: none; width: 46px; height: 46px; border-radius: 50%; background: #e0584f; box-shadow: inset 0 0 0 4px #3a2a1a; margin-right: -8px; z-index: 1; }
+.vg-tube { flex: 1; height: 28px; border-radius: 0 14px 14px 0; background: #fff; box-shadow: inset 0 0 0 4px #3a2a1a; overflow: hidden; padding: 4px 4px 4px 0; display: flex; }
+.vg-fill { display: block; height: 100%; width: 0; min-width: 6px; border-radius: 0 10px 10px 0; background: #e0584f; transition: width 0.12s linear; }
+.vg-goal { flex: none; display: flex; font-size: 44px; margin-left: 4px; filter: grayscale(1); opacity: 0.45; transition: filter 0.2s, opacity 0.2s; }
+.vg-gauge.full .vg-goal { filter: none; opacity: 1; animation: pc-pop 0.3s ease-out; }
+.vg-gauge.full .vg-fill, .vg-gauge.full .vg-bulb { background: #6cc04a; }
+
+/* ---------- pleisters plakken ---------- */
+/* een zere plek: een rood rondje dat klopt; het vlak om te tikken is veel groter dan wat je ziet */
+.vg-sore {
+  position: absolute; width: max(56px, 28%); aspect-ratio: 1; transform: translate(-50%, -50%); border: 0; padding: 0; background: none; cursor: pointer;
+  display: grid; place-items: center; font-size: calc(var(--vg) * 0.27); z-index: 2;
+}
+.vg-sore i { width: 46%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, #c9302c 0 30%, #f0837c 34% 62%, rgba(240, 131, 124, 0.35) 66%); animation: vg-throb 0.9s ease-in-out infinite; }
+.vg-sore.done { cursor: default; }
+.vg-sore.done .ic { transform: rotate(var(--r, 0deg)); animation: pc-pop 0.25s ease-out; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.18)); }
+@keyframes vg-throb { 50% { transform: scale(1.3); } }
+.vg-stock { display: flex; gap: 8px; font-size: 48px; }
+.vg-stock i { display: flex; transition: opacity 0.2s, transform 0.2s; }
+.vg-stock i.used { opacity: 0.15; transform: scale(0.8); }
+
+/* ---------- het hart zoeken ---------- */
+/* de stethoscoop: het ronde schijfje (rechts in het plaatje) ligt onder je vinger */
+.vg-scope { font-size: calc(var(--vg) * 0.42); transform: translate(-77%, -52%); filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.2)); }
+.vg-glow { position: absolute; width: 34%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, rgba(224, 88, 79, 0.55), rgba(224, 88, 79, 0) 70%); opacity: 0; pointer-events: none; }
+.vg-glow.on { animation: vg-glow 1.4s ease-in-out infinite; }
+@keyframes vg-glow { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.8; } }
+.vg-found { position: absolute; display: flex; font-size: calc(var(--vg) * 0.3); transform: translate(-50%, -50%) scale(0); pointer-events: none; z-index: 4; }
+.vg-found.on { animation: vg-found 0.7s ease-out forwards; }
+@keyframes vg-found { 0% { transform: translate(-50%, -50%) scale(0); } 55% { transform: translate(-50%, -50%) scale(1.3); } 100% { transform: translate(-50%, -50%) scale(1); } }
+/* onderaan: het hart dat klopt (groter en roder van dichtbij) en balkjes voor hoe hard je het hoort */
+.vg-beat { --loud: 0; display: flex; font-size: 62px; filter: grayscale(calc(1 - var(--loud))); transform: scale(calc(0.62 + var(--loud) * 0.38)); }
+.vg-beat.thump .ic { animation: vg-thump 0.32s ease-out; }
+@keyframes vg-thump { 30% { transform: scale(1.28); } 60% { transform: scale(0.96); } }
+.vg-loud { display: flex; align-items: flex-end; gap: 5px; height: 56px; }
+.vg-loud i { width: 12px; border-radius: 6px; background: #d5dce2; transition: background 0.12s; }
+.vg-loud i:nth-child(1) { height: 28%; } .vg-loud i:nth-child(2) { height: 46%; } .vg-loud i:nth-child(3) { height: 64%; } .vg-loud i:nth-child(4) { height: 82%; } .vg-loud i:nth-child(5) { height: 100%; }
+.vg-loud i.on { background: #e0584f; }
+
+/* ---------- een doorn eruit trekken ---------- */
+.vg-wound { position: absolute; width: 11%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, #a32420 0 38%, #f0837c 42% 70%, rgba(240, 131, 124, 0) 74%); z-index: 1; transition: opacity 0.6s, transform 0.6s; }
+.vg-wound.healed { opacity: 0.35; transform: translate(-50%, -50%) scale(0.6); }
+/* de punt van de doorn (links in de tekening) zit op de plek; hij draait om die punt en schuift langs zijn eigen lengte naar buiten */
+.vg-thorn {
+  position: absolute; width: calc(var(--vg) * 0.36); height: calc(var(--vg) * 0.144); margin-top: calc(var(--vg) * -0.072); pointer-events: none;
+  transform-origin: 0 50%; transform: rotate(var(--a, 0deg)) translateX(calc(var(--out, 0) * var(--vg) * 0.26)); transition: transform 0.12s ease-out, opacity 0.4s;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.2));
+}
+.vg-thorn svg { width: 100%; height: 100%; display: block; }
+.vg-thorn.gone { transform: rotate(var(--a, 0deg)) translateX(calc(var(--vg) * 0.9)) rotate(200deg); opacity: 0; transition: transform 0.5s ease-in, opacity 0.5s ease-in; }
+/* het pincet wijst met zijn punten (linksonder in het plaatje) naar de kop van de doorn */
+.vg-grip { font-size: calc(var(--vg) * 0.3); transform: translate(-50%, -50%) rotate(calc(var(--a, 0deg) + 50deg)); transition: left 0.12s ease-out, top 0.12s ease-out, opacity 0.3s; }
+.vg-grip.gone { opacity: 0; }
+
+/* ---------- een drankje geven ---------- */
+/* het flesje wiebelt af en toe: kijk naar de kleur van het etiket */
+.vg-bottle { left: 86%; top: 72%; width: calc(var(--vg) * 0.3); filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.18)); animation: vg-bottle 2.2s ease-in-out infinite; }
+@keyframes vg-bottle { 0%, 60%, 100% { transform: translate(-50%, -50%) rotate(0deg); } 70% { transform: translate(-50%, -54%) rotate(-9deg); } 85% { transform: translate(-50%, -54%) rotate(9deg); } }
+.vg-bottle svg { width: 100%; height: auto; }
+.vg-spoon {
+  width: clamp(64px, 20vw, 86px); height: 96px; border: 0; padding: 6px; margin: 0 0 5px; border-radius: 22px; background: var(--pc-soft); box-shadow: 0 5px 0 var(--shade, #c9d6c0); cursor: pointer;
+}
+.vg-spoon svg { width: 100%; height: 100%; display: block; }
+.vg-spoon:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--shade, #c9d6c0); }
+.vg-spoon.no { animation: vg-no 0.35s ease-in-out; }
+.vg-spoon.give { animation: vg-give 0.5s ease-in forwards; box-shadow: none; background: none; }
+@keyframes vg-no { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
+@keyframes vg-give { to { transform: translateY(calc(var(--vg) * -0.7)) scale(0.6) rotate(-25deg); opacity: 0; } }
+
+/* ---------- vegen: een wondje schoonmaken en tanden poetsen ---------- */
+/* een vies plekje: een bruine veeg die per veeg lichter wordt (--dirt van 1 naar 0) */
+.vg-smudge {
+  position: absolute; width: 21%; aspect-ratio: 1.25; transform: translate(-50%, -50%) rotate(var(--r, 0deg)); border-radius: 58% 42% 55% 45% / 48% 60% 40% 52%;
+  background: radial-gradient(circle at 38% 36%, #b08f58 0 16%, #8a6a3a 20% 100%); box-shadow: 0 0 0 3px rgba(111, 82, 40, 0.4), 0.9em 0.5em 0 -0.25em #8a6a3a, -0.8em 0.75em 0 -0.3em #8a6a3a; font-size: calc(var(--vg) * 0.1);
+  opacity: calc(0.2 + var(--dirt, 1) * 0.8); transition: opacity 0.1s;
+}
+.vg-smudge.clean { opacity: 0; transition: opacity 0.3s; }
+/* het watje of de borstel: pas te zien als je het dier aanraakt */
+.vg-rubber { opacity: 0; font-size: calc(var(--vg) * 0.3); transform: translate(-50%, -62%); filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.2)); }
+.vg-rubber.on { opacity: 1; }
+/* tanden poetsen: de mond van dichtbij over het hele vak, het dier zelf klein in de hoek */
+.vg-mouth { position: absolute; inset: 0; width: 100%; height: 100%; animation: pc-pop 0.3s ease-out; }
+.vg-patient.mouth .vg-pic { transform: scale(0.3); z-index: 1; }
+.vg-plaque { opacity: var(--dirt, 1); transition: opacity 0.1s; }
+.vg-tooth.clean rect { fill: #fff; stroke: #9fd0ee; }
+
+/* ---------- laag scherm (telefoon op zijn kant) ---------- */
+@media (max-height: 480px) {
+  .vg-patient { margin: 12px 0 2px; }
+  .vg-tray { min-height: 64px; }
+  .vg-spoon { height: 64px; }
+  .vg-stock { font-size: 38px; }
+  .vg-beat { font-size: 46px; }
+  .vg-loud { height: 42px; }
+  .vg-gauge { padding: 2px 0; }
+}
+
+/* ---------- liever weinig beweging ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .vg-patient.sick, .vg-patient.hop, .vg-patient.held .vg-inmouth, .vg-glow.on, .vg-bottle { animation: none; }
+  .vg-glow.on { opacity: 0.6; }
+  .vg-patient.well { animation-duration: 0.9s; }
+  .vg-sore i { animation-duration: 2.4s; }
+}

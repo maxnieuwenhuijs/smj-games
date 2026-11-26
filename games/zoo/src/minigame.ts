@@ -1,32 +1,49 @@
-// Puzzeltjes die over het park heen komen als een schoolklas of een gast om hulp vraagt:
-// een som onder de tien, een woord van drie letters leggen, dingen op volgorde zetten, of het lievelingsdier van
-// een gast raden aan de hand van een paar hints.
+// Puzzeltjes die over het park heen komen als een schoolklas of een gast om hulp vraagt. Er zijn dertien soorten:
+// een som onder de tien, tellen, waar zijn de meeste, een woord van drie letters leggen, dingen op volgorde zetten,
+// memory, wat hoort er niet bij, wat komt er daarna, van welk dier is deze schaduw, wat eet dit dier, wie slaapt hier,
+// welk dier maakt dit geluid, en het lievelingsdier van een gast raden aan de hand van een paar hints.
+// Bijna alles gaat met plaatjes: de dingen van het evenement (kisten, munten, ballonnen) of de dieren uit het park.
 // Het spel roept playMini aan en hoort via onDone hoe het ging. Wegklikken met het kruisje mag altijd.
+// Welke som, welk rijtje en welke dieren er komen, staat in miniask.ts (zonder scherm, met tests).
 import './minigame.css';
 import { t } from '@smj/shared';
 import { sfx } from './audio';
+import { SPECIES, type SpeciesId } from './data';
 import { ICON_IDS, icon, type IconId } from './icons';
+import {
+  COUNT_MAX, EAT_CLEAR, MORE_GRID, SHADOW_CLEAR, SOUND_CLEAR, answersNear, askPool, bedChoices, dealPairs, eatChoices, freshOf, makeCount, makeMore, makeOdd, makePattern, makeSum,
+  memoryClean, memoryPairs, scatter, shadowChoices, soundChoices, sumKey, unseen,
+} from './miniask';
 import { speciesIcon } from './models';
 
-export type MiniKind = 'sum' | 'spell' | 'order' | 'guess';
+export type MiniKind = 'sum' | 'count' | 'more' | 'spell' | 'order' | 'memory' | 'odd' | 'pattern' | 'shadow' | 'eat' | 'bed' | 'sound' | 'guess';
+/** Alle soorten puzzeltjes op een rij (voor de proefpagina). */
+export const MINI_KINDS: MiniKind[] = ['sum', 'count', 'more', 'spell', 'order', 'memory', 'odd', 'pattern', 'shadow', 'eat', 'bed', 'sound', 'guess'];
 export interface MiniResult { won: boolean; right: number; rounds: number; skipped: boolean }
 export interface MiniOptions {
   kind: MiniKind;
-  /** Hoeveel vragen achter elkaar; gewoon drie (bij raden één). */
+  /** Hoeveel vragen achter elkaar; gewoon drie (bij raden één, bij memory twee). */
   rounds?: number;
   /** Klein plaatje bovenaan (al HTML, bijvoorbeeld een svg van icon()); mag ontbreken. */
   picture?: string;
-  /** Woord: alleen woorden van dieren (koe, aap, kip), als er daar genoeg van zijn. */
+  /**
+   * Waarmee geteld, gerekend en gelegd wordt: de plaatjes die bij het evenement horen (kisten, munten, ballonnen).
+   * Zonder: een paar gewone dingen (een appel, een bal, een ster).
+   */
+  things?: IconId[];
+  /** Het gaat over dieren: een woord van een dier (koe, aap, kip), of tellen, rekenen en leggen met de dieren zelf. */
   animals?: boolean;
-  /** Volgorde: waarmee het begint, plaatjes van klein naar groot ('size') of getallen ('count'). Anders is dat een gok. */
+  /** De diersoorten die in het park wonen: een vraag gaat het liefst over je eigen dieren. */
+  park?: string[];
+  /** Volgorde: waarmee het begint, plaatjes van klein naar groot ('size') of groepjes van weinig naar veel ('count'). Anders is dat een gok. */
   first?: 'size' | 'count';
-  /** Volgorde: deze plaatjes van klein naar groot, in plaats van de gewone. */
-  sizeIcons?: IconId[];
   /**
    * Raden: het goede dier, de plaatjes om uit te kiezen (soorten) en de hints: de kleuren van het dier en hoeveel
    * poten het heeft. `sound`: speelt het geluid van het dier (de knop met de luidspreker).
    */
   guess?: { answer: string; options: string[]; colors: string[]; legs: number; sound?: () => void };
+  /** Welk dier maakt dit geluid: speelt het geluid van deze diersoort. Zonder dit wordt die puzzel een schaduw raden. */
+  sound?: (species: string) => void;
   /** De uitleg boven de vraag wordt hiermee voorgelezen (de tekst zelf staat er ook); mag ontbreken. */
   say?: (text: string) => void;
   /** Eén keer aangeroepen: als het puzzeltje klaar is of met het kruisje is weggeklikt. */
@@ -75,19 +92,49 @@ const WORDS_EN: Word[] = [
 ];
 /** Letters voor de verkeerde tegels: gewone letters die een kind al vroeg leert. */
 const LETTERS = 'abdeghklmnoprstuvz';
-/** Plaatjes die klein en groot goed te herkennen zijn, voor van klein naar groot. */
-const SIZE_ICONS: IconId[] = ['star', 'heart', 'ball', 'balloon_red', 'sun', 'fish', 'tree', 'mushrooms'];
+
+// ------------------------------------------------------------ plaatjes
+/**
+ * Een plaatje om mee te tellen, te rekenen of te leggen: zijn naam (zo weten we wat al geweest is) en de HTML.
+ * `small`: wat er in een klein stapeltje op een antwoord ligt, als het plaatje zelf daar te klein voor is.
+ */
+interface Pic {
+  id: string;
+  html: string;
+  small?: string;
+}
+/** Gewone dingen die klein en groot goed te herkennen zijn: voor een puzzel zonder eigen plaatjes. */
+const THINGS: IconId[] = ['fruit', 'star', 'ball', 'fish', 'heart', 'balloon_red', 'sun', 'veg', 'ducky', 'cake', 'lolly', 'tree', 'balloon_blue', 'hat_party', 'moon', 'gift'];
+/** Dieren die elk kind kent: voor een park waar nog te weinig soorten wonen. */
+const BEASTS: SpeciesId[] = ['pig', 'cow', 'sheep', 'chicken', 'rabbit', 'duck', 'lion', 'giraffe', 'elephant', 'monkey', 'penguin', 'zebra'];
+/**
+ * Wat hoort er niet bij: groepen van dingen die bij elkaar horen. Groepen die op elkaar lijken staan samen in één rij
+ * (eten en drinken, bomen en bloemen): de vreemde eend komt altijd uit een andere rij. De dieren komen er als rij bij.
+ */
+const ODD_FAMILIES: IconId[][][] = [
+  [['fruit', 'veg', 'fries', 'pancake', 'hotdog', 'cake', 'scoop', 'lolly'], ['lemonade', 'milk', 'juice']],
+  [['hat_straw', 'hat_party', 'hat_crown', 'cap_red', 'cap_blue']],
+  [['balloon_red', 'balloon_blue', 'balloon_yellow', 'balloon_heart']],
+  [['tree', 'pine', 'palm', 'cactus', 'oak', 'cherry'], ['tulips', 'roses', 'sunflowers', 'daisies']],
+  [['slide', 'swing', 'seesaw', 'trampoline', 'springer']],
+  [['hammer', 'broom', 'rake', 'bucket', 'can']],
+];
+/** Memory: zo lang (in milliseconden) blijven twee verschillende kaartjes open liggen om te onthouden. */
+const MEMORY_PEEK = 1100;
 
 /** Het spel zet de taal op de pagina (main.ts); daar kijken we naar voor de woordenlijst. */
 const dutch = (): boolean => document.documentElement.lang.toLowerCase().startsWith('nl');
 
+/** Heeft deze diersoort een eigen plaatje? Zonder geeft speciesIcon een pootje, en daar kun je niets mee raden. */
+const hasPicture = (species: string): boolean => speciesIcon(species).startsWith('<img') || (ICON_IDS as string[]).includes(species);
+const thingPic = (id: IconId): Pic => ({ id, html: icon(id) });
+// een dierenkop is piepklein niet meer te herkennen: in een klein stapeltje ligt er een pootje voor elk dier
+const beastPic = (species: string): Pic => ({ id: species, html: speciesIcon(species), small: icon('paw') });
+
 /** Het plaatje bij een woord, of null als dat plaatje er niet is (dan doet het woord niet mee). */
 function wordPicture(w: Word): string | null {
   if (w.icon) return icon(w.icon);
-  if (!w.species) return null;
-  const html = speciesIcon(w.species);
-  // zonder eigen plaatje geeft speciesIcon een pootje, en dat past niet bij het woord
-  return html.startsWith('<img') || (ICON_IDS as string[]).includes(w.species) ? html : null;
+  return w.species && hasPicture(w.species) ? speciesIcon(w.species) : null;
 }
 
 // ------------------------------------------------------------ hulpjes
@@ -102,11 +149,27 @@ function shuffle<T>(list: T[]): T[] {
   return out;
 }
 
-/** Stippen om te tellen. De laatste `gone` stippen zijn doorgestreept: die gaan eraf. */
-function dots(n: number, cls: string, gone = 0): string {
+/**
+ * Een stapeltje van `n` keer hetzelfde plaatje om te tellen, vijf op een rij. De laatste `gone` zijn doorgestreept:
+ * die gaan eraf. `cls`: 'a' of 'b' voor de twee stapeltjes van een som, 's' voor het kleine stapeltje op een antwoord.
+ */
+function pile(pic: string, n: number, cls: string, gone = 0): string {
   let html = '';
-  for (let i = 0; i < n; i++) html += `<span class="mg-dot${i >= n - gone ? ' gone' : ''}"></span>`;
-  return `<span class="mg-dots ${cls}">${html}</span>`;
+  for (let i = 0; i < n; i++) html += `<i${i >= n - gone ? ' class="gone"' : ''}>${pic}</i>`;
+  return `<span class="mg-pile ${cls}" style="--n:${Math.max(1, Math.min(5, n))}">${html}</span>`;
+}
+
+/** Een antwoord met een getal: het cijfer groot, met eronder zoveel plaatjes om na te tellen. */
+const numberTile = (n: number, pic: string): string => `<b>${n}</b>${pile(pic, n, 's')}`;
+
+/**
+ * Een vak waarin dingen los door elkaar liggen (zie `scatter`). `pics`: per ding het plaatje. `tag`: 'button' als je
+ * de dingen kunt aantikken om mee te tellen, anders 'i'.
+ */
+function scene(pics: string[], tag: 'button' | 'i', grid?: { cols: number; rows: number }): string {
+  const { cols, rows, spots } = scatter(pics.length, Math.random, grid);
+  const things = spots.map((p, i) => `<${tag} class="mg-thing"${tag === 'button' ? ' type="button"' : ''} style="left:${(p.x * 100).toFixed(1)}%;top:${(p.y * 100).toFixed(1)}%">${pics[i]}</${tag}>`);
+  return `<span class="mg-scene" style="--cols:${cols};--rows:${rows}">${things.join('')}</span>`;
 }
 
 const CLOSE_SVG = '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M12 12 L36 36 M36 12 L12 36" fill="none" stroke="#3a2a1a" stroke-width="7" stroke-linecap="round"/></svg>';
@@ -134,10 +197,14 @@ interface Session {
   result: boolean;
   since: number;
   timer: number;
-  /** Wat al geweest is, zodat dezelfde som of hetzelfde woord niet twee keer komt. */
+  /** Wat al geweest is, zodat dezelfde som, hetzelfde woord of hetzelfde plaatje niet twee keer komt. */
   seen: Set<string>;
   /** Volgorde: om en om plaatjes en getallen. */
   sizes: boolean;
+  /** De plaatjes van dit puzzeltje: de dingen van het evenement of, als het over dieren gaat, de dieren uit het park. */
+  pics: Pic[];
+  /** De diersoorten uit het park die een eigen plaatje hebben (met te weinig soorten: een paar bekende dieren erbij). */
+  park: string[];
 }
 
 let root: HTMLDivElement | null = null;
@@ -233,6 +300,8 @@ function roundDone(s: Session): void {
   s.busy = true;
   s.marks.push(s.clean);
   drawPips(s);
+  // wat tot nu toe verborgen was (de getallen bij de groepjes, de kleuren van een schaduw) mag nu gezien worden
+  part('mg-body').firstElementChild?.classList.add('done');
   sfx('chime');
   later(s, 850, () => {
     s.round++;
@@ -245,10 +314,7 @@ function startRound(s: Session): void {
   s.clean = true;
   s.busy = false;
   drawPips(s);
-  if (s.opts.kind === 'sum') sumRound(s);
-  else if (s.opts.kind === 'spell') spellRound(s);
-  else if (s.opts.kind === 'guess') guessRound(s);
-  else orderRound(s);
+  ROUNDS[s.opts.kind](s);
 }
 
 function showResult(s: Session): void {
@@ -269,54 +335,116 @@ function showResult(s: Session): void {
   later(s, 1300, () => finish(false));
 }
 
-// ------------------------------------------------------------ som
-function sumRound(s: Session): void {
-  let a = 1, b = 1, minus = false;
-  // een paar keer proberen, tot er een som komt die nog niet geweest is
-  for (let i = 0; i < 20; i++) {
-    minus = Math.random() < 0.4;
-    if (minus) {
-      // a − b: uitkomst 0 tot en met 8
-      a = 1 + rnd(9);
-      b = 1 + rnd(a);
-    } else {
-      // a + b: uitkomst 2 tot en met 9
-      const sum = 2 + rnd(8);
-      a = 1 + rnd(sum - 1);
-      b = sum - a;
-    }
-    if (!s.seen.has(`${a}${minus ? '-' : '+'}${b}`)) break;
-  }
-  s.seen.add(`${a}${minus ? '-' : '+'}${b}`);
-  const answer = minus ? a - b : a + b;
-  // twee foute antwoorden vlak bij het goede
-  const wrong = shuffle([answer - 2, answer - 1, answer + 1, answer + 2].filter(n => n >= 0 && n <= 9)).slice(0, 2);
-  const options = shuffle([answer, ...wrong]);
+/** Een plaatje van dit puzzeltje dat nog niet geweest is. */
+function freshPic(s: Session): Pic {
+  const fresh = s.pics.filter(p => !s.seen.has(p.id));
+  const p = pick(fresh.length ? fresh : s.pics);
+  s.seen.add(p.id);
+  return p;
+}
 
-  show(
-    t(minus ? 'mini.sum.minus' : 'mini.sum.plus'),
-    '<div class="mg-sum">' +
-      // bij min zijn de stippen die eraf gaan doorgestreept: wat overblijft kun je tellen
-      `<span class="mg-term"><b>${a}</b>${dots(a, 'a', minus ? b : 0)}</span><b class="mg-op">${minus ? '−' : '+'}</b>` +
-      `<span class="mg-term"><b>${b}</b>${dots(b, 'b', minus ? b : 0)}</span><b class="mg-op">=</b>` +
-      '<span class="mg-term mg-ask"><b>?</b></span></div>' +
-      `<div class="mg-row">${options.map(n => `<button class="mg-btn mg-answer" type="button" data-v="${n}"><b>${n}</b>${dots(n, 's')}</button>`).join('')}</div>`,
-  );
+/** `n` verschillende plaatjes van dit puzzeltje; heeft het er te weinig (alleen munten), dan komen er gewone dingen bij. */
+function picsFor(s: Session, n: number): Pic[] {
+  const own = shuffle(s.pics);
+  const more = shuffle(THINGS.filter(id => !own.some(p => p.id === id))).map(thingPic);
+  return [...own, ...more].slice(0, n);
+}
+
+/**
+ * Een vraag met een paar tegels om uit te kiezen (zo gaan de meeste puzzeltjes): bovenaan `top`, daaronder de tegels.
+ * Een foute tegel schudt, wordt rood en kan niet nog een keer: zo blijft er steeds minder over. De goede wordt groen
+ * en dan is de vraag klaar. `rowCls`: een eigen opmaak voor de rij; `on.right` en `on.wrong`: iets extra's bij een tik.
+ */
+function choose(
+  s: Session, title: string, top: string, options: { html: string; right: boolean; cls?: string }[], rowCls = '',
+  on: { right?: (b: HTMLButtonElement) => void; wrong?: (i: number) => void } = {},
+): void {
+  show(title, `${top}<div class="mg-row ${rowCls}">${options.map((o, i) => `<button class="mg-btn ${o.cls ?? ''}" type="button" data-i="${i}">${o.html}</button>`).join('')}</div>`);
   for (const btn of buttons())
     btn.addEventListener('click', () => {
       if (s.busy) return;
-      if (Number(btn.dataset.v) === answer) {
+      const i = Number(btn.dataset.i);
+      if (options[i].right) {
         btn.classList.add('ok');
+        on.right?.(btn);
+        roundDone(s);
+      } else {
+        btn.disabled = true;
+        miss(s, btn, 'no');
+        on.wrong?.(i);
+      }
+    });
+}
+
+/** Drie dieren om uit te kiezen, als tegels. `dark`: als schaduw. */
+const beastTiles = (options: string[], answer: string, dark = false): { html: string; right: boolean; cls: string }[] =>
+  options.map(sp => ({ html: speciesIcon(sp), right: sp === answer, cls: `mg-animal${dark ? ' mg-dark' : ''}` }));
+
+// ------------------------------------------------------------ som
+/**
+ * Een som met dingen die je kunt tellen. Plus: twee stapeltjes naast elkaar. Min: één stapeltje waarvan de laatste zijn
+ * doorgestreept: wat overblijft kun je tellen. Eronder staat de som in cijfers, en op elk antwoord ligt het getal ook
+ * als stapeltje.
+ */
+function sumRound(s: Session): void {
+  const { a, b, minus, answer } = unseen(makeSum, sumKey, s.seen);
+  const { html: pic, small } = freshPic(s);
+  choose(
+    s,
+    t(minus ? 'mini.sum.minus' : 'mini.sum.plus'),
+    '<div class="mg-sum">' +
+      `<div class="mg-piles">${minus ? pile(pic, a, 'a', b) : `${pile(pic, a, 'a')}<b class="mg-op">+</b>${pile(pic, b, 'b')}`}</div>` +
+      `<div class="mg-eq"><b>${a}</b><b class="mg-op">${minus ? '−' : '+'}</b><b>${b}</b><b class="mg-op">=</b><span class="mg-ask"><b>?</b></span></div></div>`,
+    answersNear(answer, 0, COUNT_MAX).map(n => ({ html: numberTile(n, small ?? pic), right: n === answer, cls: 'mg-answer' })),
+    '',
+    {
+      right: () => {
         const ask = part('mg-ask');
         ask.classList.add('ok');
         ask.querySelector('b')!.textContent = String(answer);
-        roundDone(s);
-      } else {
-        // dit antwoord kan niet nog een keer: zo blijft er steeds minder over
-        btn.disabled = true;
-        miss(s, btn, 'no');
-      }
+      },
+    },
+  );
+}
+
+// ------------------------------------------------------------ tellen
+/**
+ * Hoeveel zijn het er? Een vak met dingen (of dieren uit het park) die los door elkaar liggen, en drie getallen om uit
+ * te kiezen. Tik je de dingen een voor een aan, dan komt op elk het volgende getal te staan: zo tel je mee.
+ */
+function countRound(s: Session): void {
+  const n = unseen(() => makeCount(s.round), q => `n${q}`, s.seen);
+  // dieren tellen: allerlei dieren door elkaar; dingen tellen: steeds hetzelfde ding
+  const mixed = !!s.opts.animals;
+  const one = freshPic(s);
+  const pics = Array.from({ length: n }, () => (mixed ? pick(s.pics) : one).html);
+  choose(s, t('mini.count'), scene(pics, 'button'), answersNear(n, 1, COUNT_MAX).map(v => ({ html: numberTile(v, one.small ?? one.html), right: v === n, cls: 'mg-answer' })));
+  let counted = 0;
+  for (const thing of root!.querySelectorAll<HTMLElement>('.mg-scene .mg-thing'))
+    thing.addEventListener('click', () => {
+      if (s.busy || thing.classList.contains('counted')) return;
+      counted++;
+      thing.classList.add('counted');
+      thing.insertAdjacentHTML('beforeend', `<b>${counted}</b>`);
+      sfx('place', { volume: 0.4, rate: 1 + counted * 0.06, every: 0.03 });
     });
+}
+
+// ------------------------------------------------------------ waar zijn de meeste
+/** Twee of drie groepjes van hetzelfde ding: tik op het groepje met de meeste. Daarna zie je bij elk groepje het getal. */
+function moreRound(s: Session): void {
+  // drie groepjes pas bij de laatste vragen, en alleen als het scherm er breed genoeg voor is
+  const groups = s.round >= 2 && window.innerWidth >= 560 ? 3 : 2;
+  // de eerste vraag zie je in één oogopslag; daarna scheelt het soms maar één
+  const counts = unseen(() => makeMore(groups, s.round === 0 ? 2 : 1), q => `m${q.join()}`, s.seen);
+  const pic = freshPic(s).html, most = Math.max(...counts);
+  choose(
+    s, t('mini.more'), '',
+    counts.map(n => ({ html: `${scene(Array<string>(n).fill(pic), 'i', MORE_GRID)}<b class="mg-n">${n}</b>`, right: n === most, cls: 'mg-group' })),
+    'mg-groups',
+  );
+  // zo weet de opmaak hoe breed een groepje mag zijn
+  part('mg-groups').style.setProperty('--k', String(groups));
 }
 
 // ------------------------------------------------------------ woord
@@ -371,34 +499,31 @@ function spellRound(s: Session): void {
 }
 
 // ------------------------------------------------------------ volgorde
+/** Om en om: hetzelfde plaatje in drie maten van klein naar groot, en groepjes van weinig naar veel (met het getal erbij). */
 function orderRound(s: Session): void {
   const sizes = s.sizes;
   s.sizes = !sizes;
+  const { html: pic, small } = freshPic(s);
   /** Wat op een tegel staat en de hoeveelste hij is van klein naar groot. */
   let items: { rank: number; html: string }[];
-  if (sizes) {
-    // hetzelfde plaatje in drie maten
-    const pool = s.opts.sizeIcons?.length ? s.opts.sizeIcons : SIZE_ICONS;
-    const fresh = pool.filter(id => !s.seen.has(id));
-    const id = pick(fresh.length ? fresh : pool);
-    s.seen.add(id);
-    items = [0, 1, 2].map(rank => ({ rank, html: `<span class="mg-size s${rank}">${icon(id)}</span>` }));
-  } else {
-    // drie of vier getallen, met stippen eronder om te tellen
-    const numbers = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, Math.random() < 0.4 ? 4 : 3);
-    items = numbers.map(n => ({ rank: n, html: `<b>${n}</b>${dots(n, 's')}` }));
+  if (sizes) items = [0, 1, 2].map(rank => ({ rank, html: `<span class="mg-size s${rank}">${pic}</span>` }));
+  else {
+    // drie of vier getallen (op een smal scherm drie), elk met zoveel plaatjes om te tellen
+    const numbers = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, Math.random() < 0.4 && window.innerWidth >= 480 ? 4 : 3);
+    items = numbers.map(n => ({ rank: n, html: numberTile(n, small ?? pic) }));
   }
   const sorted = [...items].sort((p, q) => p.rank - q.rank);
   // ze mogen er niet al goed staan
   let tiles = shuffle(items);
   for (let i = 0; i < 10 && tiles.every((it, k) => it === sorted[k]); i++) tiles = shuffle(items);
   let pos = 0;
+  const wide = sizes ? '' : ' mg-answer';
 
   show(
     t(sizes ? 'mini.order.size' : 'mini.order.count'),
     `<div class="mg-hint">${sizes ? HINT_SIZE : HINT_COUNT}</div>` +
-      `<div class="mg-row">${items.map(() => '<span class="mg-slot"></span>').join('')}</div>` +
-      `<div class="mg-row">${tiles.map(it => `<button class="mg-btn" type="button" data-v="${it.rank}">${it.html}</button>`).join('')}</div>`,
+      `<div class="mg-row">${items.map(() => `<span class="mg-slot${wide}"></span>`).join('')}</div>` +
+      `<div class="mg-row">${tiles.map(it => `<button class="mg-btn${wide}" type="button" data-v="${it.rank}">${it.html}</button>`).join('')}</div>`,
   );
   const places = slots();
   for (const b of buttons())
@@ -417,6 +542,137 @@ function orderRound(s: Session): void {
         }
       } else miss(s, b, 'oops');
     });
+}
+
+// ------------------------------------------------------------ memory
+/**
+ * Zoek twee dezelfde. De kaartjes liggen dicht; tik er twee om. Dezelfde blijven open liggen, verschillende gaan na
+ * een tel weer dicht (of meteen, als je al een volgend kaartje omdraait). Missen hoort erbij en klinkt niet als fout;
+ * alleen met heel veel missers is de ronde niet 'in één keer goed' (zie memoryClean).
+ */
+function memoryRound(s: Session): void {
+  const pairs = memoryPairs(s.round);
+  const pics = picsFor(s, pairs);
+  show(
+    t('mini.memory'),
+    `<div class="mg-cards" style="--cols:${pairs <= 2 ? 2 : pairs === 3 ? 3 : 4}">` +
+      dealPairs(pairs).map(v => `<button class="mg-btn mg-flip" type="button" data-v="${v}"><span class="mg-back">${icon('question')}</span><span class="mg-face">${pics[v].html}</span></button>`).join('') +
+      '</div>',
+  );
+  let open: HTMLButtonElement[] = [], found = 0, misses = 0, closing = 0;
+  const shut = (): void => {
+    clearTimeout(closing);
+    for (const b of open) b.classList.remove('open');
+    open = [];
+  };
+  for (const b of buttons())
+    b.addEventListener('click', () => {
+      if (s.busy || b.classList.contains('open')) return;
+      // er liggen nog twee verschillende open: die gaan eerst dicht
+      if (open.length === 2) shut();
+      b.classList.add('open');
+      open.push(b);
+      if (open.length < 2) return;
+      const [first, second] = open;
+      if (first.dataset.v !== second.dataset.v) {
+        misses++;
+        closing = window.setTimeout(() => {
+          if (session === s) shut();
+        }, MEMORY_PEEK);
+        return;
+      }
+      for (const card of open) {
+        card.classList.add('ok');
+        card.disabled = true;
+      }
+      open = [];
+      found++;
+      if (found < pairs) return sfx('place', { volume: 0.6 });
+      s.clean = memoryClean(misses, pairs);
+      roundDone(s);
+    });
+}
+
+// ------------------------------------------------------------ wat hoort er niet bij
+/** Vier plaatjes: drie horen bij elkaar, één niet. De eerste vraag is drie keer precies hetzelfde plaatje. */
+function oddRound(s: Session): void {
+  const families: Pic[][][] = [...ODD_FAMILIES.map(family => family.map(group => group.map(thingPic))), [s.park.map(beastPic)]];
+  const q = makeOdd(families, s.round === 0);
+  if (!q) return sumRound(s);
+  choose(s, t('mini.odd'), '', q.items.map((p, i) => ({ html: p.html, right: i === q.odd, cls: 'mg-one' })));
+}
+
+// ------------------------------------------------------------ wat komt er daarna
+/** Een rijtje plaatjes dat steeds herhaalt, met een leeg vakje aan het eind: welk plaatje komt daar? */
+function patternRound(s: Session): void {
+  const q = makePattern(s.round);
+  const pics = picsFor(s, 3);
+  choose(
+    s, t('mini.pattern'),
+    `<div class="mg-beads">${q.shown.map(k => `<span class="mg-bead">${pics[k].html}</span>`).join('')}<span class="mg-bead mg-next"><b>?</b></span></div>`,
+    shuffle([0, 1, 2]).map(k => ({ html: pics[k].html, right: k === q.answer, cls: 'mg-one' })),
+    '',
+    {
+      right: () => {
+        const next = part('mg-next');
+        next.classList.add('ok');
+        next.innerHTML = pics[q.answer].html;
+      },
+    },
+  );
+}
+
+// ------------------------------------------------------------ vragen over dieren
+/** Het dier waar deze vraag over gaat: uit het park als het kan, en niet een dier dat al geweest is. Null: er is geen plaatje. */
+function askBeast(s: Session, clear: readonly SpeciesId[]): SpeciesId | null {
+  const pool = askPool(s.park, clear, s.rounds).filter(hasPicture);
+  return pool.length ? freshOf(pool, s.seen) : null;
+}
+
+/**
+ * Van welk dier is deze schaduw? Om en om: een grote schaduw met drie dieren eronder, of een dier met drie schaduwen.
+ * Alleen dieren met een vorm die je herkent (zie SHADOW_CLEAR). Na het goede antwoord krijgt de schaduw zijn kleur terug.
+ */
+function shadowRound(s: Session): void {
+  const answer = askBeast(s, SHADOW_CLEAR);
+  if (!answer) return sumRound(s);
+  const turned = s.round % 2 === 1;
+  choose(s, t(turned ? 'mini.shadow.pick' : 'mini.shadow'), `<div class="mg-word${turned ? '' : ' mg-dark'}">${speciesIcon(answer)}</div>`, beastTiles(shadowChoices(answer, s.park), answer, turned));
+}
+
+/** Wat eet dit dier? Het dier groot, met drie soorten voer eronder (het goede staat in SPECIES). */
+function eatRound(s: Session): void {
+  const answer = askBeast(s, EAT_CLEAR);
+  if (!answer) return sumRound(s);
+  choose(s, t('mini.eat'), `<div class="mg-word">${speciesIcon(answer)}</div>`, eatChoices(answer).map(food => ({ html: icon(food), right: food === SPECIES[answer].food, cls: 'mg-one' })));
+}
+
+/** Wie slaapt hier? Een slaapplek groot, met drie dieren eronder. Elke vraag een andere slaapplek. */
+function bedRound(s: Session): void {
+  const pool = askPool(s.park, Object.keys(SPECIES) as SpeciesId[], Math.max(6, s.rounds)).filter(hasPicture);
+  if (!pool.length) return sumRound(s);
+  const fresh = pool.filter(sp => !s.seen.has(SPECIES[sp].bed));
+  const answer = pick(fresh.length ? fresh : pool), bed = SPECIES[answer].bed;
+  s.seen.add(bed);
+  choose(s, t('mini.bed'), `<div class="mg-word mg-night">${icon(bed)}</div>`, beastTiles(bedChoices(answer, s.park).filter(hasPicture), answer));
+}
+
+/**
+ * Welk dier maakt dit geluid? Een grote knop met een luidspreker (het geluid klinkt ook vanzelf één keer) en drie
+ * dieren. Tik je een verkeerd dier aan, dan hoor je hoe dat dier klinkt.
+ */
+function soundRound(s: Session): void {
+  const play = s.opts.sound;
+  const answer = play ? askBeast(s, SOUND_CLEAR) : null;
+  if (!play || !answer) return shadowRound(s);
+  const options = soundChoices(answer, s.park).filter(hasPicture);
+  choose(
+    s, t('mini.sound'), `<button class="mg-clue mg-sound mg-loud" type="button" aria-label="${t('mini.guess.sound')}">${icon('sound_on')}</button>`, beastTiles(options, answer), '',
+    { wrong: i => play(options[i]) },
+  );
+  root!.querySelector('.mg-sound')?.addEventListener('click', () => play(answer));
+  // het geluid klinkt meteen één keer, na de uitleg
+  later(s, 1600, () => play(answer));
 }
 
 // ------------------------------------------------------------ raden
@@ -462,6 +718,12 @@ function guessRound(s: Session): void {
     });
 }
 
+/** Bij elke soort puzzel: wat één vraag op het scherm zet. */
+const ROUNDS: Record<MiniKind, (s: Session) => void> = {
+  sum: sumRound, count: countRound, more: moreRound, spell: spellRound, order: orderRound, memory: memoryRound, odd: oddRound, pattern: patternRound,
+  shadow: shadowRound, eat: eatRound, bed: bedRound, sound: soundRound, guess: guessRound,
+};
+
 // ------------------------------------------------------------ voor het spel
 /** Opent het puzzeltje over het spel heen. Staat er al een open, dan gaat die eerst dicht (zijn onDone krijgt skipped: true). */
 export function playMini(opts: MiniOptions): void {
@@ -469,10 +731,13 @@ export function playMini(opts: MiniOptions): void {
   spoken = '';
   stop();
   const el = ensureRoot();
+  // de dieren uit het park met een eigen plaatje; wonen er te weinig, dan doen een paar bekende dieren mee
+  const own = [...new Set(opts.park ?? [])].filter(hasPicture);
+  const park = own.length >= 3 ? own : [...own, ...BEASTS.filter(sp => !own.includes(sp) && hasPicture(sp))];
   const s: Session = {
     opts,
-    // raden is één vraag: het lievelingsdier van één gast
-    rounds: Math.max(1, Math.round(opts.rounds ?? (opts.kind === 'guess' ? 1 : 3))),
+    // raden is één vraag (het lievelingsdier van één gast); een memory duurt langer, dus daarvan twee
+    rounds: Math.max(1, Math.round(opts.rounds ?? (opts.kind === 'guess' ? 1 : opts.kind === 'memory' ? 2 : 3))),
     round: 0,
     marks: [],
     clean: true,
@@ -482,6 +747,8 @@ export function playMini(opts: MiniOptions): void {
     timer: 0,
     seen: new Set(),
     sizes: opts.first ? opts.first === 'size' : Math.random() < 0.5,
+    pics: opts.animals && park.length ? park.map(beastPic) : (opts.things?.length ? opts.things : THINGS).map(thingPic),
+    park,
   };
   session = s;
   part('mg-close').setAttribute('aria-label', t('mini.close'));

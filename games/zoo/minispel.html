@@ -6,20 +6,29 @@
 <title>Puzzeltjes</title>
 <style>
   #proef { position: absolute; inset: 0; overflow: auto; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
-  #proef .rij { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+  #proef .rij { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; }
+  #proef h2 { margin: 6px 0 0; font: 800 16px system-ui, sans-serif; opacity: 0.7; }
   #proef button { border: 0; border-radius: 18px; padding: 14px 20px; background: #fff; font: 800 18px system-ui, sans-serif; box-shadow: 0 5px 0 #c9d6c0; cursor: pointer; }
   #proef label { font: 700 15px system-ui, sans-serif; }
   #uitslag { margin: 0; font: 14px/1.5 ui-monospace, monospace; background: #fff; border-radius: 14px; padding: 10px 14px; min-width: min(420px, 92vw); min-height: 3em; white-space: pre-wrap; user-select: text; }
 </style>
 </head>
 <body>
-<!-- Alleen voor het bouwen: de puzzeltjes los van het spel uitproberen (zie src/minispel.ts). Niet in het gepubliceerde spel. -->
+<!-- Alleen voor het bouwen: de puzzeltjes en de spelletjes van de dokter los van het spel uitproberen (zie src/minispel.ts). Niet in het gepubliceerde spel. -->
 <div id="proef">
+  <h2>Puzzeltjes</h2>
   <div class="rij" id="knoppen"></div>
   <div class="rij">
     <label><input type="checkbox" id="plaatje" checked> met plaatje bovenaan</label>
-    <label>vragen <select id="rondes"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></label>
+    <label>vragen <select id="rondes"><option value="">gewoon</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label>
+    <label>plaatjes van <select id="plaatjes"></select></label>
+    <label><input type="checkbox" id="dieren"> met dieren</label>
+    <label><input type="checkbox" id="park" checked> een park met dieren</label>
+    <label><input type="checkbox" id="geluid" checked> met geluid</label>
   </div>
+  <h2>De dokter</h2>
+  <div class="rij" id="dokter"></div>
+  <div class="rij"><label>patiënt <select id="patient"></select></label></div>
   <pre id="uitslag"></pre>
 </div>
 <script type="module" src="/src/minispel.ts"></script>

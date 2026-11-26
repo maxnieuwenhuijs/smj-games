@@ -4,6 +4,7 @@
 import { ALSO, CLIMATE, GOAL_OWNER, LEVELS, PREY_OF, SEASONS, SPECIES, type FenceNeed, type Goal, type Season, type SpeciesId, type WishId, TOY_OF, SPACE, herdOf } from './data';
 import { STAFF, TEACHERS, type FigureId, type Mood, type TeacherId } from './figures';
 import { STAR_FACTORS, type StarFactor } from './stars';
+import { VET_GAMES } from './vetplan';
 
 export type Vars = Record<string, string | number>;
 export type Tr = (key: string, vars?: Vars) => string;
@@ -111,14 +112,18 @@ export type EventPart = 'ask' | 'good' | 'bad';
  * Wie er bij een evenement praat, en hoeveel verschillende zinnen er zijn voor de vraag (ask), voor goed afgelopen
  * (good) en voor niet gelukt (bad). Het spel kiest er elke keer een andere uit. Staat er geen `who`, dan praat de juf
  * of de meester van de klas. De teksten heten say.event.<id>.1, say.event.<id>.good.1, say.event.<id>.bad.1, ...
- *   class.sum, class.count, class.draw, class.line, class.guide: wat de klas kan vragen
+ *   class.sum, class.count, class.draw, class.line, class.quiz, class.game, class.guide: wat de klas kan vragen
  *   class.go: de klas laat zien welk dier ze zoekt; class: hoe het puzzeltje afliep; class.bye: de klas gaat naar huis
+ *   party.count, photo.shadow, crates.eat, ...: een evenement dat om een ander puzzeltje vraagt dan gewoonlijk, met een
+ *   eigen vraag. Wat daar op nul staat (meestal hoe het afliep), komt van het evenement zelf.
  */
 export const EVENT_SAYS: Record<string, { who?: FigureId; ask: number; good: number; bad: number }> = {
   'class.sum': { ask: 2, good: 0, bad: 0 },
   'class.count': { ask: 2, good: 0, bad: 0 },
   'class.draw': { ask: 2, good: 0, bad: 0 },
   'class.line': { ask: 2, good: 0, bad: 0 },
+  'class.quiz': { ask: 2, good: 0, bad: 0 },
+  'class.game': { ask: 2, good: 0, bad: 0 },
   'class.guide': { ask: 2, good: 2, bad: 0 },
   'class.go': { ask: 1, good: 0, bad: 0 },
   class: { ask: 0, good: 3, bad: 2 },
@@ -133,7 +138,25 @@ export const EVENT_SAYS: Record<string, { who?: FigureId; ask: number; good: num
   till: { who: 'cashier', ask: 2, good: 2, bad: 2 },
   mayor: { who: 'director', ask: 2, good: 2, bad: 2 },
   guess: { who: 'host', ask: 2, good: 2, bad: 1 },
+  'party.count': { who: 'host', ask: 1, good: 0, bad: 0 },
+  'party.game': { who: 'host', ask: 1, good: 1, bad: 1 },
+  'celeb.quiz': { who: 'host', ask: 1, good: 0, bad: 1 },
+  'photo.shadow': { who: 'host', ask: 1, good: 0, bad: 1 },
+  'photo.pairs': { who: 'host', ask: 1, good: 0, bad: 1 },
+  'build.count': { who: 'builder', ask: 1, good: 0, bad: 0 },
+  'build.pattern': { who: 'builder', ask: 1, good: 0, bad: 0 },
+  'bedtime.bed': { who: 'keeper', ask: 1, good: 1, bad: 1 },
+  'crates.eat': { who: 'keeper', ask: 1, good: 1, bad: 1 },
+  'mayor.quiz': { who: 'director', ask: 1, good: 0, bad: 1 },
 };
+/**
+ * De uitleg boven een puzzeltje (minigame.ts): wie om hulp vroeg, leest hem voor. Elke nieuwe uitleg hoort hier bij,
+ * dan wordt hij ook ingesproken.
+ */
+export const MINI_SAYS = [
+  'mini.sum.plus', 'mini.sum.minus', 'mini.count', 'mini.more', 'mini.spell', 'mini.order.size', 'mini.order.count', 'mini.memory', 'mini.odd', 'mini.pattern',
+  'mini.shadow', 'mini.shadow.pick', 'mini.eat', 'mini.bed', 'mini.sound', 'mini.done.good', 'mini.done.try',
+];
 
 /** Voor deze winkels heeft de gastvrouw een eigen zin als het er te druk is (host.busy.<soort>); voor al het andere een algemene. */
 export const BUSY_KINDS: string[] = ['foodstall', 'drinkstall', 'toilet', 'icecream', 'playground', 'bench', 'balloon', 'hats', 'souvenir', 'fountain', 'carousel', 'umbrellas', 'shelter', 'facepaint'];
@@ -257,7 +280,6 @@ export const say = {
   /** De eerste keer dat je iets koopt terwijl je rondloopt (zie walkhand.ts). */
   walkBuy: (): Line => ({ who: 'host', mood: 'happy', key: 'say.walk.buy' }),
   dirty: (): Line => ({ who: 'host', mood: 'worried', key: 'say.dirty' }),
-  vetHow: (): Line => ({ who: 'keeper', mood: 'worried', key: 'say.vet.how' }),
   pettingNew: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.petting.new' }),
   pettingOpen: (): Line => ({ who: 'host', mood: 'happy', key: 'say.petting.open' }),
   pettingSmall: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.petting.small' }),
@@ -278,6 +300,9 @@ export const say = {
   dusty: (): Line => ({ who: 'keeper', mood: 'worried', key: 'alert.dusty' }),
   filterTip: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.filter.tip' }),
 };
+
+/** De uitleg bij elk spelletje van de dokter (vetgame.ts): de verzorger leest hem voor. */
+export const VET_SAYS = VET_GAMES.map(game => `vet.${game}.how`);
 
 /** De tekst van een zin, zoals hij op het scherm komt en wordt uitgesproken. */
 export const textOf = (tr: Tr, line: Line): string => tr(line.key, line.vars);
@@ -390,7 +415,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(wishLine(tr, 'fun', 'pig', null, false, undefined, 'tyre'));
   add(say.keysNew());
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(), say.trainOld(), say.trainCrossing(),
-    say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.dusty(), say.filterTip(), say.showWhere(), say.showFirst(),
+    say.dirty(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.dusty(), say.filterTip(), say.showWhere(), say.showFirst(),
     say.cableOne(), say.cableWhere(), say.cablePole(), say.cableFirst(), say.partyToday(), say.partyGong(), say.partyStart(), say.partyEnd(), say.treatNew(), say.treatFull(), say.treatSick(), say.hoseNew(), say.hoseMud(), say.leavesNew(), say.leavesJump(), say.snowNew(), say.snowman(), say.lampsNew(), say.lampsWave()]) add(line);
   for (const key of ['balloon', 'icecream', 'coin', 'thanks'] as const) add(say.kid(key));
   add(say.eventNew());
@@ -404,7 +429,9 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
         for (let n = 0; n < e[part]; n++) add(say.event(id, part, n, who));
   // de uitleg bij een puzzeltje, in de stem van wie om hulp vroeg
   for (const who of ['host', 'keeper', 'builder', 'cashier', 'director', 'teacher', 'master'] as const)
-    for (const key of ['mini.sum.plus', 'mini.sum.minus', 'mini.spell', 'mini.order.size', 'mini.order.count', 'mini.done.good', 'mini.done.try']) add({ who, mood: 'happy', key });
+    for (const key of MINI_SAYS) add({ who, mood: 'happy', key });
+  // de uitleg bij de spelletjes van de dokter, in de stem van de verzorger
+  for (const key of VET_SAYS) add({ who: 'keeper', mood: 'happy', key });
   // de optocht, de schminktent, de weg wijzen, en de uitleg bij raden (in de stem van de gastvrouw)
   for (const line of [say.paradeNew(), say.paradeGo(), say.paradeRest(), say.paintNew(), say.wayTip(), say.busy('facepaint'), say.walkNew(), say.walkBuy()]) add(line);
   for (const key of ['mini.guess', 'mini.guess.no']) add({ who: 'host', mood: 'happy', key });

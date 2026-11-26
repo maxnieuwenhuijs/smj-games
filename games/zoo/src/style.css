@@ -526,61 +526,6 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
   58%, 100% { transform: scale(1.4); opacity: 0; }
 }
 
-/* ---------- dierenarts ---------- */
-.card.vet { gap: 14px; padding: 24px min(36px, 4vw); max-width: 96vw; }
-.patient {
-  position: relative; width: min(190px, 44vw, 34vh); height: min(190px, 44vw, 34vh); border-radius: 50%; background: #e3eef6;
-  display: grid; place-items: center; transition: background 0.4s;
-}
-/* ziek: wat grijs en scheef; bij elke stap komt er kleur terug (--sick loopt van 1 naar 0) */
-.patient .pic {
-  --sick: 1; display: block; font-size: min(130px, 30vw, 23vh);
-  filter: grayscale(calc(var(--sick) * 0.75)) brightness(calc(1 - var(--sick) * 0.06)); transition: filter 0.4s;
-}
-.patient.sick .pic { animation: sickly 2.8s ease-in-out infinite; }
-@keyframes sickly {
-  0%, 100% { transform: rotate(-9deg) translateY(4px); }
-  50% { transform: rotate(-5deg) translateY(8px); }
-}
-.patient.well { background: #fff1b8; }
-.patient.well .pic { filter: none; animation: cheer 0.35s ease-in-out infinite alternate; }
-@keyframes cheer {
-  from { transform: translateY(5px) scale(1.04, 0.95); }
-  to { transform: translateY(-16px) scale(1.08); }
-}
-/* het ding van de knop vliegt naar het dier; hartjes en sterretjes spatten eruit */
-.patient .fly, .patient .spark { position: absolute; left: 50%; top: 50%; pointer-events: none; font-style: normal; }
-.patient .fly { font-size: 56px; margin: -28px 0 0 -28px; animation: vetfly 0.55s ease-in-out forwards; }
-.patient .spark { font-size: 30px; margin: -15px 0 0 -15px; opacity: 0; animation: vetspark 0.85s ease-out var(--d, 0s) forwards; }
-@keyframes vetfly {
-  from { transform: translate(var(--dx), var(--dy)) scale(1) rotate(0deg); opacity: 1; }
-  60% { transform: translate(0, 0) scale(1.25) rotate(-14deg); opacity: 1; }
-  80% { transform: translate(0, 0) scale(1.1) rotate(10deg); opacity: 1; }
-  to { transform: translate(0, 0) scale(0.6) rotate(0deg); opacity: 0; }
-}
-@keyframes vetspark {
-  0% { transform: translate(0, 0) scale(0.3); opacity: 0; }
-  25% { opacity: 1; }
-  100% { transform: translate(var(--x), var(--y)) scale(1.1); opacity: 0; }
-}
-.card.vet .steps { display: flex; justify-content: center; gap: min(18px, 3vw); }
-/* grote ronde knoppen; alleen de stap die aan de beurt is licht op */
-.tool.vetstep {
-  width: min(104px, 24vw); height: min(104px, 24vw); border-radius: 50%; opacity: 0.45; filter: grayscale(0.6);
-  transition: opacity 0.25s, filter 0.25s;
-}
-.tool.vetstep .ic { font-size: min(52px, 12vw); }
-.tool.vetstep.now { opacity: 1; filter: none; background: var(--sun); box-shadow: 0 5px 0 var(--sun-shade); animation: vetnow 1.4s ease-in-out infinite; }
-@keyframes vetnow {
-  0%, 100% { transform: scale(1); box-shadow: 0 5px 0 var(--sun-shade), 0 0 0 0 rgba(255, 190, 40, 0.9); }
-  50% { transform: scale(1.07); box-shadow: 0 5px 0 var(--sun-shade), 0 0 0 12px rgba(255, 190, 40, 0); }
-}
-.tool.vetstep.done { opacity: 1; filter: none; background: #e2f4d8; box-shadow: 0 5px 0 #a9d48f; }
-.tool.vetstep .tick { position: absolute; right: -4px; top: -4px; display: none; }
-.tool.vetstep .tick .ic { font-size: 34px; }
-.tool.vetstep.done .tick { display: block; animation: pop 0.3s ease-out; }
-.tool.vetstep.no { animation: shake 0.3s ease-in-out; }
-
 /* ---------- gastenboek ---------- */
 /* het overzicht van je park (tik op de poort): hoe het gaat, en grote knoppen zoals de optocht */
 .card.park { gap: 14px; padding: 20px min(28px, 4vw); max-width: 96vw; }
@@ -670,10 +615,6 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 @media (prefers-reduced-motion: reduce) {
   #pointer { transition: none; }
   #pointer .arm .ic, #pointer .ring { animation-duration: 5s; }
-  .tool.vetstep.now { animation-duration: 2.8s; }
-  .patient.sick .pic { animation: none; transform: rotate(-8deg); }
-  .patient.well .pic { animation-duration: 0.9s; }
-  .patient .fly { animation-duration: 0.7s; }
   .card.book .note { animation: none; }
   .card.fact .reward .pic, .card.fact .deco { animation-duration: 6s; }
   .bubble.star, .bubble.sad::before { animation-duration: 6s; }
