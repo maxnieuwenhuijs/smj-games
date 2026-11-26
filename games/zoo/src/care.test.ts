@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { CARE_ACTIONS, CATCH, DUST, HOSE, TREAT, arcAt, dustAfter, dustSpecks, flightTime, isCare, treatFor, treatReady, dusty } from './care';
+import { CARE_ACTIONS, CATCH, DIRTY, DUST, HOSE, MUDDY, TREAT, arcAt, dirtyMost, dustAfter, dustPace, dustSpecks, flightTime, isCare, muddyAfter, treatFor, treatReady, dusty } from './care';
 import { FEATURE, FOODS, MUD_LOVERS, SPECIES, type SpeciesId } from './data';
 import { ICON_IDS } from './icons';
 import en from './en.json';
 import nl from './nl.json';
 
-const land = { species: 'cow' as SpeciesId, aquatic: false, swimming: false, rolling: false };
+const land = { aquatic: false, swimming: false };
 
 describe('snoepje gooien', () => {
   it('elk dier krijgt een snoepje van zijn eigen voer', () => {
@@ -53,19 +53,58 @@ describe('wassen met de tuinslang', () => {
     expect(dustSpecks(1)).toBe(6);
   });
 
-  it('een modderliefhebber wordt sneller vies, vooral als hij in de modder rolt', () => {
+  it('een modderliefhebber die rolt krijgt modder op zijn vacht, maar wordt er niet eerder vies van', () => {
     expect(MUD_LOVERS).toContain('pig');
-    const pig = { ...land, species: 'pig' as SpeciesId };
-    expect(dustAfter(0, 60, pig)).toBeGreaterThan(dustAfter(0, 60, land));
-    // een keer rollen (een paar tellen) en hij is goed vies
-    expect(dustAfter(0, 2.6, { ...pig, rolling: true })).toBeGreaterThanOrEqual(DUST.shows);
+    const pig = { species: 'pig' as SpeciesId, swimming: false, rolling: true };
+    // een keer rollen (een paar tellen) en je ziet de modder
+    expect(muddyAfter(0, 2.6, pig)).toBeGreaterThanOrEqual(DUST.shows);
+    expect(dustSpecks(muddyAfter(0, 2.6, pig))).toBeGreaterThan(0);
+    // hoe lang hij ook rolt: nooit zo veel dat het op een dier lijkt dat gewassen moet worden
+    expect(muddyAfter(0, 600, pig)).toBe(MUDDY.top);
+    expect(MUDDY.top).toBeLessThan(DUST.puffs);
+    // de modder slijt er vanzelf weer af, en zwemmen spoelt hem er meteen af
+    expect(muddyAfter(MUDDY.top, MUDDY.fade, { ...pig, rolling: false })).toBe(0);
+    expect(muddyAfter(0.5, 0.1, { ...pig, swimming: true })).toBe(0);
     // een koe die rolt, wordt er niet vies van
-    expect(dustAfter(0, 2.6, { ...land, rolling: true })).toBeLessThan(DUST.shows);
+    expect(muddyAfter(0, 5, { ...pig, species: 'cow' })).toBe(0);
+    // en stof komt er bij een varken even snel bij als bij elk ander dier: zo is het niet steeds het varken
+    expect(dustAfter(0, 60, land)).toBeCloseTo(60 / DUST.full, 9);
+  });
+
+  it('elk dier heeft zijn eigen tempo: de een is veel eerder vies dan de ander', () => {
+    expect(dustPace(0)).toBeCloseTo(DUST.pace[0], 6);
+    expect(dustPace(1)).toBeCloseTo(DUST.pace[1], 6);
+    expect(dustPace(0.5)).toBeGreaterThan(dustPace(0.2));
+    const slow = dustAfter(0, 300, { ...land, pace: dustPace(0) }), fast = dustAfter(0, 300, { ...land, pace: dustPace(1) });
+    expect(fast).toBeGreaterThan(slow * 2);
+    // ook het snelste gewone dier is niet binnen vijf minuten vies, en het traagste wel binnen een half uur
+    expect((DUST.dirty * DUST.full) / DUST.pace[1]).toBeGreaterThan(300);
+    expect((DUST.dirty * DUST.full) / DUST.pace[0]).toBeLessThan(1800);
+  });
+
+  it('er zijn nooit te veel dieren tegelijk vies: wie niet aan de beurt is, blijft net schoon genoeg', () => {
+    expect(dirtyMost(0)).toBe(DIRTY.base);
+    expect(dirtyMost(DIRTY.per * 2)).toBe(DIRTY.base + 2);
+    expect(dirtyMost(1000)).toBe(DIRTY.max);
+    const waiting = dustAfter(DUST.held, 600, { ...land, room: false });
+    expect(dusty(waiting)).toBe(false);
+    expect(waiting).toBeCloseTo(DUST.held, 6);
+    // is er plek, dan wordt het alsnog vies; en wie al vies is, blijft vies
+    expect(dusty(dustAfter(DUST.held, 600, { ...land, room: true }))).toBe(true);
+    expect(dusty(dustAfter(0.95, 10, { ...land, room: false }))).toBe(true);
+    expect(DUST.held).toBeLessThan(DUST.dirty);
+    expect(DUST.held).toBeGreaterThan(DUST.puffs);
+  });
+
+  it('een bui spoelt er wat stof af, maar niet alles: anders zou alleen wie in de modder rolt ooit vies worden', () => {
+    // een bui van een minuut haalt er hooguit een kwart af
+    expect(60 / DUST.rain).toBeLessThanOrEqual(0.25);
+    expect(DIRTY.gap).toBeGreaterThanOrEqual(60);
   });
 
   it('zwemmen spoelt het stof eraf, en een zeedier wordt nooit stoffig', () => {
     expect(dustAfter(0.8, 0.1, { ...land, swimming: true })).toBe(0);
-    expect(dustAfter(0, 1000, { ...land, species: 'dolphin', aquatic: true })).toBe(0);
+    expect(dustAfter(0, 1000, { ...land, aquatic: true })).toBe(0);
   });
 
   it('even loslaten mag: het dier blijft langer nat dan het wassen duurt', () => {

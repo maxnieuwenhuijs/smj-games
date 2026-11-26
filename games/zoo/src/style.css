@@ -246,6 +246,9 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 .goal .count { font-weight: 800; font-size: 16px; min-width: 34px; text-align: right; }
 .goal.done .count { color: #3f9a25; }
 .ic.badge { position: absolute; right: -7px; bottom: -4px; font-size: 0.55em; }
+/* een plaatje over een ander plaatje heen: de moddervlekken en vliegjes op de kop van een vies dier */
+.stack { position: relative; display: flex; flex: none; z-index: 1; }
+.stack .ic.over { position: absolute; left: -8%; top: -8%; width: 116%; height: 116%; z-index: 2; pointer-events: none; }
 
 #bubbles { position: absolute; inset: 0; overflow: hidden; z-index: 0; }
 /* de knoppen en balken liggen altijd boven de wolkjes en hartjes uit het park, nooit eronder */

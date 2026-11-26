@@ -1,7 +1,7 @@
 // Alles wat de figuren kunnen zeggen. Het spel bouwt zijn zinnen hier, en het stemmenscript
 // (tools/voice) vraagt hier de volledige lijst op, zodat elke zin ook ingesproken kan worden.
 // Geen DOM en geen Three.js in dit bestand: het draait ook buiten de browser.
-import { ALSO, CLIMATE, GOAL_OWNER, LEVELS, PREY_OF, SEASONS, SPECIES, type FenceNeed, type Goal, type Season, type SpeciesId, type WishId, TOY_OF, SPACE, herdOf, SERVES } from './data';
+import { ALSO, CLIMATE, GOAL_OWNER, LEVELS, PREY_OF, SEASONS, SPECIES, type FenceNeed, type Goal, type Season, type SpeciesId, type WishId, TOY_OF, SPACE, herdOf } from './data';
 import { STAFF, TEACHERS, type FigureId, type Mood, type TeacherId } from './figures';
 import { STAR_FACTORS, type StarFactor } from './stars';
 
@@ -123,6 +123,9 @@ export const EVENT_SAYS: Record<string, { who?: FigureId; ask: number; good: num
   guess: { who: 'host', ask: 2, good: 2, bad: 1 },
 };
 
+/** Voor deze winkels heeft de gastvrouw een eigen zin als het er te druk is (host.busy.<soort>); voor al het andere een algemene. */
+export const BUSY_KINDS: string[] = ['foodstall', 'drinkstall', 'toilet', 'icecream', 'playground', 'bench', 'balloon', 'hats', 'souvenir', 'fountain', 'carousel', 'umbrellas', 'shelter', 'facepaint'];
+
 export const say = {
   praise: (i: number): Line => ({ who: PRAISE[i % PRAISE.length], mood: 'happy', key: `praise.${(i % PRAISE.length) + 1}` }),
   named: (key: string, name: string): Line => ({ who: NAMED[key], mood: key.includes('help') ? 'urgent' : 'happy', key, vars: { name } }),
@@ -163,7 +166,8 @@ export const say = {
   broken: (): Line => ({ who: 'builder', mood: 'worried', key: 'alert.broken' }),
   funNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.fun.new' }),
   host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident' | 'nopath' | 'dark' | 'astray' | 'rain' | 'wide', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
-  busy: (kind: string): Line => ({ who: 'host', mood: 'worried', key: `host.busy.${kind}` }),
+  /** Het is ergens te druk. Heeft de gastvrouw voor die winkel geen eigen zin, dan zegt ze het algemeen. */
+  busy: (kind?: string): Line => ({ who: 'host', mood: 'worried', key: `host.busy.${kind && BUSY_KINDS.includes(kind) ? kind : 'any'}` }),
   cash: (key: 'short' | 'full' | 'wage'): Line => ({ who: 'cashier', mood: key === 'full' ? 'happy' : 'worried', key: `cash.${key}` }),
   hiredAs: (role: 'feed' | 'clean' | 'fix' | 'vet' | 'guide' | 'photo' | 'guard'): Line => ({ who: 'keeper', mood: 'happy', key: `say.hired.${role}` }),
   /** Het weetje van een diersoort, verteld door de verzorger. */
@@ -386,7 +390,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.night());
   add(say.nightNew());
   add(say.aquaNew());
-  for (const kind of Object.keys(SERVES)) add(say.busy(kind));
+  for (const kind of [...BUSY_KINDS, 'any']) add(say.busy(kind));
   add(say.cash('short'));
   add(say.cash('full'));
   add(say.cash('wage'));

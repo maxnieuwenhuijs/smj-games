@@ -383,6 +383,10 @@ export class Animal {
   private tintReady = false;
   /** Hoe stoffig het dier is: 0 schoon, 1 heel stoffig (vanaf FEATURE.hose; zie care.ts). */
   dust = 0;
+  /** Het eigen tempo waarin dit dier vies wordt (zie dustPace in care.ts): de een is veel eerder vies dan de ander. */
+  dustRate = 1;
+  /** Modder op de vacht van een modderliefhebber die net gerold heeft (0 tot 1): alleen om te zien. */
+  muddy = 0;
   /** Zo lang (in tellen) is het dier nog extra blij: na een snoepje of een wasbeurt. */
   glee = 0;
   /** Het snoepje: zo lang kijkt het dier omhoog voor het springt, en zo hoog springt het. */
@@ -1235,6 +1239,7 @@ export class Animal {
   shakeDry(w: AnimalWorld, fx: number, fy: number): void {
     this.stop();
     this.dust = 0;
+    this.muddy = 0;
     this.wet = false;
     w.splash(this.gx, this.gy);
     this.doTrick('shake', 1.3, 'Idle');

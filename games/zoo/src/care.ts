@@ -24,13 +24,31 @@ export const CATCH = { up: 0.6, munch: 1.6 };
 export const HOSE = { soak: 1.2, keep: 3, glee: 40, neglect: 25, mudBack: [20, 40] as [number, number] };
 
 /**
- * Stof op een dier (vanaf FEATURE.hose): van 0 (schoon) tot 1. Gewoon wordt het in `full` tellen helemaal stoffig;
- * een modderliefhebber `mud` keer zo snel, en bij het rollen in de modder komt er per tel `roll` bij. Zwemmen
- * spoelt het meteen af. Vanaf `shows` zie je het: stofjes op de vacht, en vanaf `puffs` af en toe een wolkje.
+ * Stof op een dier (vanaf FEATURE.hose): van 0 (schoon) tot 1. Een gewoon dier is gemiddeld in `full` tellen helemaal
+ * stoffig, maar elk dier heeft zijn eigen tempo (`pace`: van ... tot ... keer zo snel, zie dustPace): zo is het niet
+ * steeds hetzelfde dier dat vies wordt. Zwemmen spoelt het meteen af. Vanaf `shows` zie je het: stofjes op de vacht,
+ * en vanaf `puffs` af en toe een wolkje. Vanaf `dirty` wil het dier gewassen worden; een dier dat nog niet aan de
+ * beurt is om vies te worden (zie DIRTY) blijft op `held` hangen. Regen spoelt er per bui een beetje af: in `rain`
+ * tellen regen zou een dier helemaal schoon zijn.
  */
-export const DUST = { full: 1500, mud: 1.6, roll: 0.35, shows: 0.3, puffs: 0.85, dirty: 0.9, rain: 60 };
+export const DUST = { full: 900, pace: [0.55, 1.6] as [number, number], shows: 0.3, puffs: 0.85, dirty: 0.9, held: 0.88, rain: 300 };
+/**
+ * Modder op de vacht van een modderliefhebber die net gerold heeft: per tel rollen komt er `roll` bij (tot `top`), en
+ * in `fade` tellen is het er weer af. Je ziet het als bruine vlekjes, maar gewassen hoeft het dier daar niet voor te
+ * worden: anders zijn het steeds de varkens die vies zijn.
+ */
+export const MUDDY = { roll: 0.3, top: 0.8, fade: 240 };
+/**
+ * Hoeveel dieren er tegelijk vies mogen zijn: `base`, en één erbij per `per` dieren in het park, hooguit `max`. En
+ * tussen twee dieren die vies worden zit minstens `gap` tellen: zo is het bij te houden, ook in een groot park.
+ */
+export const DIRTY = { base: 2, per: 12, max: 6, gap: 120 };
 /** Zo stoffig wil een dier gewassen worden: dan is de wens 'schoon' niet vervuld (zie animal.ts). */
 export const dusty = (dust: number): boolean => dust >= DUST.dirty;
+/** Het eigen tempo van een dier, uit een gok tussen 0 en 1: de een wordt bijna drie keer zo snel vies als de ander. */
+export const dustPace = (roll: number): number => DUST.pace[0] + (DUST.pace[1] - DUST.pace[0]) * Math.min(1, Math.max(0, roll));
+/** Zoveel dieren mogen er in een park met `animals` dieren tegelijk vies zijn. */
+export const dirtyMost = (animals: number): number => Math.min(DIRTY.max, DIRTY.base + Math.floor(animals / DIRTY.per));
 
 /** Mag dit dier weer een snoepje? `last` is wanneer het zijn vorige kreeg (op de klok van het spel). */
 export const treatReady = (last: number | undefined, now: number): boolean => last === undefined || now - last >= TREAT.every;
@@ -38,12 +56,23 @@ export const treatReady = (last: number | undefined, now: number): boolean => la
 /** Welk snoepje bij dit dier past: een stukje van zijn eigen voer (een wortel, een vis, een appel, ...). */
 export const treatFor = (species: SpeciesId): FoodId => SPECIES[species].food;
 
-/** Zo stoffig is een dier na `dt` tellen. `swimming`: in het water, dan is het meteen schoon. */
-export function dustAfter(dust: number, dt: number, o: { species: SpeciesId; aquatic: boolean; swimming: boolean; rolling: boolean }): number {
+/**
+ * Zo stoffig is een dier na `dt` tellen. `swimming`: in het water, dan is het meteen schoon. `pace`: het eigen tempo
+ * van dit dier (zie dustPace). `room`: mag dit dier nu vies worden? Zo niet, dan blijft het vlak onder de grens hangen
+ * tot het aan de beurt is. Een dier dat al vies is, blijft vies tot het gewassen wordt.
+ */
+export function dustAfter(dust: number, dt: number, o: { aquatic: boolean; swimming: boolean; pace?: number; room?: boolean }): number {
   if (o.aquatic || o.swimming) return 0;
-  const mud = MUD_LOVERS.includes(o.species);
-  const rate = (mud ? DUST.mud : 1) / DUST.full + (o.rolling && mud ? DUST.roll : 0);
-  return Math.min(1, Math.max(0, dust + rate * dt));
+  let next = dust + ((o.pace ?? 1) / DUST.full) * dt;
+  if (o.room === false && dust < DUST.dirty) next = Math.min(next, DUST.held);
+  return Math.min(1, Math.max(0, next));
+}
+
+/** Hoeveel modder er na `dt` tellen op de vacht zit: het komt erbij als een modderliefhebber rolt, en slijt er langzaam weer af. */
+export function muddyAfter(muddy: number, dt: number, o: { species: SpeciesId; swimming: boolean; rolling: boolean }): number {
+  if (o.swimming) return 0;
+  if (o.rolling && MUD_LOVERS.includes(o.species)) return Math.min(MUDDY.top, muddy + MUDDY.roll * dt);
+  return Math.max(0, muddy - dt / MUDDY.fade);
 }
 
 /** Hoeveel stofjes je op het dier ziet: geen onder DUST.shows, en zes als het helemaal stoffig is. */

@@ -21,7 +21,7 @@ import { ESCAPE_WAY, escapeChance, escapeWay, pickEscaper, type EscapeWay } from
 import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region, type Side } from './grid';
 import { glassSides } from './grid';
 import { Hud, type GoalView, type ParkPanel, type ToolDef, type ToolOption } from './hud';
-import { ICON_IDS, cursor, icon, type IconId } from './icons';
+import { ICON_IDS, cursor, icon, stacked, type IconId } from './icons';
 import { emptyStats, goalProgress, levelDone, type Stats } from './levels';
 import { CHEERS, EVENT_SAYS, NAMED, PRAISE, callText, goalLine, say, textOf, voiceId, wishLine, type EventPart, type Line } from './lines';
 import { TEACHERS, type TeacherId } from './figures';
@@ -44,7 +44,7 @@ import { STAR_EVERY, STAR_FACTORS, STAR_GOOD, STAR_TIP_GAP, nextStars, parkScore
 import { guestCard } from './traits';
 import { BOOK_HEART, KID_MOMENT, KID_MOMENTS, SPLAT_MELT, momentReady, type KidMoment } from './kids';
 import { DAY_HOUR, EDGE_SHIFT, View, toWorldX, toWorldZ, type TroughMesh } from './view';
-import { CARE_ACTIONS, CATCH, DUST, HOSE, TREAT, dustAfter, dustSpecks, flightTime, isCare, treatFor, treatReady, type CareAction, dusty } from './care';
+import { CARE_ACTIONS, CATCH, DIRTY, DUST, HOSE, TREAT, dirtyMost, dustAfter, dustPace, dustSpecks, flightTime, isCare, muddyAfter, treatFor, treatReady, type CareAction, dusty } from './care';
 import { CareFx } from './carefx';
 import { WALK, type Box, type WalkGround } from './walk';
 import { WalkMode, tagHtml, type WalkTarget } from './walkmode';
@@ -122,6 +122,8 @@ const ESCAPE_EVERY: [number, number] = [280, 420];
 const ESCAPE_FOR_GOAL: [number, number] = [45, 70];
 /** Staat er een dier achter het verkeerde hek, dan ontsnapt er veel vaker een. */
 const ESCAPE_WRONG: [number, number] = [80, 130];
+/** Zo lang (in tellen) laat een schoonmaker een vies dier aan de speler over voor hij het zelf gaat wassen. */
+const WASH_AFTER = 90;
 const MAX_LITTER = 8;
 /** Zoveel stuks afval kun je tegelijk in je handen hebben. */
 const MAX_CARRY = 5;
@@ -233,7 +235,8 @@ export interface SaveData {
   vv: number[];
   /** `rot` (ook bij slaapplek, speelgoed en versiering): hoeveel kwartslagen het gedraaid staat. */
   troughs: { x: number; y: number; food: FoodId | null; amount: number; kind?: TroughKind; rot?: number }[];
-  animals: { species: SpeciesId; variant: Variant; gx: number; gy: number; hunger: number; name?: string; sick?: boolean; escaped?: boolean; nature?: Nature; rare?: Rare }[];
+  /** `dust` en `pace`: hoe stoffig het dier is en zijn eigen tempo daarin (zie care.ts). */
+  animals: { species: SpeciesId; variant: Variant; gx: number; gy: number; hunger: number; name?: string; sick?: boolean; escaped?: boolean; nature?: Nature; rare?: Rare; dust?: number; pace?: number }[];
   poops: { gx: number; gy: number }[];
   /** `keeper`, `feeder` en `cleaner` komen uit oudere spellen, toen een werker bij één verblijf hoorde. */
   pens?: { tile: number; name: string; color?: number; keeper?: boolean; feeder?: boolean; cleaner?: boolean; murk?: number }[];
@@ -850,6 +853,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (!modelReady(`${a.species}_${a.variant}`)) continue;
       const animal = this.addAnimal(a.species, a.variant, a.gx + ox, a.gy + oy, a.name, a.nature ?? 'plain', a.rare);
       animal.hunger = a.hunger;
+      // een dier uit een ouder spel begint ergens tussen schoon en een beetje stoffig: zo worden ze niet allemaal tegelijk vies
+      animal.dust = a.dust ?? Math.random() * 0.7;
+      if (a.pace) animal.dustRate = a.pace;
       if (a.sick) animal.fallIll();
       animal.escaped = !!a.escaped;
     }
@@ -894,6 +900,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       animals: this.animals.map(a => ({
         species: a.species, variant: a.variant, gx: a.gx, gy: a.gy, hunger: a.hunger, name: a.name, sick: a.sick || undefined, escaped: a.escaped || undefined,
         nature: a.nature === 'plain' ? undefined : a.nature, rare: a.rare ?? undefined,
+        dust: a.dust ? Math.round(a.dust * 1000) / 1000 : undefined, pace: Math.round(a.dustRate * 100) / 100,
       })),
       poops: this.poops.map(({ gx, gy }) => ({ gx, gy })),
       litter: this.litter.filter(p => !this.splats.has(p)).map(({ gx, gy }) => ({ gx, gy })),
@@ -1947,7 +1954,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const spot = this.glassSpot(pen);
       if (spot) this.murky.set(pen, { gx: spot[0], gy: spot[1], tank: pen });
     }
-    return [...this.poops, ...this.litter, ...this.grime.values(), ...this.murky.values()];
+    // een dier dat al een poos vies is en dat de speler nog niet gewassen heeft: de schoonmaker neemt de slang mee
+    const unwashed = this.animals.filter(a => !a.escaped && !a.sick && dusty(a.dust) && this.clock - (this.dirtySince.get(a) ?? this.clock) >= WASH_AFTER);
+    return [...this.poops, ...this.litter, ...this.grime.values(), ...this.murky.values(), ...unwashed];
   }
 
   /**
@@ -1999,6 +2008,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   workerClean(mess: KeeperPoop): void {
+    if (mess instanceof Animal) {
+      // een vies dier: de schoonmaker spuit het schoon vanaf waar hij staat
+      if (this.animals.includes(mess) && dusty(mess.dust)) this.washed(mess, { gx: mess.gx, gy: mess.gy + 1.5 });
+      return;
+    }
     const grimy = (mess as { shop?: ShopObj }).shop;
     if (grimy) return this.cleanShop(grimy, false);
     const tank = (mess as { tank?: Pen }).tank;
@@ -3409,6 +3423,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     a.name = name || this.animalName(a);
     a.nature = nature ?? (Math.random() < 0.5 ? 'plain' : NATURES[1 + Math.floor(Math.random() * (NATURES.length - 1))]);
     if (rare) a.setRare(rare);
+    // elk dier wordt in zijn eigen tempo vies, en een nieuw dier begint niet helemaal schoon
+    a.dustRate = dustPace(Math.random());
+    a.dust = Math.random() * 0.25;
     this.view.scene.add(a.model.root);
     this.animals.push(a);
     this.bubbles.set(a, this.hud.makeBubble());
@@ -4218,8 +4235,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // bij een groepsdier staat erbij hoeveel er nog bij moeten
       case 'friend': return speciesIcon(a.species) + (a.lonely > 1 ? `<i class="count">+${a.lonely}</i>` : icon('plus', 'badge'));
       // een zeedier in vies water: een vieze druppel; anders de poep
-      // een stoffig dier: het dier met de slang erbij
-      case 'clean': return this.murkyFor(a) ? icon('murky') : this.dustOnly(a) ? speciesIcon(a.species) + icon('hose', 'badge') : icon('poop');
+      // een vies dier: zijn kop vol moddervlekken, met stanklijntjes en vliegjes; klein erbij de slang, want daar was je het mee
+      case 'clean': return this.murkyFor(a) ? icon('murky') : this.justDusty(a) ? stacked(speciesIcon(a.species), 'dirt') + `<i class="from">${icon('hose')}</i>` : icon('poop');
       // bang: de kop van het roofdier, met een uitroepteken
       case 'safe': return speciesIcon(a.scaredOf ?? 'lion') + icon('scared', 'badge');
     }
@@ -4230,7 +4247,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
    * ongelukkig, maar het wordt er nooit voor opgehaald.
    */
   private dustOnly(a: Animal): boolean {
-    return a.unmet === 'clean' && dusty(a.dust) && !this.murkyFor(a) && this.poopsIn(this.grid.regionOf[a.tile]) <= MAX_POOPS_CLEAN;
+    return a.unmet === 'clean' && this.justDusty(a);
+  }
+
+  /** Het hok is schoon, maar het dier zelf is vies. */
+  private justDusty(a: Animal): boolean {
+    return dusty(a.dust) && !this.murkyFor(a) && this.poopsIn(this.grid.regionOf[a.tile]) <= MAX_POOPS_CLEAN;
   }
 
   /** Zwemt dit zeedier in vies water? */
@@ -4284,7 +4306,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const region = this.grid.regionOf[a.tile];
       const poops = this.poops.filter(p => this.grid.regionOf[tileIndex(Math.floor(p.gx), Math.floor(p.gy))] === region).length;
       const water = AQUATIC.includes(a.species) ? 1 - this.murkIn(region) : 1;
-      return Math.max(0.08, Math.min(water, 1 - poops / (MAX_POOPS_CLEAN + 2)));
+      // de vacht: het balkje zakt naarmate het dier stoffiger wordt, zodat je het ziet aankomen
+      const fur = 1 - Math.max(0, (a.dust - DUST.shows) / (1 - DUST.shows));
+      return Math.max(0.08, Math.min(water, fur, 1 - poops / (MAX_POOPS_CLEAN + 2)));
     }
     return ok ? 1 : 0.12;
   }
@@ -5412,6 +5436,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Een modderliefhebber die net gewassen is: wanneer hij weer in de modder gaat rollen. */
   private mudBack = new Map<Animal, number>();
   private careTidy = 0;
+  /** Wanneer er voor het laatst een dier vies werd, en sinds wanneer elk vies dier vies is (voor de schoonmaker). */
+  private dirtyAt = -DIRTY.gap;
+  private dirtySince = new Map<Animal, number>();
   /** Met een muis (niet op een tablet) licht het dier onder de muis al op. */
   private careMouse = typeof matchMedia === 'function' && matchMedia('(hover: hover)').matches;
 
@@ -5522,7 +5549,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Schoon! Het dier schudt zich droog, met spetters en sterretjes, en is een poosje extra blij. */
   private washed(a: Animal, from: { gx: number; gy: number }): void {
-    const dirty = a.dust >= DUST.shows;
+    const dirty = a.dust >= DUST.shows || a.muddy >= DUST.shows;
     a.shakeDry(this, from.gx, from.gy);
     a.glee = HOSE.glee;
     if (dirty) a.neglect = Math.max(0, a.neglect - HOSE.neglect);
@@ -5596,16 +5623,39 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       else if (a.rollAt(this, tileXY(spot)[0] + 0.5, tileXY(spot)[1] + 0.5)) this.mudBack.delete(a);
       else this.mudBack.set(a, this.clock + 5);
     }
-    // stof (vanaf FEATURE.hose): langzaam vies, een modderliefhebber sneller en vooral als hij in de modder rolt
-    if (this.has('hose'))
+    // stof (vanaf FEATURE.hose): elk dier wordt in zijn eigen tempo vies; een modderliefhebber iets sneller
+    if (this.has('hose')) {
+      let dirty = 0;
+      const waiting: Animal[] = [];
       for (const a of this.animals) {
-        a.dust = dustAfter(a.dust, dt, { species: a.species, aquatic: a.aquatic, swimming: a.swimming, rolling: a.rolling });
-        // regen spoelt het stof er langzaam af (een dier onder een dak niet, maar dat maakt voor een kind niets uit)
-        if (this.raining()) a.dust = Math.max(0, a.dust - dt / DUST.rain);
-        const n = dustSpecks(a.dust);
+        // tot een dier aan de beurt is, blijft het net niet vies genoeg om gewassen te moeten worden
+        a.dust = dustAfter(a.dust, dt, { aquatic: a.aquatic, swimming: a.swimming, pace: a.dustRate, room: false });
+        // wie in de modder rolt, krijgt modder op zijn vacht: dat zie je, maar gewassen hoeft het er niet voor
+        a.muddy = muddyAfter(a.muddy, dt, { species: a.species, swimming: a.swimming, rolling: a.rolling });
+        // een bui spoelt er wat stof en modder af (een dier onder een dak niet, maar dat maakt voor een kind niets uit)
+        if (this.raining()) {
+          a.dust = Math.max(0, a.dust - dt / DUST.rain);
+          if (!a.rolling) a.muddy = Math.max(0, a.muddy - dt / 30);
+        }
+        if (dusty(a.dust)) {
+          dirty++;
+          if (!this.dirtySince.has(a)) this.dirtySince.set(a, this.clock);
+        } else {
+          this.dirtySince.delete(a);
+          if (a.dust >= DUST.held - 1e-6 && !a.escaped) waiting.push(a);
+        }
+        const n = dustSpecks(Math.max(a.dust, a.muddy));
         if (n || fx) this.fx.setDust(a, n);
         if (a.dust >= DUST.puffs && !a.sleeping && Math.random() < dt * 0.25) this.view.burst(a.px, a.py, a.top * 0.5, 0xb8ab94, 3);
       }
+      // er mag er een bij: een gok uit de dieren die al zo ver zijn, zodat het niet steeds dezelfde is
+      if (waiting.length && dirty < dirtyMost(this.animals.length) && this.clock - this.dirtyAt >= DIRTY.gap) {
+        const a = waiting[Math.floor(Math.random() * waiting.length)];
+        a.dust = DUST.dirty;
+        this.dirtyAt = this.clock;
+        this.dirtySince.set(a, this.clock);
+      }
+    }
     this.careFx?.update(dt);
     // dieren die weg zijn: niets meer van bewaren
     this.careTidy -= dt;
@@ -5613,6 +5663,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       this.careTidy = 5;
       for (const a of this.treatAt.keys()) if (!this.animals.includes(a)) this.treatAt.delete(a);
       for (const a of this.mudBack.keys()) if (!this.animals.includes(a)) this.mudBack.delete(a);
+      for (const a of this.dirtySince.keys()) if (!this.animals.includes(a)) this.dirtySince.delete(a);
       for (const a of fx?.dusted() ?? []) if (!this.animals.includes(a)) fx!.forget(a);
     }
   }

@@ -520,6 +520,22 @@ const ICONS = {
     `<path d="M27 23 Q31 16 33 15" fill="none" stroke="#2f7f3a" stroke-width="6" stroke-linecap="round"/><path d="M27 23 Q31 16 33 15" fill="none" stroke="#4fb35a" stroke-width="3" stroke-linecap="round"/>` +
     `<path d="M31 17 L37 10 L40.5 13.5 L34.5 19.5Z" fill="${SUN}" stroke="${SUN_D}" stroke-width="1.8" stroke-linejoin="round"/>` +
     drop(42.5, 7) + drop(42, 20),
+  // vies: moddervlekken, stanklijntjes en twee vliegjes. Het ligt over het kopje van het dier heen (zie `stacked`):
+  // zo zie je meteen dat het dier vies is en gewassen wil worden
+  dirt:
+    `<g fill="${MUD_D}" stroke="#5a3a20" stroke-width="1.2" stroke-linejoin="round">` +
+    '<path d="M5 34 Q3 30 7 29 Q8 25 12 27 Q16 26 16 30 Q19 33 15 36 Q13 40 9 38 Q5 38 5 34Z"/>' +
+    '<path d="M31 38 Q30 34 33 34 Q35 31 38 33 Q42 33 41 37 Q43 41 39 41 Q36 44 33 41 Q30 41 31 38Z"/>' +
+    '<path d="M30 15 Q29 12 32 12 Q34 10 36 12 Q39 13 38 16 Q37 19 34 18 Q31 19 30 15Z"/></g>' +
+    `<g fill="${MUD}"><ellipse cx="10" cy="31.5" rx="2.6" ry="1.5"/><ellipse cx="36" cy="36.5" rx="2.6" ry="1.5"/><ellipse cx="34" cy="14.5" rx="1.9" ry="1.1"/></g>` +
+    `<g fill="${MUD_D}"><circle cx="22" cy="38" r="1.6"/><circle cx="3.5" cy="41" r="1.4"/><circle cx="43" cy="27" r="1.5"/><circle cx="25" cy="13" r="1.2"/></g>` +
+    // de stank: drie golvende lijntjes die omhoog kringelen
+    '<g fill="none" stroke="#7fa33a" stroke-width="2.6" stroke-linecap="round"><path d="M9 15 Q5 12 9 9 Q13 6 9 3"/><path d="M17 11 Q13 8 17 5 Q20 3 18 1"/><path d="M41 12 Q37 9 41 6 Q44 4 42 2"/></g>' +
+    // twee vliegjes met witte vleugels
+    `<g><ellipse cx="42" cy="17" rx="2.6" ry="2" fill="${INK}"/><ellipse cx="40.3" cy="14.6" rx="2.4" ry="1.5" fill="#fff" stroke="${INK}" stroke-width=".8" transform="rotate(-30 40.3 14.6)"/>` +
+    `<ellipse cx="44" cy="14.8" rx="2.4" ry="1.5" fill="#fff" stroke="${INK}" stroke-width=".8" transform="rotate(30 44 14.8)"/>` +
+    `<ellipse cx="5" cy="21" rx="2.3" ry="1.8" fill="${INK}"/><ellipse cx="3.5" cy="18.9" rx="2.1" ry="1.3" fill="#fff" stroke="${INK}" stroke-width=".8" transform="rotate(-30 3.5 18.9)"/>` +
+    `<ellipse cx="6.8" cy="19" rx="2.1" ry="1.3" fill="#fff" stroke="${INK}" stroke-width=".8" transform="rotate(30 6.8 19)"/></g>`,
   // de hamer: een houten steel met een rood handvat en een stalen kop met een klauw
   hammer:
     `<g transform="rotate(38 24 25)">` +
@@ -1019,6 +1035,11 @@ export const ICON_IDS = Object.keys(ICONS) as IconId[];
 /** Het plaatje als SVG-tekst, om in HTML te zetten. */
 export function icon(name: IconId, cls = ''): string {
   return `<svg class="ic ${cls}" viewBox="0 0 48 48" aria-hidden="true">${ICONS[name]}</svg>`;
+}
+
+/** Een plaatje met een ander plaatje eroverheen: `base` is al HTML (een dierenkop), `over` komt er precies bovenop. */
+export function stacked(base: string, over: IconId): string {
+  return `<span class="stack">${base}${icon(over, 'over')}</span>`;
 }
 
 /** Het plaatje als muiscursor. (hx, hy) is het punt waarmee je aanwijst. */
