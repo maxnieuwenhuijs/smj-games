@@ -125,6 +125,9 @@ export const EVENT_SAYS: Record<string, { who?: FigureId; ask: number; good: num
   'class.line': { ask: 2, good: 0, bad: 0 },
   'class.quiz': { ask: 2, good: 0, bad: 0 },
   'class.game': { ask: 2, good: 0, bad: 0 },
+  // de tekening kan ook een schaduw zijn, en de rij ook een rijtje dat verdergaat: elk met een eigen vraag
+  'class.shadow': { ask: 1, good: 0, bad: 0 },
+  'class.row': { ask: 1, good: 0, bad: 0 },
   'class.guide': { ask: 2, good: 2, bad: 0 },
   'class.go': { ask: 1, good: 0, bad: 0 },
   class: { ask: 0, good: 3, bad: 2 },

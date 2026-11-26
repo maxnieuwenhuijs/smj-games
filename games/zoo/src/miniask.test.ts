@@ -163,10 +163,10 @@ describe('rijtje, wat hoort er niet bij en memory', () => {
       const deal = dealPairs(pairs, rnd);
       expect(deal).toHaveLength(pairs * 2);
       for (let v = 0; v < pairs; v++) expect(deal.filter(x => x === v)).toHaveLength(2);
-      // zoveel missers als er paren zijn (en nog een) telt nog als in één keer goed; daarna niet meer
+      // twee keer zoveel missers als er paren zijn telt nog als in één keer goed; daarna niet meer
       expect(memoryClean(0, pairs)).toBe(true);
-      expect(memoryClean(pairs + MEMORY.slack, pairs)).toBe(true);
-      expect(memoryClean(pairs + MEMORY.slack + 1, pairs)).toBe(false);
+      expect(memoryClean(pairs * MEMORY.grace, pairs)).toBe(true);
+      expect(memoryClean(pairs * MEMORY.grace + 1, pairs)).toBe(false);
     }
   });
 });
