@@ -1310,7 +1310,8 @@ function addCableMast(m: CableMast, into: PoleParts, wheels: [number, number, nu
   const h = CABLE.high, yaw = Math.atan2(-m.ay, m.ax), x = toWorldX(m.x), z = toWorldZ(m.y);
   const put = (geo: THREE.BufferGeometry): THREE.BufferGeometry => geo.rotateY(yaw).translate(x, 0, z);
   into.stand[0].push(put(boxAt(0.42, 0.08, 0.42, 0, 0.04, 0)), put(boxAt(0.3, 0.08, 0.3, 0, 0.12, 0)));
-  into.stand[1].push(put(tube(0.065, 0.1, h + 0.3, 0, (h + 0.3) / 2, 0)));
+  // (bovenaan slank: daar draaien de stoeltjes vlak langs de paal)
+  into.stand[1].push(put(tube(0.055, 0.11, h + 0.3, 0, (h + 0.3) / 2, 0)));
   into.stand[3].push(put(ball(0.085, 0, h + 0.33, 0)));
   into.snow.push(put(blob(0.075, 1, 0.6, 1, 0, h + 0.4, 0)));
   wheels.push([x, z, 1]);
@@ -1324,7 +1325,7 @@ function addCableMast(m: CableMast, into: PoleParts, wheels: [number, number, nu
 }
 /** Het doorzichtige voorbeeld van een tussenpaal: de paal, zijn voet, het wiel en de knop als één vorm. */
 const mastGhostGeo = (): THREE.BufferGeometry => merge([
-  boxAt(0.42, 0.08, 0.42, 0, 0.04, 0), tube(0.065, 0.1, CABLE.high + 0.3, 0, (CABLE.high + 0.3) / 2, 0), ball(0.085, 0, CABLE.high + 0.33, 0),
+  boxAt(0.42, 0.08, 0.42, 0, 0.04, 0), tube(0.055, 0.11, CABLE.high + 0.3, 0, (CABLE.high + 0.3) / 2, 0), ball(0.085, 0, CABLE.high + 0.33, 0),
   new THREE.TorusGeometry(CABLE.r, 0.035, 6, 24).rotateX(Math.PI / 2).translate(0, CABLE.high, 0),
 ]);
 

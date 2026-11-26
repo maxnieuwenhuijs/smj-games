@@ -216,7 +216,7 @@ const cable: Item = {
       model.chairs.forEach((chair, i) => {
         const c = cableAt(path, t * CABLE.speed + (i * path.loop) / model.chairs.length);
         chair.position.set(toWorldX(c.gx), c.h, toWorldZ(c.gy));
-        chair.rotation.set(0, Math.atan2(c.mx, c.my), -c.turn * 0.1, 'YXZ');
+        chair.rotation.set(0, Math.atan2(c.mx, c.my), (c.h > CABLE.low + 0.5 ? c.turn : -c.turn) * 0.1, 'YXZ');
       });
       for (const wheel of model.wheels) wheel.rotation.y = ((t * CABLE.speed) / CABLE.r) * (wheel.userData.dir as number);
     });

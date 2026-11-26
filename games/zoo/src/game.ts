@@ -1623,7 +1623,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         rows: [
           {
             key: 'ride', active: this.option.ride,
-            options: rideRow.flatMap(k => [{ ...opt(k, k, t(`shop.${k}`), SHOP_PRICE[k]), fresh: this.fresh.has(k) }, ...(pylon && k === 'cablecar' ? [opt(PYLON, PYLON, t('shop.cablepole'), CABLE.pylon)] : [])]),
+            options: rideRow.flatMap(k => [
+              { ...opt(k, k, t(`shop.${k}`), SHOP_PRICE[k]), fresh: this.fresh.has(k) },
+              ...(pylon && k === 'cablecar' ? [{ ...opt(PYLON, PYLON, t('shop.cablepole'), CABLE.pylon), fresh: this.fresh.has(PYLON) }] : []),
+            ]),
           },
           ...(rides.length && plays.length ? [{
             key: 'rideGroup', active: this.option.rideGroup,
@@ -3768,7 +3771,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const mate = to ? pairs.map(([p, q]) => (p === house ? q : q === house ? p : undefined)).find(o => o && o.x === house.x + to[0] && o.y === house.y + to[1]) : undefined;
     const left = (house[key] ?? []).filter((_, k) => k !== i);
     const pts: P2[] = [cableSpot(house), ...left.map(([dx, dy]) => cableSpot({ x: house.x + dx, y: house.y + dy }, true)), ...(mate ? [cableSpot(mate)] : [])];
-    if (!cableValid(pts, !mate, this.cableBefore(house, mate, pairs), mate && this.cableBefore(mate, house, pairs))) return this.nope(pylon.x + 0.5, pylon.y + 0.5, 1.2);
+    if (!cableValid(pts, !mate, this.cableBefore(house, mate, pairs), mate && this.cableBefore(mate, house, pairs))) {
+      // zonder deze paal wordt het stuk te lang of de bocht te scherp: de bouwer zegt het
+      this.alert(say.cableWhere(), 25);
+      return this.nope(pylon.x + 0.5, pylon.y + 0.5, 1.2);
+    }
     house[key] = left.length ? left : undefined;
     sfx('erase');
     this.earn(refund(CABLE.pylon), pylon.x + 0.5, pylon.y + 0.5);
@@ -3819,8 +3826,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     pairs.forEach(([p, q], i) => {
       if (keep.some(l => same(l, i))) return;
       const path = cablePath(routes[i]);
-      // een paal staat niet midden in een gebouw: daar hangt de kabel gewoon wat verder door
-      const poles = cablePoles(path).filter(pole => !this.shopAt(Math.floor(pole.gx), Math.floor(pole.gy)));
+      // een paal staat niet midden in een gebouw of op de tussenpaal van een andere kabel: daar hangt de kabel gewoon wat verder door
+      const poles = cablePoles(path).filter(pole => !this.shopAt(Math.floor(pole.gx), Math.floor(pole.gy)) && !this.pylonAt(Math.floor(pole.gx), Math.floor(pole.gy)));
       keep.push(new CableCar(p, q, this.view.makeCable(path, poles, cableChairs(path.len)), path));
     });
     this.guests.lifts = keep;
@@ -3874,6 +3881,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.pylonOffered && !this.told.has('cable.pole')) {
       this.told.add('cable.pole');
       this.lines.push(say.cablePole());
+      // en er staat een sterretje op de knop tot je hem gekozen hebt
+      this.fresh.add(PYLON);
+      this.refreshTools(true);
     }
     if (this.told.has('cable.first')) return;
     const open = this.guests.lifts.find(l => l.boarding);

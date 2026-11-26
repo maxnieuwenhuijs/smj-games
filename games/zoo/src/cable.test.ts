@@ -386,13 +386,18 @@ describe('kabelbaan: schuin en de bocht om', () => {
         const on = poles.map(p => ((p.gx - a[0]) * (b[0] - a[0]) + (p.gy - a[1]) * (b[1] - a[1])) / l)
           .filter((t, k) => t > 0 && t < l && Math.abs((poles[k].gx - a[0]) * (b[1] - a[1]) - (poles[k].gy - a[1]) * (b[0] - a[0])) < 1e-6);
         const stops = [i === 0 ? 1 : 0, ...on.sort((p, q) => p - q), i === n - 1 ? l - 1 : l];
-        for (let k = 1; k < stops.length; k++) expect(stops[k] - stops[k - 1], `stuk ${i} van ${JSON.stringify(pts)}`).toBeLessThanOrEqual(Math.max(CABLE.poleGap, 1 + CABLE.ramp) + 1e-6);
+        for (let k = 1; k < stops.length; k++) {
+          // vanaf een huisje klimt de kabel eerst; staat er binnen twee tegels daarna een steunpunt, dan is dat genoeg
+          const climbs = (i === 0 && k === 1) || (i === n - 1 && k === stops.length - 1);
+          expect(stops[k] - stops[k - 1], `stuk ${i} van ${JSON.stringify(pts)}`).toBeLessThanOrEqual((climbs ? CABLE.ramp + 2 : CABLE.poleGap) + 1e-6);
+        }
       }
     }
     // een lang stuk tussen twee palen: drie palen ertussen; en bij elk huisje een paal waar de kabel boven is
-    const long = cablePath([[0, 0], [5, 0], [19, 0], [24, 0]]);
-    expect(cablePoles(long).map(p => p.gx)).toEqual([1 + CABLE.ramp, 8.5, 12, 15.5, 24 - 1 - CABLE.ramp]);
-    // staat de paal vlak achter de klim, dan hoeft daar geen paal bij
+    const long = cablePath([[0, 0], [6, 0], [20, 0], [26, 0]]);
+    expect(cablePoles(long).map(p => p.gx)).toEqual([1 + CABLE.ramp, 9.5, 13, 16.5, 26 - 1 - CABLE.ramp]);
+    // staat de tussenpaal vlak achter de klim, dan hoeft daar geen paal bij
+    expect(cablePoles(cablePath([[0, 0], [5, 0], [19, 0], [24, 0]])).map(p => p.gx)).toEqual([8.5, 12, 15.5]);
     expect(cablePoles(cablePath([[0, 0], [4.5, 0], [9, 0]]))).toEqual([]);
   });
 });
