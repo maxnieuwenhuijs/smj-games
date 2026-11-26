@@ -3212,6 +3212,9 @@ export class View {
     return this.walkK >= 1;
   }
 
+  /** Een knikje van het hoofd van de loper, boven op waar hij naar kijkt (radialen; min is omlaag): bij het eten en kauwen (zie walkhand.ts). */
+  eyeNod = 0;
+
   /** Waar de loper is en waar hij naar kijkt (rastercoördinaten, hoogte in tegels, richting in radialen). */
   setEye(gx: number, gy: number, h: number, yaw: number, pitch: number): void {
     Object.assign(this.eyeAt, { gx, gy, h, yaw, pitch });
@@ -3258,7 +3261,7 @@ export class View {
     const back = this.zoom / (2 * Math.tan(THREE.MathUtils.degToRad(WALK.fov) / 2));
     this.eyeFrom.set(Math.sin(phi) * far, 30, Math.cos(phi) * far).normalize().multiplyScalar(back).add(this.target);
     // beneden: op de ogen van de loper
-    const { gx, gy, h, yaw, pitch } = this.eyeAt;
+    const { gx, gy, h, yaw } = this.eyeAt, pitch = this.eyeAt.pitch + this.eyeNod;
     const ex = toWorldX(gx), ez = toWorldZ(gy), cp = Math.cos(pitch);
     const cam = this.eyeCam;
     cam.position.lerpVectors(this.eyeFrom, this.tmp.set(ex, h, ez), e);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HELD, SHOP_OF, heldKind, hold, paintOf, sizeLeft, useHeld, walkOffer, walkPrice } from './held';
+import { HELD, SHOP_OF, eatPose, heldKind, hold, paintOf, sizeLeft, useHeld, useSeconds, usesItself, walkOffer, walkPrice } from './held';
 import { PRODUCTS } from './data';
 
 describe('wat je bij een kraam krijgt', () => {
@@ -89,5 +89,42 @@ describe('betalen', () => {
     expect(walkPrice(10)).toBe(1);
     expect(walkPrice(1)).toBe(1);
     expect(walkPrice(0)).toBe(0);
+  });
+});
+
+describe('eten en drinken terwijl je loopt', () => {
+  it('je eet, drinkt en zet een hoed vanzelf op; een ballon of knuffel houd je vast', () => {
+    for (const shop of ['foodstall', 'drinkstall', 'icecream'] as const) expect(usesItself(hold(PRODUCTS.find(p => p.shop === shop)!.id)!), shop).toBe(true);
+    const hat = PRODUCTS.find(p => p.shop === 'hats')!.id, balloon = PRODUCTS.find(p => p.shop === 'balloon')!.id;
+    expect(usesItself(hold(hat)!)).toBe(true);
+    expect(usesItself(hold(balloon)!)).toBe(false);
+    expect(usesItself(hold('plush_pig')!)).toBe(false);
+    // het eerste hapje komt snel, en tussen twee hapjes kun je het hele hapje en het kauwen zien
+    expect(HELD.first).toBeLessThanOrEqual(2);
+    expect(HELD.every).toBeGreaterThan(HELD.eatTime + HELD.chewTime);
+  });
+
+  it('een hapje duurt langer dan een knuffel: omhoog, happen en weer terug', () => {
+    for (const use of ['bite', 'lick', 'sip'] as const) expect(useSeconds(use)).toBe(HELD.eatTime);
+    expect(useSeconds('wear')).toBe(HELD.wearTime);
+    expect(useSeconds('hug')).toBe(HELD.useTime);
+    expect(HELD.eatTime).toBeGreaterThanOrEqual(1);
+    // aan het begin en het eind is je hand beneden, in het midden bij je mond
+    expect(eatPose(0)).toEqual([0, 0]);
+    expect(eatPose(1)).toEqual([0, 0]);
+    expect(eatPose(0.5)[0]).toBe(1);
+    expect(eatPose(0.5)[1]).toBeGreaterThan(0.3);
+    expect(eatPose(0.5)[1]).toBeLessThan(0.7);
+    // omhoog gaat vloeiend, en het happen loopt van 0 naar 1
+    let last = 0;
+    for (let k = 0.02; k < 0.28; k += 0.02) {
+      const [near, chomp] = eatPose(k);
+      expect(near).toBeGreaterThanOrEqual(last);
+      expect(chomp).toBe(0);
+      last = near;
+    }
+    expect(eatPose(0.3)[1]).toBeLessThan(eatPose(0.7)[1]);
+    expect(eatPose(0.9)[0]).toBeLessThan(1);
+    expect(eatPose(0.9)[1]).toBe(1);
   });
 });

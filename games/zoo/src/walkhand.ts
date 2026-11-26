@@ -1,10 +1,12 @@
 // Wat je in de loopstand in je hand hebt: iets van een kraam, rechtsonder in beeld, zoals in een spel waarin je zelf
-// rondloopt. Het wiebelt mee met je stapjes. Tik op het scherm (of Spatie) en je neemt een hapje, een slokje, zet de
-// hoed op, knuffelt de knuffel of geeft een rukje aan de ballon. De regels staan in held.ts, het kopen in game.ts.
+// rondloopt. Het wiebelt mee met je stapjes. Eten en drinken doe je vanzelf, hapje voor hapje: je hand gaat naar je
+// mond, je hapt (kruimels), likt of drinkt (het bekertje kantelt) en je kauwt na, waarbij je hoofd meeknikt. Een hoed
+// zet je vanzelf op. Tik op het scherm (of Spatie) voor meteen een hapje, een knuffel of een rukje aan de ballon.
+// De regels staan in held.ts, het kopen in game.ts.
 import * as THREE from 'three';
 import { t } from '@smj/shared';
 import { sfx } from './audio';
-import { HELD, SHOP_OF, hold, paintOf, sizeLeft, useHeld, type Held, type HeldUse } from './held';
+import { HELD, SHOP_OF, eatPose, hold, paintOf, sizeLeft, useHeld, useSeconds, usesItself, type Held, type HeldUse } from './held';
 import { icon, type IconId } from './icons';
 import { PRODUCTS } from './data';
 import { makeHeld } from './people';
@@ -33,8 +35,10 @@ const REST: Record<Held['kind'], { at: [number, number, number]; size: number; t
   hat: { at: [0.14, -0.15, -0.34], size: 0.55, tilt: 0.55 },
   plush: { at: [0.14, -0.16, -0.3], size: 1.6, tilt: 0.15 },
 };
-/** Naar je mond: daar gaat een hapje of slokje naartoe. */
-const MOUTH: [number, number, number] = [0.02, -0.075, -0.2];
+/** Naar je mond: daar gaat een hapje of slokje naartoe (midden onder in beeld, vlak voor je neus). */
+const MOUTH: [number, number, number] = [0.012, -0.098, -0.235];
+/** Zo ver knikt je hoofd mee (radialen): omlaag naar je hand als je hapt, en op en neer bij het kauwen. */
+const NOD = { eat: -0.07, chew: 0.016 };
 const USE_SOUND: Record<HeldUse, [string, number]> = {
   bite: ['guest.bite', 0.6], lick: ['guest.yum', 0.6], sip: ['guest.slurp', 0.6], wear: ['chime', 0.4], tug: ['ride.boing', 0.3], hug: ['heart', 0.5],
 };
@@ -70,7 +74,10 @@ export class WalkHand {
   private model: THREE.Group | null = null;
   private fist = new THREE.Mesh(FIST_GEO, FIST_MAT);
   /** Wat je hand nu doet, en hoe lang al (tellen). */
-  private act: { use: HeldUse; t: number; gone: boolean; from: number; to: number } | null = null;
+  private act: { use: HeldUse; t: number; gone: boolean; from: number; to: number; chomps: number } | null = null;
+  /** Over zoveel tellen neem je vanzelf het volgende hapje; en zo lang kauw je nog na. */
+  private autoIn = 0;
+  private chew = 0;
   private crumbs: { mesh: THREE.Mesh; v: THREE.Vector3; life: number }[] = [];
   private clock = 0;
   /** Het rijtje plaatjes om te kiezen, en bij welke kraam (op het raster). */
@@ -170,6 +177,7 @@ export class WalkHand {
     this.model = makeHeld(SHOP_OF[h.kind], product);
     onTop(this.model);
     this.root.add(this.model);
+    this.autoIn = HELD.first;
     this.place(0, 0);
     this.useBtn.innerHTML = this.host.pic(product);
   }
@@ -182,15 +190,17 @@ export class WalkHand {
     }
     const h = this.held;
     // nog bezig: een laatste hapje of de hoed opzetten maak je eerst af
-    if (!h || !this.model || (this.act && (this.act.gone || this.act.use === 'wear' || this.act.t < HELD.useTime * 0.7))) return false;
+    if (!h || !this.model || (this.act && (this.act.gone || this.act.use === 'wear' || this.act.t < useSeconds(this.act.use) * 0.7))) return false;
     const { use, left, gone } = useHeld(h);
     const from = sizeLeft(h);
     h.left = left;
-    this.act = { use, t: 0, gone: gone && use !== 'tug' && use !== 'hug', from, to: sizeLeft(h) };
+    this.act = { use, t: 0, gone: gone && use !== 'tug' && use !== 'hug', from, to: sizeLeft(h), chomps: 0 };
+    this.autoIn = HELD.every;
+    // eten en drinken hoor je als het bij je mond is (zie `chomp`); de rest meteen
+    const eating = use === 'bite' || use === 'lick' || use === 'sip';
     const [sound, volume] = USE_SOUND[use];
-    sfx(sound, { volume, every: 0.1 });
+    if (!eating) sfx(sound, { volume, every: 0.1 });
     const s = this.screenAt();
-    if (use === 'bite' || use === 'lick') this.spray(use === 'lick' ? 0xffc1d6 : 0xe9b872);
     if (use === 'hug') this.host.float(icon('heart'), s.x - 30, s.y - 60);
     if (use === 'tug') this.host.float(icon('heart', 'tiny'), innerWidth * 0.68, innerHeight * 0.2);
     return true;
@@ -220,16 +230,34 @@ export class WalkHand {
     }
     for (const c of this.crumbs) if (c.life <= 0) this.root.remove(c.mesh);
     this.crumbs = this.crumbs.filter(c => c.life > 0);
+    // nakauwen: je hoofd knikt nog even mee
+    this.chew = Math.max(0, this.chew - dt);
+    let nod = down ? Math.sin(this.clock * 15) * NOD.chew * Math.min(1, this.chew * 3) : 0;
+    this.host.view.eyeNod = nod;
     if (!this.model || !this.held) return;
     const [phase, moving] = this.host.gait();
     let k = 0;
     if (this.act) {
       this.act.t += dt;
-      const time = this.act.use === 'wear' ? HELD.wearTime : HELD.useTime;
-      k = Math.min(1, this.act.t / time);
+      k = Math.min(1, this.act.t / useSeconds(this.act.use));
       if (k >= 1) return this.finish();
-    }
+      const [near, chomp] = eatPose(k), eating = this.act.use === 'bite' || this.act.use === 'lick' || this.act.use === 'sip';
+      if (eating) {
+        nod += NOD.eat * near;
+        // twee keer happen, likken of klokken terwijl het bij je mond is
+        const due = near >= 1 ? 1 + Math.floor(chomp * 2) : 0;
+        while (this.act.chomps < Math.min(2, due)) this.chomp(this.act.use, this.act.chomps++);
+      }
+      this.host.view.eyeNod = down ? nod : 0;
+    } else if (down && !this.choosing && usesItself(this.held) && (this.autoIn -= dt) <= 0) this.use();
     this.place(phase, moving, k);
+  }
+
+  /** Een hap, een lik of een slok, nu het bij je mond is: het geluid, en kruimels of druppeltjes. */
+  private chomp(use: HeldUse, n: number): void {
+    const [sound, volume] = USE_SOUND[use];
+    sfx(sound, { volume: n ? volume * 0.6 : volume, rate: n ? 1.2 : 1, every: 0.05 });
+    this.spray(use === 'lick' ? 0xffc1d6 : use === 'sip' ? 0x9fd8f5 : 0xe9b872, use === 'sip' ? 3 : 5);
   }
 
   /** Zet het ding in je hand neer: in rust, wiebelend met je stapjes, of halverwege iets doen (`k` van 0 tot 1). */
@@ -242,12 +270,25 @@ export class WalkHand {
     let size = rest.size, sx = 1, sy = 1, tilt = rest.tilt, roll = h.kind === 'balloon' ? Math.sin(this.clock * 1.3) * 0.06 : 0;
     const a = this.act, there = Math.sin(Math.PI * k);
     if (a?.use === 'bite' || a?.use === 'lick' || a?.use === 'sip') {
-      // naar je mond toe en weer terug; bij het hapje wordt het kleiner
-      x += (MOUTH[0] - x) * there;
-      y += (MOUTH[1] - y) * there;
-      z += (MOUTH[2] - z) * there;
-      tilt += 0.5 * there;
-      size *= a.from + (a.to - a.from) * smooth(k * 2);
+      // naar je mond toe, daar happen, likken of drinken, en weer terug; bij elk hapje wordt het kleiner
+      const [near, chomp] = eatPose(k), beat = Math.sin(chomp * Math.PI * 4);
+      x += (MOUTH[0] - x) * near;
+      y += (MOUTH[1] - y) * near;
+      z += (MOUTH[2] - z) * near;
+      if (a.use === 'sip') {
+        // het bekertje kantelt naar je toe, en bij elke slok nog een beetje verder
+        tilt += (1.05 + Math.max(0, beat) * 0.18) * near;
+      } else if (a.use === 'lick') {
+        // twee likjes: het ijsje gaat langs je tong omhoog
+        tilt += 0.45 * near;
+        y += Math.max(0, beat) * 0.014 * near;
+      } else {
+        // twee happen: het hapje schokt even naar je toe
+        tilt += 0.55 * near;
+        z += Math.max(0, beat) * 0.014 * near;
+        y -= Math.max(0, beat) * 0.006 * near;
+      }
+      size *= a.from + (a.to - a.from) * smooth((chomp - 0.1) * 2);
     } else if (a?.use === 'hug') {
       // tegen je aan, en even platgeknuffeld
       x += (0.01 - x) * there;
@@ -284,6 +325,7 @@ export class WalkHand {
       this.drop();
       return;
     }
+    if (a.use === 'bite' || a.use === 'lick') this.chew = HELD.chewTime;
     if (a.gone) {
       sfx('guest.aah', { volume: 0.6, every: 0.3 });
       const s = this.screenAt();
@@ -295,8 +337,8 @@ export class WalkHand {
   }
 
   /** Een paar kruimels of druppeltjes bij je mond. */
-  private spray(color: number): void {
-    for (let i = 0; i < 5; i++) {
+  private spray(color: number, n = 5): void {
+    for (let i = 0; i < n; i++) {
       const mesh = new THREE.Mesh(CRUMB_GEO, crumbMat(i % 2 ? 0xfff4c2 : color));
       mesh.position.set(MOUTH[0] + (Math.random() - 0.5) * 0.03, MOUTH[1] - 0.01, MOUTH[2]);
       this.root.add(mesh);
@@ -332,6 +374,8 @@ export class WalkHand {
     this.paint = null;
     for (const c of this.crumbs) this.root.remove(c.mesh);
     this.crumbs = [];
+    this.chew = 0;
+    this.host.view.eyeNod = 0;
     this.root.visible = false;
     this.useBtn.hidden = this.brim.hidden = true;
   }

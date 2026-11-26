@@ -11,8 +11,18 @@ export const HELD = {
   most: 4,
   /** Zoveel munten kost het. Heb je geen munten, dan krijg je het toch: een kind mag nooit vastzitten. */
   price: 1,
-  /** Zo lang duurt een hapje, slokje, knuffel of rukje aan de ballon (tellen). */
+  /** Zo lang duurt een knuffel of een rukje aan de ballon (tellen). */
   useTime: 0.6,
+  /** Zo lang duurt een hapje, likje of slokje (tellen): naar je mond, happen of drinken, en weer terug. */
+  eatTime: 1.3,
+  /** Daarna kauw je nog zo lang na (je hoofd knikt mee). */
+  chewTime: 0.9,
+  /**
+   * Je eet en drinkt vanzelf: zoveel tellen na het kopen neem je het eerste hapje (of zet je de hoed op), en daarna
+   * om de zoveel tellen het volgende. Tikken mag ook: dan neem je meteen een hapje.
+   */
+  first: 1.3,
+  every: 3.4,
   /** Zo lang duurt het opzetten van een hoed (tellen). */
   wearTime: 0.8,
   /** Zo ver mag je van de kraam weglopen voor het rijtje met plaatjes weer weggaat (tegels). */
@@ -82,6 +92,25 @@ export function useHeld(h: Held): { use: HeldUse; left: number; gone: boolean } 
 
 /** Hoe groot iets lekkers nog is, als je er al wat van op hebt: van heel (1) tot bijna op. */
 export const sizeLeft = (h: Held): number => (h.kind === 'food' || h.kind === 'drink' || h.kind === 'ice' ? 0.45 + 0.55 * (h.left / HELD.bites) : 1);
+
+/** Hoe lang het gebruiken duurt: eten en drinken het langst, een hoed opzetten iets korter, de rest is zo gebeurd. */
+export const useSeconds = (use: HeldUse): number => (use === 'bite' || use === 'lick' || use === 'sip' ? HELD.eatTime : use === 'wear' ? HELD.wearTime : HELD.useTime);
+
+/** Gebruik je dit vanzelf (eten, drinken, een hoed)? Een ballon of een knuffel houd je gewoon vast. */
+export const usesItself = (h: Held): boolean => h.kind !== 'balloon' && h.kind !== 'plush';
+
+/**
+ * Hoe ver je hand bij je mond is tijdens een hapje, likje of slokje, op deel `k` (0 tot 1) van de tijd: eerst
+ * omhoog, dan een poos bij je mond (happen, likken, drinken) en dan weer terug. Geeft [bij je mond (0 tot 1), hoe
+ * ver je bent met happen (0 tot 1; 0 als je hand nog onderweg is)].
+ */
+export function eatPose(k: number): [near: number, chomp: number] {
+  const up = 0.28, down = 0.72, ease = (v: number): number => v * v * (3 - 2 * v);
+  if (k <= 0 || k >= 1) return [0, 0];
+  if (k < up) return [ease(k / up), 0];
+  if (k > down) return [ease((1 - k) / (1 - down)), 1];
+  return [1, (k - up) / (down - up)];
+}
 
 /** Kost het een munt? Alleen als je er een hebt. */
 export const walkPrice = (coins: number): number => (coins >= HELD.price ? HELD.price : 0);
