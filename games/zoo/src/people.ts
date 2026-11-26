@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { PLUSH, PRODUCTS, SEEK_REACH, STALLS, type FoodId, type ShopKind } from './data';
 import { Grid, H, W, tileIndex, tileXY } from './grid';
-import { DARK_FUN, LOOKS, PETTING_GUESTS, PLAY, RESTAURANT_TABLES, RIDES, SUIT_COLORS, TOWER_TOP, TRAIN, isPath } from './data';
+import { DARK_FUN, LOOKS, PETTING_GUESTS, PLAY, RESTAURANT_TABLES, RIDES, SUIT_COLORS, TRAIN, isPath } from './data';
 import { SHOW_ROWS, SHOW_TIME } from './data';
 import { FOUNTAIN, RIDE_KINDS, RIDE_SEATS, isRide, newPose, planVisit, rideLocal, visitAge, visitOff, visitPose, visitTime, type RideState, type Visit } from './rides';
 import { CABLE, cableAt, cableLength, cableLoop, cablePassed, cableStop } from './cable';
@@ -2109,25 +2109,6 @@ export class Guest implements Leader {
         } else if (k > 0.9) arms(-0.4);
         return;
       }
-      if (kind === 'tower') {
-        // boven op de uitkijktoren: rondkijken en wijzen, door de verrekijker kijken of naar beneden zwaaien
-        const look = turn + Math.sin(this.phase * 0.07 + this.seat * 1.7) * 1.4;
-        put(mix(here, at(side * 0.3, TOWER_TOP, this.seat > 1 ? 0.3 : -0.25), k), k > 0.5 ? look : this.heading);
-        if (k > 0.9) {
-          const mood = Math.sin(this.phase * 0.02 + this.seat * 2.1);
-          if (this.seat % 2 === 0 && mood > -0.3) {
-            arms(-2.25);
-            this.limbs[2].rotation.z = -0.5;
-            this.limbs[3].rotation.z = 0.5;
-            this.spy();
-          } else if (mood > 0.3) {
-            this.limbs[2].rotation.x = -2.2;
-            this.limbs[2].rotation.z = Math.sin(this.phase * 0.85) * 0.45;
-            this.head.rotation.x = 0.3;
-          } else this.limbs[2].rotation.x = -1.5;
-        }
-        return;
-      }
       if (kind === 'restaurant') {
         // aan tafel: op een kruk, met het gezicht naar de tafel
         const [tx, tz] = RESTAURANT_TABLES[(this.seat >> 1) % RESTAURANT_TABLES.length];
@@ -2203,7 +2184,9 @@ export class Guest implements Leader {
     // wie zit, zit met zijn billen op de zitting: de voeten hangen eronder
     // (wat de gebaren met het lijf doen, zoals hurken aan de rand van de fontein, telt er gewoon bij op)
     m.position.set(toWorldX(cx + p.x * cos + p.z * sin), p.h - k * 0.2 * m.scale.y + this.hop, toWorldZ(cy - p.x * sin + p.z * cos));
-    m.quaternion.setFromEuler(RIDE_TURN.set(p.pitch + this.lean - 0.14 * jolt, turn + p.face + this.twist, p.roll + this.tilt + Math.sin(this.phase * 2.6) * 0.16 * jolt));
+    // boven op de toren kijkt de gast rustig om zich heen
+    const look = visit.kind === 'tower' && p.on ? Math.sin(this.phase * 0.07 + this.seat * 1.7) * 0.9 : 0;
+    m.quaternion.setFromEuler(RIDE_TURN.set(p.pitch + this.lean - 0.14 * jolt, turn + p.face + this.twist + look, p.roll + this.tilt + Math.sin(this.phase * 2.6) * 0.16 * jolt));
     this.heading = turn + p.face;
     this.aboard = p.on;
     this.offRide = visitOff(visit, ride);
@@ -2268,6 +2251,21 @@ export class Guest implements Leader {
         if (jolt > 0.6 && !this.rideMark) this.cue = 'ride.bump';
         this.rideMark = jolt > 0.6 ? 1 : jolt < 0.3 ? 0 : this.rideMark;
         head.rotation.z = Math.sin(this.phase * 2.6 + 1) * 0.2 * jolt;
+        break;
+      }
+      case 'tower': {
+        // boven op de uitkijktoren: door de verrekijker kijken, iets aanwijzen of naar beneden zwaaien
+        if (!p.on) break;
+        const mood = Math.sin(this.phase * 0.02 + this.seat * 2.1);
+        if (this.seat % 2 === 0 && mood > -0.3) {
+          arms(-2.25);
+          limbs[2].rotation.z = -0.5;
+          limbs[3].rotation.z = 0.5;
+          this.spy();
+        } else if (mood > 0.3) {
+          wave(limbs[2], -2.2);
+          head.rotation.x = 0.3;
+        } else limbs[2].rotation.x = -1.5;
         break;
       }
     }

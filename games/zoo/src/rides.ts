@@ -38,7 +38,7 @@ export type RideKind = 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline' 
 export const RIDE_SPAN: Record<RideKind, [number, number]> = {
   slide: [2, 3], swing: [2, 1], seesaw: [2, 1], springer: [1, 1], trampoline: [2, 2], fountain: [3, 3], tower: [2, 2], carousel: [3, 3], bumper: [4, 3], ferris: [8, 2], restaurant: [3, 2],
 };
-export const RIDE_KINDS: RideKind[] = ['fountain', 'carousel', 'bumper', 'ferris'];
+export const RIDE_KINDS: RideKind[] = ['fountain', 'tower', 'carousel', 'bumper', 'ferris'];
 export const isRide = (kind: ShopKind): kind is RideKind => (RIDE_KINDS as ShopKind[]).includes(kind);
 
 /** Zo snel loopt een gast over een toestel, in tegels per tel: iets vlotter dan op het pad, want hij heeft er zin in. */
@@ -672,6 +672,8 @@ export const TOWER = {
   top: 2.7, stair: 0.42, foot: 0.74, look: 6.5, climb: 1.15, mid: [0.5, 0.02],
   spots: [[0, -0.62], [-0.52, -0.6], [0.52, -0.6], [-0.66, -0.08], [0.66, -0.22]],
 };
+/** Zo hoog is de vloer van de uitkijktoren (ook onder deze naam, voor wie hem zo al gebruikte). */
+export const TOWER_TOP = TOWER.top;
 /** De hoeken van de trap, van onder naar boven: (x, h, z) als deel van `stair` en van `top`. */
 const TOWER_TURNS = [[1, 0, 1], [1, 0.25, -1], [-1, 0.5, -1], [-1, 0.75, 1], [1, 1, 1]];
 

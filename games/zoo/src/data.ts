@@ -338,8 +338,7 @@ export const RIDES: ShopKind[] = ['carousel', 'ferris', 'bumper', 'station', 'ca
  * van het gebouw. De maten en rekensommen van de attracties en speeltoestellen staan in rides.ts; wat hier nog
  * vandaan gehaald wordt, komt daar ook vandaan.
  */
-export { FERRIS } from './rides';
-export const TOWER_TOP = 1.75;
+export { FERRIS, TOWER_TOP } from './rides';
 /** De tafels van het restaurant (x, z) met aan weerszijden (x - 0,27 en x + 0,27) een kruk. */
 export const RESTAURANT_TABLES: [number, number][] = [[-0.45, 0.5], [0.5, 0.5], [0.5, -0.4]];
 /** Het treintje: een locomotief met zoveel wagons, elk met zoveel plekken; `gap` is de afstand tussen twee wagens, `speed` in tegels per tel. */

@@ -3,9 +3,9 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, SHOP_DEEP, onEdge, shopSpan, TERRAINS, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
-  RESTAURANT_TABLES, SHOW_ROWS, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
+  RESTAURANT_TABLES, SHOW_ROWS, STALLS, STRING_HEIGHT, STRING_REACH, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
 } from './data';
-import { BUMPER, CAROUSEL, CAROUSEL_SEATS, FERRIS, FOUNTAIN, carouselAt, carouselLift, ferrisAngle, ferrisSway, fountainJet, newRide, type RideState } from './rides';
+import { BUMPER, CAROUSEL, CAROUSEL_SEATS, FERRIS, FOUNTAIN, TOWER, carouselAt, carouselLift, ferrisAngle, ferrisSway, fountainJet, newRide, type RideState } from './rides';
 import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type Land, type Side } from './grid';
 import { roadside } from './road';
 import { CABLE, cableHeight } from './cable';
@@ -932,31 +932,6 @@ const TREE_LOOK: Partial<Record<DecorKind, { leaf: number[]; crown: number[] }>>
 const floorOf = (color = 0xd8c7ab, wide = 2, deep = wide): Part => [boxAt(wide - 0.16, 0.05, deep - 0.16, 0, 0.025, 0), std(color, 1), false];
 const CORNERS: [number, number][] = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
 const P_GREEN = std(0x6cc04a);
-// Uitkijktoren: vier palen, een vloer op TOWER_TOP waar gasten op staan, een hek eromheen, een ladder aan de
-// voorkant en een dakje met een vlag.
-const TOWER_ROOF = TOWER_TOP + 1;
-SHOP_PARTS.tower = [
-  floorOf(),
-  [merge([
-    ...CORNERS.map(([x, z]) => boxAt(0.1, TOWER_ROOF, 0.1, x * 0.6, TOWER_ROOF / 2, z * 0.6)),
-    // schoren links en achter
-    beam(0.05, [-0.6, 0.1, -0.6], [0.6, TOWER_TOP - 0.15, -0.6]), beam(0.05, [0.6, 0.1, -0.6], [-0.6, TOWER_TOP - 0.15, -0.6]),
-    beam(0.05, [-0.6, 0.1, -0.6], [-0.6, TOWER_TOP - 0.15, 0.6]), beam(0.05, [-0.6, 0.1, 0.6], [-0.6, TOWER_TOP - 0.15, -0.6]),
-    // de ladder
-    boxAt(0.04, TOWER_TOP, 0.04, -0.16, TOWER_TOP / 2, 0.69), boxAt(0.04, TOWER_TOP, 0.04, 0.16, TOWER_TOP / 2, 0.69),
-    ...[1, 2, 3, 4, 5, 6].map(i => boxAt(0.32, 0.035, 0.035, 0, (i * TOWER_TOP) / 7, 0.69)),
-  ]), WOOD_MAT],
-  [boxAt(1.32, 0.08, 1.32, 0, TOWER_TOP - 0.04, 0), std(0xe3c08a, 1)],
-  // het hek: aan de voorkant een opening bij de ladder
-  [merge([0.2, 0.42].flatMap(h => [
-    boxAt(1.2, 0.04, 0.04, 0, TOWER_TOP + h, -0.6), boxAt(0.04, 0.04, 1.2, -0.6, TOWER_TOP + h, 0), boxAt(0.04, 0.04, 1.2, 0.6, TOWER_TOP + h, 0),
-    boxAt(0.36, 0.04, 0.04, -0.4, TOWER_TOP + h, 0.6), boxAt(0.36, 0.04, 0.04, 0.4, TOWER_TOP + h, 0.6),
-  ]).concat([-0.3, 0, 0.3].flatMap(a => [boxAt(0.03, 0.42, 0.03, a, TOWER_TOP + 0.21, -0.6), boxAt(0.03, 0.42, 0.03, -0.6, TOWER_TOP + 0.21, a), boxAt(0.03, 0.42, 0.03, 0.6, TOWER_TOP + 0.21, a)]))), WHITE_MAT],
-  [merge([cone(0.98, 0.45, 0, TOWER_ROOF + 0.225, 0, 4), boxAt(1.42, 0.04, 1.42, 0, TOWER_ROOF + 0.01, 0)]), P_RED],
-  [merge([boxAt(0.03, 0.46, 0.03, 0, TOWER_ROOF + 0.62, 0), boxAt(0.07, 0.07, 0.07, 0, TOWER_ROOF + 0.88, 0)]), WHITE_MAT],
-  // de vlag: los, zodat hij kan wapperen (zie SHOP_BOB)
-  [boxAt(0.3, 0.18, 0.02, 0.165, TOWER_ROOF + 0.72, 0), P_YELLOW],
-];
 // Restaurant: een keukentje linksachter met een luik en een gestreepte luifel, en drie ronde tafels met elk
 // twee krukken en een parasol.
 const awning = (from: number): THREE.BufferGeometry =>
@@ -1360,6 +1335,88 @@ RIDE_BUILD.fountain = (group, mat) => {
   group.userData.jets = [...jets, geyser];
 };
 
+// Uitkijktoren (2 bij 2 tegels, en hoog): vier palen met een trap ertussen die in vier stukken omhoog loopt, langs
+// elke kant één stuk, met een bordesje op elke hoek. Boven ligt de vloer met een hek eromheen (en een gat waar de
+// trap bovenkomt), een verrekijker op een paal, en een puntdak met een lantaarn eronder en een vlag erop.
+const TW = TOWER;
+const TOWER_POST = 0.8, TOWER_DECK = 0.86, TOWER_ROOF = TW.top + 1.02;
+/** De hoeken van de trap, van onder naar boven (zie towerWay in rides.ts): (x, hoogte, z). */
+const TOWER_STEPS: P3[] = [[1, 0, 1], [1, 0.25, -1], [-1, 0.5, -1], [-1, 0.75, 1], [1, 1, 1]].map(([x, h, z]): P3 => [x * TW.stair, h * TW.top, z * TW.stair]);
+/** Eén stuk trap van a naar b (recht langs x of langs z): de treden, of (met `frame`) de twee bomen en de leuning aan de buitenkant. */
+const towerFlight = (a: P3, b: P3, frame: boolean): THREE.BufferGeometry[] => {
+  const alongX = Math.abs(b[0] - a[0]) > Math.abs(b[2] - a[2]), n = 6, wide = 0.36, run = (alongX ? Math.abs(b[0] - a[0]) : Math.abs(b[2] - a[2])) / n;
+  // de buitenkant: de kant van het midden van de toren af
+  const out = alongX ? Math.sign(a[2]) : Math.sign(a[0]);
+  const side = (p: P3, off: number, lift: number): P3 => (alongX ? [p[0], p[1] + lift, p[2] + off] : [p[0] + off, p[1] + lift, p[2]]);
+  if (frame)
+    return [
+      beam(0.045, side(a, -wide / 2, -0.05), side(b, -wide / 2, -0.05)), beam(0.045, side(a, wide / 2, -0.05), side(b, wide / 2, -0.05)),
+      beam(0.035, side(a, (out * wide) / 2, 0.36), side(b, (out * wide) / 2, 0.36)),
+      ...[0.1, 0.5, 0.9].map(t => {
+        const p: P3 = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+        return beam(0.03, side(p, (out * wide) / 2, -0.04), side(p, (out * wide) / 2, 0.36));
+      }),
+    ];
+  return Array.from({ length: n }, (_, i) => {
+    // (de bovenkant van elke trede ligt op de lijn waarlangs de gasten lopen)
+    const t = (i + 0.5) / n, x = a[0] + (b[0] - a[0]) * t, z = a[2] + (b[2] - a[2]) * t, y = a[1] + (b[1] - a[1]) * t - 0.015;
+    return alongX ? boxAt(run + 0.02, 0.03, wide, x, y, z) : boxAt(wide, 0.03, run + 0.02, x, y, z);
+  });
+};
+/** Een stuk hek boven op de toren, van (x0, z0) naar (x1, z1): twee leuningen en paaltjes. */
+const towerRail = (x0: number, z0: number, x1: number, z1: number): THREE.BufferGeometry[] => {
+  const len = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.round(len / 0.3));
+  return [
+    beam(0.04, [x0, TW.top + 0.42, z0], [x1, TW.top + 0.42, z1]), beam(0.03, [x0, TW.top + 0.22, z0], [x1, TW.top + 0.22, z1]),
+    ...Array.from({ length: n + 1 }, (_, i) => boxAt(0.035, 0.42, 0.035, x0 + ((x1 - x0) * i) / n, TW.top + 0.21, z0 + ((z1 - z0) * i) / n)),
+  ];
+};
+// het gat in de vloer waar de trap bovenkomt: van links tot `x1`, tussen z0 en z1
+const TOWER_HOLE = { x0: -0.62, x1: 0.3, z0: 0.22, z1: 0.62 };
+SHOP_PARTS.tower = [
+  floorOf(),
+  [painted(
+    // de vier palen, met schoren achter en links, en dwarsbalken op de hoogte van elk bordes
+    [0x97673a,
+      ...CORNERS.map(([x, z]) => boxAt(0.11, TOWER_ROOF, 0.11, x * TOWER_POST, TOWER_ROOF / 2, z * TOWER_POST)),
+      ...[0, 1].flatMap(i => {
+        const lo = 0.12 + i * (TW.top / 2), hi = lo + TW.top / 2 - 0.2;
+        return [
+          beam(0.05, [-TOWER_POST, lo, -TOWER_POST], [TOWER_POST, hi, -TOWER_POST]), beam(0.05, [TOWER_POST, lo, -TOWER_POST], [-TOWER_POST, hi, -TOWER_POST]),
+          beam(0.05, [-TOWER_POST, lo, -TOWER_POST], [-TOWER_POST, hi, TOWER_POST]), beam(0.05, [-TOWER_POST, lo, TOWER_POST], [-TOWER_POST, hi, -TOWER_POST]),
+        ];
+      }),
+      ...[0.5, 1].flatMap(k => [boxAt(TOWER_POST * 2, 0.06, 0.06, 0, TW.top * k - 0.11, TOWER_POST), boxAt(0.06, 0.06, TOWER_POST * 2, TOWER_POST, TW.top * k - 0.11, 0)]),
+      ...TOWER_STEPS.slice(0, 4).flatMap((a, i) => towerFlight(a, TOWER_STEPS[i + 1], true)),
+    ],
+    // de treden, de bordesjes op de hoeken en de vloer boven (met het trapgat)
+    [0xe3c08a,
+      ...TOWER_STEPS.slice(0, 4).flatMap((a, i) => towerFlight(a, TOWER_STEPS[i + 1], false)),
+      ...TOWER_STEPS.slice(1, 4).map(([x, y, z]) => boxAt(0.5, 0.04, 0.5, x * 1.2, y - 0.02, z * 1.2)),
+      boxAt(TOWER_DECK * 2, 0.07, TOWER_HOLE.z0 + TOWER_DECK, 0, TW.top - 0.035, (TOWER_HOLE.z0 - TOWER_DECK) / 2),
+      boxAt(TOWER_DECK * 2, 0.07, TOWER_DECK - TOWER_HOLE.z1, 0, TW.top - 0.035, (TOWER_DECK + TOWER_HOLE.z1) / 2),
+      boxAt(TOWER_HOLE.x0 + TOWER_DECK, 0.07, TOWER_HOLE.z1 - TOWER_HOLE.z0, (TOWER_HOLE.x0 - TOWER_DECK) / 2, TW.top - 0.035, (TOWER_HOLE.z0 + TOWER_HOLE.z1) / 2),
+      boxAt(TOWER_DECK - TOWER_HOLE.x1, 0.07, TOWER_HOLE.z1 - TOWER_HOLE.z0, (TOWER_DECK + TOWER_HOLE.x1) / 2, TW.top - 0.035, (TOWER_HOLE.z0 + TOWER_HOLE.z1) / 2)],
+    // het hek om de vloer en om het trapgat
+    [0xf7f4ec,
+      ...towerRail(-TOWER_DECK, -TOWER_DECK, TOWER_DECK, -TOWER_DECK), ...towerRail(-TOWER_DECK, -TOWER_DECK, -TOWER_DECK, TOWER_DECK),
+      ...towerRail(TOWER_DECK, -TOWER_DECK, TOWER_DECK, TOWER_DECK), ...towerRail(-TOWER_DECK, TOWER_DECK, TOWER_DECK, TOWER_DECK),
+      ...towerRail(TOWER_HOLE.x0, TOWER_HOLE.z0, TOWER_HOLE.x1 - 0.1, TOWER_HOLE.z0)],
+    // de verrekijker op zijn paal, linksvoor
+    [0x4a90e2, tube(0.025, 0.035, 0.42, -0.68, TW.top + 0.21, 0.74), new THREE.CylinderGeometry(0.06, 0.05, 0.2, 8).rotateX(Math.PI / 2 - 0.25).rotateY(-0.6).translate(-0.68, TW.top + 0.47, 0.74)],
+  ), MATTE_MAT],
+  // het puntdak met een rand eronder en de vlaggenstok
+  [painted(
+    [0xe0584f, cone(1.3, 0.62, 0, TOWER_ROOF + 0.31, 0, 4)],
+    [0xb8433b, boxAt(1.86, 0.06, 1.86, 0, TOWER_ROOF + 0.01, 0)],
+    [0xf7f4ec, boxAt(0.035, 0.6, 0.035, 0, TOWER_ROOF + 0.9, 0), boxAt(0.08, 0.08, 0.08, 0, TOWER_ROOF + 1.22, 0)],
+  ), PAINT_MAT],
+  // de lantaarn onder het dak en een lampje op elke hoek van het dak
+  [merge([ball(0.1, 0, TOWER_ROOF - 0.16, 0), tube(0.012, 0.012, 0.14, 0, TOWER_ROOF - 0.04, 0), ...CORNERS.map(([x, z]) => dot(0.055, x * 0.9, TOWER_ROOF - 0.04, z * 0.9))]), LAMP_MAT, false],
+  // de vlag: los, zodat hij kan wapperen (zie SHOP_BOB)
+  [boxAt(0.34, 0.2, 0.02, 0.19, TOWER_ROOF + 1.06, 0), P_YELLOW],
+];
+
 // Schuilhut: vier palen, een schuin dak, wanden links en achter en een bank langs de achterwand.
 SHOP_PARTS.shelter = [
   floorOf(),
@@ -1530,7 +1587,7 @@ const SHOP_BOB: Partial<Record<ShopKind, Bob[]>> = {
   souvenir: [{ parts: [7, 8], at: [0, 1.55, -0.05] }],
   facepaint: [{ parts: [7, 8], at: [0, 1.55, -0.05] }],
   flowers: [0, 1, 2].map((i): Bob => ({ parts: [2 + i * 2, 3 + i * 2], at: [-0.22 + i * 0.22, 0.22, 0], amp: 0, sway: 0.1 })),
-  tower: [{ parts: [6], at: [0, TOWER_ROOF + 0.72, 0], amp: 0, sway: 0, yaw: 0.5 }],
+  tower: [{ parts: [4], at: [0, TOWER_ROOF + 1.06, 0], amp: 0, sway: 0, yaw: 0.5 }],
   restaurant: RESTAURANT_TABLES.map(([x, z], i): Bob => ({ parts: [10 + i], at: [x, 1.32, z], amp: 0.012, sway: 0.05 })),
   station: [{ parts: [8, 9], at: [SIGN_AT[0], 1.3, SIGN_AT[2]], amp: 0, sway: 0.07 }],
   umbrellas: [{ parts: [2, 3, 4, 5], at: [0, 0.3, 0], amp: 0, sway: 0.06 }],
