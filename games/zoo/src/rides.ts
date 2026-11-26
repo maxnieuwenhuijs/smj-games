@@ -48,7 +48,7 @@ export type RideKind = 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline' 
 export const RIDE_SPAN: Record<RideKind, [number, number]> = {
   slide: [2, 3], swing: [2, 1], seesaw: [2, 1], springer: [1, 1], trampoline: [2, 2], fountain: [3, 3], tower: [2, 2], carousel: [3, 3], bumper: [4, 3], ferris: [8, 2], restaurant: [3, 2],
 };
-export const RIDE_KINDS: RideKind[] = ['slide', 'swing', 'seesaw', 'springer', 'trampoline', 'fountain', 'tower', 'carousel', 'bumper', 'ferris'];
+export const RIDE_KINDS = Object.keys(RIDE_SPAN) as RideKind[];
 export const isRide = (kind: ShopKind): kind is RideKind => (RIDE_KINDS as ShopKind[]).includes(kind);
 
 /** Zo snel loopt een gast over een toestel, in tegels per tel: iets vlotter dan op het pad, want hij heeft er zin in. */
@@ -1075,9 +1075,11 @@ function playPose(out: RidePose, v: Visit, s: RideState, e: number): RidePose {
 /**
  * Het restaurant: de keuken staat linksachter, de tafels op het terras. `tables`: de tafels (x, z), met aan
  * weerszijden (`stool` naar links en naar rechts) een kruk van `seat` hoog. `front` (z): daar stap je het terras
- * op. `stay`: zo lang zit een gast te eten.
+ * op. `aisle` (x): het gangpad tussen de voorste tafels door naar de tafel achteraan. `stay`: zo lang zit een gast
+ * te eten.
  */
-export const RESTAURANT = { tables: [[-0.98, 0.42], [0, 0.42], [0.98, 0.42], [0.9, -0.56]] as [number, number][], stool: 0.27, seat: 0.25, front: 0.92, stay: 9 };
+export const RESTAURANT = { tables: [[-1.04, 0.45], [-0.08, 0.45], [0.95, 0.45], [0.95, -0.5]] as [number, number][], stool: 0.27, seat: 0.25, front: 0.92, aisle: 0.42, stay: 9 };
+export const RESTAURANT_TABLES = RESTAURANT.tables;
 
 /** Waar een gast op kruk `seat` zit: twee krukken per tafel, met het gezicht naar de tafel. */
 export function restaurantSeat(out: RidePose, seat: number): RidePose {
@@ -1090,11 +1092,10 @@ export function restaurantSeat(out: RidePose, seat: number): RidePose {
 /** De route van het pad naar kruk `seat`: het terras op en om de tafel heen naar de kruk. */
 function restaurantWay(v: Visit): void {
   const p = restaurantSeat(SCRATCH, v.seat), back = p.z < 0;
-  wayFrom(v.fx, 0, v.fz);
-  wayTo(Math.max(-1.3, Math.min(1.3, back ? 0.49 : p.x)), 0, RESTAURANT.front);
+  wayIn(v, RIDE_SPAN.restaurant[0], RIDE_SPAN.restaurant[1], back ? RESTAURANT.aisle : p.x, RESTAURANT.front);
   // de tafel achteraan: tussen de voorste tafels door
-  if (back) wayTo(0.49, 0, -0.08);
-  wayTo(p.x, 0, p.z + (back ? 0.26 : 0.3));
+  if (back) wayTo(RESTAURANT.aisle, 0, p.z + 0.3);
+  wayTo(p.x, 0, p.z + 0.3);
 }
 
 function restaurantPlan(v: Visit, used: number): boolean {

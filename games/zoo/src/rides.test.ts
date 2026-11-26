@@ -8,8 +8,8 @@ import {
 import { SHOP_DEEP, SHOP_SIZE } from './data';
 
 const DT = 1 / 30;
-/** Alle toestellen waar hier rekensommen voor staan (ook wat het spel nog op de oude manier doet). */
-const ALL = Object.keys(RIDE_SPAN) as RideKind[];
+/** Alle toestellen waar hier rekensommen voor staan. */
+const ALL = RIDE_KINDS;
 /** Hoe breed en diep het toestel is, in tegels. */
 const span = (kind: RideKind): [number, number] => RIDE_SPAN[kind];
 /** Laat een toestel `seconds` tellen lopen. */

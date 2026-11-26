@@ -435,9 +435,7 @@ export const RIDES: ShopKind[] = ['carousel', 'ferris', 'bumper', 'station', 'ca
  * van het gebouw. De maten en rekensommen van de attracties en speeltoestellen staan in rides.ts; wat hier nog
  * vandaan gehaald wordt, komt daar ook vandaan.
  */
-export { FERRIS, TOWER_TOP } from './rides';
-/** De tafels van het restaurant (x, z) met aan weerszijden (x - 0,27 en x + 0,27) een kruk. */
-export const RESTAURANT_TABLES: [number, number][] = [[-0.45, 0.5], [0.5, 0.5], [0.5, -0.4]];
+export { FERRIS, RESTAURANT_TABLES, TOWER_TOP } from './rides';
 /**
  * Het treintje: een locomotief met hooguit zoveel wagons (op een kort spoor minder), elk met zoveel plekken; `gap` is
  * de afstand tussen twee wagens, `half` de halve lengte van een wagen, `speed` in tegels per tel, `stop` zo lang staat
@@ -491,17 +489,17 @@ export const FENCE_COLORS: Record<1 | 3 | 4 | 5 | 7, number[]> = {
  */
 export const SHOP_SIZE: Record<ShopKind, number> = {
   foodstall: 2, drinkstall: 2, toilet: 2, playground: 2, slide: 2, swing: 2, seesaw: 2, springer: 1, trampoline: 2, icecream: 2, balloon: 2, hats: 2, souvenir: 2, bench: 1, flowers: 1, bin: 1, fountain: 3, carousel: 3,
-  tower: 2, restaurant: 2, ferris: 8, bumper: 4, shelter: 2, station: 2, umbrellas: 1, show: 2, cablecar: 2, facepaint: 2,
+  tower: 2, restaurant: 3, ferris: 8, bumper: 4, shelter: 2, station: 2, umbrellas: 1, show: 2, cablecar: 2, facepaint: 2,
 };
 /**
  * Hoe diep een gebouw is (van voor naar achter), als dat anders is dan zijn breedte. Een marktkraam is twee tegels
  * breed maar maar één tegel diep: zijn lange kant is de voorkant. Het reuzenrad is acht breed en twee diep, de
- * glijbaan twee breed en drie diep, de schommel en de wipwap twee breed en één diep. Hier staat alleen wat niet
- * vierkant is.
+ * glijbaan twee breed en drie diep, de schommel en de wipwap twee breed en één diep, het restaurant drie breed en
+ * twee diep. Hier staat alleen wat niet vierkant is.
  */
 export const SHOP_DEEP: Partial<Record<ShopKind, number>> = {
   foodstall: 1, drinkstall: 1, icecream: 1, balloon: 1, hats: 1, souvenir: 1, facepaint: 1,
-  ferris: 2, bumper: 3, slide: 3, swing: 1, seesaw: 1,
+  ferris: 2, bumper: 3, slide: 3, swing: 1, seesaw: 1, restaurant: 2,
 };
 /** Wat je op de rand van een tegel zet, net als een hek: een bankje, bloembak, afvalbak of paraplubak neemt geen tegel in. */
 export const EDGE_SHOPS: ShopKind[] = ['bench', 'flowers', 'bin', 'umbrellas'];

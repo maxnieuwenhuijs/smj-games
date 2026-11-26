@@ -7162,7 +7162,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /**
    * Zelf op een attractie of speeltoestel: precies hetzelfde bezoek als een gast (zie planVisit en visitPose in
    * rides.ts), maar door je eigen ogen. Je loopt naar je zitje, wacht op het bakje of tot het ritje begint, rijdt
-   * mee en loopt terug naar waar je stond. Draait de draaimolen al of zit alles vol, dan wacht je op je beurt.
+   * mee en loopt terug naar waar je stond. Draait de draaimolen al of zit alles vol, dan wacht je op je beurt. In
+   * het restaurant ga je aan een tafel zitten en krijg je daar iets te eten of te drinken.
    */
   private walkVisit(shop: ShopObj): void {
     const ride = shop.ride, kind = shop.kind;
@@ -7170,7 +7171,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const from = this.walk.at, [cx, cy] = blockCenter(shop), rot = shop.rot ?? 0, turn = (rot * Math.PI) / 2;
     const [fx, fz] = rideLocal(from[0], from[1], cx, cy, rot), pose = newPose();
     const me = { shop: shop as ShopSpot, seat: -1, on: false };
-    let visit: Visit | null = null;
+    let visit: Visit | null = null, served = false;
     const sat = this.walk.sit({
       pose: () => {
         if (!this.shops.includes(shop)) return null;
@@ -7184,6 +7185,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         const p = visitPose(pose, visit, ride);
         if (p.done) return null;
         me.on = p.on;
+        // in het restaurant krijg je aan tafel iets te eten of te drinken (één munt, net als bij een kraam)
+        if (kind === 'restaurant' && p.on && !served) {
+          served = true;
+          const menu = walkOffer(kind, shop.sells, this.level);
+          if (menu.length) this.walkBuy(shop, menu[Math.floor(Math.random() * menu.length)]);
+        }
         const [gx, gy] = rideWorld(p.x, p.z, cx, cy, rot);
         // staand zijn je ogen zo hoog als bij het lopen, zittend een stuk lager; helt het zitje, dan kijk je mee
         return [gx, gy, p.h + WALK.eye + (SIT_EYE - WALK.eye) * p.sit, p.face + turn, -p.pitch];

@@ -882,35 +882,82 @@ const TREE_LOOK: Partial<Record<DecorKind, { leaf: number[]; crown: number[] }>>
 const floorOf = (color = 0xd8c7ab, wide = 2, deep = wide): Part => [boxAt(wide - 0.16, 0.05, deep - 0.16, 0, 0.025, 0), std(color, 1), false];
 const CORNERS: [number, number][] = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
 const P_GREEN = std(0x6cc04a);
-// Restaurant: een keukentje linksachter met een luik en een gestreepte luifel, en drie ronde tafels met elk
-// twee krukken en een parasol.
-const awning = (from: number): THREE.BufferGeometry =>
-  merge([0, 1, 2].slice(0, from ? 2 : 3).flatMap(i => {
-    const x = -0.85 + (from + i * 2) * 0.2;
-    return [boxAt(0.2, 0.07, 1.02, x, 1.2, -0.44), new THREE.BoxGeometry(0.2, 0.04, 0.3).rotateX(0.55).translate(x, 1.1, 0.19)];
-  }));
+/** Een lantaarn op een paal van `h` hoog: [de paal, het lampje]. */
+const lampPost = (x: number, z: number, h: number): [THREE.BufferGeometry, THREE.BufferGeometry] =>
+  [merge([tube(0.022, 0.03, h, x, h / 2, z), tube(0.06, 0.045, 0.05, x, 0.025, z), tube(0.05, 0.03, 0.04, x, h + 0.01, z)]), ball(0.075, x, h + 0.09, z)];
+// Restaurant (3 bij 2 tegels): linksachter de keuken, met een doorgeefluik, een toonbank, een gestreepte rand
+// erboven en de kok achter het luik. (Geen luifel die uitsteekt: van schuin boven zou die de kok verstoppen.) Op het
+// terras ervoor en ernaast staan vier ronde tafels met elk twee krukken en een parasol (de tafels staan in
+// rides.ts: daar zitten de gasten). Op het dak staat een bord met een bord, een vork en een mes; op de hoeken van
+// het terras staan lantaarns en achteraan een bloembak.
+const KITCHEN = { x0: -1.4, x1: 0.26, z0: -0.92, z1: -0.16, h: 1.3 };
+const KX = (KITCHEN.x0 + KITCHEN.x1) / 2, KZ = (KITCHEN.z0 + KITCHEN.z1) / 2, KW = KITCHEN.x1 - KITCHEN.x0;
+/** Het luik in de voorgevel: van x tot x, en van hoog tot hoog. */
+const HATCH = [-1.12, -0.08, 0.5, 1.1];
+/** Waar de kok staat (x, z): links achter het luik, vlak bij de toonbank. Daar zie je hem tussen de parasols door. */
+const CHEF: [number, number] = [-0.94, KITCHEN.z1 - 0.13];
+const RESTAURANT_LAMPS: [number, number][] = [[-1.4, 0.92], [1.4, 0.92], [1.4, -0.9]];
+const PARASOLS = [0xe0584f, 0xffd23f, 0x4a90e2, 0x6cc04a];
+/** Eén baan van de gestreepte rand boven het luik, `i` banen van links (er zijn er acht). */
+const fasciaStripe = (i: number): THREE.BufferGeometry =>
+  boxAt(KW / 8, KITCHEN.h - HATCH[3], 0.014, KITCHEN.x0 + (i + 0.5) * (KW / 8), (KITCHEN.h + HATCH[3]) / 2, KITCHEN.z1 + 0.006);
 SHOP_PARTS.restaurant = [
-  floorOf(0xe9d9b8),
-  [merge([boxAt(0.86, 1.15, 0.08, -0.47, 0.575, -0.86), boxAt(0.08, 1.15, 0.78, -0.86, 0.575, -0.45), boxAt(0.08, 1.15, 0.08, -0.08, 0.575, -0.1)]), std(0xf3ead6)],
-  [merge([boxAt(0.74, 0.42, 0.1, -0.47, 0.21, -0.1), boxAt(0.1, 0.42, 0.7, -0.08, 0.21, -0.47)]), std(0xc9553f)],
-  [merge([boxAt(0.8, 0.04, 0.16, -0.47, 0.44, -0.1), boxAt(0.16, 0.04, 0.76, -0.08, 0.44, -0.47)]), WHITE_MAT],
-  [awning(0), P_RED],
-  [awning(1), WHITE_MAT],
-  // een schoorsteen en een pan op de toonbank
-  [merge([boxAt(0.14, 0.3, 0.14, -0.62, 1.38, -0.62), tube(0.09, 0.08, 0.07, -0.5, 0.495, -0.1), boxAt(0.14, 0.02, 0.03, -0.36, 0.5, -0.1)]), METAL],
-  [merge(RESTAURANT_TABLES.flatMap(([x, z]) => [tube(0.2, 0.2, 0.04, x, 0.4, z), tube(0.03, 0.07, 0.38, x, 0.19, z)])), WHITE_MAT],
-  [merge(RESTAURANT_TABLES.flatMap(([x, z]) => [-0.27, 0.27].flatMap(d => [tube(0.085, 0.085, 0.05, x + d, 0.215, z), tube(0.025, 0.05, 0.19, x + d, 0.095, z)]))), P_RED],
-  [merge(RESTAURANT_TABLES.map(([x, z]) => tube(0.014, 0.014, 0.92, x, 0.88, z))), METAL],
-  // de parasols: los, zodat ze kunnen wiegen
-  ...RESTAURANT_TABLES.map(([x, z], i): Part => [striped(new THREE.ConeGeometry(0.36, 0.2, 8), [[0xe0584f, 0xffd23f, 0x4a90e2][i % 3], 0xf7f4ec], 8).translate(x, 1.42, z), PAINT_MAT]),
-  // op elke tafel een bord eten, een beker en een bakje sla, en voor de deur een bord met het menu
+  floorOf(0xe9d9b8, 3, 2),
+  // de parasols: los, zodat ze kunnen wiegen (zie SHOP_BOB)
+  ...RESTAURANT_TABLES.map(([x, z], i): Part => [striped(new THREE.ConeGeometry(0.36, 0.2, 8), [PARASOLS[i % PARASOLS.length], 0xf7f4ec], 8).translate(x, 1.42, z), PAINT_MAT]),
+  // de kok achter het luik, met zijn armen op de toonbank: ook los, hij wiebelt een beetje (zie SHOP_BOB)
   [painted(
-    [0xe0584f, ...RESTAURANT_TABLES.map(([x, z]) => tube(0.055, 0.055, 0.016, x - 0.07, 0.428, z + 0.03))],
-    [0xffd23f, ...RESTAURANT_TABLES.map(([x, z]) => tube(0.026, 0.02, 0.05, x + 0.08, 0.445, z - 0.05))],
-    [0x6cc04a, ...RESTAURANT_TABLES.map(([x, z]) => blob(0.04, 1, 0.6, 1, x + 0.04, 0.44, z + 0.09, 0))],
-    [0x3d4f5a, new THREE.BoxGeometry(0.26, 0.4, 0.02).rotateX(-0.22).translate(-0.74, 0.2, 0.84), new THREE.BoxGeometry(0.26, 0.4, 0.02).rotateX(0.22).translate(-0.74, 0.2, 0.75)],
-    [0xf7f4ec, ...[0.1, 0.02, -0.06].map((y, i) => new THREE.BoxGeometry(0.18 - i * 0.03, 0.022, 0.024).translate(-i * 0.015, y, 0).rotateX(-0.22).translate(-0.74, 0.2, 0.84))],
+    [0xf7f4ec, boxAt(0.22, 0.3, 0.14, CHEF[0], 0.64, CHEF[1]), boxAt(0.17, 0.06, 0.15, CHEF[0], 0.96, CHEF[1]), boxAt(0.21, 0.07, 0.19, CHEF[0], 1.02, CHEF[1]),
+      boxAt(0.06, 0.06, 0.2, CHEF[0] - 0.14, 0.72, CHEF[1] + 0.08), boxAt(0.06, 0.06, 0.2, CHEF[0] + 0.14, 0.72, CHEF[1] + 0.08)],
+    [0xe8b48a, boxAt(0.15, 0.14, 0.14, CHEF[0], 0.86, CHEF[1])],
+    [0x22201c, dot(0.014, CHEF[0] - 0.035, 0.875, CHEF[1] + 0.07), dot(0.014, CHEF[0] + 0.035, 0.875, CHEF[1] + 0.07)],
+    [0xe0584f, boxAt(0.1, 0.03, 0.02, CHEF[0], 0.78, CHEF[1] + 0.071)],
   ), PAINT_MAT],
+  // de keuken: de muren om het luik heen, de rode onderkant, het dak en binnen een donkere wand
+  [painted(
+    [0xf3ead6, boxAt(KW, KITCHEN.h, 0.07, KX, KITCHEN.h / 2, KITCHEN.z0 + 0.035), boxAt(0.07, KITCHEN.h, KITCHEN.z1 - KITCHEN.z0, KITCHEN.x0 + 0.035, KITCHEN.h / 2, KZ),
+      boxAt(0.07, KITCHEN.h, KITCHEN.z1 - KITCHEN.z0, KITCHEN.x1 - 0.035, KITCHEN.h / 2, KZ), boxAt(KW, KITCHEN.h - HATCH[3], 0.07, KX, (KITCHEN.h + HATCH[3]) / 2, KITCHEN.z1 - 0.035),
+      boxAt(HATCH[0] - KITCHEN.x0, HATCH[3] - HATCH[2], 0.07, (HATCH[0] + KITCHEN.x0) / 2, (HATCH[2] + HATCH[3]) / 2, KITCHEN.z1 - 0.035),
+      boxAt(KITCHEN.x1 - HATCH[1], HATCH[3] - HATCH[2], 0.07, (HATCH[1] + KITCHEN.x1) / 2, (HATCH[2] + HATCH[3]) / 2, KITCHEN.z1 - 0.035)],
+    [0xc9553f, boxAt(KW + 0.02, HATCH[2], 0.08, KX, HATCH[2] / 2, KITCHEN.z1 - 0.035), boxAt(KW + 0.14, 0.07, KITCHEN.z1 - KITCHEN.z0 + 0.12, KX, KITCHEN.h + 0.035, KZ)],
+    [0xa8432f, boxAt(KW + 0.18, 0.04, KITCHEN.z1 - KITCHEN.z0 + 0.16, KX, KITCHEN.h + 0.005, KZ),
+      // de achterdeur
+      boxAt(0.3, 0.72, 0.012, KX + 0.3, 0.36, KITCHEN.z0 - 0.003)],
+    [0x3a332e, boxAt(KW - 0.14, KITCHEN.h - 0.1, 0.03, KX, KITCHEN.h / 2, KITCHEN.z1 - 0.42)],
+    // een raampje rechts van het luik, en een in de zijmuur en de achtermuur
+    [0x9fd8f5, boxAt(0.2, 0.26, 0.012, (HATCH[1] + KITCHEN.x1) / 2, 0.82, KITCHEN.z1 + 0.003), boxAt(0.012, 0.26, 0.3, KITCHEN.x0 - 0.003, 0.82, KZ), boxAt(0.34, 0.26, 0.012, KX - 0.42, 0.82, KITCHEN.z0 - 0.003)],
+  ), MATTE_MAT],
+  // de toonbank, de witte banen van de rand boven het luik, de tafels en de bloembak
+  [painted(
+    [0xf7f4ec, boxAt(HATCH[1] - HATCH[0] + 0.1, 0.04, 0.22, (HATCH[0] + HATCH[1]) / 2, HATCH[2], KITCHEN.z1 + 0.03), ...[1, 3, 5, 7].map(fasciaStripe),
+      ...RESTAURANT_TABLES.flatMap(([x, z]) => [tube(0.2, 0.2, 0.04, x, 0.4, z), tube(0.03, 0.07, 0.38, x, 0.19, z)])],
+    [0xe0584f, ...[0, 2, 4, 6].map(fasciaStripe), ...RESTAURANT_TABLES.flatMap(([x, z]) => [-0.27, 0.27].flatMap(d => [tube(0.085, 0.085, 0.05, x + d, 0.215, z), tube(0.025, 0.05, 0.19, x + d, 0.095, z)]))],
+    // op elke tafel een bord eten, een beker en een bakje sla
+    [0xf08a24, ...RESTAURANT_TABLES.map(([x, z]) => tube(0.055, 0.055, 0.016, x - 0.07, 0.428, z + 0.03))],
+    [0xffd23f, ...RESTAURANT_TABLES.map(([x, z]) => tube(0.026, 0.02, 0.05, x + 0.08, 0.445, z - 0.05))],
+    [0x6cc04a, ...RESTAURANT_TABLES.map(([x, z]) => blob(0.04, 1, 0.6, 1, x + 0.04, 0.44, z + 0.09, 0)),
+      // de struikjes in de bloembak
+      ...[0.5, 0.74, 0.98, 1.22].map((x, i) => blob(0.1, 1, 0.8 + (i % 2) * 0.2, 0.8, x, 0.27, -0.9))],
+    [0xa8743f, boxAt(1, 0.16, 0.16, 0.86, 0.13, -0.9)],
+    // het bord op het dak: een bord met een vork en een mes
+    [0x4a90e2, boxAt(0.74, 0.34, 0.05, KX, KITCHEN.h + 0.3, KITCHEN.z1 - 0.12), boxAt(0.05, 0.14, 0.05, KX - 0.28, KITCHEN.h + 0.11, KITCHEN.z1 - 0.12), boxAt(0.05, 0.14, 0.05, KX + 0.28, KITCHEN.h + 0.11, KITCHEN.z1 - 0.12)],
+    [0xf7f4ec, new THREE.CylinderGeometry(0.1, 0.1, 0.02, 12).rotateX(Math.PI / 2).translate(KX, KITCHEN.h + 0.3, KITCHEN.z1 - 0.09),
+      boxAt(0.022, 0.22, 0.02, KX - 0.2, KITCHEN.h + 0.3, KITCHEN.z1 - 0.09), boxAt(0.07, 0.022, 0.02, KX - 0.2, KITCHEN.h + 0.36, KITCHEN.z1 - 0.09),
+      ...[-0.03, 0.03].map(d => boxAt(0.016, 0.06, 0.02, KX - 0.2 + d, KITCHEN.h + 0.39, KITCHEN.z1 - 0.09)),
+      boxAt(0.022, 0.12, 0.02, KX + 0.2, KITCHEN.h + 0.25, KITCHEN.z1 - 0.09), boxAt(0.04, 0.12, 0.02, KX + 0.205, KITCHEN.h + 0.36, KITCHEN.z1 - 0.09)],
+    [0xe9d9b8, new THREE.CylinderGeometry(0.065, 0.065, 0.024, 12).rotateX(Math.PI / 2).translate(KX, KITCHEN.h + 0.3, KITCHEN.z1 - 0.085)],
+    // het menubord, tegen de gevel naast het luik
+    [0x3d4f5a, new THREE.BoxGeometry(0.24, 0.4, 0.02).rotateX(-0.2).translate((HATCH[1] + KITCHEN.x1) / 2, 0.2, KITCHEN.z1 + 0.09)],
+    [0xf7f4ec, ...[0.1, 0.02, -0.06].map((y, i) => new THREE.BoxGeometry(0.16 - i * 0.03, 0.022, 0.024).translate(-i * 0.015, y, 0).rotateX(-0.2).translate((HATCH[1] + KITCHEN.x1) / 2, 0.2, KITCHEN.z1 + 0.09))],
+  ), PAINT_MAT],
+  // de schoorsteen, een pan op de toonbank, de stokken van de parasols en de palen van de lantaarns
+  [merge([
+    boxAt(0.14, 0.3, 0.14, KITCHEN.x0 + 0.3, KITCHEN.h + 0.2, KITCHEN.z0 + 0.22), boxAt(0.2, 0.03, 0.2, KITCHEN.x0 + 0.3, KITCHEN.h + 0.38, KITCHEN.z0 + 0.22),
+    tube(0.09, 0.08, 0.07, HATCH[1] - 0.3, HATCH[2] + 0.055, KITCHEN.z1 + 0.04), boxAt(0.14, 0.02, 0.03, HATCH[1] - 0.16, HATCH[2] + 0.06, KITCHEN.z1 + 0.04),
+    ...RESTAURANT_TABLES.map(([x, z]) => tube(0.014, 0.014, 0.92, x, 0.88, z)),
+    ...RESTAURANT_LAMPS.map(([x, z]) => lampPost(x, z, 1.4)[0]),
+  ]), METAL],
+  [merge(RESTAURANT_LAMPS.map(([x, z]) => lampPost(x, z, 1.4)[1])), LAMP_MAT, false],
 ];
 // ------------------------------------------------------------ attracties in allerlei maten (de getallen staan in rides.ts)
 /**
@@ -940,9 +987,6 @@ function chaseLamps(t: number): void {
     m.emissiveIntensity = LAMP_MAT.emissiveIntensity * (0.3 + 0.9 * glow * glow);
   }
 }
-/** Een lantaarn op een paal van `h` hoog: [de paal, het lampje]. */
-const lampPost = (x: number, z: number, h: number): [THREE.BufferGeometry, THREE.BufferGeometry] =>
-  [merge([tube(0.022, 0.03, h, x, h / 2, z), tube(0.06, 0.045, 0.05, x, 0.025, z), tube(0.05, 0.03, 0.04, x, h + 0.01, z)]), ball(0.075, x, h + 0.09, z)];
 
 // Reuzenrad (8 bij 2 tegels): voor en achter het rad staat een poot in de vorm van een A, met de as ertussen. Het rad
 // zelf draait om die as: twee velgen met spaken en lampjes. De twaalf bakjes hangen elk aan een eigen asje en
@@ -1831,7 +1875,8 @@ const SHOP_BOB: Partial<Record<ShopKind, Bob[]>> = {
   facepaint: [{ parts: [7, 8], at: [0, 1.55, -0.05] }],
   flowers: [0, 1, 2].map((i): Bob => ({ parts: [2 + i * 2, 3 + i * 2], at: [-0.22 + i * 0.22, 0.22, 0], amp: 0, sway: 0.1 })),
   tower: [{ parts: [4], at: [0, TOWER_ROOF + 1.06, 0], amp: 0, sway: 0, yaw: 0.5 }],
-  restaurant: RESTAURANT_TABLES.map(([x, z], i): Bob => ({ parts: [10 + i], at: [x, 1.32, z], amp: 0.012, sway: 0.05 })),
+  // de parasols en de kok
+  restaurant: [...RESTAURANT_TABLES.map(([x, z], i): Bob => ({ parts: [1 + i], at: [x, 1.32, z], amp: 0.012, sway: 0.05 })), { parts: [1 + RESTAURANT_TABLES.length], at: [CHEF[0], 0.5, CHEF[1]], amp: 0.012, sway: 0.03 }],
   station: [{ parts: [8, 9], at: [SIGN_AT[0], 1.3, SIGN_AT[2]], amp: 0, sway: 0.07 }],
   umbrellas: [{ parts: [2, 3, 4, 5], at: [0, 0.3, 0], amp: 0, sway: 0.06 }],
   show: [{ parts: [6, 7], at: [SHOW_SIGN[0], 1.05, SHOW_SIGN[2]], amp: 0, sway: 0.07 }],
