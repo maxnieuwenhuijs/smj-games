@@ -74,8 +74,9 @@ const TOOL_GROUPS: [string, ToolId[]][] = [
 ];
 /**
  * Een gebouw uit een ouder spel dat een andere maat heeft gekregen, zoekt een nieuwe plek: hooguit `reach` tegels
- * van waar het stond. Een plek die niet aan het pad ligt telt als `loose` tegels verder weg, en een plek waar de
- * voorkant niet naar het pad kijkt als `back` tegels verder.
+ * van waar het stond. Een plek die niet aan het pad ligt telt als `loose` tegels verder weg (los van het pad mag
+ * het dus hooguit `reach` min `loose` tegels opschuiven), en een plek waar de voorkant niet naar het pad kijkt als
+ * `back` tegels verder.
  */
 const RESETTLE = { reach: 8, loose: 4, back: 0.75 };
 /**
@@ -834,7 +835,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         const old = version < 3 ? 1 : 2;
         const spot = this.resettle(sh.kind, x + old / 2, y + old / 2, sh.rot ?? 0, !!sh.manual);
         if (!spot) {
-          this.coins = Math.min(COIN_CAP, this.coins + SHOP_PRICE[sh.kind]);
+          // de volle prijs terug. Wat niet meer in de kas past, verdient het park snel terug: de gasten kopen dan
+          // een poos wat vaker (zie demand)
+          const price = SHOP_PRICE[sh.kind], room = Math.max(0, COIN_CAP - this.coins);
+          this.coins += Math.min(room, price);
+          this.debt += Math.max(0, price - room);
           refunded = true;
           continue;
         }
@@ -859,7 +864,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
     // waar nu een groter gebouw staat, gaat het groen eronder weg; paste er een niet meer, dan zegt de bouwer dat één keer
     if (moved) this.sweepProps();
-    if (refunded && version >= 3) this.lines.push(say.ridesBigger());
+    if (refunded) this.lines.push(say.ridesBigger());
     this.syncLifts();
     for (const a of d.animals) {
       if (!modelReady(`${a.species}_${a.variant}`)) continue;
@@ -3698,7 +3703,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
           if (far > reach || far >= least || !this.shopFits(x, y, kind, turn)) continue;
           const sides = this.pathSides(x, y, w, h);
           const cost = far + (sides.some(n => n > 0) ? 0 : RESETTLE.loose) + (sides[turn] > 0 ? 0 : RESETTLE.back);
-          if (cost < least) [best, least] = [[x, y, turn], cost];
+          // (een plek los van het pad mag alleen als hij vlakbij is: anders staat het gebouw straks ergens achteraf)
+          if (cost < least && cost <= reach + RESETTLE.back) [best, least] = [[x, y, turn], cost];
         }
     }
     return best;
