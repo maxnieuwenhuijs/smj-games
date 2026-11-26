@@ -844,6 +844,8 @@ const SHADES_GEO = new THREE.BoxGeometry(0.19, 0.05, 0.03);
 const BROLLY_COLORS = [0xe0584f, 0x4a90e2, 0xffd23f, 0x6cc04a, 0xa06ad9, 0xf06aa6];
 const COLOR_OF = Object.fromEntries(PRODUCTS.filter(p => p.color !== undefined).map(p => [p.id, p.color as number]));
 const SNACK_GEO = new THREE.BoxGeometry(0.06, 0.08, 0.06).translate(0, -0.2, 0.04);
+/** Vraagt een level om afval op te rapen, dan laat zo'n deel van de gasten zijn papiertje vallen (ook met een afvalbak vlakbij). */
+const SLOPPY = 0.75;
 /** Wat de dieren doen waar een gast naar kijkt (zie `penMood`): een bit per ding. */
 export const PEN = { asleep: 1, playing: 2, sick: 4, dirty: 8, scare: 16 };
 /** Waar een ontsnapt dier loopt: elke keer opnieuw ingevuld door `looseNear`. */
@@ -3755,7 +3757,9 @@ export class Guest implements Leader {
         }
         if (kind === 'foodstall' || kind === 'drinkstall' || kind === 'icecream') {
           this.trash = 10 + Math.random() * 10;
-          this.sloppy = w.messy() && Math.random() < 0.45;
+          // vraagt het level om afval, dan laten de meeste gasten het vallen: zo hoef je er niet lang op te wachten,
+          // ook niet op een trage tablet waar minder gasten rondlopen
+          this.sloppy = w.messy() && Math.random() < SLOPPY;
         }
       } else this.fun = Math.max(0, this.fun - 0.1);
     }
@@ -5805,6 +5809,11 @@ export class GuestManager {
   /** De treintjes: één per spoor met een halte (het spel legt de routes, zie layRails). */
   trains: Train[] = [];
   /**
+   * De speler zelf, als hij in de loopstand op een attractie of speeltoestel zit (zie Game.walkVisit): op welk
+   * toestel, op welk zitje (-1: hij wacht nog op zijn beurt) en of hij er nu echt op zit.
+   */
+  walker: { shop: ShopSpot; seat: number; on: boolean } | null = null;
+  /**
    * Per tegel: komt hier een trein aan, of staat er een? Daar steekt niemand over, en op een overweg zijn de bomen
    * dicht. De treinen vullen dit elk beeldje opnieuw in; `shutList` onthoudt welke tegels het zijn.
    */
@@ -6081,6 +6090,13 @@ export class GuestManager {
       shop.used = 0;
       shop.aboard = 0;
       if (shop.kind === 'toilet' && shop.mesh) shop.mesh.userData.ajar = 0;
+    }
+    // de speler rijdt zelf mee (in de loopstand): zijn zitje is bezet, en het toestel gaat voor hem ook voluit
+    const me = this.walker;
+    if (me && me.seat >= 0) {
+      me.shop.busyNow = 1;
+      me.shop.used = 1 << me.seat;
+      if (me.on) me.shop.aboard = 1 << me.seat;
     }
     for (const g of this.guests) {
       const shop = g.using;

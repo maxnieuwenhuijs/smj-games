@@ -57,7 +57,7 @@ import { WalkMode, tagHtml, type WalkTarget } from './walkmode';
 import { WalkHand } from './walkhand';
 import { paintOf, walkOffer, walkPrice } from './held';
 import { BlobShadows } from './blobs';
-import { RIDE_GLOW, isRide, newRide, rideStep, rideWorld } from './rides';
+import { RIDE_GLOW, isRide, newPose, newRide, planVisit, rideLocal, rideStep, rideWorld, visitPose, type Visit } from './rides';
 
 /** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken; een dier een snoepje geven of wassen (care.ts); in de herfst harken, in de winter sneeuw rollen. */
 export type ActionId = 'broom' | 'hammer' | 'picker' | CareAction | 'rake' | 'snowball';
@@ -7152,7 +7152,48 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (shop.kind === 'show') return () => this.walkWatch(shop);
     if (shop.kind === 'station') return () => this.walkTrain(shop);
     if (shop.kind === 'cablecar') return () => this.walkLift(shop);
+    // een attractie of speeltoestel (bij de fontein valt niets in te stappen: daar kijk je gewoon naar)
+    if (shop.ride && isRide(shop.kind) && shop.kind !== 'fountain') return () => this.walkVisit(shop);
     return null;
+  }
+
+  /**
+   * Zelf op een attractie of speeltoestel: precies hetzelfde bezoek als een gast (zie planVisit en visitPose in
+   * rides.ts), maar door je eigen ogen. Je loopt naar je zitje, wacht op het bakje of tot het ritje begint, rijdt
+   * mee en loopt terug naar waar je stond. Draait de draaimolen al of zit alles vol, dan wacht je op je beurt.
+   */
+  private walkVisit(shop: ShopObj): void {
+    const ride = shop.ride, kind = shop.kind;
+    if (this.walk.seated || !ride || !isRide(kind)) return;
+    const from = this.walk.at, [cx, cy] = blockCenter(shop), rot = shop.rot ?? 0, turn = (rot * Math.PI) / 2;
+    const [fx, fz] = rideLocal(from[0], from[1], cx, cy, rot), pose = newPose();
+    const me = { shop: shop as ShopSpot, seat: -1, on: false };
+    let visit: Visit | null = null;
+    const sat = this.walk.sit({
+      pose: () => {
+        if (!this.shops.includes(shop)) return null;
+        if (!visit) {
+          visit = planVisit(kind, ride, shop.used ?? 0, fx, fz);
+          // nog niet aan de beurt: wachten waar je staat, met je neus naar het toestel
+          if (!visit) return [from[0], from[1], WALK.eye, Math.atan2(cx - from[0], cy - from[1])];
+          me.seat = visit.seat;
+          shop.used = (shop.used ?? 0) | (1 << visit.seat);
+        }
+        const p = visitPose(pose, visit, ride);
+        if (p.done) return null;
+        me.on = p.on;
+        const [gx, gy] = rideWorld(p.x, p.z, cx, cy, rot);
+        // staand zijn je ogen zo hoog als bij het lopen, zittend een stuk lager; helt het zitje, dan kijk je mee
+        return [gx, gy, p.h + WALK.eye + (SIT_EYE - WALK.eye) * p.sit, p.face + turn, -p.pitch];
+      },
+      exit: () => [from[0], from[1]],
+      left: () => {
+        if (this.guests.walker === me) this.guests.walker = null;
+      },
+    });
+    if (!sat) return;
+    this.guests.walker = me;
+    if (!visit) this.floatAt(icon('clock'), cx, cy, 1.8);
   }
 
   /**

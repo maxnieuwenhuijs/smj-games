@@ -36,9 +36,10 @@ export const emptyPark = (level = 0, coins = 99, extra = {}) => ({
  * `level` of `save`: begin in een leeg park in dat level, of met dit opgeslagen spel (zie SaveData in game.ts).
  * Zonder allebei begint er een nieuw spel. `lang`: 'nl' of 'en'. `draw: false`: het spel tekent niets (voor de
  * proefspeler en ander rekenwerk: zonder beeldkaart kost elk beeldje bijna een tel, en dan lopen ook de klokjes
- * in de pagina traag).
+ * in de pagina traag). `speed`: doe alsof het apparaat zo snel is (2 = prima, 1 = wat traag, 0 = een trage tablet:
+ * daar komen minder gasten, zie guestsAt); zonder `speed` meet het spel het zelf, en zonder beeldkaart is dat traag.
  */
-export async function boot({ port = 5173, path = '', width = 1280, height = 800, lang = 'nl', level, coins = 99, save, scale = 1, draw = true } = {}) {
+export async function boot({ port = 5173, path = '', width = 1280, height = 800, lang = 'nl', level, coins = 99, save, scale = 1, draw = true, speed } = {}) {
   const { chromium } = playwright();
   const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: scale });
@@ -87,6 +88,12 @@ export async function boot({ port = 5173, path = '', width = 1280, height = 800,
   }
   await page.waitForFunction(() => !!window.__zoo, null, { timeout: 90000 });
   if (!draw) await page.evaluate(() => void (window.__zoo.view.renderer.render = () => {}));
+  if (speed !== undefined)
+    await page.evaluate(speed => {
+      const view = window.__zoo.view;
+      view.quality = speed;
+      view.adapt = () => {};
+    }, speed);
   // het laadscherm met het logo
   await page.waitForTimeout(3500);
   return { browser, page, errors };

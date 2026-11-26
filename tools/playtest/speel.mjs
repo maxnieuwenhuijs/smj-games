@@ -1,18 +1,19 @@
 // De proefspeler (autoplay.js) alle levels laten spelen in een browser zonder venster.
 //
-//   node tools/playtest/speel.mjs [tot level] [kind] [poort]
+//   node tools/playtest/speel.mjs [tot level] [kind] [poort] [apparaat]
 //
 // `kind`: 0 = snel en foutloos, de kas wordt bijgevuld als hij leeg is (zo zie je of elk level haalbaar is);
 // 8 = als een kind: één handeling per acht tellen en de kas wordt nooit bijgevuld (zo zie je of de munten en het
-// zorgen kloppen). Start eerst het spel (`npm run dev`, poort 5173). Het spel tekent niets, zodat het ook zonder
-// beeldkaart snel gaat: vijftig levels duren een paar minuten. Per level komt er een regel met de speltijd; blijft
-// een level langer dan een kwartier speltijd hangen, dan stopt hij en zie je waar het op wacht.
+// zorgen kloppen). `apparaat`: 2 = een gewoon apparaat (standaard), 0 = een trage tablet, waar minder gasten komen.
+// Start eerst het spel (`npm run dev`, poort 5173). Het spel tekent niets, zodat het ook zonder beeldkaart snel
+// gaat: vijftig levels duren een paar minuten. Per level komt er een regel met de speltijd; blijft een level langer
+// dan een kwartier speltijd hangen, dan stopt hij en zie je waar het op wacht.
 import { fileURLToPath } from 'url';
 import { boot } from './kijk.mjs';
 
-const to = Number(process.argv[2] ?? 50), kid = Number(process.argv[3] ?? 0), port = Number(process.argv[4] ?? 5173);
+const to = Number(process.argv[2] ?? 50), kid = Number(process.argv[3] ?? 0), port = Number(process.argv[4] ?? 5173), speed = Number(process.argv[5] ?? 2);
 const robot = fileURLToPath(new URL('./autoplay.js', import.meta.url));
-const { browser, page, errors } = await boot({ port, draw: false });
+const { browser, page, errors } = await boot({ port, draw: false, speed });
 await page.evaluate(async ([robot, to, kid]) => {
   const { T } = await import(`/@fs${robot}`);
   T.kid = kid;
