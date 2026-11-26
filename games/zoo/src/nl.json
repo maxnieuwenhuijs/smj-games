@@ -1048,5 +1048,9 @@
   "say.paint.new": "Nieuw: de schminktent! Daar krijgen kinderen een dierengezicht.",
   "say.way.tip": "Een gast is de weg kwijt. Sleep met je vinger van de gast naar de dieren!",
   "parade.drum": "Optocht",
-  "host.busy.facepaint": "Het is druk bij de schminktent. Zet er nog een bij!"
+  "host.busy.facepaint": "Het is druk bij de schminktent. Zet er nog een bij!",
+  "walk": "Rondlopen",
+  "walk.back": "Terug naar boven",
+  "walk.stick": "Lopen",
+  "say.walk.new": "Kijk eens rond! Loop met de pijltjes en tik op een dier."
 }

@@ -45,6 +45,8 @@ import { BOOK_HEART, KID_MOMENT, KID_MOMENTS, SPLAT_MELT, momentReady, type KidM
 import { EDGE_SHIFT, View, toWorldX, toWorldZ, type TroughMesh } from './view';
 import { CARE_ACTIONS, CATCH, DUST, HOSE, TREAT, dustAfter, dustSpecks, flightTime, isCare, treatFor, treatReady, type CareAction } from './care';
 import { CareFx } from './carefx';
+import { WALK, type Box, type WalkGround } from './walk';
+import { WalkMode, tagHtml, type WalkTarget } from './walkmode';
 
 /** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken; een dier een snoepje geven of wassen (care.ts); in de herfst harken, in de winter sneeuw rollen. */
 export type ActionId = 'broom' | 'hammer' | 'picker' | CareAction | 'rake' | 'snowball';
@@ -630,6 +632,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Blaadjes harken, een sneeuwpop bouwen en de lampjes uit en aan doen (zie parkplay.ts). */
   private park!: ParkPlay;
+  /** De loopstand: zelf als bezoeker door het park lopen (zie walkmode.ts). Staat standaard uit. */
+  private walk!: WalkMode;
+  /** Wanneer een dier voor het laatst iets deed voor de loper. */
+  private walkPoked = new WeakMap<Animal, number>();
 
   constructor(private view: View, private slot: number, data: SaveData | undefined, onHome: () => void, private player = data?.player ?? '') {
     this.park = new ParkPlay(this.parkHost());
@@ -642,6 +648,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       need: i => this.gotoNeed(i),
       turn: dir => this.view.rotate(dir),
       spin: () => this.spinGhost(),
+      walk: () => this.walk.toggle(),
     });
     this.hud.onStars = () => this.showStars();
     this.guests = new GuestManager(this.view.scene, this);
@@ -668,6 +675,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.refreshGoals();
     this.refreshTools();
     this.attachInput(this.view.renderer.domElement);
+    this.walk = new WalkMode(this.walkHost());
     addEventListener('pagehide', () => void this.save());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) void this.save();
@@ -4941,12 +4949,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     canvas.addEventListener('contextmenu', e => e.preventDefault());
     // de toets R draait wat je gaat neerzetten, net als de draaiknop
     window.addEventListener('keydown', e => {
-      if (!canvas.isConnected || e.repeat || (e.key !== 'r' && e.key !== 'R')) return;
+      if (!canvas.isConnected || e.repeat || (e.key !== 'r' && e.key !== 'R') || this.walk?.on) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       this.spinGhost();
     });
     canvas.addEventListener('wheel', e => {
       e.preventDefault();
+      if (this.walk.on) return;
       this.view.zoomBy(e.deltaY > 0 ? 1.1 : 0.9);
     }, { passive: false });
     canvas.addEventListener('pointerleave', () => {
@@ -4958,6 +4967,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
     canvas.addEventListener('pointerdown', e => {
       canvas.setPointerCapture(e.pointerId);
+      // in de loopstand kijk je rond en tik je dingen aan (zie walkmode.ts); bouwen gaat dan niet
+      if (this.walk.on) return;
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       this.hud.hideMenu();
       this.menuPen = null;
@@ -4994,6 +5005,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     });
 
     canvas.addEventListener('pointermove', e => {
+      if (this.walk.on) return;
       const prev = this.pointers.get(e.pointerId);
       if (!prev) return this.hover(e.clientX, e.clientY, false);
       const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
@@ -5025,6 +5037,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
     const end = (e: PointerEvent) => {
       this.pointers.delete(e.pointerId);
+      if (this.walk.on) return;
       if (this.pointers.size < 2) this.pinch = null;
       const d = this.drag;
       if (!d || d.id !== e.pointerId) return;
@@ -5958,6 +5971,165 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const p: PoopObj = { gx, gy, mesh: this.view.makeLitter(gx, gy, true) };
     this.litter.push(p);
     this.splats.set(p, this.clock + SPLAT_MELT);
+  }
+
+  // ------------------------------------------------------------ de loopstand
+  /** Wat de loopstand (walkmode.ts) van het park moet weten. */
+  private walkHost() {
+    return {
+      view: this.view,
+      canvas: this.view.renderer.domElement,
+      start: () => this.walkStart(),
+      ground: () => this.walkGround(),
+      targets: () => this.walkTargets(),
+      changed: (on: boolean) => this.walkChanged(on),
+    };
+  }
+
+  /**
+   * Waar je begint met rondlopen: op het pad in het midden van het beeld, en dan dezelfde kant op kijkend als van
+   * boven. Ligt daar geen pad, dan bij de ingang, met je neus naar het park.
+   */
+  private walkStart(): [number, number, number] {
+    const ground = this.walkGround();
+    const free = (i: number): boolean => {
+      const [x, y] = tileXY(i);
+      return !ground.boxes(x, y).length;
+    };
+    const paths: number[] = [];
+    for (let i = 0; i < this.grid.terrain.length; i++) if (isPath(this.grid.terrain[i]) && this.grid.inBounds(...tileXY(i)) && free(i)) paths.push(i);
+    const [cx, cy] = this.view.center();
+    const mid = nearestTile(paths, cx, cy, 6, tileXY);
+    if (mid !== null) return [tileXY(mid)[0] + 0.5, tileXY(mid)[1] + 0.5, this.view.viewYaw];
+    const [ex, ey] = tileXY(ENTRANCE);
+    const door = free(ENTRANCE) ? ENTRANCE : nearestTile(paths, ex + 0.5, ey + 0.5, Infinity, tileXY);
+    if (door !== null) return [tileXY(door)[0] + 0.5, tileXY(door)[1] + 0.5, Math.PI];
+    // nergens pad: dan de vrije tegel die het dichtst bij het midden van het beeld ligt
+    const open: number[] = [];
+    for (let i = 0; i < this.grid.terrain.length; i++) if (this.grid.inBounds(...tileXY(i)) && free(i)) open.push(i);
+    const any = nearestTile(open, cx, cy, Infinity, tileXY) ?? ENTRANCE;
+    return [tileXY(any)[0] + 0.5, tileXY(any)[1] + 0.5, this.view.viewYaw];
+  }
+
+  /**
+   * Waar de loper niet doorheen kan: buiten het park, in een verblijf, in het water, door een gebouw of kraam, een
+   * versiering of een boom of rots van de natuur, en niet door een hek, bankje, paal of bord op de rand van een tegel.
+   */
+  private walkGround(): WalkGround {
+    const g = this.grid, blocks = new Map<number, Box[]>();
+    const add = (x: number, y: number, b: Box): void => {
+      const i = tileIndex(x, y), list = blocks.get(i);
+      if (list) list.push(b);
+      else blocks.set(i, [b]);
+    };
+    const { x0, y0, x1, y1 } = g.land;
+    for (let y = y0; y < y1; y++)
+      for (let x = x0; x < x1; x++) if (g.enclosureAt(x, y) || g.terrain[tileIndex(x, y)] === WATER) add(x, y, [x, y, x + 1, y + 1]);
+    for (const shop of this.shops) {
+      if (shop.edge) continue;
+      const [w, h] = shopTiles(shop);
+      for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) add(shop.x + dx, shop.y + dy, [shop.x + dx, shop.y + dy, shop.x + dx + 1, shop.y + dy + 1]);
+    }
+    // een versiering is iets kleiner dan de tegel; iets kleins staat in een kwart
+    for (const d of this.decors) {
+      if (d.edge) continue;
+      if (d.q === undefined) add(d.x, d.y, [d.x + 0.12, d.y + 0.12, d.x + 0.88, d.y + 0.88]);
+      else {
+        const [qx, qy] = quarterAt(d.q);
+        add(d.x, d.y, [d.x + qx - 0.16, d.y + qy - 0.16, d.x + qx + 0.16, d.y + qy + 0.16]);
+      }
+    }
+    for (const i of this.solid) {
+      const [x, y] = tileXY(i);
+      add(x, y, [x + 0.15, y + 0.15, x + 0.85, y + 0.85]);
+    }
+    // op de rand: palen, borden, heggen en bankjes. Onder de bloemenboog loop je door
+    const walls = new Set<string>();
+    for (const d of this.decors) if (d.edge && d.kind !== 'arch') walls.add(`${d.edge}${d.x},${d.y}`);
+    for (const shop of this.shops) if (shop.edge) walls.add(`${shop.edge}${shop.x},${shop.y}`);
+    const none: Box[] = [];
+    return {
+      boxes: (x, y) => (g.inBounds(x, y) ? blocks.get(tileIndex(x, y)) ?? none : [[x, y, x + 1, y + 1]]),
+      wall: (o, x, y) => g.getEdge({ o, x, y }) !== 0 || walls.has(`${o}${x},${y}`),
+    };
+  }
+
+  /** Alles waar je in de loopstand naar kunt kijken: de dieren, de gasten en de kramen in de buurt. */
+  private walkTargets(): WalkTarget[] {
+    const out: WalkTarget[] = [];
+    const [wx, wy] = this.walk.at, reach = WALK.lookRange + 3;
+    const near = (gx: number, gy: number): boolean => Math.abs(gx - wx) < reach && Math.abs(gy - wy) < reach;
+    for (const a of this.animals) {
+      if (!near(a.px, a.py)) continue;
+      const kind = t(`species.${a.species}`);
+      out.push({
+        gx: a.px, gy: a.py, h: a.top * 0.5, r: Math.max(0.25, Math.min(1, a.info.length * MODEL_SCALE * 0.5)), top: a.top + 0.1, id: a,
+        tag: () => tagHtml(a.name || kind, speciesIcon(a.species, 'tiny'), a.name ? kind : ''),
+        poke: () => this.walkPoke(a),
+      });
+    }
+    for (const g of this.guests.guests) {
+      if (g.gone || g.riding || !g.mesh.visible || !near(g.gx, g.gy)) continue;
+      out.push({
+        gx: g.gx, gy: g.gy, h: g.height * 0.7, r: 0.2, top: g.height + 0.25, id: g,
+        tag: () => tagHtml(this.guestName(g), icon('guest', 'tiny'), ''),
+        poke: () => this.waveTo(g),
+      });
+    }
+    // een kraam: je ziet wat hij verkoopt
+    for (const shop of this.shops) {
+      if (shop.edge || !shop.sells.length) continue;
+      const [cx, cy] = blockCenter(shop);
+      if (!near(cx, cy)) continue;
+      out.push({
+        gx: cx, gy: cy, h: 0.7, r: Math.max(shop.w ?? shop.size, shop.h ?? shop.size) * 0.45, top: 1.7, id: shop,
+        tag: () => tagHtml(t(`shop.${shop.kind}`), shop.sells.slice(0, 5).map(id => this.productIcon(id, 'tiny')).join(''), ''),
+      });
+    }
+    return out;
+  }
+
+  /** De naam van een gast, net als in zijn menu. */
+  private guestName(guest: Guest): string {
+    const teacher = this.classTeacher.get(guest);
+    const card = guestCard(guest.seed, guest.child, document.documentElement.lang, { sex: teacher ? (teacher === 'master' ? 'm' : 'f') : guest.sex ?? undefined, count: 1 });
+    return card.name || t('guest.title');
+  }
+
+  /**
+   * Je tikt in de loopstand een dier aan: het laat zich horen, kijkt je aan, komt naar het hek en doet zijn kunstje,
+   * met een hartje. Een slapend dier slaapt gewoon door. Hooguit eens per WALK.again tellen.
+   */
+  private walkPoke(a: Animal): void {
+    if (this.clock - (this.walkPoked.get(a) ?? -99) < WALK.again) return;
+    this.walkPoked.set(a, this.clock);
+    if (a.sleeping) return this.floatAt(icon('sleep', 'tiny'), a.px, a.py, a.top);
+    const [gx, gy] = this.walk.at;
+    const glad = a.visitor(this, gx, gy);
+    animalSound(a.species, a.young, 0.8, [a.gx, a.gy]);
+    if (glad) this.floatAt(icon('heart'), a.px, a.py, a.top + 0.15);
+  }
+
+  /** De loopstand gaat aan (menu's en wat je aan het slepen was gaan weg) of uit. De eerste keer legt de gastvrouw het uit. */
+  private walkChanged(on: boolean): void {
+    if (!on) return;
+    this.hud.hideMenu();
+    this.menuPen = null;
+    this.hoverPen = null;
+    this.hoverAt = null;
+    this.drag = null;
+    this.pinch = null;
+    this.pointers.clear();
+    this.wayEnd(false, false, 0, 0);
+    this.line = null;
+    this.clearRect();
+    this.view.hideGhost();
+    if (this.staffGhost) this.staffGhost.worker.mesh.visible = false;
+    this.hideHand();
+    if (!this.told.has('walk')) {
+      this.told.add('walk');
+      this.lines.push(say.walkNew());
+    }
   }
 
   /** De speler zwaait naar een gast: hij zwaait terug en zegt hoi; een kind springt. Een hartje als hij er blijer van werd. */
@@ -7176,6 +7348,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (miniOpen()) return;
     this.wildCache = null;
     this.clock += dt;
+    // de loopstand: lopen en kijken, voor de camera beweegt; zolang je loopt komt het hulphandje niet
+    this.walk.update(dt);
+    this.hud.setWalk(this.has('paths'), this.walk.on);
+    if (this.walk.on) this.lastInput = this.clock;
     this.view.update(dt);
     this.updateNight();
     this.updateParty(dt);
@@ -7223,6 +7399,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (pointed) spots.push({ gx: pointed[0], gy: pointed[1], hot: true, r: 2.6 });
     else this.pointed = null;
     this.careSpots(spots);
+    this.walk.marks(spots);
     this.view.showMarks(spots, this.clock * 5);
     // het gekozen verblijf (menu open) licht iets duidelijker op dan het verblijf dat je alleen aanwijst
     if (this.menuPen && (!this.hud.menuOpen || !this.pens.includes(this.menuPen))) this.menuPen = null;

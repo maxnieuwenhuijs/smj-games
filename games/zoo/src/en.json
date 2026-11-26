@@ -1048,5 +1048,9 @@
   "say.paint.new": "New: the face paint tent! Children get an animal face there.",
   "say.way.tip": "A visitor is lost. Drag your finger from the visitor to the animals!",
   "parade.drum": "Parade",
-  "host.busy.facepaint": "The face paint tent is busy. Put another one down!"
+  "host.busy.facepaint": "The face paint tent is busy. Put another one down!",
+  "walk": "Walk around",
+  "walk.back": "Back up",
+  "walk.stick": "Walk",
+  "say.walk.new": "Have a look around! Walk with the arrows and tap an animal."
 }

@@ -130,6 +130,37 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 @media (max-width: 620px) {
   #drum { top: auto; bottom: calc(210px + 3 * min(70px, 13vw)); right: 8px; }
 }
+/* de loopstand: de knop links naast de draaipijlen; op een smal scherm rechts, boven de trommel */
+#walk { position: absolute; top: 12px; right: calc(52px + 4 * min(70px, 13vw)); z-index: 2; }
+#walk[hidden] { display: none; }
+#walk.on { background: #ffe9a8; }
+@media (max-width: 620px) {
+  #walk { top: auto; bottom: calc(220px + 4 * min(70px, 13vw)); right: 8px; }
+}
+/* tijdens het lopen: geen knoppenbalk, geen menu's en geen draaipijlen; munten, sterren en de klok blijven */
+#ui.walking #bottom, #ui.walking #goals, #ui.walking #needs, #ui.walking #offer, #ui.walking #menu, #ui.walking #pick,
+#ui.walking #spin, #ui.walking #turnL, #ui.walking #turnR, #ui.walking #drum, #ui.walking #pointer, #ui.walking #wayline { display: none !important; }
+@media (max-width: 620px) {
+  #ui.walking #walk { top: auto; bottom: 24px; right: 16px; width: min(84px, 20vw); height: min(84px, 20vw); }
+}
+/* het stipje in het midden: wit, en geel en groter als je iets aankijkt */
+#walkdot { position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; pointer-events: none;
+  background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 2px rgba(58, 42, 26, 0.35); transition: transform 0.15s, background 0.15s; }
+#walkdot.on { background: #ffd23f; transform: scale(1.6); }
+#walkdot[hidden], #walktag[hidden], #walkpad[hidden] { display: none; }
+/* het wolkje met de naam van wat je aankijkt */
+#walktag { position: absolute; left: 0; top: 0; pointer-events: none; padding: 6px 12px 8px; border-radius: 16px; background: #fff; color: var(--ink);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.15); text-align: center; white-space: nowrap; font: 800 17px/1.2 system-ui, sans-serif; }
+#walktag b { display: block; }
+#walktag .sub { display: flex; gap: 4px; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; opacity: 0.85; }
+#walktag .sub .ic { font-size: 22px; }
+#walktag .sub i { font-style: normal; }
+#walktag::after { content: ''; position: absolute; left: 50%; bottom: -8px; margin-left: -8px; border: 8px solid transparent; border-bottom: 0; border-top-color: #fff; }
+/* de grote ronde knop op een tablet, linksonder: duw de knop de kant op waar je heen wilt */
+#walkpad { position: absolute; left: 24px; bottom: 24px; width: 150px; height: 150px; border-radius: 50%; pointer-events: auto; touch-action: none;
+  background: rgba(255, 255, 255, 0.35); border: 4px solid rgba(255, 255, 255, 0.8); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.12); }
+#walkpad .knob { position: absolute; left: 50%; top: 50%; width: 66px; height: 66px; margin: -33px 0 0 -33px; border-radius: 50%;
+  background: #ffd23f; border: 4px solid #fff; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18); pointer-events: none; }
 /* de schminktent: vier grote plaatjes om het volgende gezicht te kiezen */
 #menu[data-kind='paint'] .row .tool.small[data-item^='paint_'] { width: min(92px, 19vw); height: min(92px, 19vw); border-radius: 22px; }
 #menu[data-kind='paint'] .row .tool.small[data-item^='paint_'] .ic { font-size: min(60px, 12vw); }
