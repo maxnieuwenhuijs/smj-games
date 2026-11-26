@@ -1,7 +1,7 @@
 // Opstarten: startscherm met drie opslagplekken, het oudermenu, daarna het spel.
 import * as THREE from 'three';
 import { askPersistence, saveDel, saveGet, saveSet, setStrings, t } from '@smj/shared';
-import { loadAudio, resumeAmbience, unlockAudio } from './audio';
+import { loadAudio, resumeAmbience, sfx, unlockAudio } from './audio';
 import { LEVELS, SPECIES, bonusSpecies, migrateLevel, unlockedSpecies } from './data';
 import en from './en.json';
 import { Game, slotKey, type SaveData } from './game';
@@ -59,7 +59,29 @@ function holdButton(b: HTMLElement, ms: number, done: () => void): void {
   b.addEventListener('contextmenu', e => e.preventDefault());
 }
 
+/**
+ * Het logo van SMJ Games: de letters S, M en J als figuurtjes (Super, Magical, Journeys). Ze springen er een voor
+ * een in met een wiebel, en daarna wiebelen ze zachtjes na. `kind`: 'splash' groot op het laadscherm, 'start' klein
+ * boven het beginscherm.
+ */
+const LOGO: [string, string][] = [['s', 'Super'], ['m', 'Magical'], ['j', 'Journeys']];
+/** De belletjes op het laadscherm: [plek van links in %, grootte in px, tellen per belletje, vertraging, opzij in px]. */
+const BUBBLES: [number, number, number, number, number][] = [
+  [8, 18, 2.6, 0.2, -20], [18, 10, 2.1, 0.9, 14], [30, 24, 2.9, 0.5, -10], [44, 12, 2.3, 1.4, 22],
+  [56, 20, 2.7, 0.1, -16], [68, 9, 2.0, 1.1, 10], [80, 22, 3.0, 0.7, 18], [92, 14, 2.4, 1.6, -12],
+];
+function logoHtml(kind: 'splash' | 'start'): string {
+  return `<div class="logo ${kind}" aria-label="SMJ Games">` +
+    LOGO.map(([k, word]) => `<figure class="l-${k}"><img src="./logo/${k}.png" alt="${k.toUpperCase()}" draggable="false"><figcaption>${word}</figcaption></figure>`).join('') +
+    // op het laadscherm: belletjes die achter de letters opstijgen (elk met een eigen plek, grootte en tempo)
+    (kind === 'splash' ? BUBBLES.map(([x, s, t, d, dx]) => `<i class="bub" style="left:${x}%;--s:${s}px;--t:${t}s;--d:${d}s;--x:${dx}px"></i>`).join('') : '') +
+    '</div>';
+}
+/** Zo lang staat het laadscherm met de letters er minstens, ook als alles al geladen is (milliseconden). */
+const SPLASH_MS = 2600;
+
 async function showStart(): Promise<void> {
+  if (!$('logo').childElementCount) $('logo').innerHTML = logoHtml('start');
   $('title').textContent = t('title');
   const slots = $('slots');
   slots.replaceChildren();
@@ -287,14 +309,18 @@ function askName(): Promise<string> {
 
 async function begin(slot: number, data: SaveData | undefined, player = ''): Promise<void> {
   $('start').hidden = true;
-  $('loading').innerHTML = icon('paw');
+  // het laadscherm: de letters S, M en J springen er een voor een in, met een magisch deuntje
+  const shownAt = performance.now();
+  $('loading').innerHTML = logoHtml('splash');
+  $('loading').classList.remove('out');
   $('loading').hidden = false;
   askPersistence();
   unlockAudio();
   try {
     await Promise.all([loadManifest(), loadAudio(lang)]);
+    sfx('logo.jingle', { volume: 0.7, every: 0 });
     await loadName(lang, player, () => {
-      $('loading').innerHTML = `${icon('paw')}<b class="wait">${t('ask.wait')}</b>`;
+      if (!$('loading').querySelector('.wait')) $('loading').insertAdjacentHTML('beforeend', `<b class="wait">${t('ask.wait')}</b>`);
     });
     await probeIcons(Object.keys(SPECIES));
     // alleen de soorten laden die al vrijgespeeld zijn of in het opgeslagen park staan
@@ -305,7 +331,14 @@ async function begin(slot: number, data: SaveData | undefined, player = ''): Pro
     $('loading').innerHTML = icon('cross');
     throw err;
   }
-  $('loading').hidden = true;
+  // de letters blijven even staan, en dan vervaagt het laadscherm
+  const left = SPLASH_MS - (performance.now() - shownAt);
+  if (left > 0) await new Promise(r => setTimeout(r, left));
+  $('loading').classList.add('out');
+  setTimeout(() => {
+    $('loading').hidden = true;
+    $('loading').classList.remove('out');
+  }, 420);
   $('ui').hidden = false;
 
   const view = new View($('app'));

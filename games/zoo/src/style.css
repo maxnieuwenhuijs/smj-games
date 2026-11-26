@@ -603,7 +603,55 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 .pbtn.warn { background: #e0584f; color: #fff; }
 .slot-del.holding { animation: hold var(--hold, 1.2s) linear forwards; }
 @keyframes hold { to { background: #ff8a80; transform: scale(1.25); } }
-#loading { font-size: 90px; }
+#loading { font-size: 90px; transition: opacity 0.4s ease; z-index: 5; }
+#loading.out { opacity: 0; pointer-events: none; }
+/* het logo: de letters S, M en J ploppen er een voor een in als drilpudding, staan dicht tegen elkaar aan en
+   stuiteren daarna om de beurt zachtjes na; op het laadscherm stijgen er belletjes op */
+.logo { position: relative; display: flex; align-items: flex-end; justify-content: center; }
+.logo figure { position: relative; margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: 0; transform-origin: 50% 100%;
+  animation: logo-pop 0.9s cubic-bezier(0.25, 1, 0.4, 1) forwards, logo-jelly 2.1s ease-in-out 1.2s infinite; }
+.logo figure + figure { margin-left: max(-4.5vw, -40px); }
+.logo .l-m { z-index: 1; }
+.logo figure:nth-child(2) { animation-delay: 0.3s, 1.9s; }
+.logo figure:nth-child(3) { animation-delay: 0.6s, 2.6s; }
+.logo img { display: block; width: auto; height: min(30vh, 30vw, 290px); filter: drop-shadow(0 8px 0 rgba(0, 0, 0, 0.1)); user-select: none; }
+.logo .l-m img { height: min(24vh, 24vw, 232px); }
+.logo figcaption { font: 900 clamp(15px, 3.2vw, 30px)/1 system-ui, sans-serif; letter-spacing: 0.02em; opacity: 0;
+  text-shadow: 0 2px 0 #fff, 2px 0 0 #fff, -2px 0 0 #fff, 0 -2px 0 #fff, 0 4px 0 rgba(0, 0, 0, 0.12); animation: logo-word 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
+.logo .l-s figcaption { color: #e8641a; animation-delay: 0.5s; }
+.logo .l-m figcaption { color: #a0249b; animation-delay: 0.8s; }
+.logo .l-j figcaption { color: #18877f; animation-delay: 1.1s; }
+.logo.start img { height: clamp(54px, 12vh, 118px); }
+.logo.start .l-m img { height: clamp(44px, 9.5vh, 94px); }
+.logo.start figure + figure { margin-left: max(-2vw, -18px); }
+.logo.start figcaption { font-size: clamp(11px, 1.8vw, 17px); }
+/* belletjes achter de letters op het laadscherm */
+.logo .bub { position: absolute; bottom: 10%; width: var(--s, 16px); height: var(--s, 16px); border-radius: 50%; pointer-events: none; z-index: -1;
+  background: radial-gradient(circle at 30% 30%, #fff 0 18%, rgba(255, 255, 255, 0.55) 19% 45%, rgba(255, 255, 255, 0.15) 46%); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.8);
+  opacity: 0; animation: logo-bubble var(--t, 2.4s) ease-in var(--d, 0s) infinite; }
+#loading .wait { font-size: 18px; }
+@keyframes logo-pop {
+  0% { opacity: 0; transform: translateY(-70px) scale(0.3, 0.3); }
+  38% { opacity: 1; transform: translateY(0) scale(1.28, 0.72); }
+  54% { transform: translateY(-22px) scale(0.84, 1.2); }
+  70% { transform: translateY(0) scale(1.12, 0.88); }
+  84% { transform: translateY(-5px) scale(0.96, 1.05); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes logo-jelly {
+  0%, 62%, 100% { transform: none; }
+  12% { transform: scale(1.08, 0.92); }
+  26% { transform: translateY(-14px) scale(0.94, 1.07); }
+  40% { transform: translateY(0) scale(1.05, 0.95); }
+  52% { transform: scale(0.98, 1.02); }
+}
+@keyframes logo-word { from { opacity: 0; transform: translateY(10px) scale(0.4); } to { opacity: 1; transform: none; } }
+@keyframes logo-bubble {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.4); }
+  15% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(var(--x, 0px), -46vh) scale(1.1); }
+}
+@media (prefers-reduced-motion: reduce) { .logo figure, .logo figcaption { animation: none; opacity: 1; } .logo .bub { display: none; } }
 #loading .ic { animation: bounce 0.8s ease-in-out infinite alternate; }
 @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-50px); } }
 

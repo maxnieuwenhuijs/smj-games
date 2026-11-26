@@ -748,6 +748,13 @@ Veertien ideeën uit `docs/IDEEEN-INTERACTIEF.md`, gekozen door Max en gebouwd d
 - **Lampjes aan en uit** (vanaf level 15, 's nachts): tik op een lamp en hij gaat uit of aan, met een plopje. Zet je er snel een paar weer aan, of tik op de grote lamp boven de ingang, dan gaat er een golfje kleuren langs alle lampen. Elke avond gaan alle lampen vanzelf aan.
 - **Avondfeest** (`party.ts`): na 20, 30, 40 en 50 gehaalde levels is de eerstvolgende avond een feestavond (niet elke avond). 's Ochtends zegt de directeur het; om acht uur staat er een gong bij de ingang. Tik erop (of wacht tot negen uur): alle lampen gloeien in kleuren, er klinkt muziek, gasten lopen een rondje en dansen, de dieren komen naar het hek en doen hun kunstje, en aan het eind komen er zachte plopjes confetti. De klok loopt dan half zo snel, zodat iedereen blijft tot het feest voorbij is. Daarna 10 munten en iedereen gaat naar huis.
 
+### Het logo van SMJ Games
+
+SMJ staat voor **Super Magical Journeys**. De drie letters zijn figuurtjes: een oranje S met een cape, een paarse harige M met een toverstaf en een groene J met een safarihoed. De plaatjes zijn losgeknipt van hun witte achtergrond (`tools/logo/knip.py` met Blender, bron in `tools/logo/bron/`, uitkomst in `games/zoo/public/logo/`).
+
+- **Laadscherm:** na het kiezen van een park ploppen de letters er een voor een in als drilpudding (ze staan dicht tegen elkaar aan en stuiteren daarna om de beurt na, met belletjes erachter), met de woorden Super, Magical en Journeys eronder en een kort magisch deuntje (`logo.jingle`). Het scherm blijft minstens 2,6 tellen staan en vervaagt dan.
+- **Beginscherm:** dezelfde letters klein boven "Dierentuin", zonder geluid.
+
 ## Bekende zwakke punten van de modellen
 
 De modellen zijn op stilstaande beelden bekeken en doorgemeten (niets zakt meer dan een centimeter door de grond), maar geen enkele animatie is in beweging beoordeeld. Wat de modelbouwers zelf als zwak aanmerkten:

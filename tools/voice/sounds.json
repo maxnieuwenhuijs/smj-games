@@ -1021,6 +1021,12 @@
       "prompt": "A single camera shutter click. Short, dry, clean."
     },
     {
+      "id": "logo.jingle",
+      "seconds": 2.5,
+      "influence": 0.5,
+      "prompt": "A short magical jingle for a children's game logo: a quick rising glockenspiel and celesta arpeggio with twinkling fairy chimes, ending in a soft sparkly shimmer. Cheerful, cute, clean, no voice."
+    },
+    {
       "id": "party",
       "seconds": 2.5,
       "influence": 0.5,
