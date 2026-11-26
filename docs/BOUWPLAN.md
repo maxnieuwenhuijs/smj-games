@@ -201,7 +201,7 @@ Een gast koopt per bezoek hooguit vier dingen.
 
 ### Winkels
 
-Gebouwen (wc, restaurant, speeltuin, attracties) zijn 2 bij 2 tegels. Een kraam is een marktkraam van 2 tegels breed en 1 tegel diep: vier palen, een schuin gestreept zeil, een tafel met spullen aan de lange voorkant en een doek achterlangs, zonder muren. Achter de tafel staat een verkoper die zwaait als hij iets verkoopt. Een marktkraam gaat bij het neerzetten vanzelf zo staan dat er het meeste pad voor zijn lange kant ligt; met de draaiknop draai je hem een kwartslag (dan staat hij 1 breed en 2 diep). Staat hij er eenmaal, dan draait hij uit zichzelf of via zijn menu alleen nog een halve slag, zodat hij op zijn eigen tegels blijft. In parken van voor deze verandering komt de kraam in de helft van zijn oude blok van 2 bij 2 waar zijn voorkant was. Bankje, bloembak en afvalbak staan op de rand van een tegel, net als een hek: ze nemen geen tegel in, staan langs de rand, een stukje van het pad af en met het gezicht naar het pad. Ze passen niet op een hek, niet tegen een verblijf of gebouw en niet twee op dezelfde rand. Uit een ouder opgeslagen spel verhuizen ze naar de rand van hun tegel die langs het pad ligt. Een tik met het handje draait zo'n ding om (het kijkt dan van het pad af); voor de andere richting zet je het op een andere rand.
+Gebouwen (wc, restaurant, speeltuin, attracties) zijn 2 bij 2 tegels (sinds 27 november heeft elke attractie en elk speeltoestel zijn eigen maat, zie 'Attracties in allerlei maten' verderop). Een kraam is een marktkraam van 2 tegels breed en 1 tegel diep: vier palen, een schuin gestreept zeil, een tafel met spullen aan de lange voorkant en een doek achterlangs, zonder muren. Achter de tafel staat een verkoper die zwaait als hij iets verkoopt. Een marktkraam gaat bij het neerzetten vanzelf zo staan dat er het meeste pad voor zijn lange kant ligt; met de draaiknop draai je hem een kwartslag (dan staat hij 1 breed en 2 diep). Staat hij er eenmaal, dan draait hij uit zichzelf of via zijn menu alleen nog een halve slag, zodat hij op zijn eigen tegels blijft. In parken van voor deze verandering komt de kraam in de helft van zijn oude blok van 2 bij 2 waar zijn voorkant was. Bankje, bloembak en afvalbak staan op de rand van een tegel, net als een hek: ze nemen geen tegel in, staan langs de rand, een stukje van het pad af en met het gezicht naar het pad. Ze passen niet op een hek, niet tegen een verblijf of gebouw en niet twee op dezelfde rand. Uit een ouder opgeslagen spel verhuizen ze naar de rand van hun tegel die langs het pad ligt. Een tik met het handje draait zo'n ding om (het kijkt dan van het pad af); voor de andere richting zet je het op een andere rand.
 
 Gasten gaan echt op een bankje zitten: twee naast elkaar, benen naar voren, en ze staan weer op als ze uitgerust zijn. Kinderen klimmen in de speeltuin de trap op en glijden twee keer van de glijbaan. In de draaimolen zitten ze op een paardje. Elke winkel heeft een eigen vorm: friet op het dak van de eetkraam, een beker op de drinkkraam, een reuzenijsje op de ijskraam, een tros ballonnen, een strohoed, een beer op de knuffelkraam. Het wc-gebouw heeft twee deuren en de speeltuin een glijbaan.
 
@@ -335,7 +335,7 @@ Elke handeling heeft een eigen cursorplaatje; die zijn anderhalf keer zo groot a
 
 ## Hekken slijten
 
-Vanaf level 8 slijt een houten hek (stenen muren en netten niet). Ongeveer eens per minuut gaat er één hek een fase verder, meestal een hek dat al versleten is, en er zijn er nooit meer dan vier tegelijk:
+Vanaf level 8 slijt een houten hek (stenen muren en netten niet; sinds 27 november slijt elk soort hek en maak je een los of kapot hek met een spelletje, zie 'Hekken maken met een spelletje' verderop). Ongeveer eens per minuut gaat er één hek een fase verder, meestal een hek dat al versleten is, en er zijn er nooit meer dan vier tegelijk:
 
 1. De bovenste plank zakt scheef en het hout wordt donkerder.
 2. De plank hangt aan één kant los; nog donkerder.
@@ -588,7 +588,7 @@ Alles hieronder staat in `games/zoo/src`; de vaste getallen in `data.ts`. De vol
 - **Uitkijktoren** (25 munten, level 21): hoe meer soorten in de buurt, hoe leuker.
 - **Restaurant** (30, level 25): zes plekken aan tafel; eten én drinken in één keer, twee munten.
 - **Reuzenrad** (80, level 36) en **botsauto's** (45, level 31): ritjes, net als de draaimolen.
-- **Treinhalte** (20, level 28): met twee haltes aan hetzelfde pad rijdt het treintje van halte naar halte; gasten stappen in en bij de volgende halte weer uit.
+- **Treinhalte** (20, level 28): met twee haltes aan hetzelfde pad rijdt het treintje van halte naar halte; gasten stappen in en bij de volgende halte weer uit. (Sinds 27 november rijdt het over rails die je zelf legt, zie 'Het treintje rijdt over rails' verderop.)
 - **Schuilhut** (10) en **paraplu's** (6), beide vanaf level 11: voor als het regent.
 - **Slingers:** palen met vlaggetjes of lichtjes (knop Park); tussen twee palen in één lijn, hooguit vijf tegels uit elkaar, hangt vanzelf een slinger. Lichtjes geven 's nachts licht.
 - **Paden:** kiezels (level 11), brug (14), planken (18), bloemenpad (25). Gasten lopen over allemaal (`isPath`). Een rivier maak je door water te verven en er een brug overheen te leggen.
@@ -603,7 +603,7 @@ Alles hieronder staat in `games/zoo/src`; de vaste getallen in `data.ts`. De vol
 - **Warmte en kou** (vanaf level 32): krokodil, schildpad en maki willen een warmtelamp; pinguïn, ijsbeer, walrus en poolvos een blok ijs. Een dier wordt er nooit voor opgehaald.
 - **In het verblijf:** heuvel, rotsen en klimrek (om op te klimmen), tunnel, drinkvijver en waterval.
 - **Kijkruit:** een stuk hek met glas dat in elk hek past; gasten zien er 40 procent meer door (net als door het glas van het aquarium).
-- **Dokterspel:** een ziek dier maak je beter in drie stappen: thermometer, pleister, drankje.
+- **Dokterspel:** een ziek dier maak je beter in drie stappen: thermometer, pleister, drankje. (Sinds 27 november zijn het zeven kleine spelletjes, zie 'De dokter: zeven spelletjes' verderop.)
 - **Weetjes:** bij het eerste dier van een soort hoor je een ingesproken weetje; later via het menu van het dier.
 - **Voeren:** het doel in level 2 is nu één keer voeren.
 - **Menu van een dier:** bovenin een levend plaatje van het dier (het park wordt van dichtbij nog eens getekend, `View.portrait`) met eronder in één of twee woorden wat het doet (`Animal.doing`, teksten `doing.*`).
@@ -874,6 +874,55 @@ De kabel hoeft niet meer langs het raster en mag zo lang worden als je wilt (`ca
 - **Weghalen:** de gum op een paal haalt alleen die paal weg als de kabel dan nog klopt (anders een kruisje, en de bouwer zegt waarom). Een huisje weghalen haalt zijn kabels en hun palen weg; van elke paal krijg je 1 munt terug.
 - **Bewaren:** naast `link` en `link2` van een huisje staan nu `via` en `via2`: de tegels van de palen ten opzichte van het huisje dat de kabel begon.
 - **Nog niet:** een paal invoegen in een kabel die af is, of twee bestaande huisjes alsnog verbinden. Een nieuw huisje binnen 5 tot 14 tegels van een eindhuisje haakt daar bijna altijd aan vast; een tweede, losse kabelbaan vlak bij een bestaande is daardoor lastig te beginnen. Kabels houden geen rekening met hoge dingen (een toren, het reuzenrad) of met elkaar.
+
+### Het treintje rijdt over rails
+
+- **Rails** leg je met de knop Grond (bij de paden, vanaf de treinhalte, level 28). Tegels met rails die tegen elkaar aan liggen horen bij elkaar; een hek ertussen breekt het spoor. Elk spoor met een halte ernaast krijgt een trein, hooguit drie in het park (`rails.ts`, `TRAIN`).
+- **Een overweg komt vanzelf:** rails over een pad, of een pad over rails, wordt een overweg met planken tussen de rails en aan elke kant een spoorboom met een andreaskruis en twee rode lampen. Komt de trein eraan, dan gaan de bomen dicht en rinkelt de bel; gasten wachten ervoor en steken daarna over. Niemand blijft op een overweg staan (geen feestje, geen zoekende gast).
+- **De route:** een rondje rijdt de trein rond; een lijn heen en weer, met een tweede locomotief achteraan. Bij een wissel kiest hij de route langs de meeste haltes. Hij trekt rustig op, remt af voor een halte en volgt de bochten; de wielen draaien en er komt stoom uit de schoorsteen. Een locomotief trekt hooguit drie wagons met elk drie plekken (op een kort spoor minder).
+- **Reizigers** stappen uit bij de eerste halte waar ze het pad op kunnen. Ligt er bij de andere halte geen pad, dan rijden ze een rondje en stappen ze bij hun eigen halte weer uit.
+- **'s Nachts** slaapt de trein bij een halte: geen stoom, de koplamp uit, de overwegen open. Om zeven uur rijdt hij weer.
+- **Een halte zonder spoor** krijgt een bordje met rails, en de bouwer legt één keer uit dat het treintje rails nodig heeft. Een ouder spel met haltes maar zonder rails krijgt dezelfde uitleg (`say.train.old`).
+
+### Attracties in allerlei maten
+
+Alle attracties en speeltoestellen zijn opnieuw gemodelleerd, en bijna geen is nog 2 bij 2. De maten, de zitjes en het hele bezoek van een gast (lopen, wachten, instappen, het ritje, uitstappen) staan in `rides.ts`, met tests; het beeld en de gasten rekenen met dezelfde getallen, dus de gasten zitten er precies op.
+
+| Wat | Maat | Prijs | Wat je ziet |
+|---|---|---|---|
+| Reuzenrad | 8 bij 2 | 90 | Twaalf bakjes voor twee, een perron met een trapje, lampjes die rondlopen. Een gast wacht tot zijn bakje onderin is, maakt één rondje en stapt weer uit. |
+| Botsauto's | 4 bij 3 | 50 | Een hal met een glazen dak en zes auto's die echt sturen, botsen en terugstuiten. Een ritje heeft een begin en een eind; bij een harde klap springt er een vonk van de spriet. |
+| Draaimolen | 3 bij 3 | 60 | Negen paarden in twee ringen gaan op en neer onder een groot gestreept dak met looplicht. Hij staat stil om in te stappen, komt op gang, draait en loopt uit. |
+| Fontein | 3 bij 3 | 30 | Een groot bassin met twee schalen en acht stralen in een kring die een waterballet doen; 's nachts gloeit er een lampje onder elke straal. |
+| Restaurant | 3 bij 2 | 30 | Een keuken met een kok achter het luik en een terras met vier tafels, parasols en lantaarns (acht gasten tegelijk). |
+| Uitkijktoren | 2 bij 2 | 25 | Hoog, met een trap die je ziet: vier stukken langs de vier kanten. Gasten klimmen echt naar boven, kijken rond en lopen weer naar beneden. |
+| Glijbaan | 2 bij 3 | 6 | Een torentje met een dak, een trap met leuningen en een lange gele baan. |
+| Schommel | 2 bij 1 | 5 | Twee zitjes die los van elkaar zwaaien. |
+| Wipwap | 2 bij 1 | 4 | Een plank met zitjes en handvatten. |
+| Wipkip | 1 bij 1 | 3 | Een kip, een paardje of een kikker op een veer (welke hangt af van de plek). |
+| Trampoline | 2 bij 2 | 8 | Je klimt erop langs een trapje. |
+
+- **Plaatsen:** een gebouw mag elke maat hebben en draait met de draaiknop mee (`shopSpan`). Het past niet over een hek, bankje of paal op een rand binnen zijn blok.
+- **Een ouder spel** (het opslagbestand is nu versie 5): een gebouw dat een andere maat kreeg, zoekt bij het laden de dichtstbijzijnde plek waar het past, het liefst aan het pad en hooguit een paar tegels verderop. Lukt dat niet, dan krijg je de munten terug en zegt de bouwer dat je het opnieuw kunt neerzetten (`say.rides.bigger`).
+
+### Puzzeltjes met plaatjes
+
+De puzzeltjes bij de evenementen waren vooral cijfers. Nu zijn er dertien soorten, bijna allemaal met plaatjes (`minigame.ts`, `miniask.ts`):
+
+- **Nieuw:** tellen (tik de dingen aan om mee te tellen), waar zijn de meeste, memory, wat hoort er niet bij, wat komt er daarna, van welk dier is deze schaduw, wat eet dit dier, wie slaapt hier, en welk dier maakt dit geluid.
+- **Vernieuwd:** een som staat er nu met stapeltjes dingen die je kunt tellen (appels, munten, kisten, dieren uit het park), en op volgorde zetten gaat met groepjes plaatjes.
+- **Afwisseling:** elk evenement en elke vraag van de klas kiest uit een paar puzzeltjes die erbij passen, en loopt die eerst allemaal langs voor er een terugkomt. De klas kan nu ook een dierenquiz of een spelletje vragen.
+- Uitproberen kan los van het spel op `minispel.html`.
+
+### De dokter: zeven spelletjes
+
+Een ziek dier beter maken is nu een bezoek van twee of drie kleine spelletjes, elke keer andere (`vetgame.ts`, `vetplan.ts`): koorts meten (je vinger op het dier houden tot de thermometer vol is), pleisters plakken op de zere plekken, het hart zoeken met de stethoscoop (hoe dichterbij, hoe harder het klopt), een doorn eruit trekken, de lepel kiezen met de kleur van het flesje, vieze plekjes wegvegen met een watje, en tanden poetsen. De patiënt is het plaatje van het dier zelf: grijs en sip, na elk spelletje met meer kleur, en aan het eind springt het op tussen de hartjes. Fout gaan kan niet; een handje doet voor wat je moet doen. Wegklikken laat het dier ziek. De dierenarts (personeel) maakt een dier nog steeds zonder spelletje beter.
+
+### Hekken maken met een spelletje
+
+- **Elk soort hek slijt nu:** naast hout ook het witte hekje, de stenen muur, het hoge net en het glas, elk in drie fases met een eigen uiterlijk (latjes die omvallen; scheuren en dan stenen eruit; een net dat doorhangt en dan scheurt; een barst die groeit tot een gat, met druppels als er water achter staat). Het tempo is hetzelfde gebleven: hooguit vier tegelijk, ongeveer één stap per minuut, alleen om verblijven met dieren (`wear.ts`). Poorten en de kijkruit slijten niet.
+- **Maken:** een tik met de hamer op een licht versleten hek maakt het meteen. Bij een los of kapot hek komt er een kaart met een spelletje dat bij het hek past (`fixgame.ts`): spijkers erin timmeren (hout), stenen terugleggen en de voegen smeren (steen), het net strak trekken en knopen leggen (net), de barst lijmen en het glas schoonvegen (glas). Wegklikken laat het hek zoals het was.
+- De klusser (personeel) maakt een hek nog steeds zonder spelletje. Een sterk dier duwt ook het witte hekje, een net en glas kapot (een stenen muur niet).
 
 ## Bekende zwakke punten van de modellen
 
