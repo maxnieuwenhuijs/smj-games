@@ -357,7 +357,7 @@ De getallen staan in `games/zoo/src/data.ts` (`BONUS`, `AQUATIC`, `TANK_WATER`).
 
 ## Dag en nacht
 
-Vanaf level 15 wordt het ook nacht. Een dag (7 tot 21 uur) duurt tien minuten en een nacht bijna vier minuten, met twintig tellen schemering ertussen. De nacht bestaat uit drie stukken (`NIGHT_PARTS`): de avond van 21 tot 24 uur (anderhalve minuut, het park is nog open), de slaapnacht van 0 tot 5 uur (anderhalve minuut) en de vroege ochtend van 5 tot 7 uur (40 tellen). Elke keer dat je het spel opent, begint het overdag. Rechtsboven staat een zon of een maan met het uur (de dag loopt van 7 tot 21 uur).
+Vanaf level 15 wordt het ook nacht. Een dag (7 tot 21 uur) duurt zeven en een halve minuut (tot 27 november tien: de nacht kwam te weinig langs) en een nacht bijna vier minuten, met twintig tellen schemering ertussen. De nacht bestaat uit drie stukken (`NIGHT_PARTS`): de avond van 21 tot 24 uur (anderhalve minuut, het park is nog open), de slaapnacht van 0 tot 5 uur (anderhalve minuut) en de vroege ochtend van 5 tot 7 uur (40 tellen). Elke keer dat je het spel opent, begint het overdag. Rechtsboven staat een zon of een maan met het uur (de dag loopt van 7 tot 21 uur).
 
 - **Donker:** 's nachts ligt er een donkerblauw waas over het park. Alleen bij licht zie je alles goed: rond een lantaarn (3,5 tegel), een kampvuur (3), elke winkel en elk speeltoestel (2,4) en de ingang (4,5). De lantaarns branden dan fel.
 - **Gasten:** staat een gast in het donker naar dieren te kijken, dan heeft hij er maar een kwart van het plezier van en ziet hij zijn lievelingsdier niet. Boven zijn hoofd staat een oranje wolkje met een lantaarn. Zijn er meer gasten in het donker, dan zegt de gastvrouw: "Het is te donker! Zet er lantaarns bij."
@@ -429,62 +429,62 @@ Een hek teken je door te slepen. De eerste beweging (een derde tegel) bepaalt de
 
 ## Levels
 
-Elk level speelt een dier vrij en vraagt om twee blije dieren van de soort die je net kreeg. De rest loopt per wereld op.
+Elk level speelt een dier vrij en vraagt om blije dieren van de soort die je net kreeg. Hoeveel dat er zijn wisselt (twee tot vijf, groepsdieren met meer), en vanaf de alpaca komen er andere doelen tussendoor: twee vriendjes samen blij in één verblijf, een jong bij een bepaalde soort, een aantal soorten speelgoed in je verblijven, of een aantal blije dieren uit één wereld. De rest loopt per wereld op.
 
 | Level | Doelen | Je krijgt |
 |---|---|---|
 | 1 | Verblijf, voerbak | Varken |
-| 2 | 2 varkens, slaapplek, 2 keer voeren, 2 blije varkens | Koe |
+| 2 | 2 varkens, slaapplek, 1 keer voeren, 2 blije varkens | Koe |
 | 3 | 2 koeien, 2 blije koeien, 3 poepjes | Schaap |
-| 4 | 6 tegels pad, 2 blije schapen, 3 blije gasten | Paard |
+| 4 | 6 tegels pad, 3 blije schapen, 3 blije gasten | Paard |
 | 5 | Eetkraam, 2 blije paarden, 8 munten | Ezel |
 | 6 | Drinkkraam, 2 blije ezels, 5 blije gasten | Geit |
-| 7 | 2 blije geiten, 1 jong, 12 munten | Alpaca |
-| 8 | Wc, 2 blije alpaca's, 6 blije gasten | Kip |
-| 9 | 2 blije kippen, 2 bankjes, 5 poepjes | Eend |
-| 10 | 2 blije eenden, 3 soorten blij, speeltuin | Konijn |
-| 11 | 2 blije konijnen, 2 jongen, 8 blije gasten | Zebra |
-| 12 | 2 blije zebra's, ijskraam, 18 munten | Giraf |
-| 13 | 2 blije giraffen, 1 werker, 9 blije gasten | Leeuw |
+| 7 | 3 blije geiten, 1 jong, 12 munten | Alpaca |
+| 8 | Wc, alpaca en geit samen blij in één verblijf, 6 blije gasten | Kip |
+| 9 | 5 blije kippen, 2 bankjes, 5 poepjes | Eend |
+| 10 | 4 blije eenden, 3 soorten blij, glijbaan | Konijn |
+| 11 | 4 blije konijnen, 2 jonge konijnen, 8 blije gasten | Zebra |
+| 12 | 3 blije zebra's, ijskraam, 18 munten | Giraf |
+| 13 | Giraf en zebra samen blij in één verblijf, 1 werker, 9 blije gasten | Leeuw |
 | 14 | 2 blije leeuwen, 4 soorten blij, 3 keer schepijs verkopen | Kameel |
-| 15 | 2 blije kamelen, 3 bloembakken, 10 blije gasten | Neushoorn |
+| 15 | 2 blije kamelen, 3 bloembakken, 10 blije dieren van de boerderij | Neushoorn |
 | 16 | 2 blije neushoorns, fontein, 12 blije dieren | Nijlpaard |
-| 17 | 2 blije nijlpaarden, 5 soorten blij, 3 pannenkoeken verkopen | Olifant |
+| 17 | 2 blije nijlpaarden, 4 soorten speelgoed in je verblijven, 3 pannenkoeken verkopen | Olifant |
 | 18 | 2 blije olifanten, 2 afvalbakken, 12 blije gasten | Struisvogel |
-| 19 | 2 blije struisvogels, 4 keer afval, 3 jongen | Cheeta |
+| 19 | 3 blije struisvogels, 4 keer afval, 3 jongen | Cheeta |
 | 20 | 2 blije cheeta's, 6 soorten blij, 13 blije gasten, 4 keer waterijs verkopen | Gazelle |
-| 21 | 2 blije gazellen, 1 ziek dier beter, 14 blije dieren | Aap |
-| 22 | 2 blije apen, ballonnenkraam, 14 blije gasten | Papegaai |
-| 23 | 2 blije papegaaien, 2 zieke dieren beter, hoedjeskraam | Tijger |
-| 24 | 2 blije tijgers, 3 werkers, 8 poepjes | Gorilla |
+| 21 | 4 blije gazellen, 1 ziek dier beter, 12 blije dieren van de savanne | Aap |
+| 22 | 4 blije apen, ballonnenkraam, 14 blije gasten | Papegaai |
+| 23 | 3 blije papegaaien, 2 zieke dieren beter, hoedjeskraam | Tijger |
+| 24 | 2 blije tijgers, 3 werkers, 6 soorten speelgoed in je verblijven | Gorilla |
 | 25 | 2 blije gorilla's, 15 blije gasten, 4 hoedjes verkopen | Krokodil |
 | 26 | 2 blije krokodillen, draaimolen, 6 keer afval | Panda |
-| 27 | 2 blije panda's, 16 blije dieren, knuffelkraam | Pauw |
+| 27 | 2 blije panda's, 1 jonge panda, knuffelkraam | Pauw |
 | 28 | 2 blije pauwen, 4 werkers, 2 zieke dieren beter | Toekan |
-| 29 | 2 blije toekans, 8 soorten blij, 4 knuffels verkopen | Luiaard |
-| 30 | 2 blije luiaards, 4 jongen, 18 blije dieren, 30 munten | Panter |
+| 29 | 3 blije toekans, 8 soorten blij, 4 knuffels verkopen | Luiaard |
+| 30 | 2 blije luiaards, 14 blije dieren uit de jungle, 18 blije dieren, 30 munten | Panter |
 | 31 | 2 blije panters, 1 dier gevangen, 16 blije gasten | Pinguïn |
-| 32 | 2 blije pinguïns, 2 zieke dieren beter, 18 blije dieren | Zeehond |
+| 32 | 5 blije pinguïns, 2 zieke dieren beter, 18 blije dieren | Zeehond |
 | 33 | 2 blije zeehonden, 2 dieren gevangen, 30 munten | IJsbeer |
 | 34 | 2 blije ijsberen, 9 soorten blij, 17 blije gasten | Rendier |
-| 35 | 2 blije rendieren, 4 jongen, 8 keer afval | Wolf |
-| 36 | 2 blije wolven, 6 werkers, 20 blije dieren | Poolvos |
+| 35 | 3 blije rendieren, 1 jong rendier, 8 keer afval | Wolf |
+| 36 | 3 blije wolven, 6 werkers, 20 blije dieren | Poolvos |
 | 37 | 2 blije poolvossen, 3 zieke dieren beter, 2 dieren gevangen, 18 blije gasten | Beer |
-| 38 | 2 blije beren, 10 soorten blij, 5 bekers melk verkopen | Jak |
-| 39 | 2 blije jakken, 5 jongen, 22 blije dieren | Sneeuwuil |
-| 40 | 2 blije sneeuwuilen, 20 blije gasten, 3 zieke dieren beter, 10 poepjes | Walrus |
+| 38 | 2 blije beren, 8 soorten speelgoed in je verblijven, 5 bekers melk verkopen | Jak |
+| 39 | Jak en rendier samen blij in één verblijf, 5 jongen, 22 blije dieren | Sneeuwuil |
+| 40 | 2 blije sneeuwuilen, 20 blije gasten, 3 zieke dieren beter, 16 blije dieren van ijs en bergen | Walrus |
 | 41 | 2 blije walrussen, 10 soorten blij, 20 blije gasten | Flamingo |
-| 42 | 2 blije flamingo's, 5 jongen, 3 dieren gevangen | Schildpad |
+| 42 | 5 blije flamingo's, 5 jongen, 3 dieren gevangen | Schildpad |
 | 43 | 2 blije schildpadden, 24 blije dieren, 10 keer precies verkopen wat een gast vraagt | Otter |
-| 44 | 2 blije otters, 8 werkers, 4 zieke dieren beter | Bever |
+| 44 | 3 blije otters, 8 werkers, 4 zieke dieren beter | Bever |
 | 45 | 2 blije bevers, 11 soorten blij, 21 blije gasten | Pelikaan |
-| 46 | 2 blije pelikanen, 6 jongen, 10 keer afval | Koala |
+| 46 | Pelikaan en flamingo samen blij in één verblijf, 6 jongen, 10 keer afval | Koala |
 | 47 | 2 blije koala's, 26 blije dieren, 3 dieren gevangen, 15 keer precies verkopen wat een gast vraagt | Rode panda |
-| 48 | 2 blije rode panda's, 12 soorten blij, 22 blije gasten | Maki |
-| 49 | 2 blije maki's, 5 zieke dieren beter, 6 jongen, 28 blije dieren | Bizon |
-| 50 | 2 blije bizons, 12 soorten blij, 22 blije gasten, 30 blije dieren, 30 munten | Kangoeroe |
+| 48 | 2 blije rode panda's, 1 jonge rode panda, 12 soorten blij, 22 blije gasten | Maki |
+| 49 | 4 blije maki's, 5 zieke dieren beter, 6 jongen, 28 blije dieren | Bizon |
+| 50 | 3 blije bizons, 12 soorten blij, 22 blije gasten, 30 blije dieren, 30 munten | Kangoeroe |
 
-'Soorten blij' betekent: zoveel soorten waarvan er minstens twee blij zijn. Na level 50 is het vrij spelen.
+'Soorten blij' betekent: zoveel soorten waarvan er minstens twee blij zijn. 'Samen blij in één verblijf' gaat altijd om twee soorten die vriendjes zijn (`PALS`): van elk minstens één blij dier in hetzelfde verblijf. 'Soorten speelgoed' telt de verschillende dingen die in een verblijf met dieren staan. 'Dieren van de boerderij' (of een andere wereld) telt alle blije dieren van de soorten die je in die wereld kreeg. Na level 50 is het vrij spelen. De tabel staat in `games/zoo/src/data.ts` (`LEVELS`), het tellen in `levels.ts`.
 
 ## Stem en geluid
 
@@ -621,7 +621,7 @@ Alles hieronder staat in `games/zoo/src`; de vaste getallen in `data.ts`. De vol
 ### Weer, seizoenen en tijd
 - **Tijd:** de klok van het park loopt door over opslaan heen (`time` in het opslagbestand).
 - **Regen** (vanaf level 11): om de zes tot negen minuten een bui van ongeveer een minuut. Gasten zonder paraplu worden minder blij en gaan eerder weg; ze halen een paraplu of schuilen. Dieren schuilen op hun slaapplek; modderliefhebbers rollen in een plas. Daarna een regenboog.
-- **Seizoenen** (vanaf level 17): lente, zomer, herfst, winter, elk één dag in het spel (een dag en een nacht, ongeveer dertien minuten). In de winter valt er sneeuw in plaats van regen.
+- **Seizoenen** (vanaf level 17): lente, zomer, herfst, winter. Sinds 27 november duurt elk seizoen drie dagen in het spel (`SEASON_DAYS`; een dag en een nacht is ruim elf minuten, dus een seizoen ruim een half uur). Eerst was dat één dag: dan wisselde het te snel. In de winter valt er sneeuw in plaats van regen.
 - **Zonsopgang:** de haan kraait en de dieren worden een voor een wakker.
 
 ### Hulp
@@ -737,7 +737,7 @@ Op verzoek van Max, als inspiratie uit het genre (niets overgenomen: geen namen,
 Veertien ideeën uit `docs/IDEEEN-INTERACTIEF.md`, gekozen door Max en gebouwd door vijf agents tegelijk.
 
 - **Snoepje** (vanaf level 2, bij Actie): tik op een dier of sleep naar een dier. Een stukje van zijn eigen voer vliegt in een boogje naartoe; het dier springt en vangt het (zeedieren springen uit het water), smult en krijgt een hartje. Minder honger en een poosje extra blij. Gratis, maar per dier één keer per minuut. Een ziek dier eet het niet (`care.ts`).
-- **Tuinslang** (vanaf level 20, bij Actie en als snelknop rechtsboven): houd je vinger op een dier. Het staat stil onder de straal en schudt zich daarna droog met spetters en sterretjes. Dieren worden langzaam stoffig (je ziet stofjes op hun rug, modderliefhebbers sneller en bruin; in ongeveer 25 minuten helemaal). Regen spoelt het stof er langzaam af. Een heel stoffig dier wil gewassen worden: de wens 'schoon' is dan niet vervuld (plaatje: het dier met de slang, en de verzorger zegt het), maar het wordt er nooit voor opgehaald. Wassen maakt het schoon en een poosje extra blij. Een modderliefhebber rolt daarna gewoon weer in de modder, en de olifant spuit terug.
+- **Tuinslang** (vanaf level 20, bij Actie en als snelknop rechtsboven): houd je vinger op een dier. Het staat stil onder de straal en schudt zich daarna droog met spetters en sterretjes. Dieren worden langzaam stoffig (je ziet stofjes op hun rug; sinds 27 november elk dier in zijn eigen tempo, zie 'Vies worden en wassen' verderop). Regen spoelt het stof er langzaam af. Een heel stoffig dier wil gewassen worden: de wens 'schoon' is dan niet vervuld (plaatje: het dier met de slang, en de verzorger zegt het), maar het wordt er nooit voor opgehaald. Wassen maakt het schoon en een poosje extra blij. Een modderliefhebber rolt daarna gewoon weer in de modder, en de olifant spuit terug.
 - **Kinderen helpen** (`kids.ts`): zwaaien in het menu van een gast (de gast zwaait terug en een kind springt); een gevallen ijsje (vanaf level 13, tik op het bordje boven het huilende kind en het krijgt een nieuw); een muntje geven aan een kind zonder geld (vanaf level 14, het tekent bij het weggaan een hartje in het gastenboek); een wegvliegende ballon terugvangen (vanaf level 23, tik hem binnen zes tellen aan). Elk hooguit eens per paar minuten.
 - **De weg wijzen**: sleep met het handje vanaf een gast die de weg kwijt is. Een stippellijn volgt je vinger; een roze ring met hartje boven het verblijf met zijn lievelingsdier. Laat je los, dan loopt hij erheen.
 - **Raad het lievelingsdier** (vanaf level 7): een kaartje met drie hints (een kleur, het aantal poten en het geluid) en drie dieren uit het park om uit te kiezen. Goed: een munt en de gast loopt meteen naar zijn dier.
@@ -756,7 +756,7 @@ Vanaf het level met paden staat er een knop met een lopend kindje. Daarmee zak j
 - **Niet door** hekken, verblijven, water, gebouwen, kramen, versieringen, bomen en rotsen; tegen een muur glijd je erlangs.
 - **Kijken en aantikken:** een stipje in het midden. Kijk je binnen 5 tegels naar een dier, gast of kraam, dan wordt het stipje geel en zie je de naam. Tik (of Spatie/E): een dier laat zich horen, komt naar het hek en doet het kunstje van zijn soort, met een hartje; een gast zwaait terug en een kind springt.
 - Tijdens het lopen verdwijnen de bouwknoppen; munten, sterren en de klok blijven. Dag en nacht, regen en sneeuw lopen gewoon door.
-- **Kopen bij een kraam:** tik op een kraam en je krijgt iets van wat hij verkoopt (verkoopt hij meer dingen, dan kies je met grote plaatjes). Het kost 1 munt; zonder munten krijg je het toch. Je houdt het rechtsonder in beeld vast en het wiebelt mee met je stappen. Tik op het scherm (als je nergens naar kijkt) of Spatie om het te gebruiken: drie hapjes of slokjes, een hoedje opzetten (je ziet de rand bovenin en een hoedje bij je munten), aan de ballon trekken, de knuffel knuffelen, of je schmink zien. De wc spoelt door. Wat je vasthoudt wordt altijd vooraan getekend (`held.ts`, `walkhand.ts`).
+- **Kopen bij een kraam:** tik op een kraam en je krijgt iets van wat hij verkoopt (verkoopt hij meer dingen, dan kies je met grote plaatjes). Het kost 1 munt; zonder munten krijg je het toch. Je houdt het rechtsonder in beeld vast en het wiebelt mee met je stappen. Eten en drinken ga je vanzelf, hapje voor hapje (zie de ronde van 27 november); tik op het scherm (als je nergens naar kijkt) of Spatie om het meteen te gebruiken: drie hapjes of slokjes, een hoedje opzetten (je ziet de rand bovenin en een hoedje bij je munten), aan de ballon trekken, de knuffel knuffelen, of je schmink zien. De wc spoelt door. Wat je vasthoudt wordt altijd vooraan getekend (`held.ts`, `walkhand.ts`).
 
 **Knoppen en kas** (26 november): rechtsboven één rij, iets kleiner: draaien, draaien, rondlopen, geluid, huis. Daaronder de kas: sterren, munten, klok, gasten, seizoen en weer. Het snoepje en de tuinslang staan gewoon bij Actie.
 
@@ -783,6 +783,80 @@ Zonder dat het spel trager wordt (geen extra beeldbewerking, alles één keer be
 - **Schaduwvlekjes** (`blobs.ts`): een zacht rond vlekje onder elk dier, elke gast en elke werker (niet in het water, de kabelbaan of het treintje; 's nachts lichter).
 
 Vergelijken in de browser: `__zoo.view.setLook(false)` (oud licht, lucht en waas), `__zoo.blobs.on = false`, en `localStorage.zooNoShade = '1'` met herladen.
+
+## De ronde van 27 november 2026 (eenentwintig verbeterpunten van Max)
+
+Max speelde het spel en kwam met een lijst van eenentwintig punten. Hieronder per onderwerp wat er veranderd is. Nalopen kan zonder venster met `tools/playtest/kijk.mjs` (het spel openen in een onzichtbare browser, een park klaarzetten en foto's maken).
+
+### Vies worden en wassen
+
+Het waren steeds dezelfde dieren die vies werden, vooral de varkens. Dat kwam door vier dingen samen: het stof werd niet bewaard (na het laden begon iedereen op nul), een dier dat in de modder rolde kreeg er per tel veel stof bij, na het wassen ging het meteen weer rollen, en elke regenbui waste alle andere dieren helemaal schoon. Nu (`care.ts`):
+
+- **Elk dier zijn eigen tempo:** gemiddeld is een dier in een kwartier stoffig, maar het ene 0,55 en het andere 1,6 keer zo snel (`DUST.pace`, `dustPace`). Het tempo en het stof worden bewaard.
+- **Rollen in de modder** geeft alleen bruine vlekjes die na vier minuten weer weg zijn (`MUDDY`); gewassen hoeft het dier daar niet voor te worden.
+- **Regen** spoelt nog maar langzaam: pas na vijf minuten regen zou een dier schoon zijn (`DUST.rain`).
+- **Niet te veel tegelijk:** er zijn hooguit twee dieren tegelijk vies, en één erbij per twaalf dieren in het park, nooit meer dan zes (`DIRTY`). Tussen twee dieren die vies worden zit minstens twee minuten, en wie er aan de beurt is wordt geloot uit de dieren die stoffig genoeg zijn. In een proef met 20 dieren van vijf soorten (veertig minuten, waarbij een vies dier na een minuut gewassen werd) werden 6 geiten, 3 koeien, 3 schapen, 3 varkens en 3 paarden vies; eerst waren dat bijna alleen varkens.
+- **Het plaatje:** het kopje van het dier zelf met moddervlekken, stanklijntjes en twee vliegjes eroverheen (`dirt` en `stacked` in `icons.ts`), in het wolkje boven het dier en in zijn menu. De tuinslang alleen was niet duidelijk genoeg.
+- **Schoonmakers** wassen een dier dat anderhalve minuut vies is zelf (`WASH_AFTER`), en de meter 'schoon' van het park telt de vachten mee.
+
+### Lampen en vlaggen op hoeken en randen
+
+- **De rode punten:** een lantaarn, lamp, lichtjes of vlag (`POLE_DECOR`) zet je op de hoek van een tegel of midden op een rand (`Spot` in `grid.ts`: 'h', 'v' of 'c' voor een hoek), ook precies op een hek of op de hoekpaal van een verblijf. Het voorbeeld klikt naar het dichtstbijzijnde punt. Bankjes, afvalbakken, bloembakken, heggen en borden blijven midden op een rand.
+- **Op een hek** staat de paal op het hek (`FENCE_TOP` per soort hek); slingers hangen in stappen van een halve tegel.
+- **In de loopstand** is zo'n paal nog maar een dun blokje (`POLE_HALF`), en hij staat nooit meer midden op het pad: je loopt er gewoon langs. Lampen uit een ouder spel blijven staan waar ze stonden.
+- **Weghalen:** de gum pakt eerst het losse ding dat het dichtst bij je vinger staat (binnen een derde tegel, `ERASE_REACH`): de lamp, de vlag, de afvalbak of het bankje. Pas als er niets los staat, gaat het hek weg.
+
+### Poorten
+
+- **Een poort houdt het materiaal van zijn hek:** hout, steen, net of glas (`gateStyle` in `view.ts` kijkt naar de hekken ernaast, en anders naar de soort verblijf). Eerst werd een poort in een glazen verblijf grijs steen.
+- **In het aquarium** is de poort een glazen deur in een lijst, met aan de buitenkant een trapje omhoog naar een bordes (`STAIR_GEO`, `stairSide`).
+
+### De melding "host busy hats"
+
+Voor de drukte bij een kraam bestond niet voor elke soort kraam een zin. Nu is er een zin voor elke soort (`host.busy.*`) en een algemene zin voor wat er later nog bijkomt (`host.busy.any`). Een test (`lines.test.ts`) loopt alle zinnen na: elke sleutel moet in het Nederlands en het Engels bestaan.
+
+### Speelgoed: een lijstje per soort
+
+Dieren vroegen lang om hetzelfde ding, terwijl er veel meer te kiezen was. Nu heeft elke soort een lijstje van dingen die hij leuk vindt, het liefste eerst (`TOY_LIKES` in `data.ts`): bijna altijd vier of vijf, bij de zeedieren een of twee.
+
+- **Hoeveel:** het begint met één ding. Heb je drie of meer dingen van hun lijstje vrijgespeeld, dan willen ze er twee; bij vijf of meer drie. Een groep van vier of meer wil er nog een bij. Nooit meer dan er past: één ding per vijf tegels van het verblijf, en hooguit vier (`TOY_KEY`, `toyNeed`). Twee dezelfde dingen tellen als één.
+- **Welk:** het maakt niet uit welke dingen van het lijstje er staan. De verzorger vraagt eerst om het liefste ding, en daarna om 'nog iets anders om mee te spelen' (`alert.fun.more`).
+- **Zien wat een dier leuk vindt:** in het menu van een dier staat een rij met alles van zijn lijstje (wat er al staat is groen aangevinkt). Kies je bij Speelgoed een ding, dan staat er een hartje op de knoppen die de dieren in je park nog missen, verschijnt er boven de balk een strookje met de kopjes van de soorten die dat ding leuk vinden, en krijgt elk dier in het verblijf waar je boven hangt een gezichtje: blij (dit wil ik nog), gewoon (leuk, maar ik heb al genoeg) of een streepje (niets voor mij). Bij Natuur werkt het gezichtje net zo (`toyVerdict`, `propVerdict`, `showFaces`).
+- **Een ouder spel:** dieren zijn daar eerst niet blij tot er genoeg afwisseling staat; de verzorger zegt het één keer (`say.keys.new`). Een dier wordt er nooit voor opgehaald.
+
+### Natuur: een eigen smaak per soort
+
+Bomen, planten en stenen in een verblijf werden bijna niet gebruikt en elk dier op dezelfde grond wilde hetzelfde. Nu:
+
+- **Smaak per soort** in vier standen per soort natuur (liever niet, een beetje, flink wat, veel): de grond waar het dier van houdt geeft het begin (`WILD_BASE`) en de soort wijkt daarvan af (`WILD_TASTE`). Een giraf wil veel bomen, een konijn en een koe veel planten, een kameel veel stenen en geen groen, een pinguïn alleen stenen.
+- **Naar de grootte van het verblijf:** elke stand is een aantal stuks per tegel land, van minstens tot hooguit (`WILD_LEVEL`, `wildRange`). De standen overlappen een stukje, zodat vriendjes met een andere smaak samen kunnen wonen (een test loopt alle paren van `PALS` na).
+- **De dieren gebruiken het:** een blij dier loopt af en toe naar een boom en schurkt ertegen, snuffelt en knabbelt aan een plant (die wiebelt), of gaat op een steen staan uitkijken (`goWild` in `animal.ts`).
+- **Een ouder spel:** de tuinman past het groen en de stenen in elk verblijf één keer gratis aan de nieuwe smaak aan (`tuneWild`).
+
+### Wat een dier het eerst wil
+
+Elk dier liet zijn wensen in dezelfde volgorde zien: eerst eten, dan de slaapplek, dan de grond, dan spelen. Vanaf de savanne (level 11, `FEATURE.moods`) kiest elk dier zelf wat het vandaag het belangrijkst vindt: het heeft een eigen getal (`seed`, wordt bewaard) en schudt elke dag in het spel zijn lijstje opnieuw (`wishOrder`). Ziek zijn, een open hek en bang zijn gaan altijd voor. Twee dieren in hetzelfde verblijf vragen dus niet meer om hetzelfde, en het menu van een dier laat zijn wensen in zijn eigen volgorde zien. Op de boerderij blijft de volgorde vast, zodat de eerste levels uitleggen wat een dier nodig heeft.
+
+### Gevarieerdere levels
+
+Zie de tabel bij Levels. Nieuw zijn vier soorten doelen (`levels.ts`): twee vriendjes samen blij in één verblijf (`together`), een jong bij een bepaalde soort (`young`), zoveel soorten speelgoed in je verblijven (`toys`) en zoveel blije dieren uit één wereld (`happyworld`). Het aantal blije dieren van de nieuwe soort wisselt van twee tot vijf en volgt de groepsgrootte van de soort.
+
+### Tijd
+
+De dag duurt zeven en een halve minuut in plaats van tien, zodat de nacht vaker langskomt (`DAY_SECONDS`). Een seizoen duurt drie dagen in plaats van één (`SEASON_DAYS`).
+
+### De dierenshow
+
+- **Meer sterren:** naast dolfijnen, orka's en zeehonden geven nu ook olifanten, apen, papegaaien, pinguïns en otters een show (`SHOW_STARS`). De tribune mag tegen elk soort hek staan; een bak van glas gaat voor.
+- **Een trainer** staat op een rond podium aan de kant van het verblijf (`showtime.ts`), zolang het park open is en er dieren voor een show zijn. Bij de bel zwaait hij naar het publiek; bij elk kunstje geeft hij een sein (armen omhoog, wijzen, een hapje gooien, buigen).
+- **Een programma** van tien kunstjes in 28 tellen (`SHOW_ROUTINE`): allemaal springen, één dier een rondje, één dier met het speelgoed (de hoepel, de bal of iets van zijn lijstje), klappen of het eigen kunstje van de soort (de olifant spuit, de aap springt en zwaait), een hapje vangen dat de trainer gooit, nog een rondje, een solosprong, nog een hapje, buigen, en een finale waarin iedereen springt met confetti. Wie niet aan de beurt is, kijkt naar het publiek.
+- **Na afloop** buigt de trainer en juichen de gasten.
+
+### De loopstand
+
+- **Eten en drinken gaat vanzelf en je ziet het:** wat je koopt, eet of drink je vanzelf op, hapje voor hapje (het eerste na ruim een tel, daarna om de drie en een halve tel; tikken mag ook nog). Je hand gaat naar je mond, je hapt twee keer met kruimels, likt aan het ijsje of kantelt het bekertje naar je toe, je hoofd knikt mee en je kauwt nog even na. Een hoed zet je vanzelf op (`held.ts`: `eatPose`, `usesItself`).
+- **Ergens in gaan zitten:** tik een tribune of attractie aan en je zit erin; je ogen volgen de stoel (`WalkSeat` in `walkmode.ts`). Rondkijken kan nog steeds. Uitstappen doe je met de ronde knop onderin (een deur met een pijl), door even vooruit of achteruit te duwen, of door terug naar boven te gaan.
+- **Naar de show kijken:** op de tribune zit je op het bovenste bankje, met je gezicht naar het verblijf. Is er geen show bezig, dan begint er zo een (als de dieren kunnen).
 
 ## Bekende zwakke punten van de modellen
 
