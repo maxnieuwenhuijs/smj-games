@@ -5,11 +5,12 @@
 // &bos=1 (de bomen rond het park), &seizoen=winter, &nacht=1, &spook=1 (het doorzichtige voorbeeld), &draai=1 (kwartslagen), &druk=1 (alsof er
 // gasten zijn), &t=2.5 (het moment van de foto), &zoom=6 (tegels in beeld).
 import * as THREE from 'three';
-import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FERRIS, FOODS, PARK_PROPS, WILD_PROPS, SHOPS, TERRAINS, TOYS, TROUGHS, bumperCar, onEdge, shopSpan, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type Terrain, type ToyKind, type TroughKind } from './data';
+import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FOODS, PARK_PROPS, WILD_PROPS, SHOPS, TERRAINS, TOYS, TROUGHS, bumperCar, onEdge, shopSpan, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type Terrain, type ToyKind, type TroughKind } from './data';
 import { BASE_LAND, FULL_LAND, Grid, edgeKey, type Edge, type EdgeKind } from './grid';
 import { View, toWorldX, toWorldZ } from './view';
 import { FACES, sampleHead, showSample } from './faces';
 import { SAMPLE_PEOPLE, samplePerson } from './people';
+import { RIDE_SEATS, isRide, newRide, rideStep } from './rides';
 
 const query = new URLSearchParams(location.search);
 const num = (key: string, fallback: number): number => (query.has(key) ? Number(query.get(key)) : fallback);
@@ -88,10 +89,16 @@ const shop = (kind: ShopKind): Item => ({
     const group = view.makeShop(x, py, kind, edge, rot);
     const seed = x * 1.3 + y * 0.7, moving = group.userData.moving as THREE.Object3D | undefined;
     if (kind === 'bin' && query.get('tik') === '1') view.flapLid(group);
+    // een attractie uit rides.ts: dezelfde stand en dezelfde stappen als in het spel; met &druk=1 zit hij vol gasten
+    const ride = isRide(kind) ? newRide(kind) : null, riders = busy && isRide(kind) ? 2 ** RIDE_SEATS[kind] - 1 : 0;
     live.push(t => {
       view.animateShop(group, kind, t, busy, seed);
+      if (ride) {
+        while (ride.clock < t - 1e-6) rideStep(kind, ride, Math.min(1 / 30, t - ride.clock), riders);
+        view.animateRide(group, kind, ride);
+        return;
+      }
       // wat het spel zelf laat bewegen: hier net genoeg om te zien dat het goede deel beweegt
-      if (kind === 'ferris' && moving) moving.rotation.z = t * FERRIS.speed;
       if (kind === 'carousel' && moving) moving.rotation.y = t * 0.8;
       if (kind === 'fountain' && moving) moving.position.y = 0.97 + Math.sin(t * 3) * 0.08;
       if (kind === 'swing' && moving) moving.rotation.x = Math.sin(t * 2) * 0.5;

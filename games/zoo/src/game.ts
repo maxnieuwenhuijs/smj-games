@@ -10,7 +10,7 @@ import {
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
   type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, hourAt, WAGE, TOY_OF, DECOR, DECORS, type DecorKind, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, GUESTS_HOME, STAFF_HOME, STAFF_BACK, VENDORS_BACK, LIGHT, SPACE, guestsAt, SERVES,
-  isPath, PATH_KINDS, PATH_FROM, TOY_FROM, TOY_PRICE, CLIMATE, palsOf, PETTABLE, PETTING_MIN, NATURES, pickRare, RARE_CHANCE, MUD_LOVERS, FERRIS, BUMPER_CARS, bumperCar, crowdLoad, CROWD_EASE,
+  isPath, PATH_KINDS, PATH_FROM, TOY_FROM, TOY_PRICE, CLIMATE, palsOf, PETTABLE, PETTING_MIN, NATURES, pickRare, RARE_CHANCE, MUD_LOVERS, BUMPER_CARS, bumperCar, crowdLoad, CROWD_EASE,
   EDGE_DECOR, SMALL_DECOR, PARK_GROUPS, ATTRACTIONS, parkShopGroup, PROP, PROPS, WILD_PROPS, PARK_PROPS, WILD_KINDS, wildRange, wildWant, type PropKind, type WildKind, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, SEASONS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
 import { CLIMB_SECONDS, PUSH, SWING, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, sinceHit, sway, swingAt, tetherAt } from './data';
 import { WAYFIND, canStray, wayfound, type WaySign } from './data';
@@ -51,6 +51,7 @@ import { WalkMode, tagHtml, type WalkTarget } from './walkmode';
 import { WalkHand } from './walkhand';
 import { paintOf, walkOffer, walkPrice } from './held';
 import { BlobShadows } from './blobs';
+import { RIDE_GLOW, isRide, newRide, rideStep, rideWorld } from './rides';
 
 /** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken; een dier een snoepje geven of wassen (care.ts); in de herfst harken, in de winter sneeuw rollen. */
 export type ActionId = 'broom' | 'hammer' | 'picker' | CareAction | 'rake' | 'snowball';
@@ -3367,6 +3368,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const off = n > 1 ? -reach + (2 * reach * i) / (n - 1) : 0;
       list.push({ gx: cx + (w > h ? off : 0), gy: cy + (w > h ? 0 : off), r });
     }
+    // wat hoog boven de grond uitsteekt (het rad, de top van de toren) heeft daar zijn eigen gloed
+    for (const [x, high, z, far] of (s.ride && RIDE_GLOW[s.kind]) || []) {
+      const [gx, gy] = rideWorld(x, z, cx, cy, s.rot ?? 0);
+      list.push({ gx, gy, r: far, h: high });
+    }
   }
 
   isNight(): boolean {
@@ -3431,7 +3437,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const turn = edge ? undefined : rot ?? this.autoRot(x, y, kind);
     const [w, h] = edge ? [1, 1] : shopSpan(kind, turn ?? 0);
     const shop: ShopObj = {
-      x, y, kind, size: SHOP_SIZE[kind], w, h, sells: sells?.length ? [...sells] : this.products(kind).slice(0, slotsOf(kind)),
+      x, y, kind, size: SHOP_SIZE[kind], w, h, sells: sells?.length ? [...sells] : this.products(kind).slice(0, slotsOf(kind)), ride: isRide(kind) ? newRide(kind) : undefined,
       mesh: this.view.makeShop(x, y, kind, edge && { o: edge, face: face! }, turn), vendor: Vendor.of(kind), edge, face, turned: turned || undefined, set: edge ? set : undefined, rot: turn, manual: manual || undefined,
     };
     if (shop.vendor) shop.mesh.add(shop.vendor.mesh);
@@ -7651,6 +7657,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     } else this.view.highlight(lit ? lit.region.tiles : null, lit ? this.grid.borderEdges(lit.region) : [], this.menuPen ? 1 : 0.6, this.clock);
     for (const a of this.animals) a.update(dt, this);
     this.updateCare(dt);
+    // eerst de attracties een stukje verder, dan de gasten: wie erop zit, zit zo precies op zijn zitje
+    for (const shop of this.shops) if (shop.ride) rideStep(shop.kind, shop.ride, dt, shop.aboard ?? 0);
     this.guests.update(dt);
     this.road.update(dt, this.night);
     this.animateToys(dt);
@@ -7680,11 +7688,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         shop.dirtShown = dirty;
         this.view.setShopDirt(shop.mesh, dirty);
       }
-      if (shop.kind === 'ferris') {
-        // het reuzenrad draait altijd rustig rond
-        shop.spin = ((shop.spin ?? 0) + dt * FERRIS.speed) % (Math.PI * 2);
-        const wheel = shop.mesh.userData.moving as THREE.Object3D | undefined;
-        if (wheel) wheel.rotation.z = shop.spin;
+      if (shop.ride) {
+        // een attractie of speeltoestel: het beeld volgt de stand die het spel bijhoudt (zie stepRides en rides.ts)
+        this.view.animateRide(shop.mesh, shop.kind, shop.ride);
         continue;
       }
       if (shop.kind === 'bumper') {

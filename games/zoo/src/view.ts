@@ -3,8 +3,9 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, SHOP_DEEP, onEdge, shopSpan, TERRAINS, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
-  BUMPER_CARS, FERRIS, RESTAURANT_TABLES, SHOW_ROWS, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, bumperCar, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
+  BUMPER_CARS, RESTAURANT_TABLES, SHOW_ROWS, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, bumperCar, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
 } from './data';
+import { FERRIS, ferrisAngle, ferrisSway, newRide, type RideState } from './rides';
 import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type Land, type Side } from './grid';
 import { roadside } from './road';
 import { CABLE, cableHeight } from './cable';
@@ -972,7 +973,8 @@ const TREE_LOOK: Partial<Record<DecorKind, { leaf: number[]; crown: number[] }>>
 };
 
 // ------------------------------------------------------------ de nieuwere gebouwen
-const floorOf = (color = 0xd8c7ab): Part => [boxAt(1.84, 0.05, 1.84, 0, 0.025, 0), std(color, 1), false];
+/** De vloer onder een gebouw van `wide` bij `deep` tegels: net iets kleiner dan zijn tegels. */
+const floorOf = (color = 0xd8c7ab, wide = 2, deep = wide): Part => [boxAt(wide - 0.16, 0.05, deep - 0.16, 0, 0.025, 0), std(color, 1), false];
 const CORNERS: [number, number][] = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
 const P_GREEN = std(0x6cc04a);
 // Uitkijktoren: vier palen, een vloer op TOWER_TOP waar gasten op staan, een hek eromheen, een ladder aan de
@@ -1030,44 +1032,156 @@ SHOP_PARTS.restaurant = [
     [0xf7f4ec, ...[0.1, 0.02, -0.06].map((y, i) => new THREE.BoxGeometry(0.18 - i * 0.03, 0.022, 0.024).translate(-i * 0.015, y, 0).rotateX(-0.22).translate(-0.74, 0.2, 0.84))],
   ), PAINT_MAT],
 ];
-// Reuzenrad: twee steunen tot aan de as; het rad zelf draait (SHOP_MOVING) en ligt in het vlak van x en y.
-const CABIN_COLORS = [0xe0584f, 0xffd23f, 0x4a90e2, 0x6cc04a, 0xf48fb1, 0xf08a24];
-const cabinAt = (i: number): [number, number] => {
-  const a = (i * Math.PI * 2) / FERRIS.cabins;
-  return [Math.cos(a) * FERRIS.radius, Math.sin(a) * FERRIS.radius];
+// ------------------------------------------------------------ attracties in allerlei maten (de getallen staan in rides.ts)
+/**
+ * Wat aan een attractie los beweegt en niet met één draaiing te vangen is (de bakjes van het reuzenrad, de paarden
+ * van de draaimolen, de botsauto's): per soort een functie die de losse stukken in het gebouw hangt en ze in
+ * `userData` zet. `poseRide` zet ze daarna elk beeldje op hun plek.
+ */
+const RIDE_BUILD: Partial<Record<ShopKind, (group: THREE.Group, mat?: THREE.Material) => void>> = {};
+/** Een los stuk van één vorm (een bakje, een paard, een straal water). */
+const piece = (geo: THREE.BufferGeometry, m: THREE.Material, mat?: THREE.Material, shadow = true): THREE.Mesh => {
+  const mesh = new THREE.Mesh(geo, mat ?? m);
+  mesh.castShadow = !mat && shadow;
+  return mesh;
 };
-const CABINS = Array.from({ length: FERRIS.cabins }, (_, i) => cabinAt(i));
+const RIDE_COLORS = [0xe0584f, 0xffd23f, 0x4a90e2, 0x6cc04a, 0xf48fb1, 0xf08a24];
+/**
+ * Looplicht: de lampjes langs het rad, de draaimolen en de botsauto's zitten om de beurt in drie groepen die na
+ * elkaar opgloeien, zodat het licht lijkt rond te lopen. Ze volgen LAMP_MAT: overdag zacht, 's nachts fel en op het
+ * feest in kleur.
+ */
+const CHASE_MATS = [0, 1, 2].map(() => LAMP_MAT.clone());
+function chaseLamps(t: number): void {
+  for (let i = 0; i < CHASE_MATS.length; i++) {
+    const m = CHASE_MATS[i], glow = Math.max(0, Math.sin(t * 4.5 - (i * Math.PI * 2) / 3));
+    m.color.copy(LAMP_MAT.color);
+    m.emissive.copy(LAMP_MAT.emissive);
+    m.emissiveIntensity = LAMP_MAT.emissiveIntensity * (0.3 + 0.9 * glow * glow);
+  }
+}
+/** Een lantaarn op een paal van `h` hoog: [de paal, het lampje]. */
+const lampPost = (x: number, z: number, h: number): [THREE.BufferGeometry, THREE.BufferGeometry] =>
+  [merge([tube(0.022, 0.03, h, x, h / 2, z), tube(0.06, 0.045, 0.05, x, 0.025, z), tube(0.05, 0.03, 0.04, x, h + 0.01, z)]), ball(0.075, x, h + 0.09, z)];
+
+// Reuzenrad (8 bij 2 tegels): voor en achter het rad staat een poot in de vorm van een A, met de as ertussen. Het rad
+// zelf draait om die as: twee velgen met spaken en lampjes. De twaalf bakjes hangen elk aan een eigen asje en
+// blijven dus rechtop (ze slingeren alleen een beetje). Onder het rad ligt het perron met een trapje en een hek;
+// rechts staat het kaartjeshuisje en op de hoeken staan lantaarns.
+const F = FERRIS;
+const FERRIS_BLUE = 0x4a90e2, FERRIS_DARK = 0x356fb5;
+/** Een poot op plek z: twee schuine balken tot de as, twee dwarsbalken en twee voeten. */
+const ferrisLeg = (z: number): THREE.BufferGeometry[] => {
+  const at = (h: number): number => F.legX * (1 - h / F.hub);
+  return [
+    beam(0.17, [-F.legX, 0, z], [0, F.hub + 0.06, z]), beam(0.17, [F.legX, 0, z], [0, F.hub + 0.06, z]),
+    boxAt(at(1.7) * 2, 0.11, 0.11, 0, 1.7, z), boxAt(at(3.2) * 2, 0.1, 0.1, 0, 3.2, z),
+  ];
+};
+/** Een stuk hek op het perron, van x0 tot x1 op plek z: paaltjes met twee leuningen. */
+const deckRail = (x0: number, x1: number, z: number): THREE.BufferGeometry[] => {
+  const n = Math.max(1, Math.round((x1 - x0) / 0.42)), top = F.deck + 0.42;
+  return [
+    boxAt(x1 - x0, 0.035, 0.035, (x0 + x1) / 2, top, z), boxAt(x1 - x0, 0.03, 0.03, (x0 + x1) / 2, F.deck + 0.22, z),
+    ...Array.from({ length: n + 1 }, (_, i) => boxAt(0.04, 0.44, 0.04, x0 + ((x1 - x0) * i) / n, F.deck + 0.22, z)),
+  ];
+};
+const BOOTH_X = 3.02, BOOTH_Z = 0.42;
 SHOP_PARTS.ferris = [
-  floorOf(),
-  [merge([-0.36, 0.36].flatMap(z => [
-    beam(0.1, [-0.75, 0, z], [0, FERRIS.hub + 0.05, z]), beam(0.1, [0.75, 0, z], [0, FERRIS.hub + 0.05, z]),
-    boxAt(1.06, 0.07, 0.07, 0, FERRIS.hub * 0.3, z),
-  ])), P_BLUE],
-  [new THREE.CylinderGeometry(0.06, 0.06, 0.86, 10).rotateX(Math.PI / 2).translate(0, FERRIS.hub, 0), METAL],
-  // het opstapje
-  [mergeGeometries([boxAt(0.7, 0.14, 0.4, 0, 0.12, 0.66), boxAt(0.5, 0.07, 0.2, 0, 0.085, 0.84)])!, std(0xe3c08a, 1)],
+  floorOf(0xd8c7ab, 8, 2),
+  // het perron met twee treden ervoor: plat, zodat de schaduw van het rad erop valt
+  [painted(
+    [0xe3c08a, boxAt(F.deckX * 2, F.deck, F.deckFront - F.deckBack, 0, F.deck / 2, (F.deckFront + F.deckBack) / 2)],
+    [0xd3a868, boxAt(1.5, (F.deck * 2) / 3, F.step, 0, F.deck / 3, F.deckFront + F.step / 2), boxAt(1.5, F.deck / 3, F.step, 0, F.deck / 6, F.deckFront + F.step * 1.5)],
+    [0xc79a63, boxAt(F.deckX * 2 + 0.04, 0.03, 0.05, 0, F.deck - 0.012, F.deckFront + 0.005), boxAt(F.deckX * 2 + 0.04, 0.03, 0.05, 0, F.deck - 0.012, F.deckBack - 0.005)],
+  ), MATTE_MAT, false],
+  // de poten, de voeten en de lagers van de as
+  [painted(
+    [FERRIS_BLUE, ...ferrisLeg(F.legZ), ...ferrisLeg(-F.legZ)],
+    [FERRIS_DARK, ...[-1, 1].flatMap(z => [-1, 1].map(x => boxAt(0.52, 0.14, 0.4, x * F.legX, 0.07, z * F.legZ)))],
+    [0xffd23f, ...[-1, 1].map(z => boxAt(0.4, 0.4, 0.2, 0, F.hub, z * F.legZ))],
+    [0x8a8f98, new THREE.CylinderGeometry(0.09, 0.09, F.legZ * 2 + 0.3, 10).rotateX(Math.PI / 2).translate(0, F.hub, 0)],
+  ), PAINT_MAT],
+  // het hek om het perron (voor blijft de trap vrij), het kaartjeshuisje en de palen van de lantaarns
+  [painted(
+    [0xf7f4ec, ...deckRail(-F.deckX, -0.75, F.deckFront - 0.04), ...deckRail(0.75, F.deckX, F.deckFront - 0.04), ...deckRail(-F.deckX, F.deckX, F.deckBack + 0.04)],
+    [0xe0584f, boxAt(0.8, 0.5, 0.8, BOOTH_X, 0.3, BOOTH_Z), boxAt(0.8, 0.26, 0.8, BOOTH_X, 1.0, BOOTH_Z), ...CORNERS.map(([x, z]) => boxAt(0.1, 0.4, 0.1, BOOTH_X + x * 0.35, 0.72, BOOTH_Z + z * 0.35))],
+    [0xf7f4ec, boxAt(0.84, 0.06, 0.84, BOOTH_X, 0.56, BOOTH_Z), boxAt(0.86, 0.05, 0.3, BOOTH_X, 0.56, BOOTH_Z + 0.34), boxAt(0.84, 0.05, 0.84, BOOTH_X, 0.89, BOOTH_Z)],
+    [0x3d4f5a, boxAt(0.6, 0.3, 0.6, BOOTH_X, 0.73, BOOTH_Z)],
+    [0x8a8f98, ...[[-3.72, 0.74], [3.72, -0.74], [-3.72, -0.74], [1.72, 0.84], [-1.72, 0.84]].map(([x, z]) => lampPost(x, z, 1.5)[0])],
+  ), PAINT_MAT],
+  // het dak van het huisje, met een bord erop: een geel rad
+  [merge([
+    striped(new THREE.ConeGeometry(0.72, 0.42, 8), [0xffd23f, 0xe0584f], 8).rotateY(Math.PI / 8).translate(BOOTH_X, 1.34, BOOTH_Z),
+    paint(ball(0.07, BOOTH_X, 1.58, BOOTH_Z), 0xf7f4ec),
+    paint(new THREE.TorusGeometry(0.15, 0.03, 5, 14).translate(BOOTH_X, 1.02, BOOTH_Z + 0.41), 0xffd23f),
+    ...[0, 1, 2].map(i => paint(new THREE.BoxGeometry(0.3, 0.025, 0.02).rotateZ((i * Math.PI) / 3).translate(BOOTH_X, 1.02, BOOTH_Z + 0.41), 0xffd23f)),
+  ]), PAINT_MAT],
+  // de lantaarns op de hoeken en naast de trap: ze gloeien in het donker
+  [merge([[-3.72, 0.74], [3.72, -0.74], [-3.72, -0.74], [1.72, 0.84], [-1.72, 0.84]].map(([x, z]) => lampPost(x, z, 1.5)[1])), LAMP_MAT, false],
 ];
-SHOP_MOVING.ferris = {
-  y: FERRIS.hub,
-  parts: [
-    [merge([-0.22, 0.22].flatMap(z => [
-      new THREE.TorusGeometry(FERRIS.radius, 0.035, 6, 40).translate(0, 0, z),
-      new THREE.TorusGeometry(FERRIS.radius * 0.5, 0.025, 6, 28).translate(0, 0, z),
-      ...CABINS.map(([x, y]) => beam(0.035, [0, 0, z], [x, y, z])),
-    ])), WHITE_MAT],
-    [new THREE.CylinderGeometry(0.16, 0.16, 0.56, 12).rotateX(Math.PI / 2), P_RED],
-    // het stangetje waar elk bakje aan hangt
-    [merge(CABINS.map(([x, y]) => new THREE.CylinderGeometry(0.02, 0.02, 0.46, 6).rotateX(Math.PI / 2).translate(x, y, 0))), METAL],
-    // de bakjes: rond, dus het geeft niet dat ze meedraaien
-    // (een rond raampje aan elke kant draait ook mee zonder dat je het ziet)
-    [merge(CABINS.flatMap(([x, y], i) => [
-      paint(new THREE.SphereGeometry(0.2, 12, 8).translate(x, y, 0), CABIN_COLORS[i % CABIN_COLORS.length]),
-      paint(new THREE.CylinderGeometry(0.105, 0.105, 0.39, 10).rotateX(Math.PI / 2).translate(x, y, 0), 0xf7f4ec),
-      paint(new THREE.CylinderGeometry(0.075, 0.075, 0.4, 10).rotateX(Math.PI / 2).translate(x, y, 0), 0x9fd8f5),
-    ])), PAINT_MAT],
-    // lichtjes rond het rad: ze gloeien in het donker
-    [merge(Array.from({ length: 12 }, (_, i) => (i / 12 + 1 / 24) * Math.PI * 2).flatMap(a => [-0.22, 0.22].map(z => dot(0.045, Math.cos(a) * FERRIS.radius, Math.sin(a) * FERRIS.radius, z)))), LAMP_MAT, false],
-  ],
+/** Het draaiende rad, om zijn as: twee velgen, een kleinere ring, spaken, de asjes van de bakjes, de naaf en de lampjes. */
+const spokeEnd = (i: number, r: number, z: number): P3 => [Math.cos((i * Math.PI * 2) / F.cabins) * r, Math.sin((i * Math.PI * 2) / F.cabins) * r, z];
+const FERRIS_WHEEL: Part[] = [
+  [painted(
+    [0xf7f4ec, ...[-F.rimZ, F.rimZ].flatMap(z => [
+      new THREE.TorusGeometry(F.radius, 0.05, 6, 48).translate(0, 0, z),
+      new THREE.TorusGeometry(F.radius * 0.56, 0.032, 5, 36).translate(0, 0, z),
+      ...Array.from({ length: F.cabins }, (_, i) => beam(0.05, spokeEnd(i, 0.25, z), spokeEnd(i, F.radius, z))),
+    ])],
+    // een ster van dunne stangen tussen de spaken, van de kleine ring naar de velg
+    [0xcfd8dd, ...[-F.rimZ, F.rimZ].flatMap(z => Array.from({ length: F.cabins }, (_, i) => beam(0.026, spokeEnd(i + 0.5, F.radius * 0.56, z), spokeEnd(i, F.radius, z))))],
+    [0x8a8f98, ...Array.from({ length: F.cabins }, (_, i) => new THREE.CylinderGeometry(0.028, 0.028, F.rimZ * 2, 6).rotateX(Math.PI / 2).translate(...spokeEnd(i, F.radius, 0)))],
+    [0xe0584f, new THREE.CylinderGeometry(0.34, 0.34, F.rimZ * 2 + 0.16, 16).rotateX(Math.PI / 2)],
+    [0xffd23f, ...[-1, 1].map(z => new THREE.CylinderGeometry(0.2, 0.2, 0.05, 12).rotateX(Math.PI / 2).translate(0, 0, z * (F.rimZ + 0.1)))],
+  ), PAINT_MAT],
+  // lampjes op de kleine ring en om de naaf: ze gloeien in het donker
+  [merge([-1, 1].flatMap(z => [
+    ...Array.from({ length: F.cabins }, (_, i) => dot(0.05, ...spokeEnd(i, F.radius * 0.56, z * (F.rimZ + 0.04)))),
+    ...Array.from({ length: 6 }, (_, i) => dot(0.045, Math.cos((i * Math.PI) / 3) * 0.27, Math.sin((i * Math.PI) / 3) * 0.27, z * (F.rimZ + 0.1))),
+  ])), LAMP_MAT, false],
+  // en de lampjes langs de velg, in drie groepen: het licht loopt het rad rond
+  ...CHASE_MATS.map((m, k): Part => [merge([-1, 1].flatMap(z => Array.from({ length: 12 }, (_, i) => {
+    const a = ((i * 3 + k + 0.5) * Math.PI) / 18;
+    return dot(0.065, Math.cos(a) * F.radius, Math.sin(a) * F.radius, z * (F.rimZ + 0.06));
+  }))), m, false]),
+];
+/**
+ * Een bakje, met zijn asje op (0, 0, 0): een open kuip met een bankje voor twee, die met een beugel aan het asje
+ * hangt. De voorkant is laag en het parasolletje bovenop is klein, zodat je de gasten van boven goed ziet zitten.
+ */
+const cabinGeo = (color: number): THREE.BufferGeometry => {
+  const floor = -F.floor, wide = 0.74, deep = 0.5, rim = floor + 0.31;
+  return painted(
+    [color,
+      boxAt(wide, 0.04, deep, 0, floor + 0.02, 0), boxAt(wide, 0.36, 0.035, 0, floor + 0.18, -deep / 2 + 0.018), boxAt(wide, 0.25, 0.035, 0, floor + 0.125, deep / 2 - 0.018),
+      boxAt(0.035, 0.31, deep, -wide / 2 + 0.018, floor + 0.155, 0), boxAt(0.035, 0.31, deep, wide / 2 - 0.018, floor + 0.155, 0)],
+    [shade(color, 0.72), boxAt(wide + 0.03, 0.045, deep + 0.03, 0, floor + 0.02, 0)],
+    [0xf7f4ec, boxAt(wide + 0.02, 0.035, 0.05, 0, floor + 0.265, deep / 2 - 0.018), boxAt(wide + 0.02, 0.035, 0.05, 0, floor + 0.375, -deep / 2 + 0.018),
+      // de beugel: aan weerszijden een stijl van de rand van de kuip naar het asje, met een dwarsstang bovenlangs
+      ...[-1, 1].map(x => boxAt(0.04, -rim - 0.02, 0.05, x * (wide / 2 - 0.02), (rim - 0.02) / 2, 0)), boxAt(wide, 0.04, 0.05, 0, -0.02, 0)],
+    [0xc58a4b, boxAt(wide - 0.08, 0.045, 0.21, 0, -F.seat - 0.0225, -0.1)],
+    [0x8a8f98, new THREE.CylinderGeometry(0.05, 0.05, F.rimZ * 2 - 0.12, 8).rotateX(Math.PI / 2)],
+  );
+};
+const cabinRoof = (color: number): THREE.BufferGeometry =>
+  merge([
+    striped(new THREE.ConeGeometry(0.36, 0.15, 8), [color, 0xf7f4ec], 8).rotateY(Math.PI / 8).scale(1, 1, 0.8).translate(0, 0.085, 0),
+    paint(dot(0.035, 0, 0.175, 0), 0xf7f4ec),
+  ]);
+const CABIN_GEOS = RIDE_COLORS.map(color => merge([cabinGeo(color), cabinRoof(color)]));
+RIDE_BUILD.ferris = (group, mat) => {
+  const wheel = build(FERRIS_WHEEL, mat);
+  wheel.position.y = F.hub;
+  // (het rad draait: de schaduw in de kleuren zou mee omhoog draaien)
+  wheel.userData.noShade = true;
+  group.add(wheel);
+  group.userData.wheel = wheel;
+  group.userData.cabins = Array.from({ length: F.cabins }, (_, i) => {
+    const cabin = piece(CABIN_GEOS[i % CABIN_GEOS.length], PAINT_MAT, mat);
+    group.add(cabin);
+    return cabin;
+  });
 };
 // Botsauto's: een gladde vloer met een rubberen rand en een licht dak op vier palen. De auto's zelf zijn los
 // (zie buildShop): het spel laat ze rijden.
@@ -2327,8 +2441,32 @@ function buildShop(kind: ShopKind, mat?: THREE.Material): THREE.Group {
       group.add(pivot);
       return pivot;
     });
+  // de losse stukken van een attractie (zie RIDE_BUILD), in rust: zo staat ook het voorbeeld bij het neerzetten
+  const ride = RIDE_BUILD[kind];
+  if (ride) {
+    ride(group, mat);
+    poseRide(group, kind, newRide(kind));
+  }
   if (!mat) shadeGroup(group);
   return group;
+}
+
+/**
+ * Zet alles wat aan een attractie beweegt in de stand van dit moment (zie RideState in rides.ts): het rad en de
+ * bakjes van het reuzenrad, de draaimolen met zijn paarden, de botsauto's, de zitjes van de speeltoestellen en de
+ * stralen van de fontein. De gasten rekenen met dezelfde stand en dezelfde getallen, dus ze zitten er precies op.
+ */
+function poseRide(group: THREE.Object3D, kind: ShopKind, s: RideState): void {
+  const u = group.userData;
+  if (kind === 'ferris') {
+    (u.wheel as THREE.Object3D).rotation.z = s.spin;
+    const cabins = u.cabins as THREE.Object3D[];
+    for (let i = 0; i < cabins.length; i++) {
+      const a = ferrisAngle(i, s.spin);
+      cabins[i].position.set(Math.cos(a) * FERRIS.radius, FERRIS.hub + Math.sin(a) * FERRIS.radius, 0);
+      cabins[i].rotation.z = ferrisSway(i, s);
+    }
+  }
 }
 
 // Een slinger van a naar b die een beetje doorhangt: het touw, en de vlaggetjes of lampjes die eraan hangen.
@@ -4310,6 +4448,11 @@ export class View {
     if (party && party.visible) (party.userData.balloons as THREE.Object3D).rotation.z = Math.sin(t * 1.6 + seed) * 0.09;
   }
 
+  /** Elk beeldje: alles wat aan een attractie beweegt in de stand van dit moment (zie poseRide en rides.ts). */
+  animateRide(group: THREE.Object3D, kind: ShopKind, state: RideState): void {
+    poseRide(group, kind, state);
+  }
+
   /** De deksel van de afvalbak klapt open en valt weer dicht (ruim een halve tel); animateShop speelt het af. */
   flapLid(group: THREE.Object3D): void {
     group.userData.flap = -1;
@@ -4645,6 +4788,7 @@ export class View {
     this.stepWeather(dt);
     this.placeRainbow();
     this.stepGong(dt);
+    chaseLamps(this.speckTime);
     for (const d of this.drops) {
       d.life -= dt;
       d.vy -= 5 * dt;

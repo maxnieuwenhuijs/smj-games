@@ -333,8 +333,12 @@ export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 
 /** Waar een gast naar kijkt (zin in iets moois) en waar hij in rijdt (zin in een ritje). De kabelbaan is allebei. */
 export const LOOKS: ShopKind[] = ['fountain', 'tower', 'cablecar'];
 export const RIDES: ShopKind[] = ['carousel', 'ferris', 'bumper', 'station', 'cablecar'];
-/** Maten van de grote attracties; het beeld en de gasten gebruiken dezelfde getallen. Alles ten opzichte van het midden van het gebouw. */
-export const FERRIS = { hub: 2.25, radius: 1.5, cabins: 6, speed: 0.45 };
+/**
+ * Maten van de grote attracties; het beeld en de gasten gebruiken dezelfde getallen. Alles ten opzichte van het midden
+ * van het gebouw. De maten en rekensommen van de attracties en speeltoestellen staan in rides.ts; wat hier nog
+ * vandaan gehaald wordt, komt daar ook vandaan.
+ */
+export { FERRIS } from './rides';
 export const TOWER_TOP = 1.75;
 /** De tafels van het restaurant (x, z) met aan weerszijden (x - 0,27 en x + 0,27) een kruk. */
 export const RESTAURANT_TABLES: [number, number][] = [[-0.45, 0.5], [0.5, 0.5], [0.5, -0.4]];
@@ -391,13 +395,17 @@ export const FENCE_COLORS: Record<1 | 3 | 4 | 5 | 7, number[]> = {
  */
 export const SHOP_SIZE: Record<ShopKind, number> = {
   foodstall: 2, drinkstall: 2, toilet: 2, playground: 2, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2, icecream: 2, balloon: 2, hats: 2, souvenir: 2, bench: 1, flowers: 1, bin: 1, fountain: 2, carousel: 2,
-  tower: 2, restaurant: 2, ferris: 2, bumper: 2, shelter: 2, station: 2, umbrellas: 1, show: 2, cablecar: 2, facepaint: 2,
+  tower: 2, restaurant: 2, ferris: 8, bumper: 2, shelter: 2, station: 2, umbrellas: 1, show: 2, cablecar: 2, facepaint: 2,
 };
 /**
  * Hoe diep een gebouw is (van voor naar achter), als dat anders is dan zijn breedte. Een marktkraam is twee tegels
- * breed maar maar één tegel diep: zijn lange kant is de voorkant. Hier staat alleen wat niet vierkant is.
+ * breed maar maar één tegel diep: zijn lange kant is de voorkant. Het reuzenrad is acht breed en twee diep. Hier
+ * staat alleen wat niet vierkant is.
  */
-export const SHOP_DEEP: Partial<Record<ShopKind, number>> = { foodstall: 1, drinkstall: 1, icecream: 1, balloon: 1, hats: 1, souvenir: 1, facepaint: 1 };
+export const SHOP_DEEP: Partial<Record<ShopKind, number>> = {
+  foodstall: 1, drinkstall: 1, icecream: 1, balloon: 1, hats: 1, souvenir: 1, facepaint: 1,
+  ferris: 2,
+};
 /** Wat je op de rand van een tegel zet, net als een hek: een bankje, bloembak, afvalbak of paraplubak neemt geen tegel in. */
 export const EDGE_SHOPS: ShopKind[] = ['bench', 'flowers', 'bin', 'umbrellas'];
 export const onEdge = (kind: ShopKind): boolean => EDGE_SHOPS.includes(kind);
@@ -533,7 +541,7 @@ export const SHOP_PRICE: Record<ShopKind, number> = {
   foodstall: 4, drinkstall: 4, bench: 2, toilet: 5, icecream: 8, balloon: 12, flowers: 2, bin: 2, souvenir: 16, playground: 6, slide: 5, swing: 6, seesaw: 6, springer: 5, trampoline: 8, hats: 14,
   // de grote attracties: daar spaar je voor
   fountain: 30, carousel: 60,
-  tower: 25, restaurant: 30, ferris: 80, bumper: 45, shelter: 10, station: 20, umbrellas: 6, show: 30,
+  tower: 25, restaurant: 30, ferris: 90, bumper: 45, shelter: 10, station: 20, umbrellas: 6, show: 30,
   // één huisje van de kabelbaan: je hebt er twee nodig
   cablecar: 25,
   // de schminktent

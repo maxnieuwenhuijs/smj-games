@@ -3,8 +3,9 @@
 import * as THREE from 'three';
 import { PLUSH, PRODUCTS, SEEK_REACH, STALLS, type FoodId, type ShopKind } from './data';
 import { Grid, H, W, tileIndex, tileXY } from './grid';
-import { BUMPER_CARS, DARK_FUN, FERRIS, LOOKS, PETTING_GUESTS, PLAY, RESTAURANT_TABLES, RIDES, SUIT_COLORS, TOWER_TOP, TRAIN, bumperCar, isPath } from './data';
+import { BUMPER_CARS, DARK_FUN, LOOKS, PETTING_GUESTS, PLAY, RESTAURANT_TABLES, RIDES, SUIT_COLORS, TOWER_TOP, TRAIN, bumperCar, isPath } from './data';
 import { SHOW_ROWS, SHOW_TIME } from './data';
+import { RIDE_KINDS, RIDE_SEATS, isRide, newPose, planVisit, rideLocal, visitAge, visitPose, visitTime, type RideState, type Visit } from './rides';
 import { CABLE, cableAt, cableLength, cableLoop, cablePassed, cableStop } from './cable';
 import { toWorldX, toWorldZ } from './view';
 import { arrivalPath, busPath, exitPath, pavementY } from './road';
@@ -36,6 +37,13 @@ export interface ShopSpot {
   amp?: number;
   /** Welke plekken bezet zijn (een bit per plek): zo zitten er geen twee gasten op hetzelfde zitje. */
   used?: number;
+  /**
+   * Een attractie of speeltoestel (zie rides.ts): de stand van dit moment (de klok, de hoek, hoe hard het gaat, de
+   * botsauto's). Het spel houdt hem elk beeldje bij; het beeld en de gasten lezen hem.
+   */
+  ride?: RideState;
+  /** Op welke plekken nu echt iemand zit (een bit per plek): wie er nog naartoe loopt of al weer afstapt, telt niet mee. */
+  aboard?: number;
   /**
    * Een bankje, bloembak of afvalbak staat op de rand van tegel (x, y), net als een hek, en neemt geen
    * tegel in: 'h' is de noordrand, 'v' de westrand.
@@ -765,10 +773,16 @@ type MoreIdle = 'yawn' | 'sigh' | 'peek' | 'rainbow' | 'fidget';
 /** Zoveel gasten kan één kraam, wc, bankje of attractie tegelijk helpen; de rest staat in de rij. */
 const AT_ONCE: Partial<Record<ShopKind, number>> = {
   toilet: 2, bench: 2, playground: 3, carousel: 4, fountain: 6, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2,
-  tower: 4, restaurant: 6, ferris: FERRIS.cabins, bumper: BUMPER_CARS, shelter: 6, station: 8, umbrellas: 2, show: SHOW_TIME.seats,
+  tower: 4, restaurant: 6, bumper: BUMPER_CARS, shelter: 6, station: 8, umbrellas: 2, show: SHOW_TIME.seats,
   // op het perron van de kabelbaan wachten er vier, elk in een hoekje; wie in een stoeltje zit, telt niet meer mee
   cablecar: 4,
 };
+// de attracties en speeltoestellen van rides.ts weten zelf hoeveel plekken ze hebben
+for (const kind of RIDE_KINDS) AT_ONCE[kind] = RIDE_SEATS[kind];
+/** De houding van een gast op een toestel: één keer gemaakt en bij elke gast opnieuw ingevuld (zie Guest.ridePlace). */
+const RIDE_POSE = newPose();
+/** Eerst de kant waar de gast heen kijkt, dan voorover hellen en dan opzij: zo helt hij altijd vanuit zichzelf gezien. */
+const RIDE_TURN = new THREE.Euler(0, 0, 0, 'YXZ');
 /** Zo lang duurt het voor een gast geholpen is. Op de tribune blijft hij zitten tot de show voorbij is. */
 const SERVE_TIME: Partial<Record<ShopKind, number>> = {
   foodstall: 6, drinkstall: 6, icecream: 6, balloon: 4, hats: 4, souvenir: 4, toilet: 9, bench: 8, playground: 6, carousel: 8, fountain: 4, slide: 6, swing: 7, seesaw: 7, springer: 6, trampoline: 6,
@@ -1288,6 +1302,12 @@ export class Guest implements Leader {
   private cue: GuestCue | null = null;
   private chewC = 0;
   private rideMark = 0;
+  /** Het bezoek aan een attractie of speeltoestel (zie rides.ts): op welk zitje, en hoe lang elk stuk duurt. */
+  private onRide: Visit | null = null;
+  /** Zit of staat de gast nu echt op het toestel (niet meer onderweg ernaartoe of terug)? De GuestManager telt het per zitje. */
+  aboard = false;
+  /** Het bezoek is voorbij: de gast staat weer op het pad. */
+  private rideOver = false;
   private useHeard = false;
   /** Zoveel tellen blijft de gast nog even staan tijdens het lopen, voor een kort gebaar. `gaze`: hij kijkt dan naar (lookX, lookY). */
   private stall = 0;
@@ -1944,6 +1964,8 @@ export class Guest implements Leader {
       return;
     }
     const kind = this.state === 'sit' ? this.shop?.kind : undefined;
+    // op een attractie of speeltoestel: de plek en de houding komen uit rides.ts
+    if (kind && this.onRide && this.shop?.ride && this.onRide.kind === kind) return this.ridePlace(this.shop, this.onRide, this.shop.ride);
     // bij een ding in het park of aan de rand van de fontein: een paar passen van het pad af
     if (this.state === 'use' && this.sight) return this.usePlace();
     if (kind === 'fountain' && this.shop) return this.fountainPlace();
@@ -2097,24 +2119,6 @@ export class Guest implements Leader {
         }
         return;
       }
-      if (kind === 'ferris') {
-        // in een bakje van het reuzenrad: mee omhoog en weer omlaag
-        const a = (this.seat * Math.PI * 2) / FERRIS.cabins + spin;
-        put(mix(here, at(Math.cos(a) * FERRIS.radius, FERRIS.hub + Math.sin(a) * FERRIS.radius - 0.12 - sit, 0), k), k > 0.5 ? turn : this.heading);
-        legs(-1.3 * k);
-        // bovenin gaan de armen omhoog; onderweg zwaait de een naar beneden en wijst de ander iets aan in de diepte
-        if (Math.sin(a) > 0.55) arms(-2.7);
-        else if (k > 0.9 && Math.sin(a) > -0.5) {
-          if (this.seat % 2) {
-            this.limbs[2].rotation.x = -2.6;
-            this.limbs[2].rotation.z = Math.sin(this.phase * 0.85) * 0.45;
-          } else {
-            this.limbs[2].rotation.x = -0.95 + Math.sin(this.phase * 0.3) * 0.08;
-            this.head.rotation.x = 0.35;
-          }
-        }
-        return;
-      }
       if (kind === 'bumper') {
         // in een botsauto: de auto rijdt, de gast zit erin en stuurt
         const [x, z, h] = bumperCar(this.seat % BUMPER_CARS, spin);
@@ -2211,6 +2215,65 @@ export class Guest implements Leader {
     m.position.set(toWorldX(this.gx - hs * this.back + hc * this.aside), (this.state === 'accident' ? -0.07 : kneel) + this.hop, toWorldZ(this.gy - hc * this.back - hs * this.aside));
     // een moe gastje loopt een beetje voorovergebogen
     m.rotation.set((this.tired > 0.7 && this.state === 'walk' ? 0.12 : 0) + this.lean, this.heading + this.twist, this.tilt);
+  }
+
+  /**
+   * Op een attractie of speeltoestel (zie rides.ts): waar de gast is, hoe hij staat of zit, en wat hij met armen,
+   * benen en hoofd doet. De plek komt uit het bezoek en uit de stand van het toestel: dezelfde getallen als waarmee
+   * het beeld het model beweegt, dus de gast zit altijd precies op zijn zitje.
+   */
+  private ridePlace(shop: ShopSpot, visit: Visit, ride: RideState): void {
+    const m = this.mesh, p = visitPose(RIDE_POSE, visit, ride), limbs = this.limbs, head = this.head;
+    // het toestel draait mee met het gebouw
+    const turn = ((shop.rot ?? 0) * Math.PI) / 2, cos = Math.cos(turn), sin = Math.sin(turn);
+    const cx = shop.x + (shop.w ?? shop.size) / 2, cy = shop.y + (shop.h ?? shop.size) / 2, k = p.sit;
+    // wie zit, zit met zijn billen op de zitting: de voeten hangen eronder
+    m.position.set(toWorldX(cx + p.x * cos + p.z * sin), p.h - k * 0.2 * m.scale.y, toWorldZ(cy - p.x * sin + p.z * cos));
+    m.quaternion.setFromEuler(RIDE_TURN.set(p.pitch, turn + p.face, p.roll));
+    this.heading = turn + p.face;
+    this.aboard = p.on;
+    this.rideOver = p.done;
+    this.stepping = p.act === 'walk' || p.act === 'climb';
+    const legs = (a: number): void => {
+      limbs[0].rotation.x = limbs[1].rotation.x = a;
+    };
+    const arms = (a: number): void => {
+      limbs[2].rotation.x = limbs[3].rotation.x = a;
+    };
+    const wave = (arm: THREE.Object3D, lift = -2.6): void => {
+      arm.rotation.x = lift;
+      arm.rotation.z = Math.sin(this.phase * 0.85) * 0.45;
+    };
+    if (p.act === 'climb') {
+      // een trap op of af: om de beurt een been en een arm, de handen aan de leuning
+      const step = Math.sin(this.phase * 0.9) * 0.5;
+      limbs[0].rotation.x = step - 0.3;
+      limbs[1].rotation.x = -step - 0.3;
+      limbs[2].rotation.x = -0.9 - step * 0.5;
+      limbs[3].rotation.x = -0.9 + step * 0.5;
+      return;
+    }
+    if (p.act === 'walk') return;
+    switch (visit.kind) {
+      case 'ferris':
+        legs(-1.3 * k);
+        if (!p.on) {
+          // op het perron: omhoog kijken naar het rad; een kind wipt van ongeduld
+          if (k <= 0) {
+            head.rotation.x = -0.35;
+            if (this.child) m.position.y += Math.abs(Math.sin(this.phase * 0.6)) * 0.03;
+          }
+        } else if (p.u > 0.78) arms(-2.7); // bovenin gaan de armen omhoog
+        else if (p.u > 0.25) {
+          // onderweg zwaait de een naar beneden en wijst de ander iets aan in de diepte
+          if (this.seat % 2) wave(limbs[2]);
+          else {
+            limbs[2].rotation.x = -0.95 + Math.sin(this.phase * 0.3) * 0.08;
+            head.rotation.x = 0.35;
+          }
+        } else arms(-0.7 * k); // onderin: de handen op de rand
+        break;
+    }
   }
 
   private turnTo(dx: number, dy: number, dt: number): void {
@@ -3354,8 +3417,9 @@ export class Guest implements Leader {
       if (!w.shops.includes(this.shop)) {
         this.state = 'idle'; // de kraam is intussen weggehaald
         this.timer = 0.2;
-      } else if ((this.shop.busyNow ?? 0) < (AT_ONCE[this.shop.kind] ?? 1)) this.serve();
-      else if (this.shop.kind === 'bench') {
+      } else if ((this.shop.busyNow ?? 0) < (AT_ONCE[this.shop.kind] ?? 1) && this.serve()) {
+        // meteen aan de beurt
+      } else if (this.shop.kind === 'bench') {
         // het bankje is vol: voor een bankje ga je niet in de rij staan. Wie echt moe is, moppert en loopt door;
         // wie alleen even wilde uitrusten, loopt gewoon verder
         if (this.easy) this.timer = 0.3;
@@ -3445,18 +3509,30 @@ export class Guest implements Leader {
     this.inside = false;
   }
 
-  /** Aan de beurt: bestellen, naar de wc, gaan zitten of instappen. */
-  serve(): void {
-    if (!this.shop) return;
-    const kind = this.shop.kind;
+  /**
+   * Aan de beurt: bestellen, naar de wc, gaan zitten of instappen. Geeft false als het nu niet kan: de draaimolen
+   * draait al of de botsauto's rijden (dan wacht de gast in de rij tot het ritje voorbij is).
+   */
+  serve(): boolean {
+    if (!this.shop) return false;
+    const kind = this.shop.kind, used = this.shop.used ?? 0;
+    // een attractie of speeltoestel: een zitje kiezen en uitrekenen hoe het bezoek verloopt (zie rides.ts)
+    let visit: Visit | null = null;
+    if (isRide(kind) && this.shop.ride) {
+      const shop = this.shop, [fx, fz] = rideLocal(this.gx, this.gy, shop.x + (shop.w ?? shop.size) / 2, shop.y + (shop.h ?? shop.size) / 2, shop.rot ?? 0);
+      visit = planVisit(kind, shop.ride!, used, fx, fz);
+      if (!visit) return false;
+    }
+    this.onRide = visit;
+    this.aboard = this.rideOver = false;
     this.state = SEATED.includes(kind) ? 'sit' : 'buy';
     // de eerste vrije plek: zo zitten er geen twee op hetzelfde zitje
-    const places = AT_ONCE[kind] ?? 1, used = this.shop.used ?? 0;
-    let seat = 0;
-    while (seat < places - 1 && used & (1 << seat)) seat++;
+    const places = AT_ONCE[kind] ?? 1;
+    let seat = visit ? visit.seat : 0;
+    while (!visit && seat < places - 1 && used & (1 << seat)) seat++;
     this.seat = seat;
     this.shop.used = used | (1 << seat);
-    this.timer = SERVE_TIME[kind] ?? 3;
+    this.timer = visit ? visitTime(visit) : SERVE_TIME[kind] ?? 3;
     this.waitT = 0;
     this.rode = false;
     // een nieuwe gok voor wat de gast op het bankje of bij de fontein doet
@@ -3478,6 +3554,7 @@ export class Guest implements Leader {
     }
     // wie met iets lekkers op het bankje gaat zitten, eet het daar rustig op
     if (kind === 'bench' && this.snack) this.eating = Math.max(this.eating, this.timer - 1.5);
+    return true;
   }
 
   /** Te lang gewacht of nergens plek: de gast moppert, wordt minder blij en laat zien waar het te druk is. */
@@ -3491,6 +3568,9 @@ export class Guest implements Leader {
   /** Klaar met kijken, kopen of zitten. Geeft true als de gast zelf al weet wat hij hierna doet. */
   private finish(w: GuestWorld): boolean {
     const kind = this.shop?.kind;
+    // (een bezoek aan een toestel is hiermee voorbij)
+    this.onRide = null;
+    this.aboard = this.rideOver = false;
     if (this.state === 'use') return this.endUse(w);
     if (this.state === 'watch' && this.pen && this.penPhase === 3) {
       // genoeg geaaid: door het poortje weer naar buiten
@@ -3961,7 +4041,7 @@ export class Guest implements Leader {
     }
     // hoge nood: de gast heeft nog een halve minuut om een wc te halen
     this.urgent = this.bladder >= 1 ? this.urgent + dt : 0;
-    if (this.urgent > 30 && !(this.state === 'buy' && this.shop?.kind === 'toilet') && !this.inside && !this.riding && !this.tour) {
+    if (this.urgent > 30 && !(this.state === 'buy' && this.shop?.kind === 'toilet') && !this.inside && !this.riding && !this.tour && !(this.state === 'sit' && this.aboard)) {
       this.urgent = 0;
       this.state = 'accident';
       this.timer = 2.4;
@@ -4013,8 +4093,13 @@ export class Guest implements Leader {
       // wie uit de rij aan de beurt is, stapt eerst naar de toonbank
       else if (!(this.state === 'buy' && this.shuffle(dt, reach)) && face) this.turnTo(face[0] - this.gx, face[1] - this.gy, dt);
       if (this.state === 'sit' && this.shop) {
-        // in het treintje blijf je zitten tot de volgende halte; op het perron wacht je tot het komt
-        if (this.riding) {
+        if (this.onRide) {
+          // op een attractie of speeltoestel: het bezoek loopt gelijk met de klok van het toestel zelf (zie rides.ts)
+          // en is voorbij zodra de gast weer op het pad staat. Is het toestel intussen weggehaald, dan meteen
+          const ride = this.shop.ride;
+          this.timer = ride && !this.rideOver && w.shops.includes(this.shop) ? visitTime(this.onRide) - visitAge(this.onRide, ride) + dt : 0;
+        } else if (this.riding) {
+          // in het treintje blijf je zitten tot de volgende halte; op het perron wacht je tot het komt
           this.timer = Math.max(this.timer, 1);
           this.peek = Math.max(0, this.peek - dt);
         } else if (this.shop.kind === 'station' && !this.rode) {
@@ -5657,6 +5742,7 @@ export class GuestManager {
       shop.busyNow = 0;
       shop.line = 0;
       shop.used = 0;
+      shop.aboard = 0;
       if (shop.kind === 'toilet' && shop.mesh) shop.mesh.userData.ajar = 0;
     }
     for (const g of this.guests) {
@@ -5666,12 +5752,14 @@ export class GuestManager {
       else {
         shop.busyNow = (shop.busyNow ?? 0) + 1;
         shop.used = (shop.used ?? 0) | (1 << g.seat);
+        if (g.aboard) shop.aboard = (shop.aboard ?? 0) | (1 << g.seat);
         if (shop.mesh && g.doorOpen) shop.mesh.userData.ajar |= 1 << g.seat;
       }
     }
     for (const [shop, line] of waiting) {
       line.sort((p, q) => p.joined - q.joined);
-      while (line.length && (shop.busyNow ?? 0) < (AT_ONCE[shop.kind] ?? 1)) line.shift()!.serve();
+      // (lukt het de voorste niet, dan draait de draaimolen nog of rijden de botsauto's: de hele rij wacht)
+      while (line.length && (shop.busyNow ?? 0) < (AT_ONCE[shop.kind] ?? 1) && line[0].serve()) line.shift();
       shop.line = line.length;
       if (!line.length) continue;
       // de rij begint op de tegel voor de kraam waar de gasten aankwamen. Die plek blijft vast: zo schuift de
