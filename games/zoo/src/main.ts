@@ -78,7 +78,7 @@ function logoHtml(kind: 'splash' | 'start'): string {
     '</div>';
 }
 /** Zo lang staat het laadscherm met de letters er minstens, ook als alles al geladen is (milliseconden). */
-const SPLASH_MS = 2600;
+const SPLASH_MS = 2000;
 
 async function showStart(): Promise<void> {
   if (!$('logo').childElementCount) $('logo').innerHTML = logoHtml('start');

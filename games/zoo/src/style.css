@@ -609,20 +609,20 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
    stuiteren daarna om de beurt zachtjes na; op het laadscherm stijgen er belletjes op */
 .logo { position: relative; display: flex; align-items: flex-end; justify-content: center; }
 .logo figure { position: relative; margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: 0; transform-origin: 50% 100%;
-  animation: logo-pop 0.9s cubic-bezier(0.25, 1, 0.4, 1) forwards, logo-jelly 2.1s ease-in-out 1.2s infinite; }
+  animation: logo-pop 0.5s cubic-bezier(0.25, 1, 0.4, 1) forwards, logo-jelly 4.6s ease-in-out 0.9s infinite; }
 .logo figure + figure { margin-left: max(-4.5vw, -40px); }
 .logo .l-m { z-index: 1; }
 /* de J staat een stukje voor de M */
 .logo figure.l-j { z-index: 2; margin-left: max(-9vw, -86px); }
-.logo figure:nth-child(2) { animation-delay: 0.3s, 1.9s; }
-.logo figure:nth-child(3) { animation-delay: 0.6s, 2.6s; }
+.logo figure:nth-child(2) { animation-delay: 0.14s, 1.6s; }
+.logo figure:nth-child(3) { animation-delay: 0.28s, 2.3s; }
 .logo img { display: block; width: auto; height: min(30vh, 30vw, 290px); filter: drop-shadow(0 8px 0 rgba(0, 0, 0, 0.1)); user-select: none; }
 .logo .l-m img { height: min(24vh, 24vw, 232px); }
 .logo figcaption { font: 900 clamp(15px, 3.2vw, 30px)/1 system-ui, sans-serif; letter-spacing: 0.02em; opacity: 0;
-  text-shadow: 0 2px 0 #fff, 2px 0 0 #fff, -2px 0 0 #fff, 0 -2px 0 #fff, 0 4px 0 rgba(0, 0, 0, 0.12); animation: logo-word 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
-.logo .l-s figcaption { color: #e8641a; animation-delay: 0.5s; }
-.logo .l-m figcaption { color: #a0249b; animation-delay: 0.8s; }
-.logo .l-j figcaption { color: #18877f; animation-delay: 1.1s; }
+  text-shadow: 0 2px 0 #fff, 2px 0 0 #fff, -2px 0 0 #fff, 0 -2px 0 #fff, 0 4px 0 rgba(0, 0, 0, 0.12); animation: logo-word 0.35s cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
+.logo .l-s figcaption { color: #e8641a; animation-delay: 0.3s; }
+.logo .l-m figcaption { color: #a0249b; animation-delay: 0.44s; }
+.logo .l-j figcaption { color: #18877f; animation-delay: 0.58s; }
 /* de woorden schuiven iets uit elkaar, omdat de J over de M heen staat */
 .logo .l-m figcaption { position: relative; left: min(-2vw, -6px); }
 .logo .l-j figcaption { position: relative; left: min(4vw, 40px); }
@@ -645,11 +645,11 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
   100% { opacity: 1; transform: none; }
 }
 @keyframes logo-jelly {
-  0%, 62%, 100% { transform: none; }
-  12% { transform: scale(1.08, 0.92); }
-  26% { transform: translateY(-14px) scale(0.94, 1.07); }
-  40% { transform: translateY(0) scale(1.05, 0.95); }
-  52% { transform: scale(0.98, 1.02); }
+  0%, 34%, 100% { transform: none; }
+  7% { transform: scale(1.04, 0.96); }
+  15% { transform: translateY(-7px) scale(0.97, 1.04); }
+  23% { transform: translateY(0) scale(1.03, 0.97); }
+  29% { transform: scale(0.99, 1.01); }
 }
 @keyframes logo-word { from { opacity: 0; transform: translateY(10px) scale(0.4); } to { opacity: 1; transform: none; } }
 @keyframes logo-bubble {
