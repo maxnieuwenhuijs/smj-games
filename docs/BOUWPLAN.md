@@ -928,6 +928,20 @@ Een ziek dier beter maken is nu een bezoek van twee of drie kleine spelletjes, e
 - **Maken:** een tik met de hamer op een licht versleten hek maakt het meteen. Bij een los of kapot hek komt er een kaart met een spelletje dat bij het hek past (`fixgame.ts`): spijkers erin timmeren (hout), stenen terugleggen en de voegen smeren (steen), het net strak trekken en knopen leggen (net), de barst lijmen en het glas schoonvegen (glas). Wegklikken laat het hek zoals het was.
 - De klusser (personeel) maakt een hek nog steeds zonder spelletje. Een sterk dier duwt ook het witte hekje, een net en glas kapot (een stenen muur niet).
 
+### Wat de proefspeler liet zien (27 november)
+
+De proefspeler speelt nu ook zonder venster (`node tools/playtest/speel.mjs`), en dan zonder te tekenen: vijftig levels duren zo een paar minuten. Dezelfde proefspeler is losgelaten op het spel van vóór deze ronde en op het spel erna. In alle zes de proeven haalde hij alle 50 levels zonder een dier kwijt te raken.
+
+| Hoe | Vóór deze ronde | Na deze ronde |
+|---|---|---|
+| Snel en foutloos, de kas wordt bijgevuld als hij leeg is | 57 minuten speltijd, kas 31 keer bijgevuld | 74 minuten, kas 31 keer bijgevuld |
+| Als een kind: één handeling per 8 tellen, de kas nooit bijgevuld | 72 minuten | 82 minuten |
+| Als een kind op een trage tablet (daar komen hooguit 45 gasten) | 91 minuten | 92 tot 98 minuten |
+
+Het spel duurt dus een zesde tot een derde langer: de levels vragen meer dieren tegelijk en meer soorten doelen, en de dieren willen meer afwisseling in speelgoed en natuur. Aan munten kost het niet meer dan eerst. Eén ding kwam uit deze proef: op de trage tablet bleef level 46 (tien keer afval oprapen) langer dan een kwartier hangen, omdat er met minder gasten te weinig afval kwam; daarom laten gasten het nu vaker vallen als een level erom vraagt (zie Tijd). De tijden per level wisselen flink per keer (een jong of de nacht afwachten): level 35 duurde in zes proeven tussen de anderhalve en elf minuten.
+
+Zonder beeldkaart meet het spel zichzelf als een traag apparaat; de proefspeler zet daarom zelf vast hoe snel het apparaat is (`speed` in `kijk.mjs`). Bij de eerste proeven van deze ronde stond dat nog niet vast, en leek level 46 daardoor voor iedereen te blijven hangen.
+
 ## Bekende zwakke punten van de modellen
 
 De modellen zijn op stilstaande beelden bekeken en doorgemeten (niets zakt meer dan een centimeter door de grond), maar geen enkele animatie is in beweging beoordeeld. Wat de modelbouwers zelf als zwak aanmerkten:
