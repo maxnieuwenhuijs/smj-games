@@ -529,6 +529,37 @@ const ICONS = {
     `<rect x="30" y="5" width="8.5" height="16" rx="2.6" fill="#b9bec6" stroke="${INK}" stroke-width="2"/>` +
     `<path d="M14 10.5 H27" stroke="#dde1e6" stroke-width="2.2" stroke-linecap="round"/><path d="M33 8.5 V17.5" stroke="#e8ebef" stroke-width="1.8" stroke-linecap="round"/>` +
     `</g>`,
+  // een hek maken (fixgame.ts): een spijker voor hout, een troffel en een baksteen voor de muur, een knoop voor het net, lijm en een doekje voor het glas
+  nail:
+    `<g transform="rotate(38 24 24)"><path d="M21 11 H27 V35 L24 45 L21 35Z" fill="#9aa1ab" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>` +
+    `<rect x="13" y="4" width="22" height="7.5" rx="3" fill="#c8cdd4" stroke="${INK}" stroke-width="2"/><path d="M23.2 15 V33" stroke="#e8ebef" stroke-width="1.8" stroke-linecap="round"/>` +
+    `<path d="M17 7 H26" stroke="#eef0f3" stroke-width="1.8" stroke-linecap="round"/></g>`,
+  trowel:
+    `<path d="M4 41 L21 15 L33 27Z" fill="#c8cdd4" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><path d="M11 33 L22 19" stroke="#eef0f3" stroke-width="2.2" stroke-linecap="round"/>` +
+    `<path d="M7 38.5 Q13 31.5 19.5 34.5 Q20 38 16 39.2Z" fill="#a9a498"/>` +
+    `<path d="M27 21 Q30 21 31 17" fill="none" stroke="#7d848e" stroke-width="4.5" stroke-linecap="round"/>` +
+    `<path d="M32 16 L42 6" stroke="${WOOD_D}" stroke-width="9" stroke-linecap="round"/><path d="M33 15 L41 7" stroke="${WOOD}" stroke-width="4.5" stroke-linecap="round"/>`,
+  wallbrick:
+    `<ellipse cx="24" cy="41" rx="19" ry="2.8" fill="#000" opacity=".12"/>` +
+    `<path d="M4 19 L30 12 L44 18 V31 L18 39 L4 32Z" fill="#c9624a" stroke="#8f3f2e" stroke-width="2" stroke-linejoin="round"/><path d="M4 19 L30 12 L44 18 L18 25Z" fill="#e08a6e"/>` +
+    `<path d="M4 19 L18 25 L44 18 M18 25 V39" fill="none" stroke="#8f3f2e" stroke-width="2" stroke-linejoin="round"/>` +
+    `<path d="M22.5 29 L39.5 24 M22.5 34 L39.5 29" stroke="#a84e3a" stroke-width="1.6" stroke-linecap="round" opacity=".7"/>`,
+  knot:
+    `<path d="M2 29 H46" stroke="#a8823c" stroke-width="8.5" stroke-linecap="round"/><path d="M2 29 H46" stroke="#dcb96e" stroke-width="5" stroke-linecap="round"/>` +
+    `<path d="M19 25 L10 8 M29 25 L38 8" stroke="#a8823c" stroke-width="8" stroke-linecap="round"/><path d="M19 25 L10 8 M29 25 L38 8" stroke="#dcb96e" stroke-width="4.5" stroke-linecap="round"/>` +
+    `<ellipse cx="24" cy="28" rx="11" ry="9.5" fill="#dcb96e" stroke="#a8823c" stroke-width="2.4"/>` +
+    `<path d="M16.5 24 Q24 30 31.5 24 M17 33 Q24 27 31 33" fill="none" stroke="#a8823c" stroke-width="2.2" stroke-linecap="round"/>`,
+  glue:
+    `<g transform="rotate(-40 24 26)"><path d="M16 44 H32 L30.5 18 H17.5Z" fill="#fff" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>` +
+    `<rect x="14" y="41" width="20" height="5.5" rx="1.6" fill="#c8cdd4" stroke="${INK}" stroke-width="2"/>` +
+    `<path d="M17.5 18 H30.5 L27.5 11 H20.5Z" fill="${RED}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>` +
+    `<path d="M21.6 11 H26.4 L25.2 3.5 H22.8Z" fill="${SUN}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>` +
+    `<rect x="19" y="23" width="10" height="12" rx="2" fill="#6ec3e8"/><path d="M21.5 27 h5 M21.5 31 h5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></g>` +
+    `<path d="M9 8 C12 11 11.5 14 9 14 C6.5 14 6 11 9 8Z" fill="#f7e9a8" stroke="#d9b93f" stroke-width="1.4"/>`,
+  cloth:
+    `<path d="M7 15 Q15 9 24 13 Q33 17 41 11 L43 33 Q35 40 26 36 Q17 32 9 38Z" fill="#8fd0ee" stroke="#3f8fb5" stroke-width="2.2" stroke-linejoin="round"/>` +
+    `<path d="M15 18 Q21 23 19 31 M28 20 Q33 25 31 32" fill="none" stroke="#3f8fb5" stroke-width="1.8" stroke-linecap="round" opacity=".55"/>` +
+    `<path d="M12 4 L13.6 8.4 L18 10 L13.6 11.6 L12 16 L10.4 11.6 L6 10 L10.4 8.4Z" fill="${SUN}"/><path d="M39 36 L40.2 39.3 L43.5 40.5 L40.2 41.7 L39 45 L37.8 41.7 L34.5 40.5 L37.8 39.3Z" fill="${SUN}"/>`,
   // het hok is te klein: een klein verblijf met een dier dat er bijna niet in past, en groene pijlen naar de grootte die het moet worden
   grow:
     `<rect x="4" y="4" width="40" height="40" rx="5" fill="#dff2d0" stroke="#5bab4c" stroke-width="3" stroke-dasharray="5 4"/>` +
@@ -867,6 +898,25 @@ const ICONS = {
     `<rect x="14.5" y="10" width="9" height="8" fill="#a8622a"/><rect x="12" y="4" width="14" height="7" rx="2" fill="#fff" stroke="${GREY}" stroke-width="1.6"/><rect x="7" y="16" width="24" height="29" rx="5" fill="#a8622a"/>` +
     `<rect x="10" y="24" width="18" height="14" rx="2" fill="#fff"/><path d="M19 27 V35 M15 31 H23" stroke="${RED}" stroke-width="3.2" stroke-linecap="round"/>` +
     '<path d="M39 28 V44" stroke="#9aa0a6" stroke-width="4" stroke-linecap="round"/><ellipse cx="39" cy="20" rx="6.5" ry="8.5" fill="#b9c2c9"/><ellipse cx="39" cy="20.5" rx="4.3" ry="6" fill="#f06aa6"/>',
+  // de spelletjes van de dokter (vetgame.ts): luisteren naar het hart, een wondje schoonmaken, een doorn eruit halen, tanden poetsen
+  stetho:
+    `<path d="M12 5 V17 Q12 28 21 28 Q30 28 30 17 V5" fill="none" stroke="#3d4f5a" stroke-width="4.2" stroke-linecap="round"/>` +
+    `<circle cx="12" cy="5" r="3.2" fill="${INK}"/><circle cx="30" cy="5" r="3.2" fill="${INK}"/>` +
+    `<path d="M21 28 V35 Q21 43 29 43 Q37 43 37 35 V31" fill="none" stroke="#3d4f5a" stroke-width="4.2" stroke-linecap="round"/>` +
+    `<circle cx="37" cy="25" r="7.5" fill="#c8cdd4" stroke="${INK}" stroke-width="2"/><circle cx="37" cy="25" r="3.4" fill="${RED}"/>`,
+  cotton:
+    `<ellipse cx="24" cy="43" rx="15" ry="2.6" fill="#000" opacity=".12"/>` +
+    `<path d="M12 35 Q4 33 7 25 Q4 16 13 15 Q16 7 25 10 Q34 6 38 15 Q46 18 42 27 Q46 36 36 37 Q30 43 22 39 Q15 42 12 35Z" fill="#fff" stroke="#aab4bd" stroke-width="2.2" stroke-linejoin="round"/>` +
+    `<path d="M14 24 q4 -4.5 8 0 M26 21 q4 -4.5 8 0 M20 32 q3.5 -4 7 0" fill="none" stroke="#cdd5dc" stroke-width="2.2" stroke-linecap="round"/>`,
+  tweezers:
+    `<g transform="rotate(40 24 24)"><path d="M21.5 4 Q24 2 26.5 4 L31 25 L25.6 46 L24.7 29 L24 11 L23.3 29 L22.4 46 L17 25Z" fill="#c8cdd4" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>` +
+    `<path d="M20 22 L22 8" stroke="#eef0f3" stroke-width="1.8" stroke-linecap="round"/><path d="M19.5 28 h3 M25.5 28 h3" stroke="#8a8f98" stroke-width="1.6" stroke-linecap="round"/></g>`,
+  toothbrush:
+    `<g transform="rotate(-38 24 24)"><rect x="2" y="22" width="32" height="6.5" rx="3.2" fill="#4a90e2" stroke="#2f6fb8" stroke-width="2"/>` +
+    `<rect x="30" y="20" width="15" height="9" rx="3.2" fill="#6aa8ee" stroke="#2f6fb8" stroke-width="2"/>` +
+    `<path d="M33 20 V12.5 M36.3 20 V11.5 M39.6 20 V11.5 M42.9 20 V12.5" stroke="#9fb1c2" stroke-width="3.6" stroke-linecap="round"/>` +
+    `<path d="M33 20 V12.5 M36.3 20 V11.5 M39.6 20 V11.5 M42.9 20 V12.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>` +
+    `<path d="M32 12 Q34 7 38 9 Q42 6 44 12 Q38 15 32 12Z" fill="#9be3c8" stroke="#5fbf9c" stroke-width="1.4" stroke-linejoin="round"/></g>`,
   // het weer en de seizoenen
   rain:
     '<g fill="#9fb2c4"><circle cx="15" cy="19" r="9"/><circle cx="27" cy="14" r="11"/><circle cx="37" cy="20" r="7.5"/><rect x="6" y="18" width="39" height="10" rx="5"/></g>' +
@@ -940,6 +990,13 @@ const ICONS = {
     '<path d="M7 28 Q7 22 12 22 H36 Q41 22 41 28 Q38 33 35 28.5 Q32 33 29.5 28.5 Q26.5 33 24 28.5 Q21.5 33 18.5 28.5 Q16 33 13 28.5 Q10 33 7 28Z" fill="#fff7e0"/>' +
     `<g fill="${RED}"><circle cx="14" cy="36.5" r="2"/><circle cx="24" cy="37" r="2"/><circle cx="34" cy="36.5" r="2"/></g><rect x="22" y="11" width="4" height="12" rx="1" fill="#4a90e2"/><path d="M22 16 l4 -2 M22 20 l4 -2" stroke="#fff" stroke-width="1.3"/>` +
     `<path d="M24 2 C28 7 27.5 11 24 11 C20.5 11 20 7 24 2Z" fill="#f08a24"/><path d="M24 6 C26 8.5 25.5 10.5 24 10.5 C22.5 10.5 22 8.5 24 6Z" fill="${SUN}"/>`,
+  // een cadeautje met een strik, voor de puzzeltjes op een verjaardag
+  gift:
+    `<ellipse cx="24" cy="44" rx="18" ry="2.8" fill="#000" opacity=".12"/>` +
+    `<rect x="8" y="21" width="32" height="22" rx="3" fill="#4a90e2" stroke="#2f6fb8" stroke-width="2"/><rect x="5" y="14" width="38" height="9.5" rx="3" fill="#6aa8ee" stroke="#2f6fb8" stroke-width="2"/>` +
+    `<rect x="20.5" y="14" width="7" height="29" fill="${SUN}" stroke="${SUN_D}" stroke-width="1.4"/>` +
+    `<path d="M24 14 C19 3 8 5 11.5 10.5 C13.5 14 20 14 24 14 C28 14 34.5 14 36.5 10.5 C40 5 29 3 24 14Z" fill="${RED}" stroke="#b83a32" stroke-width="1.8" stroke-linejoin="round"/>` +
+    `<circle cx="24" cy="13.5" r="2.8" fill="#b83a32"/>`,
   schoolclass:
     `<path d="M1 45 Q1 32 10 32 Q19 32 19 45Z" fill="${RED}"/><path d="M29 45 Q29 32 38 32 Q47 32 47 45Z" fill="#4a90e2"/>` +
     `<circle cx="10" cy="24" r="7.5" fill="${SKIN}"/><path d="M2.5 23 Q3 15 10 15 Q17 15 17.5 23 Q10 19 2.5 23Z" fill="#7a4a22"/>` +

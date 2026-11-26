@@ -99,14 +99,18 @@ export type EventPart = 'ask' | 'good' | 'bad';
  * Wie er bij een evenement praat, en hoeveel verschillende zinnen er zijn voor de vraag (ask), voor goed afgelopen
  * (good) en voor niet gelukt (bad). Het spel kiest er elke keer een andere uit. Staat er geen `who`, dan praat de juf
  * of de meester van de klas. De teksten heten say.event.<id>.1, say.event.<id>.good.1, say.event.<id>.bad.1, ...
- *   class.sum, class.count, class.draw, class.line, class.guide: wat de klas kan vragen
+ *   class.sum, class.count, class.draw, class.line, class.quiz, class.game, class.guide: wat de klas kan vragen
  *   class.go: de klas laat zien welk dier ze zoekt; class: hoe het puzzeltje afliep; class.bye: de klas gaat naar huis
+ *   party.count, photo.shadow, crates.eat, ...: een evenement dat om een ander puzzeltje vraagt dan gewoonlijk, met een
+ *   eigen vraag. Wat daar op nul staat (meestal hoe het afliep), komt van het evenement zelf.
  */
 export const EVENT_SAYS: Record<string, { who?: FigureId; ask: number; good: number; bad: number }> = {
   'class.sum': { ask: 2, good: 0, bad: 0 },
   'class.count': { ask: 2, good: 0, bad: 0 },
   'class.draw': { ask: 2, good: 0, bad: 0 },
   'class.line': { ask: 2, good: 0, bad: 0 },
+  'class.quiz': { ask: 2, good: 0, bad: 0 },
+  'class.game': { ask: 2, good: 0, bad: 0 },
   'class.guide': { ask: 2, good: 2, bad: 0 },
   'class.go': { ask: 1, good: 0, bad: 0 },
   class: { ask: 0, good: 3, bad: 2 },
@@ -121,7 +125,25 @@ export const EVENT_SAYS: Record<string, { who?: FigureId; ask: number; good: num
   till: { who: 'cashier', ask: 2, good: 2, bad: 2 },
   mayor: { who: 'director', ask: 2, good: 2, bad: 2 },
   guess: { who: 'host', ask: 2, good: 2, bad: 1 },
+  'party.count': { who: 'host', ask: 1, good: 0, bad: 0 },
+  'party.game': { who: 'host', ask: 1, good: 1, bad: 1 },
+  'celeb.quiz': { who: 'host', ask: 1, good: 0, bad: 1 },
+  'photo.shadow': { who: 'host', ask: 1, good: 0, bad: 1 },
+  'photo.pairs': { who: 'host', ask: 1, good: 0, bad: 1 },
+  'build.count': { who: 'builder', ask: 1, good: 0, bad: 0 },
+  'build.pattern': { who: 'builder', ask: 1, good: 0, bad: 0 },
+  'bedtime.bed': { who: 'keeper', ask: 1, good: 1, bad: 1 },
+  'crates.eat': { who: 'keeper', ask: 1, good: 1, bad: 1 },
+  'mayor.quiz': { who: 'director', ask: 1, good: 0, bad: 1 },
 };
+/**
+ * De uitleg boven een puzzeltje (minigame.ts): wie om hulp vroeg, leest hem voor. Elke nieuwe uitleg hoort hier bij,
+ * dan wordt hij ook ingesproken.
+ */
+export const MINI_SAYS = [
+  'mini.sum.plus', 'mini.sum.minus', 'mini.count', 'mini.more', 'mini.spell', 'mini.order.size', 'mini.order.count', 'mini.memory', 'mini.odd', 'mini.pattern',
+  'mini.shadow', 'mini.shadow.pick', 'mini.eat', 'mini.bed', 'mini.sound', 'mini.done.good', 'mini.done.try',
+];
 
 export const say = {
   praise: (i: number): Line => ({ who: PRAISE[i % PRAISE.length], mood: 'happy', key: `praise.${(i % PRAISE.length) + 1}` }),
@@ -376,7 +398,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
         for (let n = 0; n < e[part]; n++) add(say.event(id, part, n, who));
   // de uitleg bij een puzzeltje, in de stem van wie om hulp vroeg
   for (const who of ['host', 'keeper', 'builder', 'cashier', 'director', 'teacher', 'master'] as const)
-    for (const key of ['mini.sum.plus', 'mini.sum.minus', 'mini.spell', 'mini.order.size', 'mini.order.count', 'mini.done.good', 'mini.done.try']) add({ who, mood: 'happy', key });
+    for (const key of MINI_SAYS) add({ who, mood: 'happy', key });
   // de optocht, de schminktent, de weg wijzen, en de uitleg bij raden (in de stem van de gastvrouw)
   for (const line of [say.paradeNew(), say.paradeGo(), say.paradeRest(), say.paintNew(), say.wayTip(), say.busy('facepaint'), say.walkNew(), say.walkBuy()]) add(line);
   for (const key of ['mini.guess', 'mini.guess.no']) add({ who: 'host', mood: 'happy', key });
