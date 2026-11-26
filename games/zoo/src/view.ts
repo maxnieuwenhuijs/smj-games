@@ -3037,9 +3037,11 @@ const FLOWER_EDGE_MAT = std(0x6fb44c, 1);
 // van de rails ligt op TRAIN.top; de rails liggen RAIL_GAUGE uit het midden. Welke stukken er op een tegel komen en
 // hoe ze gedraaid zijn, staat in rails.ts (railPieces).
 const RAIL_GAUGE = 0.17, RAIL_BED = 0.6, BED_TOP = 0.03, RAIL_HIGH = 0.03;
+/** De kleuren van het grind, de bielzen en het staal van de rails. */
 const BALLAST = 0xb3a892, SLEEPER = 0x7a5a3a, STEEL = 0x8f959e;
 /** De bedding: een lage plaat grind, `w` breed en `d` diep, met zijn midden op (x, z). */
 const bedding = (w: number, d: number, x = 0, z = 0): THREE.BufferGeometry => boxAt(w, BED_TOP, d, x, BED_TOP / 2, z);
+/** Een biels dwars onder de rails, op z. */
 const sleeper = (z: number): THREE.BufferGeometry => boxAt(0.5, 0.028, 0.1, 0, BED_TOP + 0.014, z);
 /** Twee rails langs z, `len` lang, met hun midden op z; `high`: hoe hoog de rail zelf is. */
 const railPair = (len: number, z = 0, high = RAIL_HIGH): THREE.BufferGeometry[] => [-RAIL_GAUGE, RAIL_GAUGE].map(x => boxAt(0.035, high, len, x, TRAIN.top - high / 2, z));
@@ -3105,8 +3107,10 @@ const RAIL_XING_GEO = painted(
  * zelf en de lampen zijn los: die bewegen (zie View.stepCrossings).
  */
 const GATE_POST: P3 = [-0.4, 0, -0.44];
+/** Waar de boom om draait, en waar de twee lampen zitten (zo hoog, en zo ver links en rechts van de paal). */
 const GATE_PIVOT: P3 = [GATE_POST[0], 0.3, GATE_POST[2] + 0.055];
 const GATE_LAMP_Y = 0.52, GATE_LAMP_X = 0.065;
+/** Een balk van het andreaskruis: wit met rode punten, zo schuin (`tilt`). */
 const crossBar = (tilt: number): [number, ...THREE.BufferGeometry[]][] => {
   const put = (g: THREE.BufferGeometry): THREE.BufferGeometry => g.rotateZ(tilt).translate(GATE_POST[0], 0.74, GATE_POST[2]);
   return [
@@ -3128,6 +3132,7 @@ const GATE_ARM_GEO = painted(
   [0xf7f4ec, ...[1, 3].map(i => boxAt(0.165, 0.045, 0.03, 0.0825 + i * 0.165, 0, 0))],
   [0x5a6470, boxAt(0.13, 0.08, 0.045, -0.085, 0, 0)],
 );
+/** Een lamp van de overweg: een bolletje. */
 const GATE_LAMP_GEO = new THREE.IcosahedronGeometry(0.036, 1);
 /** De lampen van een overweg krijgen hun kleur per lamp: fel rood als hij aan is, donkerrood als hij uit is. */
 const GATE_LAMP_MAT = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -3147,12 +3152,13 @@ const TRAIN_LOOKS: { boiler: number; cab: number; wagons: number[] }[] = [
   { boiler: 0x4a90e2, cab: 0xf08a24, wagons: [0xe0584f, 0x6cc04a, 0xffd23f] },
   { boiler: 0xa06ad9, cab: 0x2bb5a8, wagons: [0xf06aa6, 0x4a90e2, 0xf08a24] },
 ];
+/** Het donkere onderstel, de schoorsteen en de koppelingen. */
 const TRAIN_DARK = 0x3d4f5a;
 /** Waar de assen onder een locomotief en een wagon zitten (z), hoe groot hun wielen zijn, en waar de schoorsteen uitkomt. */
 const LOCO_AXLES = [0.22, -0.24], WAGON_AXLES = [0.25, -0.25], LOCO_WHEEL = 0.09, WAGON_WHEEL = 0.082;
 const CHIMNEY: P3 = [0, 0.72, 0.27];
-const trainGeos = new Map<string, THREE.BufferGeometry>();
 /** Een vorm van de trein wordt één keer gemaakt en door alle treinen met die kleuren gedeeld. */
+const trainGeos = new Map<string, THREE.BufferGeometry>();
 const trainGeo = (key: string, make: () => THREE.BufferGeometry): THREE.BufferGeometry => {
   let geo = trainGeos.get(key);
   if (!geo) trainGeos.set(key, (geo = make()));
@@ -3167,6 +3173,7 @@ const locoGeo = (boiler: number, cab: number): THREE.BufferGeometry => trainGeo(
   [0xffd23f, boxAt(0.44, 0.04, 0.38, 0, 0.6, -0.25), tube(0.05, 0.06, 0.07, 0, 0.5, 0.04), new THREE.CylinderGeometry(0.156, 0.156, 0.04, 12).rotateX(Math.PI / 2).translate(0, 0.33, 0.37)],
   [0x9fd8f5, boxAt(0.386, 0.13, 0.16, 0, 0.45, -0.25), boxAt(0.2, 0.13, 0.306, 0, 0.45, -0.25)],
 ));
+/** De koplamp voor op de ketel: die geeft licht (LAMP_MAT). */
 const LOCO_LAMP_GEO = ball(0.05, 0, 0.33, 0.405);
 /** Een open wagon in een vrolijke kleur, met een lichte rand, TRAIN.seats houten bankjes achter elkaar en een koppeling voor en achter. */
 const wagonGeo = (color: number): THREE.BufferGeometry => trainGeo(`wagon${color}`, () => painted(
@@ -4426,9 +4433,10 @@ export class View {
   /**
    * Het spoor: op elke tegel met rails de goede stukken (recht, bocht, wissel, kruising of een eindje met een
    * stootblok), en bij elke overweg de planken en de spoorbomen. Er wordt alleen opnieuw gebouwd als er spoor bij
-   * komt, weggaat of anders aansluit (ook door een hek dat erdwars overheen komt).
+   * komt, weggaat of anders aansluit (ook door een hek dat erdwars overheen komt). paintTerrain doet dit vanzelf; het
+   * spel roept het ook los aan, want een hek verandert de grond niet.
    */
-  private paintRails(grid: Grid): void {
+  paintRails(grid: Grid): void {
     const links = railLinks(grid), found: number[] = [];
     let key = '';
     for (let i = 0; i < links.length; i++) {
@@ -5485,7 +5493,7 @@ export class View {
       for (let k = 0; k < cars.length; k++) {
         const car = cars[k], big = car === loco || car === tail, r = big ? LOCO_WHEEL : WAGON_WHEEL, axles = big ? LOCO_AXLES : WAGON_AXLES;
         // de tweede locomotief staat andersom: zijn wielen draaien de andere kant op. Een wagen die niet meerijdt, heeft geen wielen
-        const angle = (car === tail ? -dist : dist) / r, s = r / LOCO_WHEEL;
+        const angle = (car === tail ? -dist : dist) / r, s = car.visible ? r / LOCO_WHEEL : 0;
         size.set(car.visible ? 1 : 0, s, s);
         for (let a = 0; a < 2; a++) {
           m.makeRotationY(car.rotation.y).setPosition(car.position.x, car.position.y, car.position.z);

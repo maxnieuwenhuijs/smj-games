@@ -4020,6 +4020,8 @@ export class Guest implements Leader {
       at = pick(next);
       this.route.push(at);
     }
+    // (niet op een overweg blijven staan kijken: dan een stap minder)
+    while (this.route.length && isRail(w.grid.terrain[this.route[this.route.length - 1]])) this.route.pop();
     if (this.route.length) this.state = 'walk';
     else this.timer = 1;
   }
@@ -5300,12 +5302,16 @@ export interface TrainSeat {
 const TRAIN_AXLE = 0.24, TRAIN_BENCH = 0.22;
 /** Zo lang wacht een gast op het perron tot hij het opgeeft; en om de zoveel tellen kijkt een stilstaande trein wie er nog in wil. */
 const TRAIN_PATIENCE = 120, TRAIN_BOARD = 0.3;
+/** Na zoveel haltes zonder pad om op uit te stappen, stapt een reiziger uit bij de ingang. */
+const TRAIN_STUCK = 4;
+/** Twee punten op het spoor (x, y en de richting), steeds opnieuw ingevuld: zo maakt de trein niet elk beeldje nieuwe lijstjes. */
 const RAIL_A = [0, 0, 0, 0], RAIL_B = [0, 0, 0, 0];
 
 /**
  * Een treintje rijdt over zijn eigen spoor (een route uit rails.ts): een rondje steeds rond, een lijn heen en weer.
  * Bij elke halte stopt het: wie erin zat stapt uit, wie stond te wachten stapt in. Het trekt rustig op, remt af voor
  * een halte en volgt de bochten. Het stuk spoor onder en voor de trein eist hij op: daar gaan de spoorbomen dicht.
+ * 's Nachts, als het park dicht is, blijft het bij een halte staan tot de gasten weer komen.
  */
 export class Train {
   /** De route waar de trein over rijdt; null: er ligt geen spoor voor hem (dan zie je hem niet). */
@@ -5325,8 +5331,9 @@ export class Train {
   /** De stop waar hij nu stilstaat (-1: hij rijdt, of hij staat aan het eind van de lijn). */
   private at = -1;
   private riders: (Guest | null)[] = new Array(TRAIN.wagons * TRAIN.seats).fill(null);
-  /** Bij welke halte elke reiziger is ingestapt: daar stapt hij niet weer uit (behalve na een rondje met één halte). */
+  /** Bij welke halte elke reiziger is ingestapt, en langs hoeveel haltes hij al kwam zonder dat hij eruit kon (er lag geen pad). */
   private origin: (ShopSpot | null)[] = new Array(TRAIN.wagons * TRAIN.seats).fill(null);
+  private passed: number[] = new Array(TRAIN.wagons * TRAIN.seats).fill(0);
   /** Waar elke wagen nu staat (x, y en de richting van zijn neus), voor wie erin zit. */
   private pose = new Float64Array((TRAIN.wagons + 2) * 3);
   private rolled = 0;
@@ -5339,6 +5346,8 @@ export class Train {
   departed = false;
   /** De plek waar de speler zelf zit als hij in de loopstand meerijdt (-1: hij rijdt niet mee): daar stapt geen gast in. */
   walkerSeat = -1;
+  /** 's Nachts, als het park dicht is, slaapt de trein bij een halte: geen stoom, de lamp uit, en de overwegen blijven open. */
+  asleep = false;
   /** Het midden van de wagons, en waar de locomotief rijdt die voorop gaat (in tegels). */
   gx = 0;
   gy = 0;
@@ -5504,23 +5513,25 @@ export class Train {
     this.aim();
   }
 
-  /** Wie hier moet zijn, stapt uit: iedereen die bij een andere halte is ingestapt (of, met maar één stop, na zijn rondje). */
+  /**
+   * Iedereen stapt uit bij de eerste halte waar hij het pad op kan. Dat is de volgende halte, of (met maar één halte,
+   * of als er bij de andere geen pad ligt) na een ritje dezelfde halte weer. Ligt er nergens meer een pad langs het
+   * spoor, dan stapt hij na TRAIN_STUCK haltes uit bij de ingang: niemand blijft eeuwig rondrijden.
+   */
   private alight(stop: RailStop, w: GuestWorld, reach: Set<number>): void {
-    const here = stop.stations.map(k => this.stations[k]), round = this.route!.stops.length === 1;
+    const here = stop.stations.map(k => this.stations[k]);
     for (let i = 0; i < this.riders.length; i++) {
       const g = this.riders[i];
       if (!g) continue;
-      if (g.gone || g.riding !== this) {
-        this.riders[i] = this.origin[i] = null;
-        continue;
+      if (!g.gone && g.riding === this) {
+        // het liefst bij een andere halte dan waar hij instapte (twee haltes aan weerskanten van het spoor delen een stop)
+        const from = this.origin[i];
+        const shop = here.find(s => s !== from && doorOf(w, reach, s) !== null) ?? here.find(s => doorOf(w, reach, s) !== null);
+        const door = shop ? doorOf(w, reach, shop) : null;
+        if (shop && door !== null) g.alight(door, shop);
+        else if (++this.passed[i] >= TRAIN_STUCK) g.alight(ENTRANCE);
+        else continue;
       }
-      const from = this.origin[i];
-      if (from && here.includes(from) && !round) continue;
-      // het liefst bij een andere halte dan waar hij instapte
-      const shop = here.find(s => s !== from && doorOf(w, reach, s) !== null) ?? here.find(s => doorOf(w, reach, s) !== null);
-      const door = shop ? doorOf(w, reach, shop) : null;
-      if (!shop || door === null) continue;
-      g.alight(door, shop);
       this.riders[i] = this.origin[i] = null;
     }
   }
@@ -5536,6 +5547,7 @@ export class Train {
       if (seat >= seats) return;
       this.riders[seat] = g;
       this.origin[seat] = shop;
+      this.passed[seat] = 0;
       g.board(this, seat);
     }
   }
@@ -5594,7 +5606,10 @@ export class Train {
     this.arrived = this.departed = false;
     const route = this.route;
     if (!route) return;
-    if (this.wait > 0) {
+    // is het park dicht, dan blijft hij bij de halte waar hij staat tot het weer opengaat (net als de kabelbaan)
+    this.asleep = this.wait > 0 && this.at >= 0 && w.closed();
+    if (this.asleep) this.wait = Math.max(this.wait, TRAIN.stop / 2);
+    else if (this.wait > 0) {
       this.wait -= dt;
       // wie tijdens het wachten het perron op komt, kan nog mee
       if (this.at >= 0 && (this.boardIn -= dt) <= 0) {
@@ -5618,6 +5633,7 @@ export class Train {
     const back = this.dir * this.face < 0 ? 1 : 0;
     this.turned += (back - this.turned) * Math.min(1, dt * 4);
     this.place();
+    if (this.asleep) return;
     // het spoor onder de trein, en als hij rijdt (of zo vertrekt) ook een stuk voor zijn neus
     const ahead = this.wait > 0 && this.wait > TRAIN.ring ? 0 : Math.min(TRAIN.warn, this.left);
     const fore = this.face > 0 ? route.front : route.back, aft = this.face > 0 ? route.back : route.front;
@@ -5889,11 +5905,6 @@ export class GuestManager {
     }
     // op een overweg blijft niemand staan: daar loop je alleen overheen
     this.list = [...this.reach].filter(tile => !isRail(grid.terrain[tile]));
-  }
-
-  /** De padtegel waar gasten bij dit gebouw geholpen worden (zie doorOf), of null als ze er niet bij kunnen. */
-  doorAt(shop: ShopSpot): number | null {
-    return doorOf(this.world, this.reach, shop);
   }
 
   /**
