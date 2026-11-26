@@ -314,8 +314,7 @@ export function ferrisSeat(out: RidePose, seat: number, s: RideState): RidePose 
 /** De route van het pad naar de plek op het perron waar je op je bakje wacht: de treden op en naar je kant. */
 function ferrisWay(v: Visit): void {
   const side = v.seat % FERRIS.per ? 1 : -1, x = side * (FERRIS.side + 0.02);
-  wayFrom(v.fx, 0, v.fz);
-  wayTo(x, 0, FERRIS.deckFront + 2 * FERRIS.step + 0.08);
+  wayIn(v, RIDE_SPAN.ferris[0], RIDE_SPAN.ferris[1], x, FERRIS.deckFront + 2 * FERRIS.step + 0.08);
   wayTo(x, FERRIS.deck, FERRIS.deckFront - 0.04);
   wayTo(x, FERRIS.deck, FERRIS.stand);
 }
@@ -408,6 +407,20 @@ export function carouselSeat(out: RidePose, seat: number, s: RideState): RidePos
   return out;
 }
 
+/** Wie ver moet lopen naar een ritje dat zo begint, zet er de pas in: hooguit zoveel keer zo snel als gewoon. */
+const HURRY = 2;
+
+/**
+ * Hoe lang een gast doet over `len` tegels lopen en gaan zitten als het ritje over `room` tellen begint: gewoon
+ * wandelen als dat op tijd is, anders vlugger (tot HURRY keer zo snel). Geeft -1 als hij het ook dan niet haalt: dan
+ * wacht hij op het volgende ritje.
+ */
+function walkInTime(len: number, room: number): number {
+  const easy = len / RIDE_WALK + SIT_TIME;
+  if (easy <= room) return easy;
+  return len / (RIDE_WALK * HURRY) + SIT_TIME <= room ? room : -1;
+}
+
 /** Hoe hard een ritje nu gaat (0 = staat stil, 1 = volle snelheid), `c` tellen na het begin van de ronde. */
 function cycleSpeed(c: number, stop: number, up: number, run: number, down: number): number {
   if (c < stop) return 0;
@@ -444,9 +457,9 @@ function carouselPlan(v: Visit, s: RideState, used: number): boolean {
   }
   if (best < 0) return false;
   v.seat = best;
-  v.walk = least / RIDE_WALK + SIT_TIME;
   // te laat om nog op tijd te zitten: dan het volgende ritje
-  if (c + v.walk + 0.2 > CAROUSEL.stop) return false;
+  v.walk = walkInTime(least, CAROUSEL.stop - c - 0.2);
+  if (v.walk < 0) return false;
   v.wait = CAROUSEL.stop - c - v.walk;
   v.ride = CAROUSEL.up + CAROUSEL.run + CAROUSEL.down;
   // (de molen staat straks ergens anders stil: reken op het langste eind lopen)
@@ -460,7 +473,7 @@ function carouselPose(out: RidePose, v: Visit, s: RideState, e: number): RidePos
   const [a, r] = carouselAt(v.seat, s.spin);
   if (e < v.walk - SIT_TIME) {
     carouselWay(v, s);
-    wayAt(out, e * RIDE_WALK);
+    wayAt(out, (e / (v.walk - SIT_TIME)) * wayLength());
     return out;
   }
   if (e < v.walk || e < leave + SIT_TIME) {
@@ -587,8 +600,7 @@ export function bumperSeat(out: RidePose, seat: number, s: RideState): RidePose 
 /** De route van het pad naar auto `seat`: door de opening in de rand de vloer op, en naar de auto toe. */
 function bumperWay(v: Visit, s: RideState): void {
   const car = s.cars[v.seat % BUMPER.cars];
-  wayFrom(v.fx, 0, v.fz);
-  wayTo(0, 0, BUMPER.gate + 0.3);
+  wayIn(v, RIDE_SPAN.bumper[0], RIDE_SPAN.bumper[1], 0, BUMPER.gate + 0.3);
   wayTo(0, BUMPER.floor, BUMPER.gate - 0.25);
   wayTo(car.x, BUMPER.floor, car.z);
 }
@@ -609,8 +621,8 @@ function bumperPlan(v: Visit, s: RideState, used: number): boolean {
   }
   if (best < 0) return false;
   v.seat = best;
-  v.walk = least / RIDE_WALK + SIT_TIME;
-  if (c + v.walk + 0.2 > BUMPER.stop) return false;
+  v.walk = walkInTime(least, BUMPER.stop - c - 0.2);
+  if (v.walk < 0) return false;
   v.wait = BUMPER.stop - c - v.walk;
   v.ride = BUMPER.run + BUMPER.down;
   v.back = SIT_TIME + (Math.hypot(v.fx, v.fz - BUMPER.gate) + 0.6 + Math.hypot(BUMPER.ax * 2, BUMPER.z1 - BUMPER.z0)) / RIDE_WALK;
@@ -624,7 +636,7 @@ function bumperPose(out: RidePose, v: Visit, s: RideState, e: number): RidePose 
   // (hij loopt tot naast de auto, niet erin)
   const beside = wayLength() - BUMPER.r;
   if (e < v.walk - SIT_TIME) {
-    wayAt(out, Math.min(e * RIDE_WALK, beside));
+    wayAt(out, Math.min((e / (v.walk - SIT_TIME)) * wayLength(), beside));
     return out;
   }
   if (e < v.walk || e < leave + SIT_TIME) {
@@ -727,8 +739,7 @@ const TOWER_TURNS = [[1, 0, 1], [1, 0.25, -1], [-1, 0.5, -1], [-1, 0.75, 1], [1,
  */
 function towerWay(v: Visit, lane: number): void {
   const s = TOWER.stair * (1 + 0.19 * lane), [sx, sz] = TOWER.spots[v.seat % TOWER.spots.length];
-  wayFrom(v.fx, 0, v.fz);
-  wayTo(s, 0, TOWER.foot + 0.2);
+  wayIn(v, RIDE_SPAN.tower[0], RIDE_SPAN.tower[1], s, TOWER.foot + 0.2);
   for (const [x, h, z] of TOWER_TURNS) wayTo(x * s, h * TOWER.top, z * s);
   wayTo(TOWER.mid[0], TOWER.top, TOWER.mid[1]);
   wayTo(sx, TOWER.top, sz);
@@ -1264,7 +1275,7 @@ export function rideRunning(kind: ShopKind, s: RideState): boolean {
   return false;
 }
 
-/** Hoe hoog een toestel ongeveer is, in tegels: voor het bordje erboven en om erop te kunnen tikken. */
+/** Hoe hoog een toestel ongeveer is, in tegels: zo kun je er ook op tikken waar het boven zijn tegels uitsteekt (zie tallShopUnder in game.ts). */
 export const RIDE_TOP: Partial<Record<ShopKind, number>> = {
   ferris: FERRIS.hub + FERRIS.radius + 0.2, tower: TOWER.top + 1.9, carousel: 3.1, bumper: 2.4, slide: 3, fountain: 2.2, swing: 1.7, restaurant: 1.7,
 };
