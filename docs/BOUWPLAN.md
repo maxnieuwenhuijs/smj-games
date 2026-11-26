@@ -936,17 +936,19 @@ Een ziek dier beter maken is nu een bezoek van twee of drie kleine spelletjes, e
 
 ### Wat de proefspeler liet zien (27 november)
 
-De proefspeler speelt nu ook zonder venster (`node tools/playtest/speel.mjs`), en dan zonder te tekenen: vijftig levels duren zo een paar minuten. Dezelfde proefspeler is losgelaten op het spel van vóór deze ronde en op het spel erna. In alle zes de proeven haalde hij alle 50 levels zonder een dier kwijt te raken.
+De proefspeler speelt nu ook zonder venster (`node tools/playtest/speel.mjs`), en dan zonder te tekenen: vijftig levels duren zo een paar minuten. Dezelfde proefspeler is losgelaten op het spel van vóór deze ronde en op het spel erna (een paar keer, want de tijden wisselen per keer). In de proeven op de eindstand haalde hij alle 50 levels zonder een dier kwijt te raken.
 
 | Hoe | Vóór deze ronde | Na deze ronde |
 |---|---|---|
-| Snel en foutloos, de kas wordt bijgevuld als hij leeg is | 57 minuten speltijd, kas 31 keer bijgevuld | 74 minuten, kas 31 keer bijgevuld |
-| Als een kind: één handeling per 8 tellen, de kas nooit bijgevuld | 72 minuten | 82 minuten |
-| Als een kind op een trage tablet (daar komen hooguit 45 gasten) | 91 minuten | 92 tot 98 minuten |
+| Snel en foutloos, de kas wordt bijgevuld als hij leeg is | 57 minuten speltijd, kas 31 keer bijgevuld | 63 minuten, kas 27 tot 32 keer bijgevuld |
+| Als een kind: één handeling per 8 tellen, de kas nooit bijgevuld | 72 minuten | 81 tot 86 minuten |
+| Als een kind op een trage tablet (daar komen hooguit 45 gasten) | 91 minuten | 87 tot 103 minuten |
 
-Het spel duurt dus een zesde tot een derde langer: de levels vragen meer dieren tegelijk en meer soorten doelen, en de dieren willen meer afwisseling in speelgoed en natuur. Aan munten kost het niet meer dan eerst. Eén ding kwam uit deze proef: op de trage tablet bleef level 46 (tien keer afval oprapen) langer dan een kwartier hangen, omdat er met minder gasten te weinig afval kwam; daarom laten gasten het nu vaker vallen als een level erom vraagt (zie Tijd). De tijden per level wisselen flink per keer (een jong of de nacht afwachten): level 35 duurde in zes proeven tussen de anderhalve en elf minuten.
+Het spel duurt dus een tiende tot een vijfde langer: de levels vragen meer dieren tegelijk en meer soorten doelen, en de dieren willen meer afwisseling in speelgoed en natuur. Aan munten kost het niet meer dan eerst.
 
-Zonder beeldkaart meet het spel zichzelf als een traag apparaat; de proefspeler zet daarom zelf vast hoe snel het apparaat is (`speed` in `kijk.mjs`). Bij de eerste proeven van deze ronde stond dat nog niet vast, en leek level 46 daardoor voor iedereen te blijven hangen.
+Eén ding kwam uit deze proeven: level 46 (tien keer afval oprapen) duurde na deze ronde vaak veel langer dan eerst (vijf tot tien minuten, en vier keer langer dan het kwartier waarna de proefspeler opgeeft), tegen twee minuten ervoor. Afval kwam alleen van gasten die iets gegeten of gedronken hadden, en met een kortere dag en een nacht ertussen kwam dat te weinig voor. Daarom komt afval nu sneller als een level erom vraagt (zie Tijd); in de acht proeven daarna duurde level 46 tussen de halve minuut en de vijf minuten. De tijden per level wisselen hoe dan ook flink per keer (een jong of de ochtend afwachten): level 35 duurde in de proeven tussen de anderhalve en elf minuten, ook vóór deze ronde al vijf.
+
+Zonder beeldkaart meet het spel zichzelf als een traag apparaat; de proefspeler zet daarom zelf vast hoe snel het apparaat is (`speed` in `kijk.mjs`).
 
 ## Bekende zwakke punten van de modellen
 
