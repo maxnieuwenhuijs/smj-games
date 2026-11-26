@@ -9,7 +9,7 @@ Spelen: https://maxnieuwenhuijs.github.io/smj-games/
 - `tools/animals`: het Blender-script dat de diermodellen maakt, en het script dat ze klein maakt.
 - `tools/voice`: het script dat stemmen en geluiden maakt met ElevenLabs.
 - `tools/name-proxy`: een servertje dat namen laat inspreken zonder dat de sleutel in het spel staat (zie de README daar).
-- `tools/playtest`: een proefspeler die alle levels automatisch doorspeelt.
+- `tools/playtest`: een proefspeler die alle levels automatisch doorspeelt, en een hulpje om het spel zonder venster te openen en na te lopen.
 - `docs/BOUWPLAN.md`: het bouwplan met alle fases, dieren en levels.
 
 ## Starten
@@ -74,6 +74,16 @@ Tellen hoeveel berichten de figuren geven (in een bestaand park, plek 2, vijf mi
 ```js
 const { measure } = await import('/@fs/<pad naar deze map>/tools/playtest/berichten.js');
 await measure(1, 5);
+```
+
+Het spel zonder venster openen en nalopen (met Playwright; handig om iets te controleren of een foto te maken). Start eerst `npm run dev`:
+
+```js
+import { boot, emptyPark } from './tools/playtest/kijk.mjs';
+const { browser, page, errors } = await boot({ level: 20, coins: 50 }); // een leeg park waarin 20 levels gehaald zijn
+await page.evaluate(() => window.__zoo.level); // het spel zelf staat in window.__zoo
+await page.screenshot({ path: 'park.png' });
+await browser.close();
 ```
 
 ## Publiceren
