@@ -304,6 +304,8 @@ export const SIGHT: Record<string, { off: number; most: number; time: number; fu
   flag: { off: 0.7, most: 2, time: 2.8, fun: 0.03, zin: 0.25, roll: true },
   bunting: { off: 0.7, most: 2, time: 2.8, fun: 0.03, zin: 0.25, roll: true },
   bin: { off: 0.42, most: 2, time: 1.5, fun: 0.01, zin: 0 },
+  // een grote hoop blaadjes in de herfst: daar springt een kind in (alleen als het spel het kind roept, zie callKid)
+  leafpile: { off: 0.1, most: 1, time: 4.4, fun: 0.15, zin: 0 },
 };
 /** Zo vaak gaat een gast die niets dringends te doen heeft naar iets moois in de buurt, en hoe ver hij ervoor loopt (in tegels). */
 const SIGHT_CHANCE = 0.4, SIGHT_NEAR = 5;
@@ -312,9 +314,11 @@ const SIGHT_SPREAD = [0, 0.7, -0.7, 1.4];
 /** Bij de fontein: zo ver van het midden staat een gast aan de rand, en hoe de plekken langs de rand verdeeld zijn. */
 const RIM = 1.04, RIM_SPREAD = [0, 0.42, -0.42, 0.84, -0.84, 1.26];
 /** Wat een gast bij een ding in het park doet. */
-type Use = 'picnic' | 'crouch' | 'feed' | 'show' | 'well' | 'pump' | 'bird' | 'warm' | 'lookup' | 'mimic' | 'snap' | 'giggle' | 'write' | 'sign' | 'sniff' | 'arch' | 'toss';
+type Use = 'picnic' | 'crouch' | 'feed' | 'show' | 'well' | 'pump' | 'bird' | 'warm' | 'lookup' | 'mimic' | 'snap' | 'giggle' | 'write' | 'sign' | 'sniff' | 'arch' | 'toss'
+  // in de hoop blaadjes springen, en een sneeuwballetje naar de sneeuwpop gooien
+  | 'leap' | 'snowball';
 /** Op welk moment van het bezoek (0 tot 1) het ding zelf even meebeweegt. */
-const USE_POKE: Partial<Record<Use, number>> = { crouch: 0.5, show: 0.3, well: 0.4, bird: 0.5, warm: 0.3, giggle: 0.15, mimic: 0.2, write: 0.9 };
+const USE_POKE: Partial<Record<Use, number>> = { crouch: 0.5, show: 0.3, well: 0.4, bird: 0.5, warm: 0.3, giggle: 0.15, mimic: 0.2, write: 0.9, leap: 0.42, snowball: 0.62 };
 
 // ------------------------------------------------------------ poppetje
 const SKIN =[0xf6cfa6, 0xe8b48a, 0xc98d5e, 0xa86b42, 0x8a5637];
@@ -2317,6 +2321,32 @@ export class Guest implements Leader {
     return true;
   }
 
+  /**
+   * Het spel roept dit kind: het rent naar dit ding (een grote hoop blaadjes, een nieuwe sneeuwpop). Lukt dat?
+   * Alleen een kind dat nergens mee bezig is, en alleen als er een padtegel naast het ding ligt.
+   */
+  visit(w: GuestWorld, reach: Set<number>, sight: Sight): boolean {
+    const info = SIGHT[sight.kind];
+    if (!info || sight.gone || sight.n >= info.most || !this.free || this.shop || this.pen || this.partyShop) return false;
+    let tile = -1, near = 99;
+    for (const n of sight.tiles) {
+      if (!reach.has(n)) continue;
+      const [x, y] = tileXY(n);
+      const d = Math.hypot(x + 0.5 - sight.x, y + 0.5 - sight.y) * 4 + Math.abs(x + 0.5 - this.gx) + Math.abs(y + 0.5 - this.gy);
+      if (d < near) {
+        near = d;
+        tile = n;
+      }
+    }
+    if (tile < 0) return false;
+    this.act = null;
+    this.idle = null;
+    if (!this.headFor(w, reach, sight, tile, SIGHT_NEAR * 4)) return false;
+    // rennen!
+    this.dash = Math.max(this.dash, this.route.length / 1.35 + 0.5);
+    return true;
+  }
+
   /** Afval in de hand en een afvalbak in de buurt: de gast loopt ernaartoe en gooit het erin. */
   private binTrip(w: GuestWorld, reach: Set<number>): boolean {
     if (this.trash <= 0 || this.eating > 0 || this.sloppy || this.bladder > 0.8) return false;
@@ -2402,7 +2432,9 @@ export class Guest implements Leader {
       case 'totem':
       case 'clocktower':
       case 'windmill': return v < (kid ? 0.5 : 0.25) ? 'mimic' : v < 0.65 ? 'snap' : 'lookup';
-      case 'snowman': return 'giggle';
+      // een kind gooit soms een sneeuwballetje
+      case 'snowman': return kid && v < 0.6 ? 'snowball' : 'giggle';
+      case 'leafpile': return 'leap';
       case 'scarecrow': return v < 0.4 ? 'mimic' : 'giggle';
       case 'guestbook': return 'write';
       case 'signpost':
@@ -2530,7 +2562,8 @@ export class Guest implements Leader {
       // het ding doet even mee: de kikker springt, het vogeltje hipt, het vuur laait op, het blad slaat om
       this.useMark = 1;
       w.sightUsed(s);
-      if (use === 'giggle') w.guestSound('guest.laugh', this);
+      if (use === 'giggle' || use === 'leap') w.guestSound('guest.laugh', this);
+      else if (use === 'snowball') w.guestSound('guest.whee', this);
     }
   }
 
@@ -2546,7 +2579,7 @@ export class Guest implements Leader {
         this.wrote = true;
         w.signBook(this);
       }
-      if (this.child && (use === 'giggle' || use === 'mimic' || use === 'show')) this.joy = Math.max(this.joy, 0.6);
+      if (this.child && (use === 'giggle' || use === 'mimic' || use === 'show' || use === 'leap' || use === 'snowball')) this.joy = Math.max(this.joy, 0.6);
       if (this.sightsSeen.push(s) > 4) this.sightsSeen.shift();
     }
     this.sight = null;
@@ -2842,6 +2875,46 @@ export class Guest implements Leader {
         } else {
           right.rotation.z = 0.3;
           left.rotation.z = -0.3;
+        }
+        break;
+      case 'leap':
+        if (u < 0.2) {
+          // door de knieën, de armen naar achteren
+          this.squat(0.25);
+          right.rotation.x = left.rotation.x = 0.7;
+        } else if (u < 0.42) {
+          // hop, hoog de lucht in met de armen omhoog
+          this.hop = Math.sin(((u - 0.2) / 0.22) * Math.PI) * 0.42;
+          right.rotation.x = left.rotation.x = -2.8;
+          right.rotation.z = 0.3;
+          left.rotation.z = -0.3;
+        } else if (u < 0.78) {
+          // plof, half in de blaadjes, de armen wijd
+          this.hop = -0.1;
+          this.lean = -0.12;
+          right.rotation.z = 1.2 + Math.sin(t * 6) * 0.15;
+          left.rotation.z = -1.2 - Math.sin(t * 6) * 0.15;
+          head.rotation.x = -0.3;
+        } else this.chuckle(t);
+        break;
+      case 'snowball':
+        if (u < 0.3) {
+          // bukken en sneeuw pakken
+          this.squat(0.45);
+          right.rotation.x = left.rotation.x = -0.6;
+          head.rotation.x = 0.3;
+        } else if (u < 0.5) {
+          // de arm naar achteren
+          right.rotation.x = -2.6;
+          this.lean = -0.08;
+        } else if (u < 0.65) {
+          // en gooien!
+          right.rotation.x = -2.6 + ((u - 0.5) / 0.15) * 2.2;
+          this.lean = 0.15;
+        } else {
+          // raak: juichen
+          right.rotation.x = left.rotation.x = -2.8;
+          this.hop = Math.abs(Math.sin(t * 8)) * 0.07;
         }
         break;
       case 'toss':
@@ -5216,6 +5289,15 @@ export class GuestManager {
       guest.restore(s, dx, dy);
       this.guests.push(guest);
     }
+  }
+
+  /** Het dichtstbijzijnde kind (hooguit `near` tegels weg) dat nergens mee bezig is, rent naar dit ding. Geeft het kind, of null. */
+  callKid(sight: Sight, near = 9): Guest | null {
+    const kids = this.guests
+      .filter(g => g.child && !g.gone && Math.hypot(g.gx - sight.x, g.gy - sight.y) <= near)
+      .sort((a, b) => Math.hypot(a.gx - sight.x, a.gy - sight.y) - Math.hypot(b.gx - sight.x, b.gy - sight.y));
+    for (const kid of kids) if (kid.visit(this.world, this.reach, sight)) return kid;
+    return null;
   }
 
   /** Kunnen gasten deze tegel bereiken (pad dat aan de ingang vastzit)? */

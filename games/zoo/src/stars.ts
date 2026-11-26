@@ -17,6 +17,8 @@ export interface StarInput {
   litter: number;
   poops: number;
   dirty: number;
+  /** Plekjes herfstblaadjes op het pad (in de herfst; ze tellen maar een beetje). */
+  leaves?: number;
   /** Verschillende diersoorten in een verblijf. */
   kinds: number;
   /** Versiering in het park (bomen, bloemen, beelden) en verschillende soorten kramen aan het pad. */
@@ -45,6 +47,8 @@ export const STAR_KINDS = 6;
 /** Met zoveel versiering en zoveel soorten kramen is het park helemaal mooi. */
 export const STAR_DECOR = 6;
 export const STAR_SHOPS = 5;
+/** Zoveel telt een plekje blaadjes op het pad mee als rommel (een stuk afval is 1). */
+export const STAR_LEAF = 0.25;
 /** Hooguit eens in de zoveel tellen geeft de gastvrouw een tip als er een ster af ging. */
 export const STAR_TIP_GAP = 240;
 /** Vanaf deze waarde (0 tot 1) staat er een groen gezichtje bij een ding in de uitleg, anders een oranje. */
@@ -54,8 +58,8 @@ const clamp01 = (n: number): number => Math.max(0, Math.min(1, n));
 
 /** Hoe goed elk ding is, van 0 tot 1. Zijn er nog (bijna) geen dieren of gasten, dan telt dat als redelijk goed. */
 export function starFactors(p: StarInput): Record<StarFactor, number> {
-  // een paar poepjes mag: hoe meer dieren, hoe meer er mag liggen. Een vieze kraam telt als twee stuks afval.
-  const mess = p.litter + p.poops * 0.5 + p.dirty * 2;
+  // een paar poepjes mag: hoe meer dieren, hoe meer er mag liggen. Een vieze kraam telt als twee stuks afval, blaadjes op het pad een beetje.
+  const mess = p.litter + p.poops * 0.5 + p.dirty * 2 + (p.leaves ?? 0) * STAR_LEAF;
   const free = 1 + p.animals / 4;
   const range = 6 + p.animals / 2;
   const shops = clamp01(p.shopKinds / STAR_SHOPS);

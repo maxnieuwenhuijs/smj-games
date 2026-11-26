@@ -814,6 +814,15 @@ SHOP_PARTS.trampoline = [
 const LAMP_MAT = new THREE.MeshStandardMaterial({ color: 0xfff1a8, emissive: 0xffd23f, emissiveIntensity: 0.6, roughness: 0.4 });
 const FLAME_MAT = new THREE.MeshStandardMaterial({ color: 0xf08a24, emissive: 0xf06a10, emissiveIntensity: 0.9, roughness: 0.6 });
 const FLAME2_MAT = new THREE.MeshStandardMaterial({ color: 0xffd23f, emissive: 0xffc21f, emissiveIntensity: 0.9, roughness: 0.6 });
+/** Een lamp die je 's nachts hebt uitgetikt: grijs glas zonder licht. */
+const LAMP_OFF_MAT = new THREE.MeshStandardMaterial({ color: 0x7d8794, roughness: 0.5 });
+/** De lampjes van het lichtfeestje: per kleur een fel gloeiend materiaal. */
+const LAMP_FLASH = new Map<number, THREE.MeshStandardMaterial>();
+function flashMat(color: number): THREE.MeshStandardMaterial {
+  let m = LAMP_FLASH.get(color);
+  if (!m) LAMP_FLASH.set(color, (m = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.6, roughness: 0.4 })));
+  return m;
+}
 // Versieringen: één tegel groot, het midden is (0, 0).
 
 // ------------------------------------------------------------ seizoenen
@@ -3596,6 +3605,46 @@ export class View {
     return group;
   }
 
+  /** Een sneeuwpop die een kind zelf heeft gebouwd: dezelfde als die uit de winkel, met een sjaal in deze kleur. */
+  snowmanModel(scarf: number): THREE.Group {
+    const group = buildDecor('snowman');
+    (group.children[3] as THREE.Mesh).material = std(scarf);
+    this.scene.add(group);
+    return group;
+  }
+
+  /**
+   * Een lamp aan, uit of in een kleur van het lichtfeestje. Onderdeel 1 van elke lamp is het licht zelf (zie
+   * buildDecor); het eigen materiaal wordt bewaard, zodat 'on' het weer terugzet. Een uitgetikte fakkel heeft geen vlam.
+   */
+  setLamp(group: THREE.Object3D, look: 'on' | 'off' | number): void {
+    const light = group.children[1] as THREE.Mesh | undefined;
+    if (!light) return;
+    const own = (group.userData.lampMat ??= light.material) as THREE.Material;
+    light.visible = !(look === 'off' && own === FLAME_MAT);
+    light.material = look === 'on' ? own : look === 'off' ? LAMP_OFF_MAT : flashMat(look);
+  }
+
+  private gateLamp: THREE.Mesh | null = null;
+
+  /** Waar de grote lamp boven de ingang hangt: in tegels, en hoe hoog. */
+  get gateLampAt(): [number, number, number] {
+    return [Math.floor(W / 2) + 0.5, H + 0.12, 2.02];
+  }
+
+  /** De grote lamp boven het bord van de ingang (pas vanaf de nacht): gewoon aan, of in een kleur van het lichtfeestje. */
+  setGateLamp(look: 'on' | number): void {
+    if (!this.gateLamp) {
+      const [gx, gy, h] = this.gateLampAt;
+      const cap = new THREE.Mesh(merge([cone(0.17, 0.1, 0, 0.13, 0, 8), tube(0.02, 0.02, 0.1, 0, -0.14, 0)]), std(0x3d4f5a, 0.7));
+      this.gateLamp = new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 1), LAMP_MAT);
+      this.gateLamp.add(cap);
+      this.gateLamp.position.set(toWorldX(gx), h, toWorldZ(gy));
+      this.scene.add(this.gateLamp);
+    }
+    this.gateLamp.material = look === 'on' ? LAMP_MAT : flashMat(look);
+  }
+
   /**
    * Vijvers die naast elkaar liggen, worden samen één vijver: elke vijvertegel krijgt de rand en het water die bij
    * zijn buren passen (zie shapePond). Geef alle vijvers mee, telkens als er een bij komt of weggaat.
@@ -4284,8 +4333,8 @@ export class View {
    * tegels een paal van dezelfde soort, dan hangt er een slinger tussen, met vlaggetjes ('bunting') of lampjes
    * ('lightstring', ze gloeien 's nachts vanzelf). Verandert er niets aan de palen, dan gebeurt er niets.
    */
-  syncStrings(poles: { x: number; y: number; kind: 'bunting' | 'lightstring' }[]): void {
-    const key = poles.map(p => `${p.x},${p.y}${p.kind[0]}`).join(';');
+  syncStrings(poles: { x: number; y: number; kind: 'bunting' | 'lightstring'; off?: boolean }[]): void {
+    const key = poles.map(p => `${p.x},${p.y}${p.kind[0]}${p.off ? '-' : ''}`).join(';');
     if (key === this.stringKey) return;
     this.stringKey = key;
     if (this.strings) {
@@ -4295,13 +4344,14 @@ export class View {
     }
     const at = new Map<string, 'bunting' | 'lightstring'>();
     for (const p of poles) at.set(`${p.x},${p.y}`, p.kind);
-    const rope: THREE.BufferGeometry[] = [], flags: THREE.BufferGeometry[] = [], bulbs: THREE.BufferGeometry[] = [];
+    const rope: THREE.BufferGeometry[] = [], flags: THREE.BufferGeometry[] = [], bulbs: THREE.BufferGeometry[] = [], dim: THREE.BufferGeometry[] = [];
     const top = (x: number, y: number): THREE.Vector3 => new THREE.Vector3(toWorldX(x + 0.5), STRING_HEIGHT, toWorldZ(y + 0.5));
+    // de slinger hoort bij de paal waar hij begint: is die lamp uitgetikt, dan zijn de lampjes erin ook uit
     for (const p of poles)
       for (const [dx, dy] of [[1, 0], [0, 1]])
         for (let d = 1; d <= STRING_REACH; d++) {
           if (at.get(`${p.x + dx * d},${p.y + dy * d}`) !== p.kind) continue;
-          garland(top(p.x, p.y), top(p.x + dx * d, p.y + dy * d), p.kind, rope, p.kind === 'bunting' ? flags : bulbs);
+          garland(top(p.x, p.y), top(p.x + dx * d, p.y + dy * d), p.kind, rope, p.kind === 'bunting' ? flags : p.off ? dim : bulbs);
           break;
         }
     if (!rope.length) return;
@@ -4309,6 +4359,7 @@ export class View {
     if (rope.length) group.add(new THREE.Mesh(merge(rope), ROPE_MAT));
     if (flags.length) group.add(new THREE.Mesh(merge(flags), PAINT_MAT));
     if (bulbs.length) group.add(new THREE.Mesh(merge(bulbs), LAMP_MAT));
+    if (dim.length) group.add(new THREE.Mesh(merge(dim), LAMP_OFF_MAT));
     this.scene.add(group);
     this.strings = group;
   }

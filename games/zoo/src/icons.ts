@@ -849,6 +849,17 @@ const ICONS = {
     '<path d="M24 12 L37 28 H11Z" fill="#468f3e"/><path d="M24 12 L32 21.8 Q29.5 24 27 21.5 Q24 24.5 21 21.5 Q18.5 24 16 21.8Z" fill="#fff"/>' +
     '<path d="M24 3 L34 17 H14Z" fill="#468f3e"/><path d="M24 3 L29.5 10.7 Q27 12.5 24 10.5 Q21 12.5 18.5 10.7Z" fill="#fff"/>' +
     '<g fill="#9fd8f5"><circle cx="7" cy="9" r="2"/><circle cx="41" cy="7" r="2"/><circle cx="43" cy="22" r="1.8"/><circle cx="5" cy="23" r="1.8"/><circle cx="39" cy="43" r="1.6"/><circle cx="9" cy="43" r="1.6"/></g>',
+  // de hark: een houten steel met een rode kop en stalen tanden, met twee herfstblaadjes ernaast
+  rake:
+    `<path d="M40 5 L17 30" stroke="${WOOD_D}" stroke-width="5" stroke-linecap="round"/><path d="M39.5 5.5 L17.5 29.5" stroke="${WOOD}" stroke-width="2.4" stroke-linecap="round"/>` +
+    `<g stroke="#8f96a0" stroke-width="2.6" stroke-linecap="round"><path d="M8 27 L4 32 M12 30 L8 35 M16 33 L12 38 M20 36 L16 41 M24 39 L20 44"/></g>` +
+    `<path d="M7 25 L25 39" stroke="${RED}" stroke-width="5" stroke-linecap="round"/>` +
+    '<path d="M32 37 Q38 31 44 36 Q38 42 32 37Z" fill="#f08a24" stroke="#c96a15" stroke-width="1.5"/><path d="M33 45 Q38 40 44 44 Q38 48 33 45Z" fill="#ffc23a" stroke="#e5a020" stroke-width="1.5"/>',
+  // sneeuw: een dikke sneeuwbal om te rollen, met vlokjes eromheen
+  snowball:
+    '<ellipse cx="24" cy="42" rx="15" ry="3" fill="#000" opacity=".12"/><circle cx="24" cy="27" r="15" fill="#fff" stroke="#9fc4dc" stroke-width="2.5"/>' +
+    '<path d="M13 33 Q24 41 35 33" fill="none" stroke="#cfe3f0" stroke-width="3" stroke-linecap="round"/><circle cx="18" cy="21" r="3.2" fill="#e6f2fa"/>' +
+    '<g fill="#9fd8f5"><circle cx="8" cy="9" r="2"/><circle cx="40" cy="7" r="2"/><circle cx="43" cy="17" r="1.6"/><circle cx="5" cy="19" r="1.6"/></g>',
   umbrella:
     `<path d="M24 22 V40 Q24 45 19.5 45 Q15.5 45 15.5 41" fill="none" stroke="${WOOD_D}" stroke-width="3.5" stroke-linecap="round"/><path d="M24 3 V7" stroke="${WOOD_D}" stroke-width="3" stroke-linecap="round"/>` +
     `<path d="M3 25 Q4 6 24 6 Q44 6 45 25 Q41.5 21 38 25 Q34.5 21 31 25 Q27.5 21 24 25 Q20.5 21 17 25 Q13.5 21 10 25 Q6.5 21 3 25Z" fill="${RED}"/><path d="M17 25 Q17 10 24 6 Q31 10 31 25 Q27.5 21 24 25 Q20.5 21 17 25Z" fill="#b8433b"/>`,

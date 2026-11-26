@@ -33,6 +33,8 @@ import { CableCar } from './people';
 import { CABLE, cableChairs, cableFit, cableLength, cableOpen, cablePairs, cablePoles, cableSlot } from './cable';
 import { PARTY, partyClock, partyDone, partyDue, partyLoop } from './party';
 import { Road } from './road';
+import { ParkPlay, type ParkHost, type SnowSave } from './parkplay';
+import { isLamp } from './parkfun';
 import { STAR_EVERY, STAR_FACTORS, STAR_GOOD, STAR_TIP_GAP, nextStars, parkScore, scoreOf, smoothScore, starFactors, starGuests, weakest, type StarFactor, type StarInput } from './stars';
 import { guestCard } from './traits';
 import { BOOK_HEART, KID_MOMENT, KID_MOMENTS, SPLAT_MELT, momentReady, type KidMoment } from './kids';
@@ -40,8 +42,8 @@ import { EDGE_SHIFT, View, toWorldX, toWorldZ, type TroughMesh } from './view';
 import { CARE_ACTIONS, CATCH, DUST, HOSE, TREAT, dustAfter, dustSpecks, flightTime, isCare, treatFor, treatReady, type CareAction } from './care';
 import { CareFx } from './carefx';
 
-/** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken; en een dier een snoepje geven of wassen (care.ts). */
-export type ActionId = 'broom' | 'hammer' | 'picker' | CareAction;
+/** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken; een dier een snoepje geven of wassen (care.ts); in de herfst harken, in de winter sneeuw rollen. */
+export type ActionId = 'broom' | 'hammer' | 'picker' | CareAction | 'rake' | 'snowball';
 export type ToolId = 'hand' | 'action' | 'terrain' | 'fence' | 'trough' | 'bed' | 'toy' | 'prop' | 'shop' | 'rides' | 'decor' | 'animal' | 'staff' | 'erase';
 type Verdict = 'good' | 'ok' | 'bad';
 type Sex = 'male' | 'female';
@@ -202,6 +204,8 @@ const CUR: Record<string, string> = {
 };
 for (const id of [...TERRAINS, ...BEDS, ...SHOPS, ...TOYS, ...DECORS]) CUR[id] = cursor(id);
 for (const id of ['window', 'picket', 'petgate'] as const) CUR[id] = cursor(id);
+CUR.rake = cursor('rake', 6, 40);
+CUR.snowball = cursor('snowball', 24, 27);
 
 export interface SaveData {
   /** 1 = het spel met veertien levels, 2 = vijftig levels. */
@@ -260,6 +264,8 @@ export interface SaveData {
   stars?: number;
   /** De avondfeesten die al geweest zijn (zie PARTY.levels in party.ts), zodat een feest niet terugkomt. */
   parties?: number[];
+  /** Sneeuwpoppen die de speler zelf heeft gebouwd (alleen in de winter). */
+  snowmen?: SnowSave[];
 }
 
 export const slotKey = (slot: number): string => `zoo-slot-${slot}`;
@@ -616,7 +622,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
    */
   private line: { gx0: number; gy0: number; e0: Edge | null; axis: 'h' | 'v' | null; fixed: number; from: number } | null = null;
 
+  /** Blaadjes harken, een sneeuwpop bouwen en de lampjes uit en aan doen (zie parkplay.ts). */
+  private park!: ParkPlay;
+
   constructor(private view: View, private slot: number, data: SaveData | undefined, onHome: () => void, private player = data?.player ?? '') {
+    this.park = new ParkPlay(this.parkHost());
     const missing = LEVELS.findIndex(l => !hasSpecies(l.reward));
     this.maxLevel = missing < 0 ? LEVELS.length : missing;
     this.hud = new Hud({
@@ -635,6 +645,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (data) this.load(data);
     this.season = this.seasonNow();
     this.view.setSeason(this.season);
+    this.park.restore(data?.snowmen);
     // een ouder spel dat al verder is: even vertellen dat de dieren nu iets leuks willen
     if (data && this.has('fun') && !this.toys.length) this.lines.push(say.funNew());
     if (data && this.has('climate') && !this.toys.some(toy => toy.kind === 'lamp' || toy.kind === 'icebox')) this.lines.push(say.climateNew());
@@ -661,6 +672,52 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (hello) this.lines.push(hello);
     this.introduceLevel();
     (window as unknown as { __zoo: Game }).__zoo = this;
+  }
+
+  /** Wat het spelen met de seizoenen en de nacht (parkplay.ts) van het park moet weten. */
+  private parkHost(): ParkHost {
+    const grass = TERRAINS.indexOf('grass');
+    return {
+      view: this.view,
+      clock: () => this.clock,
+      season: () => this.season,
+      seasons: () => this.has('season'),
+      nights: () => this.has('night'),
+      dark: () => this.night,
+      // loofbomen: de boom en de kersenboom van het park, en de eik van de natuur als die buiten een verblijf staat
+      trees: () => [
+        ...this.decors.filter(d => d.kind === 'tree' || d.kind === 'cherry').map(d => this.decorPos(d)),
+        ...this.props.filter(p => p.kind === 'oak').map(p => this.propCenter(p)).filter(([gx, gy]) => !this.grid.enclosureAt(Math.floor(gx), Math.floor(gy))),
+      ],
+      ground: (gx, gy) => {
+        const x = Math.floor(gx), y = Math.floor(gy);
+        if (!this.grid.inBounds(x, y) || this.grid.enclosureAt(x, y) || this.shopAt(x, y)) return null;
+        const t = this.grid.terrain[tileIndex(x, y)];
+        return isPath(t) ? 'path' : t === grass ? 'grass' : null;
+      },
+      tilesNear: (gx, gy) => {
+        const i = tileIndex(Math.floor(gx), Math.floor(gy));
+        return [i, ...this.grid.neighbors(i)];
+      },
+      lamps: () => this.decors.filter(d => isLamp(d.kind)).map(d => ({ ref: d, kind: d.kind, mesh: d.mesh, gx: this.decorPos(d)[0], gy: this.decorPos(d)[1] })),
+      guests: () => this.guests.guests,
+      sightOf: ref => {
+        this.sightsAt = -9;
+        this.sights();
+        return this.sightOf.get(ref) ?? null;
+      },
+      callKid: sight => this.guests.callKid(sight),
+      earn: (n, gx, gy) => this.earn(n, gx, gy),
+      float: (html, gx, gy, h) => this.floatAt(html, gx, gy, h),
+      once: (id, line) => {
+        if (this.told.has(id)) return;
+        this.told.add(id);
+        this.lines.push(line);
+      },
+      pointTo: (act, gx, gy) => this.pointTo(act, gx, gy),
+      tools: () => this.refreshTools(),
+      strings: () => this.syncStrings(),
+    };
   }
 
   // ------------------------------------------------------------ opslaan
@@ -826,6 +883,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       fans: this.classFans,
       stars: this.stars,
       parties: this.partiesDone.length ? this.partiesDone : undefined,
+      snowmen: this.park.save(),
     };
   }
 
@@ -1400,7 +1458,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     // de balk wordt alleen opnieuw opgebouwd als er echt iets anders in komt; bij een munt meer of minder
     // verandert alleen het prijskaartje, anders flikkeren de plaatjes van de dieren
     this.hud.setAfford(this.coins);
-    const key = [this.tool, this.linger, hint, this.level, ...Object.values(this.option), ...this.fresh].join('|');
+    const key = [this.tool, this.linger, hint, this.level, this.season, ...Object.values(this.option), ...this.fresh].join('|');
     if (!force && key === this.toolsKey) return;
     this.toolsKey = key;
 
@@ -1541,7 +1599,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Wat er onder de actieknop zit: de veger altijd, de prikker zodra er afval komt, de hamer zodra hekken slijten. */
   private actionOptions(): ActionId[] {
-    return ['broom', ...(this.has('wear') ? (['hammer'] as const) : []), ...(this.has('bin') ? (['picker'] as const) : []), ...CARE_ACTIONS.filter(k => this.has(k))];
+    return ['broom', ...(this.has('wear') ? (['hammer'] as const) : []), ...(this.has('bin') ? (['picker'] as const) : []), ...CARE_ACTIONS.filter(k => this.has(k)), ...this.park.actions()];
   }
 
   /** Een tik met het verkeerde gereedschap: het goede wordt alvast gekozen en de actieknop licht op. */
@@ -1561,6 +1619,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Ligt hier iets waar het gekozen gereedschap van de actieknop iets mee kan? Anders sleep je het veld. */
   private actionTarget(cx: number, cy: number): boolean {
+    if (this.option.action === 'rake' || this.option.action === 'snowball') return this.park.target(this.option.action, cx, cy, this.view.groundPoint(cx, cy));
     if (this.option.action === 'broom') return !!this.pickPoop(cx, cy);
     if (this.option.action === 'picker') return !!this.pickLitter(cx, cy);
     const g = this.view.groundPoint(cx, cy);
@@ -3218,7 +3277,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     for (const d of this.decors) {
       const [gx, gy] = this.decorPos(d);
       const r = (LIGHT as Record<string, number>)[d.kind];
-      if (r) list.push({ gx, gy, r });
+      // een lamp die je hebt uitgetikt, geeft geen licht
+      if (r && this.park.lit(d)) list.push({ gx, gy, r });
     }
     for (const s of this.shops) if (!s.edge) list.push({ gx: blockCenter(s)[0], gy: blockCenter(s)[1], r: LIGHT.shop });
     this.road.lights(list);
@@ -4541,6 +4601,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (side) return this.landMenu(side);
     }
     if (this.tool === 'action') {
+      // harken en sneeuw rollen
+      if (this.park.paint(this.option.action, cx, cy, g, first)) return;
       if (this.option.action === 'broom') {
         // vegen: alles waar je overheen gaat is weg
         const poop = this.pickPoop(cx, cy);
@@ -4782,6 +4844,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const tank = inside ? this.tankAt(x, y) : undefined;
     // de klas zoekt een dier: een tik op een verblijf met dieren is het antwoord
     if (this.guideAsk && g && this.guideTap(g.gx, g.gy)) return;
+    // de grote lamp bij de ingang, een hoop blaadjes of een sneeuwbal
+    if ((this.tool === 'hand' || this.tool === 'action') && this.park.tap(cx, cy, g, this.tool === 'hand')) return;
     if (this.tool === 'action') {
       // wat je geprikt hebt gaat met een tik in de afvalbak
       if (item?.kind === 'bin' && this.carry) return this.dump(item);
@@ -4896,6 +4960,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         return;
       }
       if (this.pointers.size > 2 || this.celebrating) return;
+      this.park.release();
       const pan = e.button !== 0;
       // het snoepje en de tuinslang: je mikt met je vinger, het veld schuift dan niet mee
       if (!pan && !this.moving && this.tool === 'action' && isCare(this.option.action)) {
@@ -4967,6 +5032,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         this.view.hideGhost();
         if (this.staffGhost) this.staffGhost.worker.mesh.visible = false;
       }
+      // een gerolde sneeuwbal blijft liggen
+      this.park.release();
     };
     canvas.addEventListener('pointerup', end);
     canvas.addEventListener('pointercancel', end);
@@ -5918,6 +5985,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const [x, y] = edgePose(sh);
       add(sh, sh.kind, x, y, edgeSides(sh), 0);
     }
+    // een grote hoop blaadjes en de sneeuwpoppen die de speler zelf bouwde
+    this.park.sights(add);
     // wat weg is, blijft `gone`: een gast die ernaartoe liep, loopt dan gewoon door
     for (const s of this.sightList) if (s.gone) this.sightOf.delete(s.ref);
     this.sightList = list;
@@ -5926,6 +5995,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Een gast doet iets met een ding in het park: het beweegt even mee, net als wanneer de speler erop tikt (zonder het tikje, wel met het geluid van het ding zelf). */
   sightUsed(sight: Sight): void {
+    if (this.park.used(sight)) return;
     if (sight.kind === 'bin') {
       if (this.shops.includes(sight.ref as ShopObj)) this.binned(sight.ref as ShopObj);
       return;
@@ -5937,6 +6007,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.view.pokeDecor(decor.mesh, kind, this.clock);
     if (kind === 'pond' || kind === 'pump') this.view.splash(sight.x, sight.y);
     else if (kind === 'birdbath') this.view.burst(sight.x, sight.y, 0.7, 0xcfeaff, 3);
+    // een sneeuwballetje tegen de sneeuwpop
+    else if (kind === 'snowman') this.view.burst(sight.x, sight.y, 0.7, 0xffffff, 4);
     // de pomp piept en geeft water, de kikker plonst in de vijver, het vuur knettert even op
     if (kind === 'pump') sfx('park.pump', { volume: 0.3, every: 2.2, at: [sight.x, sight.y] });
     else if (kind === 'pond') sfx('park.splash', { volume: 0.22, every: 3, at: [sight.x, sight.y] });
@@ -6380,7 +6452,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** De palen met vlaggetjes en lichtjes: het beeld hangt er slingers tussen. */
   private syncStrings(): void {
     // het beeld rekent met het midden van een tegel; een paal op een rand staat een halve tegel verder
-    const poles = this.decors.filter(d => d.kind === 'bunting' || d.kind === 'lightstring').map(d => ({ x: this.decorPos(d)[0] - 0.5, y: this.decorPos(d)[1] - 0.5, kind: d.kind as 'bunting' | 'lightstring' }));
+    const poles = this.decors.filter(d => d.kind === 'bunting' || d.kind === 'lightstring').map(d => ({ x: this.decorPos(d)[0] - 0.5, y: this.decorPos(d)[1] - 0.5, kind: d.kind as 'bunting' | 'lightstring', off: !this.park.lit(d) }));
     this.view.syncStrings(poles);
   }
 
@@ -6388,6 +6460,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private pokeDecor(decor: DecorObj): void {
     if (decor.kind === 'guestbook') return this.openBook();
     const [cx, cy] = this.decorPos(decor);
+    // 's nachts gaat een lamp met een tik uit of aan
+    if (this.park.tapLamp({ ref: decor, kind: decor.kind, mesh: decor.mesh, gx: cx, gy: cy })) return;
     this.view.pokeDecor(decor.mesh, decor.kind, this.clock);
     sfx('tap');
     const water = decor.kind === 'pond' || decor.kind === 'well' || decor.kind === 'birdbath' || decor.kind === 'waterfall' || decor.kind === 'pump';
@@ -6469,6 +6543,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       litter: this.litter.length,
       poops: this.poops.length,
       dirty: this.shops.filter(sh => (sh.dirt ?? 0) >= 1).length,
+      leaves: this.park.leavesOnPath(),
       kinds: this.parkSpecies().length,
       decor: this.decors.length,
       shopKinds: new Set(this.shops.filter(sh => !sh.off).map(sh => sh.kind)).size,
@@ -6826,6 +6901,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.updateNight();
     this.updateParty(dt);
     this.updateSky(dt);
+    this.park.update(dt);
     this.updateHand();
     // wat er oplicht: met de veger alle poepjes en afval, anders alleen wat onder de muis ligt; en het dier in nood
     const spots: { gx: number; gy: number; r?: number; hot?: boolean; brown?: boolean; soft?: boolean }[] = [];
@@ -6848,13 +6924,15 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       }
     } else if (this.tool === 'action' && !isCare(this.option.action)) {
       // de veger: alle poepjes; de prikker: al het afval, en de afvalbakken zodra je iets bij je hebt
-      for (const p of this.option.action === 'broom' ? this.poops : this.litter) spots.push({ gx: p.gx, gy: p.gy, hot: p === hot, r: p === hot ? 1.5 : 1 });
+      for (const p of this.option.action === 'broom' ? this.poops : this.option.action === 'picker' ? this.litter : []) spots.push({ gx: p.gx, gy: p.gy, hot: p === hot, r: p === hot ? 1.5 : 1 });
       if (this.option.action === 'broom') for (const sh of this.shops) if ((sh.dirt ?? 0) >= 1) spots.push({ gx: blockCenter(sh)[0], gy: blockCenter(sh)[1], hot: true, r: 3 });
       // en elke bak met vies water
       if (this.option.action === 'broom') for (const pen of this.tankPens) if (murkyWater(pen.murk)) spots.push({ gx: pen.cx, gy: pen.cy, hot: true, r: 3 });
       if (this.option.action === 'picker' && this.carry)
         for (const bin of this.shops) if (bin.kind === 'bin') spots.push({ gx: edgePose(bin)[0], gy: edgePose(bin)[1], hot: true, r: 1.6 });
     } else if (hot) spots.push({ gx: hot.gx, gy: hot.gy, hot: true, r: 1.4 });
+    // de hark: de blaadjes en de grote hopen; de sneeuw: de sneeuwballen die nog geen sneeuwpop zijn
+    if (this.tool === 'action') this.park.marks(spots, this.option.action);
     // elk poepje heeft een bruine ring, zodat je het goed ziet liggen (met de veger in de hand zijn ze al geel)
     if (!(this.tool === 'action' && this.option.action === 'broom')) for (const p of this.poops) if (p !== hot) spots.push({ gx: p.gx, gy: p.gy, r: 0.9, brown: true });
     if (this.marked && (this.clock > this.marked.until || !this.animals.includes(this.marked.a))) this.marked = null;
