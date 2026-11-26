@@ -34,6 +34,7 @@ import { CABLE, cableChairs, cableFit, cableLength, cableOpen, cablePairs, cable
 import { Road } from './road';
 import { STAR_EVERY, STAR_FACTORS, STAR_GOOD, STAR_TIP_GAP, nextStars, parkScore, scoreOf, smoothScore, starFactors, starGuests, weakest, type StarFactor, type StarInput } from './stars';
 import { guestCard } from './traits';
+import { BOOK_HEART, KID_MOMENT, KID_MOMENTS, SPLAT_MELT, momentReady, type KidMoment } from './kids';
 import { EDGE_SHIFT, View, toWorldX, toWorldZ, type TroughMesh } from './view';
 
 /** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken. */
@@ -796,7 +797,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         nature: a.nature === 'plain' ? undefined : a.nature, rare: a.rare ?? undefined,
       })),
       poops: this.poops.map(({ gx, gy }) => ({ gx, gy })),
-      litter: this.litter.map(({ gx, gy }) => ({ gx, gy })),
+      litter: this.litter.filter(p => !this.splats.has(p)).map(({ gx, gy }) => ({ gx, gy })),
       guests: this.guests.snapshot(),
       wear: Object.fromEntries(this.wear),
       pens: this.pens.map(p => ({ tile: p.region.tiles[0], name: p.name, color: p.color || undefined, murk: p.murk ? Math.round(p.murk * 1000) / 1000 : undefined })),
@@ -4292,13 +4293,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       want(guest.treat, 'icecream') + want(guest.balloon, 'balloon') + want(guest.gift, 'souvenir') + want(guest.playful, 'slide') + want(guest.hat, 'hats') +
       want(guest.curious, 'fountain') + want(guest.rideWish, 'carousel') +
       '</span>' + facts;
-    this.hud.showMenu(s.x, s.y, card.name || t('guest.title'), [{ id: 'wave', icon: icon('hand'), label: t('guest.wave') }], () => {
-      if (!guest.waved) guest.fun = Math.min(1, guest.fun + 0.1);
-      guest.waved = true;
-      // de gast zwaait terug
-      guest.greet();
-      this.floatAt(icon('heart'), guest.gx, guest.gy, guest.height + 0.2);
-    }, header, 'guest');
+    this.hud.showMenu(s.x, s.y, card.name || t('guest.title'), [{ id: 'wave', icon: icon('hand'), label: t('guest.wave') }], () => this.waveTo(guest), header, 'guest');
     const canvas = document.querySelector<HTMLCanvasElement>('#menu canvas.portrait3d');
     this.liveGuest = canvas ? { g: guest, canvas, label: document.querySelector<HTMLElement>('#menu .doing'), was: '', skip: false } : null;
     this.updateLiveGuest();
@@ -5129,15 +5124,155 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
   }
 
+  // ------------------------------------------------------------ momentjes met kinderen (zie kids.ts)
+  /** Wanneer elk soort moment het laatst gebeurde: daartussen zit een flinke pauze (de eerste komt na de halve pauze). */
+  private kidLast = Object.fromEntries(KID_MOMENTS.map(k => [k, -KID_MOMENT[k].gap / 2])) as Record<KidMoment, number>;
+  /** Het bordje boven een kind dat om hulp vraagt, en de ring om een losse ballon: daar tik je op. */
+  private kidTaps = new Map<Guest, HTMLElement>();
+  private balloonTaps = new Map<Guest, HTMLElement>();
+  /** De vlekken van gevallen ijsjes, en wanneer ze vanzelf weggesmolten zijn. */
+  private splats = new Map<PoopObj, number>();
+
+  /** Mag er nu zo'n moment met een kind gebeuren? Alleen als het vrij is in dit level, niet te vaak, en als je het kind ziet. */
+  kidMoment(kind: KidMoment, guest: Guest): boolean {
+    if (!momentReady(kind, this.level, this.clock, this.kidLast[kind])) return false;
+    if (kind === 'icecream' && !this.shops.some(sh => sh.kind === 'icecream')) return false;
+    if (kind === 'coin' && this.coins < 1) return false;
+    // buiten beeld kun je niet helpen
+    const s = this.view.toScreen(guest.gx, guest.gy, guest.height);
+    if (s.x < 70 || s.y < 140 || s.x > innerWidth - 70 || s.y > innerHeight - 120) return false;
+    this.kidLast[kind] = this.clock;
+    // de eerste keer vertelt de gastvrouw hoe je helpt
+    if (!this.told.has(`kid.${kind}`)) {
+      this.told.add(`kid.${kind}`);
+      this.lines.push(this.lineAbout(say.kid(kind), guest));
+    }
+    return true;
+  }
+
+  /** Een gevallen ijsje: een roze vlek op het pad. Die smelt na een poosje vanzelf weg; prikken of vegen mag ook. */
+  splat(gx: number, gy: number): void {
+    if (this.litter.length >= MAX_LITTER) return;
+    const p: PoopObj = { gx, gy, mesh: this.view.makeLitter(gx, gy, true) };
+    this.litter.push(p);
+    this.splats.set(p, this.clock + SPLAT_MELT);
+  }
+
+  /** De speler zwaait naar een gast: hij zwaait terug en zegt hoi; een kind springt. Een hartje als hij er blijer van werd. */
+  private waveTo(guest: Guest): void {
+    const glad = guest.waveBack();
+    this.floatAt(t('guest.hi'), guest.gx, guest.gy, guest.height + 0.45, 'word');
+    if (glad) this.floatAt(icon('heart'), guest.gx, guest.gy, guest.height + 0.15);
+    if (guest.child) this.guestSound('guest.laugh', guest);
+  }
+
+  /** Elk beeldje: de bordjes boven kinderen die hulp vragen, de ring om een losse ballon, en smeltende ijsvlekken. */
+  private kidsUpdate(): void {
+    for (const [p, until] of this.splats) {
+      if (!this.litter.includes(p)) this.splats.delete(p);
+      else if (this.clock >= until) {
+        this.view.scene.remove(p.mesh);
+        this.litter = this.litter.filter(x => x !== p);
+        this.splats.delete(p);
+      }
+    }
+    for (const [g, tap] of this.kidTaps)
+      if (g.gone || tap.dataset.ask !== (g.ask ?? '')) {
+        tap.remove();
+        this.kidTaps.delete(g);
+      }
+    for (const [g, ring] of this.balloonTaps)
+      if (g.gone || !g.looseBalloon()) {
+        ring.remove();
+        this.balloonTaps.delete(g);
+      }
+    for (const g of this.guests.guests) {
+      if (g.ask) {
+        let tap = this.kidTaps.get(g);
+        if (!tap) this.kidTaps.set(g, (tap = this.makeKidTap(g)));
+        const at = this.view.toScreen(g.gx, g.gy, g.height + 0.25);
+        tap.hidden = false;
+        tap.style.transform = `translate(${at.x}px, ${at.y}px) translate(-50%, -100%)`;
+      }
+      const b = g.looseBalloon();
+      if (b) {
+        let ring = this.balloonTaps.get(g);
+        if (!ring) this.balloonTaps.set(g, (ring = this.hud.makeCatch(() => this.catchBalloon(g))));
+        const at = this.view.toScreen(b.x + W / 2, b.z + H / 2, b.y);
+        ring.hidden = false;
+        ring.style.transform = `translate(${at.x}px, ${at.y}px) translate(-50%, -50%)`;
+      }
+    }
+  }
+
+  /** Het bordje boven een kind dat hulp vraagt: een ijsje met een plusje, of een lege portemonnee met wat het wil kopen. */
+  private makeKidTap(g: Guest): HTMLElement {
+    const html = g.ask === 'icecream' ? icon('icecream') + icon('plus', 'badge')
+      : icon('wallet') + (g.askFor ? `<i class="from">${icon((NEED_KIND[g.askFor] ?? 'coin') as IconId)}</i>` : '');
+    const tap = this.hud.makeBadge(html, g.ask === 'icecream' ? 'tap ask sad' : 'tap ask');
+    tap.dataset.ask = g.ask ?? '';
+    tap.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.helpKid(g);
+    });
+    return tap;
+  }
+
+  /** Een tik op het bordje: een nieuw ijsje van de dichtstbijzijnde ijskraam (gratis), of een muntje uit de kas. */
+  private helpKid(g: Guest): void {
+    if (g.ask === 'icecream') {
+      const stalls = this.shops.filter(sh => sh.kind === 'icecream');
+      if (!stalls.length) return this.nope(g.gx, g.gy, g.height + 0.3);
+      const far = (sh: ShopObj): number => Math.hypot(shopCenter(sh)[0] - g.gx, shopCenter(sh)[1] - g.gy);
+      const stall = stalls.reduce((a, b) => (far(b) < far(a) ? b : a));
+      // de verkoper zwaait, en daar komt het ijsje
+      stall.vendor?.sold();
+      const [sx, sy] = shopCenter(stall);
+      this.floatAt(icon('icecream'), sx, sy, 1.2);
+      g.freshIceCream(stall.sells.find(p => p !== 'lolly') ?? stall.sells[0]);
+    } else if (g.ask === 'coin') {
+      if (!this.pay(1, g.gx, g.gy)) return;
+      this.floatAt(icon('coin'), g.gx, g.gy, g.height + 0.3, 'coin');
+      sfx('coin', { volume: 0.7 });
+      g.takeCoin();
+    } else return;
+    sfx('chime');
+    this.floatAt(icon('heart'), g.gx, g.gy, g.height + 0.55);
+    this.thankFirst(g);
+  }
+
+  /** Een tik op de ring om de losse ballon: hij zweeft terug naar het kind. */
+  private catchBalloon(g: Guest): void {
+    if (!g.catchBalloon()) return;
+    sfx('chime');
+    this.floatAt(icon('heart'), g.gx, g.gy, g.height + 0.55);
+    this.thankFirst(g);
+  }
+
+  /** De eerste keer dat je een kind helpt, zegt de gastvrouw dank je wel. */
+  private thankFirst(g: Guest): void {
+    if (this.told.has('kid.thanks')) return;
+    this.told.add('kid.thanks');
+    this.lines.push(this.lineAbout(say.kid('thanks'), g));
+  }
+
   /** Een blije gast laat bij het weggaan een tekening van zijn lievelingsdier achter in het gastenboek. */
   signBook(guest: Guest): void {
-    if (!guest.fav || !guest.favSeen || !this.decors.some(d => d.kind === 'guestbook')) return;
+    if (!this.decors.some(d => d.kind === 'guestbook')) return;
+    // een kind dat een muntje van je kreeg, tekent een hartje
+    if (guest.owesHeart) {
+      guest.owesHeart = false;
+      this.book[BOOK_HEART] = Math.min(999, (this.book[BOOK_HEART] ?? 0) + 1);
+      return;
+    }
+    if (!guest.fav || !guest.favSeen) return;
     this.book[guest.fav] = Math.min(999, (this.book[guest.fav] ?? 0) + 1);
   }
 
   /** Het gastenboek: de dieren waar de meeste tekeningen van zijn, bovenaan. */
   private openBook(): void {
-    const entries = Object.entries(this.book).sort((p, q) => q[1] - p[1]).slice(0, 12).map(([sp, n]) => ({ icon: speciesIcon(sp), n }));
+    const entries = Object.entries(this.book).sort((p, q) => q[1] - p[1]).slice(0, 12).map(([sp, n]) => ({ icon: sp === BOOK_HEART ? icon('heart') : speciesIcon(sp), n }));
     this.hud.showBook(t('book.title'), entries, t('book.empty'), t('guide.ok'));
   }
 
@@ -6194,7 +6329,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       let bubble = this.guestBubbles.get(g);
       // een wolkje staat er alleen als de gast iets echt niet kan vinden (of de weg kwijt is): wie gewoon onderweg is
       // naar een kraam of een bankje, loopt zonder wolkje
-      if (!g.wish || !g.wish.lacking || (g.badge && g.astray <= 0)) {
+      if (!g.wish || !g.wish.lacking || (g.badge && g.astray <= 0) || g.ask) {
         if (bubble) bubble.hidden = true;
         continue;
       }
@@ -6378,6 +6513,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       bubble.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%)`;
     }
     this.guestBubblesUpdate();
+    this.kidsUpdate();
     this.updateLive();
     this.updateLiveGuest();
     // het prijskaartje boven elke strook grond die te koop is

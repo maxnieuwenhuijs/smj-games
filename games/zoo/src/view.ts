@@ -2386,6 +2386,13 @@ const LITTER_KINDS: Part[][] = [
   ), PAINT_MAT]],
 ];
 
+// Een gevallen ijsje: een roze plasje gesmolten ijs met spetters, en het hoorntje dat er omgevallen naast ligt.
+const SPLAT: Part[] = [[painted(
+  [0xffc1d6, blob(0.15, 1, 0.16, 0.8, 0, 0.012, 0), blob(0.055, 1, 0.3, 1, 0.17, 0.008, 0.08, 0), blob(0.045, 1, 0.3, 1, -0.14, 0.006, 0.11, 0), blob(0.035, 1, 0.3, 1, 0.02, 0.006, -0.15, 0)],
+  [0xffe3ec, blob(0.06, 1, 0.3, 1, -0.03, 0.03, -0.02, 0)],
+  [0xe3b06a, new THREE.ConeGeometry(0.055, 0.19, 8).rotateZ(-1.75).translate(0.13, 0.045, -0.05)],
+), PAINT_MAT]];
+
 function build(parts: Part[], mat?: THREE.Material): THREE.Group {
   const group = new THREE.Group();
   for (const [geo, m, shadow = true] of parts) {
@@ -3703,9 +3710,9 @@ export class View {
     ghost.visible = true;
   }
 
-  /** Afval dat een gast op het pad heeft laten vallen. */
-  makeLitter(gx: number, gy: number): THREE.Group {
-    const group = build(LITTER_KINDS[Math.floor(Math.random() * LITTER_KINDS.length)]);
+  /** Afval dat een gast op het pad heeft laten vallen. `splat`: een gevallen ijsje. */
+  makeLitter(gx: number, gy: number, splat = false): THREE.Group {
+    const group = build(splat ? SPLAT : LITTER_KINDS[Math.floor(Math.random() * LITTER_KINDS.length)]);
     group.scale.setScalar(1.25);
     group.position.set(toWorldX(gx), 0, toWorldZ(gy));
     group.rotation.y = Math.random() * Math.PI * 2;

@@ -196,6 +196,8 @@ export const say = {
     key: `say.event.${id}${part === 'ask' ? '' : `.${part}`}.${n + 1}`,
   }),
   found: (): Line => ({ who: 'host', mood: 'happy', key: 'say.found' }),
+  /** De eerste keer dat een ballon wegvliegt, een ijsje valt of een kind geen geld heeft (zie kids.ts), en het eerste dank je wel. */
+  kid: (key: 'balloon' | 'icecream' | 'coin' | 'thanks'): Line => ({ who: 'host', mood: key === 'thanks' ? 'happy' : 'worried', key: `say.kid.${key}` }),
   trainOne: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.train.one' }),
   trainGo: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.train.go' }),
   /** De tribune past hier niet: die moet tegen de bak van de dolfijnen staan. En de eerste show begint. */
@@ -330,6 +332,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
     say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.filterTip(), say.showWhere(), say.showFirst(),
     say.cableOne(), say.cableWhere(), say.cableFirst()]) add(line);
+  for (const key of ['balloon', 'icecream', 'coin', 'thanks'] as const) add(say.kid(key));
   add(say.eventNew());
   add(say.starsNew());
   for (let n = 2; n <= 5; n++) add(say.stars(n));

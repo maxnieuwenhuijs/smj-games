@@ -9,6 +9,7 @@ import { CABLE, cableAt, cableLength, cableLoop, cablePassed, cableStop } from '
 import { toWorldX, toWorldZ } from './view';
 import { arrivalPath, busPath, exitPath, pavementY } from './road';
 import { FaceCrowd, beardColor, faceFor, giveFace, setFace } from './faces';
+import { BALLOON_FLY, KID_CHANCE, KID_WAIT, WAVE, balloonCatchable, balloonDrift, balloonHome, waveFresh, type KidMoment } from './kids';
 
 /** De tegel waar gasten binnenkomen en weer weggaan: midden aan de voorkant. */
 export const ENTRANCE = tileIndex(Math.floor(W / 2), H - 1);
@@ -247,6 +248,10 @@ export interface GuestWorld {
   liftView(gx: number, gy: number): string[];
   /** Een gast is met de kabelbaan geweest: hij betaalt voor zijn ritje. */
   liftPaid(shop: ShopSpot, guest: Guest): void;
+  /** Mag er nu zo'n moment met een kind gebeuren (zie kids.ts)? Zo ja, dan onthoudt het spel dat het er een was. */
+  kidMoment(kind: KidMoment, guest: Guest): boolean;
+  /** Een kind liet zijn ijsje vallen: een vlek op het pad. */
+  splat(gx: number, gy: number): void;
 }
 
 /** Een ding in het park waar gasten iets mee doen: een versiering, een bloembak of een afvalbak. */
@@ -838,6 +843,8 @@ const SCOOPS = [0xffc1d6, 0xfff1c9, 0x8a5637, 0xb6e3c0];
 const PLUSH_COLORS = [0xc98d5e, 0xf4f1e8, 0xf5a623, 0x9aa0a6, 0xf48fb1, 0x8a5637, 0xffd23f];
 /** Waar de knuffel zit: onder de arm, en tegen de borst bij het knuffelen. */
 const PLUSH_REST = [-0.19, 0.31, 0.075], PLUSH_HUG = [0, 0.37, 0.11];
+/** Waar een losse ballon nu is (zie looseBalloon): steeds hetzelfde object. */
+const LOOSE_BALLOON = new THREE.Vector3();
 /** Waar de hand het touwtje van de ballon vasthoudt: daar draait de ballon omheen als hij wiebelt. */
 const BALLOON_AT = [0.185, 0.27, 0.11];
 /** Uit welke kleine dingen een gast kiest als hij even stilstaat: het hangt af van de regen, de rij, de nacht en de regenboog. */
@@ -1023,8 +1030,23 @@ export class Guest implements Leader {
   /** Een vast plaatje boven een bijzondere gast: 'celeb', 'lost', 'seek', 'cake' of 'schoolclass'. */
   badge: string | null = null;
   gone = false;
-  /** Heeft de speler al naar deze gast gezwaaid? */
+  /** Heeft de speler al naar deze gast gezwaaid? En wanneer het laatst (in de leeftijd van de gast)? */
   waved = false;
+  private wavedAt: number | null = null;
+  // ---- momentjes met kinderen waar de speler bij helpt (zie kids.ts)
+  /** Het kind vraagt om hulp: een nieuw ijsje (het eerste viel op de grond) of een muntje (het geld is op). */
+  ask: 'icecream' | 'coin' | null = null;
+  private askT = 0;
+  /** Waar het kind een muntje voor wil hebben: een ijsje, een ballon, een hoedje of een knuffel. */
+  askFor: Need | null = null;
+  /** Het kind kreeg een muntje van de speler: bij de volgende aankoop is het extra blij. */
+  private gifted = false;
+  /** Bij het weggaan tekent het kind een hartje in het gastenboek (voor het muntje). */
+  owesHeart = false;
+  /** De losse ballon: welke het was, en zoveel tellen zweeft hij al terug naar de hand (-1: niet). */
+  private flownKind: string | null = null;
+  private homing = -1;
+  private homeFrom = new THREE.Vector3();
   /** Heeft de gast een paraplu? Die gaat open als het regent. */
   umbrella = false;
   /** Heeft de gast op de plattegrond gekeken? Dan vindt hij zijn lievelingsdier meteen. */
@@ -1355,7 +1377,7 @@ export class Guest implements Leader {
 
   /** Kan deze gast nu mee met de gids? */
   get free(): boolean {
-    return !this.special && !this.leaving && !this.inside && !this.riding && !this.walkway && !this.wheels && this.astray <= 0 && (this.state === 'idle' || this.state === 'walk' || this.state === 'watch') && !this.errand && !this.sight;
+    return !this.special && !this.leaving && !this.inside && !this.riding && !this.walkway && !this.wheels && this.astray <= 0 && (this.state === 'idle' || this.state === 'walk' || this.state === 'watch') && !this.errand && !this.sight && !this.ask && this.flown < 0 && this.homing < 0;
   }
 
   /**
@@ -1612,6 +1634,8 @@ export class Guest implements Leader {
   showFace(): void {
     const seat = this.state === 'sit' ? this.shop?.kind : undefined;
     const doing = this.lost ? (this.found ? 'joy' : 'cry')
+      // een kind dat zijn ijsje liet vallen, huilt; wie zijn ballon ziet wegvliegen, kijkt met grote ogen
+      : this.ask === 'icecream' ? 'cry' : !this.shot && balloonCatchable(this.flown) ? 'lookup' : this.ask === 'coin' && !this.shot ? 'slump'
       : this.shot ?? (this.joy > 0 ? 'joy' : this.moan > 0 ? 'moan' : this.state === 'accident' ? 'oops' : this.eating > 0 ? this.bite
         : this.state === 'watch' ? this.act : this.state === 'use' ? this.use
         : seat && (PLAY.includes(seat) || RIDES.includes(seat)) ? 'ride'
@@ -1669,6 +1693,20 @@ export class Guest implements Leader {
   /** Zwaaien (naar de speler). */
   greet(): void {
     this.hello = 1.8;
+  }
+
+  /**
+   * De speler zwaait: de gast zwaait terug, en een kind springt van blijdschap. Geeft terug of het ook wat plezier
+   * opleverde; bij dezelfde gast kan dat pas weer na WAVE.every tellen.
+   */
+  waveBack(): boolean {
+    this.greet();
+    if (this.child && !this.wheels) this.joy = Math.max(this.joy, 0.9);
+    this.waved = true;
+    if (!waveFresh(this.age, this.wavedAt)) return false;
+    this.wavedAt = this.age;
+    this.fun = Math.min(1, this.fun + WAVE.bonus);
+    return true;
   }
 
   /** Instappen in het treintje, op plek `seat`. */
@@ -2191,7 +2229,7 @@ export class Guest implements Leader {
     if (this.gone || this.walkway) return;
     if (this.star) w.starLeft(this, this.happy);
     else if (this.badge === 'schoolclass' && this.tour) w.classLeft(this, this.happy);
-    else if (this.happy && !this.leader && !this.wrote) w.signBook(this);
+    else if (!this.leader && (this.owesHeart || (this.happy && !this.wrote))) w.signBook(this);
     // kan hij niet bij de ingang komen (het pad is weg), dan is hij meteen weg
     if (this.gy >= H || tileIndex(Math.floor(this.gx), Math.floor(this.gy)) !== ENTRANCE) {
       this.gone = true;
@@ -3351,6 +3389,12 @@ export class Guest implements Leader {
         this.fun = Math.min(1, this.fun + (exact ? joy : joy * 0.3));
         // een kind dat net iets leuks kreeg, springt even
         if (this.child && (kind === 'icecream' || kind === 'balloon' || kind === 'souvenir')) this.joy = 0.9;
+        // gekocht met het muntje van de speler: heel blij
+        if (this.gifted) {
+          this.gifted = false;
+          this.fun = 1;
+          this.joy = 1.6;
+        }
         if (this.errand) {
           delete this.wanted[this.errand];
           this.settled.delete(this.errand);
@@ -4118,25 +4162,8 @@ export class Guest implements Leader {
         this.fire('hug');
       }
     }
-    const g = this.balloonG;
-    if (g && this.flown >= 0) {
-      // de ballon is los: hij stijgt op, drijft weg en wordt steeds kleiner
-      this.flown += dt;
-      g.position.y += dt * (0.35 + this.flown * 0.5);
-      g.position.x += dt * 0.22;
-      g.rotation.z = Math.sin(this.flown * 3) * 0.2;
-      g.scale.setScalar(1 - smooth(1.5, 3.4, this.flown) * 0.95);
-      if (this.flown > 3.4) {
-        this.mesh.remove(g);
-        this.balloonG = null;
-        this.flown = -1;
-      }
-    } else if (g && this.child && afoot && !this.shot && this.state !== 'queue' && Math.random() < dt * 0.0008) {
-      // heel soms laat een kind zijn ballon los: die vliegt weg en het kind kijkt hem na
-      this.flown = 0;
-      this.wornBalloon = null;
-      this.fire('lookup', 3);
-    }
+    // de ballon die loskomt, het ijsje dat valt, een kind zonder geld
+    this.kidMoments(dt, w, afoot);
   }
 
   /** Aan het begin van elk beeldje: alles wat een houding kan verzetten, staat weer gewoon. */
@@ -4392,7 +4419,7 @@ export class Guest implements Leader {
       }
     }
     const g = this.balloonG;
-    if (g && this.flown < 0) {
+    if (g && this.flown < 0 && this.homing < 0) {
       // de ballon trekt omhoog aan zijn touwtje en wiebelt; bij het lopen blijft hij een beetje achter
       g.rotation.z = Math.sin(this.phase * 0.11) * 0.1;
       g.rotation.x = walking ? -0.2 + Math.sin(this.phase * 0.23) * 0.05 : Math.sin(this.phase * 0.07) * 0.06;
@@ -4607,8 +4634,205 @@ export class Guest implements Leader {
         this.twist += Math.atan2(Math.sin(d), Math.cos(d)) * e;
       }
     }
+    this.kidPose();
     // in de rolstoel of achter de kinderwagen blijft het lijf recht
     if (this.wheels) this.hop = this.lean = this.tilt = this.back = this.aside = 0;
+  }
+
+  // ------------------------------------------------------------ momentjes met kinderen (zie kids.ts)
+  /**
+   * De ballon die loskomt en wegvliegt (of terugkomt), het ijsje dat valt, en een kind dat geen geld meer heeft. Een
+   * kind dat om hulp vraagt, blijft staan tot het geholpen is of het opgeeft.
+   */
+  private kidMoments(dt: number, w: GuestWorld, afoot: boolean): void {
+    this.flyBalloon(dt);
+    if (this.ask) {
+      this.askT -= dt;
+      if (this.askT <= 0 || !afoot) this.giveUp();
+      return;
+    }
+    if (!this.child || this.special || !afoot || this.state !== 'walk' || this.shot || this.stall > 0 || this.astray > 0 || this.bladder > 0.85 || this.leaving) return;
+    if (this.balloonG && this.flown < 0 && this.homing < 0) {
+      if (Math.random() < dt * KID_CHANCE.balloon && w.kidMoment('balloon', this)) this.letGo();
+    } else if (this.snack && this.bite === 'lick' && this.eating > 1.5) {
+      if (Math.random() < dt * KID_CHANCE.icecream && w.kidMoment('icecream', this)) this.dropIceCream(w);
+    } else if (this.purchases >= MAX_PURCHASES && this.fun >= 0.5 && !this.gifted && !this.owesHeart && Math.random() < dt * KID_CHANCE.coin) {
+      const want = this.brokeWant(w);
+      if (want && w.kidMoment('coin', this)) {
+        this.ask = 'coin';
+        this.askFor = want;
+        this.askT = KID_WAIT.coin;
+        this.fire('slump', KID_WAIT.coin);
+      }
+    }
+  }
+
+  /** Waar een kind zonder geld nog zin in heeft: een ijsje, een ballon, een hoedje of een knuffel, als dat in het park te koop is. */
+  private brokeWant(w: GuestWorld): Need | null {
+    const wants = ([['icecream', this.treat, 'icecream'], ['balloon', this.balloon, 'balloon'], ['hat', this.hat, 'hats'], ['souvenir', this.gift, 'souvenir']] as [Need, number, ShopKind][])
+      .filter(t => t[1] > 0.7 && w.shops.some(s => s.kind === t[2]));
+    return wants.length ? wants.sort((a, b) => b[1] - a[1])[0][0] : null;
+  }
+
+  /** Het kind laat zijn ballon los: hij stijgt langzaam op, en de speler kan hem nog even vangen. */
+  private letGo(): void {
+    this.flown = 0;
+    this.flownKind = this.wornBalloon;
+    this.wornBalloon = null;
+    this.stall = BALLOON_FLY.catchFor;
+  }
+
+  /** De losse ballon stijgt en wiebelt; is hij gevangen, dan zweeft hij terug naar de hand. */
+  private flyBalloon(dt: number): void {
+    const g = this.balloonG;
+    if (!g) return;
+    if (this.homing >= 0) {
+      this.homing += dt;
+      const k = balloonHome(this.homing);
+      g.position.set(BALLOON_AT[0], BALLOON_AT[1], BALLOON_AT[2]).sub(this.homeFrom).multiplyScalar(k).add(this.homeFrom);
+      g.rotation.set(0, 0, Math.sin(this.homing * 5) * 0.2 * (1 - k));
+      g.scale.setScalar(1);
+      if (k >= 1) {
+        // weer vast: juichen!
+        this.homing = -1;
+        this.wornBalloon = this.flownKind ?? '';
+        this.flownKind = null;
+        this.fun = Math.min(1, this.fun + 0.15);
+        this.joy = 1.4;
+        this.cue = 'guest.laugh';
+      }
+      return;
+    }
+    if (this.flown < 0) return;
+    const was = this.flown;
+    this.flown += dt;
+    const d = balloonDrift(this.flown);
+    g.position.set(BALLOON_AT[0] + d.side, BALLOON_AT[1] + d.up, BALLOON_AT[2]);
+    g.rotation.set(0, 0, d.tilt);
+    g.scale.setScalar(d.size);
+    if (was < BALLOON_FLY.catchFor && this.flown >= BALLOON_FLY.catchFor) {
+      // niet gevangen: hij gaat de lucht in. Het kind kijkt hem na en is een beetje verdrietig
+      this.fun = Math.max(0, this.fun - 0.05);
+      this.fire('lookup', 3);
+    }
+    if (this.flown >= BALLOON_FLY.gone) {
+      this.mesh.remove(g);
+      this.balloonG = null;
+      this.flown = -1;
+      this.flownKind = null;
+    }
+  }
+
+  /** Waar de losse ballon nu is (in de wereld), zolang je hem nog kunt vangen; anders null. */
+  looseBalloon(): THREE.Vector3 | null {
+    const g = this.balloonG;
+    if (!g || !balloonCatchable(this.flown)) return null;
+    return g.children[0].getWorldPosition(LOOSE_BALLOON);
+  }
+
+  /** De speler tikt op de losse ballon: hij zweeft terug naar de hand van het kind. Geeft terug of dat lukte. */
+  catchBalloon(): boolean {
+    if (!this.balloonG || !balloonCatchable(this.flown)) return false;
+    this.homeFrom.copy(this.balloonG.position);
+    this.homing = 0;
+    this.flown = -1;
+    this.stall = BALLOON_FLY.back + 0.5;
+    return true;
+  }
+
+  /** Oei, het ijsje valt op het pad: een vlek, een sip gezicht en een traan. Het kind wacht even of iemand helpt. */
+  private dropIceCream(w: GuestWorld): void {
+    if (this.snack) this.limbs[3].remove(this.snack);
+    this.snack = null;
+    this.eating = 0;
+    this.full = false;
+    this.trash = 0; // het hoorntje ligt op de grond: er blijft geen papiertje over
+    w.splat(this.gx + Math.sin(this.heading) * 0.22, this.gy + Math.cos(this.heading) * 0.22);
+    this.fun = Math.max(0, this.fun - 0.08);
+    this.fire('slump', KID_WAIT.icecream);
+    this.ask = 'icecream';
+    this.askT = KID_WAIT.icecream;
+  }
+
+  /** De speler helpt: een nieuw ijsje van de ijskraam, gratis. Het kind juicht. */
+  freshIceCream(product?: string): void {
+    if (this.ask !== 'icecream') return;
+    this.clearAsk();
+    if (this.snack) this.limbs[3].remove(this.snack);
+    this.snack = makeTreat('icecream', product);
+    this.bite = 'lick';
+    this.full = true;
+    this.limbs[3].add(this.snack);
+    this.eating = 7;
+    this.trash = 10 + Math.random() * 10;
+    this.fun = Math.min(1, this.fun + 0.2);
+    this.joy = 1.2;
+    this.cue = 'guest.laugh';
+  }
+
+  /** De speler geeft een muntje: het kind kan nog één ding kopen, en gaat daar meteen naartoe. */
+  takeCoin(): void {
+    if (this.ask !== 'coin') return;
+    const want = this.askFor;
+    this.clearAsk();
+    this.purchases = Math.min(this.purchases, MAX_PURCHASES - 1);
+    this.gifted = true;
+    this.owesHeart = true;
+    this.fun = Math.min(1, this.fun + 0.1);
+    this.joy = 1;
+    this.cue = 'guest.laugh';
+    // nog meer zin in wat het wilde, zodat het daar als eerste naartoe gaat
+    if (want === 'icecream') this.treat = 1;
+    else if (want === 'balloon') this.balloon = 1;
+    else if (want === 'hat') this.hat = 1;
+    else if (want === 'souvenir') this.gift = 1;
+    if (!this.errand && !this.sight && this.state === 'walk') {
+      this.route = [];
+      this.state = 'idle';
+      this.timer = 0.4;
+    }
+  }
+
+  /** Niemand hielp: het kind loopt verder. Om het ijsje is het nog wat verdrietig; zonder geld zakt de zin. */
+  private giveUp(): void {
+    if (this.ask === 'icecream') this.fun = Math.max(0, this.fun - 0.04);
+    else if (this.askFor) this.postpone(this.askFor);
+    this.clearAsk();
+  }
+
+  private clearAsk(): void {
+    this.ask = null;
+    this.askFor = null;
+    this.askT = 0;
+    this.stall = Math.min(this.stall, 0.4);
+    if (this.shot === 'slump') this.calm();
+  }
+
+  /** Een kind dat de speler nodig heeft: reiken naar de losse ballon, huilen om het ijsje, de lege handjes laten zien. */
+  private kidPose(): void {
+    if (this.shot) return;
+    const right = this.limbs[2], left = this.limbs[3], head = this.head;
+    if (balloonCatchable(this.flown)) {
+      // naar boven kijken en reiken, en een beetje springen
+      const t = this.flown;
+      head.rotation.x = -0.6;
+      right.rotation.x = -2.9;
+      right.rotation.z = 0.2 + Math.sin(t * 6) * 0.15;
+      this.hop = Math.abs(Math.sin(t * 6)) * 0.07;
+    } else if (this.ask === 'icecream') {
+      // huilen: de handjes bij de ogen en het hoofd een beetje omlaag
+      right.rotation.x = left.rotation.x = -2.5;
+      right.rotation.z = -0.7;
+      left.rotation.z = 0.7;
+      head.rotation.x = 0.25;
+      this.tilt = Math.sin(this.phase * 0.9) * 0.04;
+    } else if (this.ask === 'coin') {
+      // de lege handjes laten zien en de schoudertjes ophalen
+      right.rotation.x = left.rotation.x = -1.1;
+      right.rotation.z = 0.45;
+      left.rotation.z = -0.45;
+      head.rotation.z = Math.sin(this.phase * 0.3) * 0.12;
+    }
   }
 }
 

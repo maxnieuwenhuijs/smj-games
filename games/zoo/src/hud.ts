@@ -431,6 +431,19 @@ export class Hud {
     return b;
   }
 
+  /** Een grote ring om iets wat je kunt vangen (een ballon die wegvliegt): groot genoeg voor een klein vingertje. */
+  makeCatch(tap: () => void): HTMLElement {
+    const b = el('div', 'catchring');
+    b.hidden = true;
+    b.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      tap();
+    });
+    this.layer.append(b);
+    return b;
+  }
+
   /** Het prijskaartje boven een strook grond die te koop is; een tik erop opent het koopmenu. */
   makeForSale(price: number, tap: () => void): HTMLElement {
     const b = el('div', 'bubble forsale', `${icon('land')}<b>${price}</b>${icon('coin')}`);

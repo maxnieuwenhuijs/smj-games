@@ -104,6 +104,11 @@ const ICONS = {
     `<path d="M8 41 Q24 30 41 8" fill="none" stroke="${WOOD_D}" stroke-width="3" stroke-linecap="round"/>` +
     `<g fill="${GRASS_D}"><ellipse cx="14" cy="28" rx="8" ry="4.5" transform="rotate(-60 14 28)"/><ellipse cx="27" cy="33" rx="8" ry="4.5" transform="rotate(15 27 33)"/><ellipse cx="24" cy="17" rx="8" ry="4.5" transform="rotate(-65 24 17)"/><ellipse cx="37" cy="21" rx="8" ry="4.5" transform="rotate(10 37 21)"/></g>`,
   coin: `<circle cx="24" cy="24" r="19" fill="${SUN}" stroke="${SUN_D}" stroke-width="4"/><circle cx="24" cy="24" r="10" fill="none" stroke="${SUN_D}" stroke-width="2.5"/>`,
+  // een lege portemonnee: open, met niets erin
+  wallet:
+    `<path d="M8 20 Q8 14 14 14 H34 Q40 14 40 20 V38 Q40 43 35 43 H13 Q8 43 8 38Z" fill="${WOOD}" stroke="${WOOD_D}" stroke-width="2.5"/>` +
+    `<path d="M10 20 Q24 4 38 20" fill="${WOOD_D}"/><circle cx="24" cy="15" r="3" fill="${SUN_D}"/>` +
+    `<path d="M15 30 Q24 36 33 30" fill="none" stroke="${INK}" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>`,
   guest: `<path d="M6 45 Q6 29 24 29 Q42 29 42 45Z" fill="#4a90e2"/><circle cx="24" cy="17" r="11" fill="${SKIN}"/><path d="M13 15 Q24 1 35 15 Q24 10 13 15Z" fill="#7a4a22"/><circle cx="20" cy="18" r="1.8" fill="${INK}"/><circle cx="28" cy="18" r="1.8" fill="${INK}"/>`,
   // een hamburger: wat je bij de eetkraam haalt (dezelfde als op het dak van de kraam)
   foodstall:
