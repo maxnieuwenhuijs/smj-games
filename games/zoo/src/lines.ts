@@ -245,6 +245,8 @@ export const say = {
   trainGo: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.train.go' }),
   trainOld: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.train.old' }),
   trainCrossing: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.train.crossing' }),
+  /** Een ouder spel: een attractie is groter geworden en paste niet meer op zijn plek. Je hebt de munten terug. */
+  ridesBigger: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.rides.bigger' }),
   /** De tribune past hier niet: die moet tegen de bak van de dolfijnen staan. En de eerste show begint. */
   showWhere: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.show.where' }),
   showFirst: (): Line => ({ who: 'host', mood: 'happy', key: 'say.show.first' }),
@@ -414,7 +416,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   // een dier wil er nog iets bij om mee te spelen (niet zijn lievelingsding): voor alle dieren dezelfde zin
   add(wishLine(tr, 'fun', 'pig', null, false, undefined, 'tyre'));
   add(say.keysNew());
-  for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(), say.trainOld(), say.trainCrossing(),
+  for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(), say.trainOld(), say.trainCrossing(), say.ridesBigger(),
     say.dirty(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.dusty(), say.filterTip(), say.showWhere(), say.showFirst(),
     say.cableOne(), say.cableWhere(), say.cablePole(), say.cableFirst(), say.partyToday(), say.partyGong(), say.partyStart(), say.partyEnd(), say.treatNew(), say.treatFull(), say.treatSick(), say.hoseNew(), say.hoseMud(), say.leavesNew(), say.leavesJump(), say.snowNew(), say.snowman(), say.lampsNew(), say.lampsWave()]) add(line);
   for (const key of ['balloon', 'icecream', 'coin', 'thanks'] as const) add(say.kid(key));

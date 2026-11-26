@@ -13,7 +13,7 @@
 const data = await import('/src/data.ts');
 const { goalProgress } = await import('/src/levels.ts');
 const models = await import('/src/models.ts');
-const { SPECIES, LEVELS, TERRAINS, FEATURE, SHOP_PRICE, SHOP_SIZE, PRODUCTS, PRICE } = data;
+const { SPECIES, LEVELS, TERRAINS, FEATURE, SHOP_PRICE, PRODUCTS, PRICE } = data;
 /** Personeel loopt door het park: zet een werker op het pad bij de ingang. */
 const hire = role => {
   const game = window.__zoo;
@@ -37,11 +37,14 @@ const KIND = { wall: 3, net: 4 };
 // Plekken voor verblijven: vier rijen van zes, elk 3 bij 3 en los van elkaar, langs twee dwarspaden (y = 4 en y = 12).
 const SLOTS = [];
 for (const y0 of [1, 5, 9, 13]) for (const [x0, x1] of [[-1, 1], [3, 5], [7, 9], [11, 13], [15, 17], [19, 21]]) SLOTS.push({ x0: x0 + OX, y0: y0 + OY, x1: x1 + OX, y1: y0 + 2 + OY });
-// Plekken voor winkels langs een zijpad bij de ingang (y = 17): gebouwen van 2 bij 2 eronder, losse dingen erboven.
-const BIG_SPOTS = [7, 11, 5, 13, 3, 15, 1, 17, 19, -1, 21, -3].map(x => [x + OX, 18 + OY]);
-// meer gasten vragen om meer kramen: die staan achter in het park, langs twee paden boven de verblijven (y = -1 en y = -5).
-// Daar staat het pad onder de kraam: het derde getal is de rij van dat pad, zodat een ondiepe kraam er ook tegenaan staat
-for (const py of [-1, -5]) for (const x of [8, 11, 6, 13, 4, 15, 2, 17, 0, 19, -2, 21, -4]) BIG_SPOTS.push([x + OX, py - 2 + OY, py + OY]);
+// Plekken voor winkels en attracties. Onder het zijpad bij de ingang (y = 17) is plek voor wat hooguit twee tegels
+// diep is; achter in het park liggen twee paden boven de verblijven (y = -1 en y = -5) met daarboven elk drie rijen.
+// Per pad: de rij van het pad, of het gebouw eronder of erboven staat, en waar een gebouw van twee breed het eerst komt.
+const SHOP_ROWS = [
+  { py: 17, below: true, deep: 2, xs: [7, 11, 5, 13, 3, 15, 1, 17, 19, -1, 21, -3] },
+  { py: -1, below: false, deep: 3, xs: [8, 11, 6, 13, 4, 15, 2, 17, 0, 19, -2, 21, -4] },
+  { py: -5, below: false, deep: 3, xs: [8, 11, 6, 13, 4, 15, 2, 17, 0, 19, -2, 21, -4] },
+];
 // losse dingen staan op de noordrand van het zijpad
 const SMALL_SPOTS = [9, 11, 8, 12, 7, 13, 6, 14, 5, 15, 4, 16, 3, 17, 2, 18, 1, 19].map(x => [x + OX, 17 + OY]);
 
@@ -262,15 +265,32 @@ export const T = {
     for (const py of [-5, -1, 4, 12, 17]) this.terrain(OX - 4, py + OY, 23 + OX, py + OY, 'path');
   },
 
+  /**
+   * Een vrije plek voor dit gebouw (de linkerbovenhoek), of null. Het staat met een lange of korte kant tegen een
+   * van de paden; het spel zelf zegt of het er past (`shopFits`), dus dit werkt voor elke maat: een wipkip van 1 bij 1,
+   * een glijbaan van 2 bij 3 en een reuzenrad van 8 bij 2. Wat twee breed is, komt op de vaste plekken naast elkaar.
+   */
+  spotFor(kind) {
+    const game = z();
+    const [w, h] = data.shopSpan(kind, 0);
+    for (const row of SHOP_ROWS) {
+      if (h > row.deep) continue;
+      const y = (row.below ? row.py + 1 : row.py - h) + OY;
+      // andere breedtes: elke plek langs het pad, het dichtst bij het middenpad eerst
+      const xs = w === 2 ? row.xs : Array.from({ length: 28 - w }, (_, i) => i - 4).sort((a, b) => Math.abs(a + w / 2 - 10.5) - Math.abs(b + w / 2 - 10.5));
+      const x = xs.find(x => game.shopFits(x + OX, y, kind, 0));
+      if (x !== undefined) return [x + OX, y];
+    }
+    return null;
+  },
+
   shop(kind, n = 1) {
     const game = z();
     while (game.shops.filter(s => s.kind === kind).length < n) {
-      const big = SHOP_SIZE[kind] > 1;
-      const spot = (big ? BIG_SPOTS : SMALL_SPOTS).find(([x, y, py]) => !game.shops.some(s => s.x === x && (py === undefined ? s.y === y : s.y < py && s.y >= py - 2) && !!s.edge === !big));
+      const big = !data.onEdge(kind);
+      const spot = big ? this.spotFor(kind) : SMALL_SPOTS.find(([x, y]) => !game.shops.some(s => s.x === x && s.y === y && s.edge));
       if (!spot || !this.pay(SHOP_PRICE[kind])) return;
-      // achter in het park: de kraam staat met zijn voorkant tegen het pad, hoe diep hij ook is
-      const y = spot[2] === undefined ? spot[1] : spot[2] - (data.SHOP_DEEP[kind] ?? SHOP_SIZE[kind]);
-      game.addShop(spot[0], y, kind, undefined, big ? undefined : 'h');
+      game.addShop(spot[0], spot[1], kind, undefined, big ? undefined : 'h');
     }
   },
 

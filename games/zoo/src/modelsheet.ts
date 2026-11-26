@@ -5,12 +5,13 @@
 // &bos=1 (de bomen rond het park), &seizoen=winter, &nacht=1, &spook=1 (het doorzichtige voorbeeld), &draai=1 (kwartslagen), &druk=1 (alsof er
 // gasten zijn), &t=2.5 (het moment van de foto), &zoom=6 (tegels in beeld).
 import * as THREE from 'three';
-import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FERRIS, FOODS, PARK_PROPS, WILD_PROPS, SHOPS, SHOP_SIZE, TERRAINS, TOYS, TROUGHS, CROSSING, RAILS, TRAIN, bumperCar, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type Terrain, type ToyKind, type TroughKind } from './data';
+import { BEDS, DECORS, EDGE_DECOR, FOODS, PARK_PROPS, WILD_PROPS, SHOPS, TERRAINS, TOYS, TROUGHS, CROSSING, RAILS, TRAIN, onEdge, shopSpan, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type Terrain, type ToyKind, type TroughKind } from './data';
 import { BASE_LAND, FULL_LAND, Grid, edgeKey, tileIndex, type Edge, type EdgeKind } from './grid';
 import { View, toWorldX, toWorldZ } from './view';
 import { CABLE, cableAt, cableChairs, cablePath, cablePoles, cableSpot, type P2 } from './cable';
 import { FACES, sampleHead, showSample } from './faces';
 import { SAMPLE_PEOPLE, samplePerson } from './people';
+import { RIDE_SEATS, isRide, newRide, rideStep } from './rides';
 
 const query = new URLSearchParams(location.search);
 const num = (key: string, fallback: number): number => (query.has(key) ? Number(query.get(key)) : fallback);
@@ -80,29 +81,22 @@ const pond = (name: string, size: number, tiles: [number, number][]): Item => ({
   },
 });
 const shop = (kind: ShopKind): Item => ({
-  name: kind, size: SHOP_SIZE[kind],
+  // (zoveel tegels beslaat het zoals het hier gedraaid staat: niet elk gebouw is vierkant)
+  name: kind, size: onEdge(kind) ? 1 : shopSpan(kind, rot)[0], deep: onEdge(kind) ? 1 : shopSpan(kind, rot)[1],
   put: (x, y) => {
     // een bankje, bloembak of afvalbak staat op de rand van een pad en kijkt naar het pad (hier: naar voren)
-    const edge = SHOP_SIZE[kind] === 1 ? { o: 'h' as const, face: 1 } : undefined, py = edge ? y + 1 : y;
+    const edge = onEdge(kind) ? { o: 'h' as const, face: 1 } : undefined, py = edge ? y + 1 : y;
     if (ghost) return view.ghostShop(x, py, kind, true, edge, rot);
     const group = view.makeShop(x, py, kind, edge, rot);
-    const seed = x * 1.3 + y * 0.7, moving = group.userData.moving as THREE.Object3D | undefined;
+    const seed = x * 1.3 + y * 0.7;
     if (kind === 'bin' && query.get('tik') === '1') view.flapLid(group);
+    // een attractie uit rides.ts: dezelfde stand en dezelfde stappen als in het spel; met &druk=1 zit hij vol gasten
+    const ride = isRide(kind) ? newRide(kind) : null, riders = busy && isRide(kind) ? 2 ** RIDE_SEATS[kind] - 1 : 0;
     live.push(t => {
       view.animateShop(group, kind, t, busy, seed);
-      // wat het spel zelf laat bewegen: hier net genoeg om te zien dat het goede deel beweegt
-      if (kind === 'ferris' && moving) moving.rotation.z = t * FERRIS.speed;
-      if (kind === 'carousel' && moving) moving.rotation.y = t * 0.8;
-      if (kind === 'fountain' && moving) moving.position.y = 0.97 + Math.sin(t * 3) * 0.08;
-      if (kind === 'swing' && moving) moving.rotation.x = Math.sin(t * 2) * 0.5;
-      if (kind === 'seesaw' && moving) moving.rotation.z = Math.sin(t * 2) * 0.3;
-      if (kind === 'springer' && moving) moving.rotation.x = Math.sin(t * 2) * 0.3;
-      if (kind === 'bumper')
-        (group.userData.cars as THREE.Object3D[]).slice(0, BUMPER_CARS).forEach((car, i) => {
-          const [cx, cz, heading] = bumperCar(i, t);
-          car.position.set(cx, 0.05, cz);
-          car.rotation.y = heading;
-        });
+      if (!ride) return;
+      while (ride.clock < t - 1e-6) rideStep(kind, ride, Math.min(1 / 30, t - ride.clock), riders);
+      view.animateRide(group, kind, ride);
     });
   },
 });
@@ -323,7 +317,7 @@ items.forEach((item, i) => {
   }
   item.put(cx, cy);
   labels.push({ name: item.name, gx: cx + item.size + 0.1, gy: cy + deepOf(item) + 0.1 });
-  lights.push({ gx: cx + item.size / 2, gy: cy + item.size / 2, r: 2.2 });
+  lights.push({ gx: cx + item.size / 2, gy: cy + deepOf(item) / 2, r: Math.max(2.2, Math.max(item.size, deepOf(item)) * 0.6 + 1) });
   rowDeep = Math.max(rowDeep, deepOf(item));
   maxX = Math.max(maxX, cx + item.size);
   maxY = Math.max(maxY, cy + rowDeep);

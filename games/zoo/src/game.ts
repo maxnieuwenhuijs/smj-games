@@ -9,11 +9,11 @@ import { cardOpen } from './playcard';
 import { playVet } from './vetgame';
 import { ambience, animalSound, hasVoice, heard, isMuted, layer, listen, music, playTune, playVoice, reshuffle, sfx } from './audio';
 import {
-  BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, SHOP_DEEP, shopSpan, herdOf, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
+  BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, SHOP_DEEP, RESIZED_V5, onEdge, shopSpan, herdOf, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
   type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, hourAt, WAGE, TOY_LIKES, DECOR, DECORS, type DecorKind, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, GUESTS_HOME, STAFF_HOME, STAFF_BACK, VENDORS_BACK, LIGHT, SPACE, guestsAt, SERVES,
-  isPath, PATH_KINDS, PATH_FROM, TOY_FROM, TOY_PRICE, CLIMATE, palsOf, PETTABLE, PETTING_MIN, NATURES, pickRare, RARE_CHANCE, MUD_LOVERS, FERRIS, BUMPER_CARS, bumperCar, crowdLoad, CROWD_EASE,
+  isPath, PATH_KINDS, PATH_FROM, TOY_FROM, TOY_PRICE, CLIMATE, palsOf, PETTABLE, PETTING_MIN, NATURES, pickRare, RARE_CHANCE, MUD_LOVERS, crowdLoad, CROWD_EASE,
   EDGE_DECOR, POLE_DECOR, LOW_POLES, SMALL_DECOR, PARK_GROUPS, ATTRACTIONS, parkShopGroup, PROP, PROPS, WILD_PROPS, PARK_PROPS, WILD_KINDS, wildRange, wildWant, type PropKind, type WildKind, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, seasonOn, homeWorld, PALS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
 import { CLIMB_SECONDS, PUSH, SWING, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, sinceHit, sway, swingAt, tetherAt } from './data';
 import { WAYFIND, canStray, wayfound, type WaySign } from './data';
@@ -49,7 +49,7 @@ import { isLamp } from './parkfun';
 import { STAR_EVERY, STAR_FACTORS, STAR_GOOD, STAR_TIP_GAP, nextStars, parkScore, scoreOf, smoothScore, starFactors, starGuests, weakest, type StarFactor, type StarInput } from './stars';
 import { guestCard } from './traits';
 import { BOOK_HEART, KID_MOMENT, KID_MOMENTS, SPLAT_MELT, momentReady, type KidMoment } from './kids';
-import { DAY_HOUR, EDGE_SHIFT, FENCE_TOP, View, toWorldX, toWorldZ, type TroughMesh } from './view';
+import { DAY_HOUR, EDGE_SHIFT, FENCE_TOP, View, toWorldX, toWorldZ, type ParkLight, type TroughMesh } from './view';
 import { CARE_ACTIONS, CATCH, DIRTY, DUST, HOSE, TREAT, dirtyMost, dustAfter, dustPace, dustSpecks, flightTime, isCare, muddyAfter, treatFor, treatReady, type CareAction, dusty } from './care';
 import { CareFx } from './carefx';
 import { WALK, type Box, type WalkGround } from './walk';
@@ -57,6 +57,7 @@ import { WalkMode, tagHtml, type WalkTarget } from './walkmode';
 import { WalkHand } from './walkhand';
 import { paintOf, walkOffer, walkPrice } from './held';
 import { BlobShadows } from './blobs';
+import { RIDE_GLOW, isRide, newRide, rideStep, rideWorld } from './rides';
 
 /** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken; een dier een snoepje geven of wassen (care.ts); in de herfst harken, in de winter sneeuw rollen. */
 export type ActionId = 'broom' | 'hammer' | 'picker' | CareAction | 'rake' | 'snowball';
@@ -78,10 +79,14 @@ const TOOL_GROUPS: [string, ToolId[]][] = [
   ['animal', ['animal', 'trough', 'bed', 'toy', 'prop']],
   ['park', ['shop', 'rides', 'decor', 'staff']],
 ];
-/** Hoe snel een speeltoestel heen en weer gaat. */
-const PLAY_SPEED: Partial<Record<ShopKind, number>> = { swing: 2.6, seesaw: 3, springer: 6, trampoline: 5 };
 /** De tussenpaal van de kabelbaan: een keuze in de rij van de attracties, naast het huisje (zie placePylon). */
 const PYLON = 'cablepole';
+/**
+ * Een gebouw uit een ouder spel dat een andere maat heeft gekregen, zoekt een nieuwe plek: hooguit `reach` tegels
+ * van waar het stond. Een plek die niet aan het pad ligt telt als `loose` tegels verder weg, en een plek waar de
+ * voorkant niet naar het pad kijkt als `back` tegels verder.
+ */
+const RESETTLE = { reach: 8, loose: 4, back: 0.75 };
 /**
  * De geluidjes van de gasten: [hoe hard, hoeveel tellen het daarna stil blijft]. Wat vaak gebeurt (een hap, een
  * sprong op de trampoline) klinkt zacht en met een lange pauze, zodat een vol park niet één groot lawaai wordt.
@@ -267,8 +272,11 @@ CUR.rake = cursor('rake', 6, 40);
 CUR.snowball = cursor('snowball', 24, 27);
 
 export interface SaveData {
-  /** 1 = het spel met veertien levels, 2 = vijftig levels. */
-  v: 1 | 2 | 3 | 4;
+  /**
+   * 1 = het spel met veertien levels, 2 = vijftig levels, 3 = gebouwen van 2 bij 2, 4 = marktkramen van 2 bij 1,
+   * 5 = attracties in allerlei maten (zie RESIZED_V5 in data.ts).
+   */
+  v: 1 | 2 | 3 | 4 | 5;
   level: number;
   fed: number;
   cleaned: number;
@@ -906,38 +914,42 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     for (const b of d.decor ?? []) if (DECOR[b.kind]) this.addDecor(b.x + ox, b.y + oy, b.kind, b.edge, b.rot ?? (b.edge === 'v' ? 1 : 0), b.edge ? undefined : b.q);
     for (const p of d.props ?? []) if (PROP[p.k]) this.props.push({ kind: p.k, sx: p.x + ox * 2, sy: p.y + oy * 2, rot: p.r ?? 0 });
     this.syncProps();
-    // eerst de losse dingen (bankje, bloemen, afvalbak): die blijven staan waar ze stonden
-    // de speeltuin als één gebouw bestaat niet meer: in een ouder park wordt hij een glijbaan (even groot)
-    const stored = [...(d.shops ?? [])].map(sh => (sh.kind === 'playground' ? { ...sh, kind: 'slide' as ShopKind } : sh)).sort((p, q) => (SHOP_SIZE[p.kind] ?? 1) - (SHOP_SIZE[q.kind] ?? 1));
+    // eerst de losse dingen (bankje, bloemen, afvalbak) en de gebouwen die hun plek houden: die blijven staan waar
+    // ze stonden. Daarna de gebouwen die sinds dit spel bewaard is een andere maat hebben gekregen (zie `moves`):
+    // eerst wat in zijn oude blok past, dan de grote, de grootste eerst (die past op de minste plekken).
+    // de speeltuin als één gebouw bestaat niet meer: in een ouder park wordt hij een glijbaan
+    const version = d.v ?? 1;
+    const moves = (kind: ShopKind): boolean => !onEdge(kind) && (version < 3 || (version < 5 && RESIZED_V5.includes(kind)));
+    const area = (kind: ShopKind): number => shopSpan(kind)[0] * shopSpan(kind)[1];
+    const turn = (kind: ShopKind): number => (onEdge(kind) ? 0 : !moves(kind) ? 1 : area(kind) <= 4 ? 2 : 3 + 1 / area(kind));
+    const stored = [...(d.shops ?? [])].filter(sh => SHOP_SIZE[sh.kind]).map(sh => (sh.kind === 'playground' ? { ...sh, kind: 'slide' as ShopKind } : sh)).sort((p, q) => turn(p.kind) - turn(q.kind));
+    let refunded = false, moved = false;
     for (const sh of stored) {
-      const size = SHOP_SIZE[sh.kind];
-      if (!size) continue;
       let x = sh.x + ox, y = sh.y + oy;
-      if (size === 1) {
+      if (onEdge(sh.kind)) {
         // een bankje, bloembak of afvalbak staat op een rand; uit een ouder spel stond het nog op een tegel
         const spot = sh.edge ? { o: sh.edge, x, y } : this.edgeNear(x, y);
         if (spot && this.edgeFits(spot)) this.addShop(spot.x, spot.y, sh.kind, sh.sells, spot.o, sh.turned, undefined, undefined, sh.face).dirt = sh.dirt;
         else this.coins = Math.min(COIN_CAP, this.coins + SHOP_PRICE[sh.kind]);
         continue;
       }
-      if ((d.v ?? 1) < 3 && size > 1) {
-        // winkels waren eerst één tegel groot: zoek de dichtstbijzijnde plek van 2 bij 2, het liefst aan het pad;
-        // is er in de buurt geen plek, dan krijg je de munten terug
-        const near: [number, number][] = [];
-        for (let dy = -6; dy <= 5; dy++) for (let dx = -6; dx <= 5; dx++) near.push([x + dx, y + dy]);
-        near.sort((p, q) => Math.abs(p[0] + 0.5 - x) + Math.abs(p[1] + 0.5 - y) - Math.abs(q[0] + 0.5 - x) - Math.abs(q[1] + 0.5 - y));
-        const fits = near.filter(([ax, ay]) => this.shopFits(ax, ay, sh.kind));
-        const spot = fits.find(([ax, ay]) => this.touchesPath(ax, ay, ...shopSpan(sh.kind))) ?? fits[0];
+      let rot = sh.manual ? sh.rot : undefined;
+      if (moves(sh.kind)) {
+        // het gebouw was eerst kleiner (of juist groter): de dichtstbijzijnde plek waar het nu past, het liefst aan
+        // het pad. Is er in de buurt geen plek, dan krijg je de munten terug
+        const old = version < 3 ? 1 : 2;
+        const spot = this.resettle(sh.kind, x + old / 2, y + old / 2, sh.rot ?? 0, !!sh.manual);
         if (!spot) {
           this.coins = Math.min(COIN_CAP, this.coins + SHOP_PRICE[sh.kind]);
+          refunded = true;
           continue;
         }
+        moved = true;
         [x, y] = spot;
-      }
-      let rot = sh.manual ? sh.rot : undefined;
-      if (SHOP_DEEP[sh.kind]) {
+        if (SHOP_DEEP[sh.kind]) rot = sh.manual ? spot[2] : this.autoRot(x, y, sh.kind, spot[2]);
+      } else if (SHOP_DEEP[sh.kind]) {
         const was = sh.rot ?? 0;
-        if ((d.v ?? 1) === 3) {
+        if (version === 3 && STALLS.includes(sh.kind)) {
           // marktkramen waren eerst 2 bij 2: de kraam komt in de helft waar zijn voorkant was
           if (was === 0) y += 1;
           else if (was === 1) x += 1;
@@ -953,6 +965,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // en de tussenpalen (een spel van voor de tussenpalen heeft ze niet: dan hangt de kabel recht, zoals hij hing)
       if (sh.kind === 'cablecar') [made.via, made.via2] = [viaFrom(sh.via), viaFrom(sh.via2)];
     }
+    // waar nu een groter gebouw staat, gaat het groen eronder weg; paste er een niet meer, dan zegt de bouwer dat één keer
+    if (moved) this.sweepProps();
+    if (refunded && version >= 3) this.lines.push(say.ridesBigger());
     this.syncLifts();
     for (const a of d.animals) {
       if (!modelReady(`${a.species}_${a.variant}`)) continue;
@@ -985,7 +1000,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   serialize(): SaveData {
     return {
-      v: 4,
+      v: 5,
       player: this.player || undefined,
       // wie al verder was dan de levels die er nu zijn, houdt dat level voor later
       level: this.level >= this.maxLevel ? Math.max(this.level, this.savedLevel) : this.level,
@@ -2469,6 +2484,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return this.shops.find(s => s.edge === e.o && s.x === e.x && s.y === e.y);
   }
 
+  /** Staat er iets op deze rand: een hek, een bankje of bak, of een paal, bord of heg? */
+  private edgeUsed(e: Edge): boolean {
+    return this.grid.getEdge(e) !== 0 || !!this.edgeItemAt(e) || !!this.edgeDecorAt(e);
+  }
+
   /** Aan welke kant van de rand ligt het pad? 1 = zuid of oost, -1 = noord of west, 0 = aan geen of aan beide kanten. */
   private edgeFace(e: Edge): number {
     const onPath = (x: number, y: number): boolean => this.grid.inBounds(x, y) && isPath(this.grid.terrain[tileIndex(x, y)]);
@@ -3561,7 +3581,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     sfx(a.top >= SNORE.big ? 'snore.big' : 'snore.small', { volume: SNORE.volume, rate: a.young ? 1.25 : 0.9 + Math.random() * 0.2, every: 0.5, at: [a.gx, a.gy] });
   }
   private nightTold = false;
-  private lightList: { gx: number; gy: number; r: number }[] = [];
+  private lightList: ParkLight[] = [];
 
   private darkness(): number {
     if (!this.has('night')) return 0;
@@ -3618,21 +3638,40 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   /** Alles wat licht geeft: lantaarns, kampvuren, winkels en speeltoestellen, en de ingang. */
-  private lights(): { gx: number; gy: number; r: number }[] {
+  private lights(): ParkLight[] {
     const [ex, ey] = tileXY(ENTRANCE);
-    const list = [{ gx: ex + 0.5, gy: ey + 0.5, r: LIGHT.entrance }];
+    const list: ParkLight[] = [{ gx: ex + 0.5, gy: ey + 0.5, r: LIGHT.entrance }];
     for (const d of this.decors) {
       const [gx, gy] = this.decorPos(d);
       const r = (LIGHT as Record<string, number>)[d.kind];
       // een lamp die je hebt uitgetikt, geeft geen licht (behalve op het avondfeest: dan doen alle lampen mee)
       if (r && (this.party || this.park.lit(d))) list.push({ gx, gy, r });
     }
-    for (const s of this.shops) if (!s.edge) list.push({ gx: blockCenter(s)[0], gy: blockCenter(s)[1], r: LIGHT.shop });
+    for (const s of this.shops) if (!s.edge) this.shopLights(s, list);
     // de koplamp van elk treintje, en de rode lampen van een overweg die dicht is
     for (const train of this.guests.trains) if (train.running) list.push({ gx: train.headX, gy: train.headY, r: TRAIN.light });
     for (const tile of this.crossShut) list.push({ gx: tileXY(tile)[0] + 0.5, gy: tileXY(tile)[1] + 0.5, r: TRAIN.gateLight });
     this.road.lights(list);
     return this.party ? this.partyLights(list) : list;
+  }
+
+  /**
+   * Het licht van een gebouw: een cirkel om zijn midden, groter naarmate het gebouw breder is. Een lang gebouw (het
+   * reuzenrad) krijgt een rij cirkels naast elkaar, zodat het over zijn hele lengte verlicht is.
+   */
+  private shopLights(s: ShopObj, list: ParkLight[]): void {
+    const [w, h] = shopTiles(s), [cx, cy] = blockCenter(s);
+    const short = Math.min(w, h), long = Math.max(w, h), n = Math.max(1, Math.round(long / short));
+    const r = LIGHT.shop + (short - 2) * 0.5, reach = (long - short) / 2;
+    for (let i = 0; i < n; i++) {
+      const off = n > 1 ? -reach + (2 * reach * i) / (n - 1) : 0;
+      list.push({ gx: cx + (w > h ? off : 0), gy: cy + (w > h ? 0 : off), r });
+    }
+    // wat hoog boven de grond uitsteekt (het rad, de top van de toren) heeft daar zijn eigen gloed
+    for (const [x, high, z, far] of (s.ride && RIDE_GLOW[s.kind]) || []) {
+      const [gx, gy] = rideWorld(x, z, cx, cy, s.rot ?? 0);
+      list.push({ gx, gy, r: far, h: high });
+    }
   }
 
   isNight(): boolean {
@@ -3643,7 +3682,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   dark(tile: number): boolean {
     if (!this.isNight()) return false;
     const [x, y] = tileXY(tile);
-    return !this.lightList.some(l => Math.hypot(l.gx - x - 0.5, l.gy - y - 0.5) <= l.r);
+    // (een licht hoog in de lucht, zoals de lampjes van het reuzenrad, verlicht de grond niet)
+    return !this.lightList.some(l => !l.h && Math.hypot(l.gx - x - 0.5, l.gy - y - 0.5) <= l.r);
   }
 
   /** Elk beeldje: de schemering, het geluid van de nacht en het donkere vlak met gaten bij elk licht. */
@@ -3696,7 +3736,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const turn = edge ? undefined : rot ?? this.autoRot(x, y, kind);
     const [w, h] = edge ? [1, 1] : shopSpan(kind, turn ?? 0);
     const shop: ShopObj = {
-      x, y, kind, size: SHOP_SIZE[kind], w, h, sells: sells?.length ? [...sells] : this.products(kind).slice(0, slotsOf(kind)),
+      x, y, kind, size: SHOP_SIZE[kind], w, h, sells: sells?.length ? [...sells] : this.products(kind).slice(0, slotsOf(kind)), ride: isRide(kind) ? newRide(kind) : undefined,
       mesh: this.view.makeShop(x, y, kind, edge && { o: edge, face: face! }, turn), vendor: Vendor.of(kind), edge, face, turned: turned || undefined, set: edge ? set : undefined, rot: turn, manual: manual || undefined,
     };
     if (shop.vendor) shop.mesh.add(shop.vendor.mesh);
@@ -4007,8 +4047,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   /**
-   * Een winkel mag overal buiten de verblijven staan, behalve op het pad of in het water. Een gebouw heeft 2 bij 2
-   * tegels nodig; een marktkraam 2 bij 1, of 1 bij 2 als hij een kwartslag gedraaid staat (`rot`).
+   * Een winkel mag overal buiten de verblijven staan, behalve op het pad of in het water. Hoeveel tegels een gebouw
+   * nodig heeft, hangt af van het soort en van hoe het gedraaid staat (`rot`, zie shopSpan): een marktkraam 2 bij 1,
+   * het reuzenrad 8 bij 2. Er mag ook niets op een rand binnen het blok staan: geen los hek, bankje, paal of heg.
    */
   private shopFits(x: number, y: number, kind: ShopKind, rot = 0): boolean {
     const [w, h] = shopSpan(kind, rot);
@@ -4017,6 +4058,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         if (!this.grid.inBounds(tx, ty) || this.grid.enclosureAt(tx, ty) || this.taken(tx, ty)) return false;
         const terrain = this.grid.terrain[tileIndex(tx, ty)];
         if (isPath(terrain) || terrain === WATER || isRail(terrain)) return false;
+        // de randen binnen het blok: de westrand van elke tegel behalve de eerste kolom, en de noordrand behalve de eerste rij
+        if (tx > x && this.edgeUsed({ o: 'v', x: tx, y: ty })) return false;
+        if (ty > y && this.edgeUsed({ o: 'h', x: tx, y: ty })) return false;
       }
     // de tribune moet met haar rug tegen de glazen bak van de dolfijnen of orka's staan
     if (kind === 'show' && !this.showPool(x, y, w, h)) return false;
@@ -4025,6 +4069,32 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const open = kind === 'cablecar' ? this.cableOpen({ x, y }) : null;
     if (open && cableFit(open.pts, cableSpot({ x, y }), true, open.before) !== 'ok') return false;
     return true;
+  }
+
+  /**
+   * Een gebouw uit een ouder spel heeft een andere maat gekregen. Geeft de plek het dichtst bij waar het stond (het
+   * midden van zijn oude blok: `cx`, `cy`) waar het nu past: [linkerbovenhoek x, y, draaiing]. Een plek aan het pad
+   * wint het van een plek die iets dichterbij is maar los staat, en het liefst kijkt de voorkant naar het pad. Wat
+   * niet vierkant is, mag daarvoor ook een kwartslag draaien, tenzij de speler het zelf gedraaid had (`fixed`).
+   * Is er binnen RESETTLE.reach tegels niets vrij, dan null.
+   */
+  private resettle(kind: ShopKind, cx: number, cy: number, rot: number, fixed: boolean): [number, number, number] | null {
+    const turns = fixed || !SHOP_DEEP[kind] ? [rot] : [rot, (rot + 2) % 4, (rot + 1) % 4, (rot + 3) % 4];
+    const reach = RESETTLE.reach;
+    let best: [number, number, number] | null = null, least = Infinity;
+    for (const turn of turns) {
+      const [w, h] = shopSpan(kind, turn);
+      const x0 = Math.round(cx - w / 2), y0 = Math.round(cy - h / 2);
+      for (let dy = -reach; dy <= reach; dy++)
+        for (let dx = -reach; dx <= reach; dx++) {
+          const x = x0 + dx, y = y0 + dy, far = Math.hypot(x + w / 2 - cx, y + h / 2 - cy);
+          if (far > reach || far >= least || !this.shopFits(x, y, kind, turn)) continue;
+          const sides = this.pathSides(x, y, w, h);
+          const cost = far + (sides.some(n => n > 0) ? 0 : RESETTLE.loose) + (sides[turn] > 0 ? 0 : RESETTLE.back);
+          if (cost < least) [best, least] = [[x, y, turn], cost];
+        }
+    }
+    return best;
   }
 
   // ------------------------------------------------------------ de kabelbaan
@@ -5284,7 +5354,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       }
       case 'shop': {
         const kind = this.shopKind();
-        if (SHOP_SIZE[kind] === 1) {
+        if (onEdge(kind)) {
           const e = this.itemEdge(g.gx, g.gy);
           // het voorbeeld staat al zoals het komt: naar het pad, of anders naar de kant waar je bent
           if (e) this.view.ghostShop(e.x, e.y, kind, this.edgeFits(e), { o: e.o, face: this.faceFor(e, this.edgeSide(e, g.gx, g.gy)) * this.flip });
@@ -5747,8 +5817,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
     if (this.mode() === 'shop' && g) {
       const kind = this.shopKind();
-      const e = SHOP_SIZE[kind] === 1 ? this.itemEdge(g.gx, g.gy) : null;
-      return SHOP_SIZE[kind] === 1 ? this.placeOnEdge(e, e ? this.edgeSide(e, g.gx, g.gy) : 1) : this.placeShop(...this.shopPose(g, kind));
+      const e = onEdge(kind) ? this.itemEdge(g.gx, g.gy) : null;
+      return onEdge(kind) ? this.placeOnEdge(e, e ? this.edgeSide(e, g.gx, g.gy) : 1) : this.placeShop(...this.shopPose(g, kind));
     }
     if (this.mode() === 'prop' && g) return this.placeProp(g.gx, g.gy);
     if (this.mode() === 'pylon' && g) return this.placePylon(x, y);
@@ -6149,8 +6219,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   /** Tijdens het feest geven ook de slingers met vlaggetjes licht, en schijnt elk licht wat verder. */
-  private partyLights(list: { gx: number; gy: number; r: number }[]): { gx: number; gy: number; r: number }[] {
-    const out = list.map(l => ({ gx: l.gx, gy: l.gy, r: l.r * 1.3 }));
+  private partyLights(list: ParkLight[]): ParkLight[] {
+    const out = list.map((l): ParkLight => ({ gx: l.gx, gy: l.gy, r: l.r * 1.3, h: l.h }));
     for (const d of this.decors) {
       if (d.kind !== 'bunting') continue;
       const [gx, gy] = this.decorPos(d);
@@ -8629,6 +8699,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     } else this.view.highlight(lit ? lit.region.tiles : null, lit ? this.grid.borderEdges(lit.region) : [], this.menuPen ? 1 : 0.6, this.clock);
     for (const a of this.animals) a.update(dt, this);
     this.updateCare(dt);
+    // eerst de attracties een stukje verder, dan de gasten: wie erop zit, zit zo precies op zijn zitje
+    for (const shop of this.shops) if (shop.ride) rideStep(shop.kind, shop.ride, dt, shop.aboard ?? 0);
     this.guests.update(dt);
     this.road.update(dt, this.night);
     this.animateToys(dt);
@@ -8658,42 +8730,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         shop.dirtShown = dirty;
         this.view.setShopDirt(shop.mesh, dirty);
       }
-      if (shop.kind === 'ferris') {
-        // het reuzenrad draait altijd rustig rond
-        shop.spin = ((shop.spin ?? 0) + dt * FERRIS.speed) % (Math.PI * 2);
-        const wheel = shop.mesh.userData.moving as THREE.Object3D | undefined;
-        if (wheel) wheel.rotation.z = shop.spin;
-        continue;
-      }
-      if (shop.kind === 'bumper') {
-        // de botsauto's rijden hard met iemand erin en kruipen als ze leeg zijn
-        shop.spin = (shop.spin ?? 0) + dt * (shop.busyNow ? 1 : 0.3);
-        const cars = (shop.mesh.userData.cars ?? []) as THREE.Object3D[];
-        for (let i = 0; i < Math.min(cars.length, BUMPER_CARS); i++) {
-          const [cx, cz, heading] = bumperCar(i, shop.spin);
-          cars[i].position.set(cx, 0.05, cz);
-          cars[i].rotation.y = heading;
-        }
-        continue;
-      }
-      // de draaimolen draait, de waterstraal van de fontein gaat op en neer
-      const moving = shop.mesh.userData.moving as THREE.Object3D | undefined;
-      const speed = PLAY_SPEED[shop.kind];
-      if (speed) {
-        // speeltoestellen wiegen zachtjes als er niemand op zit en gaan flink heen en weer met een kind erop
-        shop.spin = ((shop.spin ?? 0) + dt * speed) % (Math.PI * 2);
-        shop.amp = (shop.amp ?? 0.12) + ((shop.busyNow ? 1 : 0.12) - (shop.amp ?? 0.12)) * Math.min(1, dt * 2.5);
-        const swing = Math.sin(shop.spin) * shop.amp;
-        if (moving && shop.kind === 'swing') moving.rotation.x = swing * 0.55;
-        else if (moving && shop.kind === 'seesaw') moving.rotation.z = swing * 0.3;
-        else if (moving && shop.kind === 'springer') moving.rotation.x = swing * 0.3;
-        continue;
-      }
-      if (!moving) continue;
-      if (shop.kind === 'carousel') {
-        shop.spin = ((shop.spin ?? 0) + dt * 1.1) % (Math.PI * 2);
-        moving.rotation.y = shop.spin;
-      } else moving.scale.y = 1 + 0.25 * Math.sin(this.clock * 5 + shop.x);
+      // een attractie of speeltoestel: het beeld volgt de stand die het spel hierboven al een stukje verder zette (zie rides.ts)
+      if (shop.ride) this.view.animateRide(shop.mesh, shop.kind, shop.ride);
     }
     this.events(dt);
     this.updateShows(dt);

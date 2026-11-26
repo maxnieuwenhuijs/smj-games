@@ -25,7 +25,7 @@ function playwright() {
 
 /** Een leeg park in dit level (0 = het eerste), met een volle kas: zo hoef je niet eerst vijftig levels te spelen. */
 export const emptyPark = (level = 0, coins = 99, extra = {}) => ({
-  v: 4, level, fed: 0, cleaned: 0, terrain: [], h: [], vv: [], troughs: [], animals: [], poops: [], coins, gw: 44, gh: 36,
+  v: 5, level, fed: 0, cleaned: 0, terrain: [], h: [], vv: [], troughs: [], animals: [], poops: [], coins, gw: 44, gh: 36,
   // alle uitleg is al gegeven: dan praat er niemand door je foto heen
   told: ['guests', 'vet', 'walk', 'walkbuy', 'cable.first', 'cable.pole', 'rails', 'train.go', 'crossing', 'stars', 'event', 'staff', 'petting', 'night', 'hose', 'treat', 'keys'],
   ...extra,
