@@ -203,10 +203,10 @@ const CLASS_TASKS: Record<Exclude<ClassTask, 'guide'>, { label: string; minis: M
   sum: { label: 'event.schoolclass', minis: [{ kind: 'sum' }, { kind: 'sum', animals: true }] },
   // zijn alle kinderen er nog?
   count: { label: 'event.class.count', minis: [{ kind: 'count', things: ['guest'] }, { kind: 'sum', things: ['guest'] }] },
-  // de naam van het dier bij de tekening
-  draw: { label: 'event.class.draw', minis: [{ kind: 'spell', animals: true }] },
-  // de kinderen in de rij, van klein naar groot
-  line: { label: 'event.class.line', minis: [{ kind: 'order', first: 'size', things: ['guest', 'cap_red', 'cap_blue'] }] },
+  // de naam van het dier bij de tekening, of van welk dier de getekende schaduw is
+  draw: { label: 'event.class.draw', minis: [{ kind: 'spell', animals: true }, { kind: 'shadow', says: 'class.shadow' }] },
+  // de kinderen in de rij, van klein naar groot, of een rijtje petjes dat verdergaat
+  line: { label: 'event.class.line', minis: [{ kind: 'order', first: 'size', things: ['guest', 'cap_red', 'cap_blue'] }, { kind: 'pattern', things: ['cap_red', 'cap_blue', 'guest'], says: 'class.row' }] },
   // de klas leert over de dieren: wat eet het, wie slaapt waar, van wie is de schaduw, wie maakt dit geluid
   quiz: { label: 'event.class.quiz', minis: [{ kind: 'eat' }, { kind: 'bed' }, { kind: 'shadow' }, { kind: 'sound' }] },
   // een spelletje met de klas

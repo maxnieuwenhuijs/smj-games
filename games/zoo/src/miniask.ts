@@ -149,14 +149,15 @@ export function makeOdd<T>(families: readonly (readonly (readonly T[])[])[], sam
 }
 
 /**
- * Memory. `pairs`: hoeveel paren er in de eerste, tweede en derde ronde liggen. `slack`: missen hoort bij memory;
- * pas met meer missers dan het aantal paren plus dit telt een ronde niet meer als in één keer goed.
+ * Memory. `pairs`: hoeveel paren er in de eerste, tweede en derde ronde liggen. `grace`: missen hoort bij memory;
+ * pas met meer missers dan zoveel keer het aantal paren telt een ronde niet meer als in één keer goed. Zo haalt een
+ * kind dat een beetje onthoudt het altijd, en alleen wie maar wat omdraait niet.
  */
-export const MEMORY = { pairs: [2, 3, 4], slack: 1 };
+export const MEMORY = { pairs: [2, 3, 4], grace: 2 };
 export const memoryPairs = (round: number): number => MEMORY.pairs[Math.max(0, Math.min(round, MEMORY.pairs.length - 1))];
 /** De kaartjes door elkaar: elk getal van 0 tot `pairs` ligt er twee keer. */
 export const dealPairs = (pairs: number, rnd: Rnd = Math.random): number[] => shuffled(Array.from({ length: pairs * 2 }, (_, i) => i >> 1), rnd);
-export const memoryClean = (misses: number, pairs: number): boolean => misses <= pairs + MEMORY.slack;
+export const memoryClean = (misses: number, pairs: number): boolean => misses <= pairs * MEMORY.grace;
 
 // ------------------------------------------------------------ vragen over dieren
 const isSpecies = (sp: string): sp is SpeciesId => sp in SPECIES;
