@@ -269,6 +269,9 @@ export const T = {
     if (game.litter.length) return game.cleanLitter(game.litter[0]);
     // een bak met vies water: één tik met de veger
     if (this.cleanTanks(data.MURK?.dirty ?? 0.6, 1)) return;
+    // een stoffig dier: wassen met de slang
+    const dusty = game.animals.find(a => !a.escaped && (a.dust ?? 0) >= 0.6);
+    if (dusty && game.washed) return game.washed(dusty, { gx: dusty.gx, gy: dusty.gy + 2 });
     if (worst) return game.feed(worst.tr, SPECIES[worst.sp].food);
     if (dirty && dirty.n) game.cleanPoop(game.poopsOf(dirty.p.region.id)[0]);
   },
@@ -301,6 +304,8 @@ export const T = {
     for (const p of [...game.litter]) game.cleanLitter(p);
     // het water in de bakken van glas: met de veger schoonmaken voordat de zeedieren het vies vinden
     this.cleanTanks(data.MURK?.job ?? 0.45);
+    // stoffige dieren wassen met de slang
+    if (game.washed) for (const a of game.animals) if (!a.escaped && (a.dust ?? 0) >= 0.6) game.washed(a, { gx: a.gx, gy: a.gy + 2 });
     for (const a of game.animals) if (a.sick) game.heal(a);
     for (const a of game.animals.filter(k => k.escaped && !this.leaveToGuard(k))) this.catch(a);
   },

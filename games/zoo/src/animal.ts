@@ -1,5 +1,6 @@
 // Eén dier: wat het wil, wat het doet en welke animatie daarbij hoort.
 import * as THREE from 'three';
+import { dusty } from './care';
 import {
   ALSO, AQUATIC, CLIMATE, MIX_TILES, MUD_LOVERS, PETTABLE, TANK_WATER, TOY_DRINK, TOY_LIFT, type Nature, type Rare, type Terrain, type ToyKind,
   MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, palsOf, scares, wildRange, WILD_KINDS, type PropGroup, type WildKind, type FenceNeed, type SpeciesId, type Variant, type WishId, type EscapeWay,
@@ -1350,7 +1351,8 @@ export class Animal {
       result.terrain = this.mainOk;
       this.lonely = Math.max(0, 2 - w.animals.filter(a => w.grid.regionOf[a.tile] === region.id).length);
       result.friend = this.lonely === 0;
-      result.clean = w.poopsIn(region.id) <= MAX_POOPS_CLEAN;
+      // een schoon hok, en zelf niet helemaal stoffig (dan wil het dier gewassen worden met de slang)
+      result.clean = w.poopsIn(region.id) <= MAX_POOPS_CLEAN && !dusty(this.dust);
       result.bed = w.beds.some(b => w.grid.regionOf[tileIndex(b.x, b.y)] === region.id);
       const fav = TOY_OF[this.species];
       result.fun = !fav || !w.wantsFun() || w.toys.some(t => likesToy(this.species, t.kind) && w.grid.regionOf[tileIndex(t.x, t.y)] === region.id);
@@ -1373,7 +1375,7 @@ export class Animal {
       result.friend = this.lonely === 0;
       result.space = region.tiles.length >= (SPACE[this.species] ?? 0);
       // een zeedier wil ook schoon water in zijn bak
-      result.clean = w.poopsIn(region.id) <= MAX_POOPS_CLEAN && !(this.aquatic && murkyWater(w.murkIn(region.id)));
+      result.clean = w.poopsIn(region.id) <= MAX_POOPS_CLEAN && !(this.aquatic && murkyWater(w.murkIn(region.id))) && !dusty(this.dust);
       result.bed = w.beds.some(b => b.kind === info.bed && w.grid.regionOf[tileIndex(b.x, b.y)] === region.id);
       const fav = TOY_OF[this.species];
       result.fun = !fav || !w.wantsFun() || w.toys.some(t => likesToy(this.species, t.kind) && w.grid.regionOf[tileIndex(t.x, t.y)] === region.id);

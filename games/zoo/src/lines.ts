@@ -249,6 +249,8 @@ export const say = {
   hoseMud: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.hose.mud' }),
   /** Het water in een bak van glas is vies, en de tip daarna: een waterfilter. */
   murky: (): Line => ({ who: 'keeper', mood: 'worried', key: 'alert.murky' }),
+  /** Een dier is helemaal stoffig: wassen met de slang. */
+  dusty: (): Line => ({ who: 'keeper', mood: 'worried', key: 'alert.dusty' }),
   filterTip: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.filter.tip' }),
 };
 
@@ -360,7 +362,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   for (const season of SEASONS) add(say.season(season));
   for (const ask of ['green.more', 'green.less', 'stone.more', 'stone.less']) add(wishLine(tr, 'wild', 'pig', null, false, ask));
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
-    say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.filterTip(), say.showWhere(), say.showFirst(),
+    say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.dusty(), say.filterTip(), say.showWhere(), say.showFirst(),
     say.cableOne(), say.cableWhere(), say.cableFirst(), say.partyToday(), say.partyGong(), say.partyStart(), say.partyEnd(), say.treatNew(), say.treatFull(), say.treatSick(), say.hoseNew(), say.hoseMud(), say.leavesNew(), say.leavesJump(), say.snowNew(), say.snowman(), say.lampsNew(), say.lampsWave()]) add(line);
   for (const key of ['balloon', 'icecream', 'coin', 'thanks'] as const) add(say.kid(key));
   add(say.eventNew());

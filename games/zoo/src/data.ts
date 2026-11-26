@@ -869,9 +869,9 @@ export const FEATURE = {
   murk: 20,
   /** Een level later: de bewaker, die ontsnapte dieren weer naar huis brengt. */
   guard: 31,
-  /** Bij de actieknop: een snoepje gooien naar een dier (level 2), en dieren wassen met de tuinslang (level 6). Zie care.ts. */
+  /** Bij de actieknop: een snoepje gooien naar een dier (level 2), en dieren wassen met de tuinslang (level 20). Zie care.ts. */
   treat: 1,
-  hose: 5,
+  hose: 19,
   /** Raad het lievelingsdier van een gast (level 7), de optocht met de clown (level 14) en de schminktent (level 18). */
   guess: 6, parade: 13, facepaint: 17,
 };

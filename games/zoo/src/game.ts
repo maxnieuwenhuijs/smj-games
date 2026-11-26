@@ -43,7 +43,7 @@ import { STAR_EVERY, STAR_FACTORS, STAR_GOOD, STAR_TIP_GAP, nextStars, parkScore
 import { guestCard } from './traits';
 import { BOOK_HEART, KID_MOMENT, KID_MOMENTS, SPLAT_MELT, momentReady, type KidMoment } from './kids';
 import { EDGE_SHIFT, View, toWorldX, toWorldZ, type TroughMesh } from './view';
-import { CARE_ACTIONS, CATCH, DUST, HOSE, TREAT, dustAfter, dustSpecks, flightTime, isCare, treatFor, treatReady, type CareAction } from './care';
+import { CARE_ACTIONS, CATCH, DUST, HOSE, TREAT, dustAfter, dustSpecks, flightTime, isCare, treatFor, treatReady, type CareAction, dusty } from './care';
 import { CareFx } from './carefx';
 import { WALK, type Box, type WalkGround } from './walk';
 import { WalkMode, tagHtml, type WalkTarget } from './walkmode';
@@ -4194,10 +4194,19 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // bij een groepsdier staat erbij hoeveel er nog bij moeten
       case 'friend': return speciesIcon(a.species) + (a.lonely > 1 ? `<i class="count">+${a.lonely}</i>` : icon('plus', 'badge'));
       // een zeedier in vies water: een vieze druppel; anders de poep
-      case 'clean': return icon(this.murkyFor(a) ? 'murky' : 'poop');
+      // een stoffig dier: het dier met de slang erbij
+      case 'clean': return this.murkyFor(a) ? icon('murky') : this.dustOnly(a) ? speciesIcon(a.species) + icon('hose', 'badge') : icon('poop');
       // bang: de kop van het roofdier, met een uitroepteken
       case 'safe': return speciesIcon(a.scaredOf ?? 'lion') + icon('scared', 'badge');
     }
+  }
+
+  /**
+   * Is het dier alleen stoffig (het hok is schoon)? Dan wil het gewassen worden met de slang. Dat maakt het
+   * ongelukkig, maar het wordt er nooit voor opgehaald.
+   */
+  private dustOnly(a: Animal): boolean {
+    return a.unmet === 'clean' && dusty(a.dust) && !this.murkyFor(a) && this.poopsIn(this.grid.regionOf[a.tile]) <= MAX_POOPS_CLEAN;
   }
 
   /** Zwemt dit zeedier in vies water? */
@@ -5496,6 +5505,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.has('hose'))
       for (const a of this.animals) {
         a.dust = dustAfter(a.dust, dt, { species: a.species, aquatic: a.aquatic, swimming: a.swimming, rolling: a.rolling });
+        // regen spoelt het stof er langzaam af (een dier onder een dak niet, maar dat maakt voor een kind niets uit)
+        if (this.raining()) a.dust = Math.max(0, a.dust - dt / DUST.rain);
         const n = dustSpecks(a.dust);
         if (n || fx) this.fx.setDust(a, n);
         if (a.dust >= DUST.puffs && !a.sleeping && Math.random() < dt * 0.25) this.view.burst(a.px, a.py, a.top * 0.5, 0xb8ab94, 3);
@@ -7192,9 +7203,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         sfx('heart', { volume: 0.5, every: 1.5 });
       }
       // zorgwensen (ziek, verblijf, bang, voer, schoon) tellen zwaarder dan het soort hek, ondergrond, slaapplek en een vriendje
-      const care = a.unmet === 'health' || (a.unmet === 'enclosure' && !a.needsFence) || a.unmet === 'safe' || a.unmet === 'food' || a.unmet === 'clean';
-      // verveling, te weinig ruimte en een kapot hek maken een dier ongelukkig, maar het wordt er nooit voor opgehaald
-      const calm = a.unmet === 'fun' || a.unmet === 'climate' || a.unmet === 'wild' || a.unmet === 'space' || (a.unmet === 'terrain' && a.mixOnly) || (a.unmet === 'enclosure' && a.fenceBroken && !a.escaped);
+      const care = a.unmet === 'health' || (a.unmet === 'enclosure' && !a.needsFence) || a.unmet === 'safe' || a.unmet === 'food' || (a.unmet === 'clean' && !this.dustOnly(a));
+      // verveling, te weinig ruimte, stof en een kapot hek maken een dier ongelukkig, maar het wordt er nooit voor opgehaald
+      const calm = this.dustOnly(a) || a.unmet === 'fun' || a.unmet === 'climate' || a.unmet === 'wild' || a.unmet === 'space' || (a.unmet === 'terrain' && a.mixOnly) || (a.unmet === 'enclosure' && a.fenceBroken && !a.escaped);
       const rate = a.unmet === null ? -2 : calm ? 0 : care ? 1 : 0.4;
       a.neglect = Math.max(0, a.neglect + rate * 0.4);
       if (a.neglect > NEGLECT_GONE) taken.push(a);
@@ -7252,9 +7263,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (worst && worst.age > (light ? ALERT_AFTER * 2 : ALERT_AFTER)) {
       const { a, wish } = worst;
       const murky = wish === 'clean' && !a.escaped && this.murkyFor(a);
+      const dust = wish === 'clean' && !a.escaped && this.dustOnly(a);
       // vies water: na de melding vertelt de verzorger dat een waterfilter helpt (als die er nog niet in staat)
       if (murky && this.said.has('alert.murky') && !this.toys.some(toy => toy.kind === 'filter' && this.grid.regionOf[tileIndex(toy.x, toy.y)] === this.grid.regionOf[a.tile])) this.mention(say.filterTip(), 600);
-      this.alert(this.lineAbout(a.escaped ? say.escaped(t, a.species, a.fledFence) : murky ? say.murky() : wish === 'enclosure' && a.fenceBroken ? say.broken() : wish === 'safe' && a.scaredOf ? say.scared(t, a.species, a.scaredOf) : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN, a.wildAsk ? `${a.wildAsk.group}.${a.wildAsk.more ? 'more' : 'less'}` : undefined), a));
+      this.alert(this.lineAbout(a.escaped ? say.escaped(t, a.species, a.fledFence) : murky ? say.murky() : dust ? say.dusty() : wish === 'enclosure' && a.fenceBroken ? say.broken() : wish === 'safe' && a.scaredOf ? say.scared(t, a.species, a.scaredOf) : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN, a.wildAsk ? `${a.wildAsk.group}.${a.wildAsk.more ? 'more' : 'less'}` : undefined), a));
       if (a.neglect > NEGLECT_WARN * 1.5 && !this.hud.speaking) this.callForHelp('name.help.1');
     }
     // de gastvrouw let op de gasten

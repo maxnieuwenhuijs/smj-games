@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CARE_ACTIONS, CATCH, DUST, HOSE, TREAT, arcAt, dustAfter, dustSpecks, flightTime, isCare, treatFor, treatReady } from './care';
+import { CARE_ACTIONS, CATCH, DUST, HOSE, TREAT, arcAt, dustAfter, dustSpecks, flightTime, isCare, treatFor, treatReady, dusty } from './care';
 import { FEATURE, FOODS, MUD_LOVERS, SPECIES, type SpeciesId } from './data';
 import { ICON_IDS } from './icons';
 import en from './en.json';
@@ -75,10 +75,9 @@ describe('wassen met de tuinslang', () => {
 });
 
 describe('snoepje en slang bij de actieknop', () => {
-  it('ze komen vroeg: het snoepje in level 2, de slang een paar levels later', () => {
+  it('het snoepje komt vroeg (level 2), de slang pas vanaf level 20', () => {
     expect(FEATURE.treat).toBe(1);
-    expect(FEATURE.hose).toBeGreaterThan(FEATURE.treat);
-    expect(FEATURE.hose).toBeLessThanOrEqual(6);
+    expect(FEATURE.hose).toBe(19);
   });
 
   it('elke keuze heeft een plaatje en een naam', () => {
@@ -89,5 +88,14 @@ describe('snoepje en slang bij de actieknop', () => {
       expect((en as Record<string, string>)[`action.${k}`]).toBeTruthy();
     }
     expect(isCare('broom')).toBe(false);
+  });
+});
+
+describe('stof: wanneer een dier gewassen wil worden', () => {
+  it('pas als het echt stoffig is, en je ziet de stofjes al eerder', () => {
+    expect(dusty(DUST.dirty)).toBe(true);
+    expect(dusty(DUST.dirty - 0.01)).toBe(false);
+    expect(DUST.shows).toBeLessThan(DUST.dirty);
+    expect(DUST.dirty).toBeLessThan(1);
   });
 });

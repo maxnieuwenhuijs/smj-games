@@ -749,6 +749,7 @@
   "cheer.7": "You built that so nicely!",
   "cheer.8": "The till is ringing nicely. Good job!",
   "alert.clean": "The pen is dirty. Grab the broom and sweep up the poops!",
+  "alert.dusty": "This animal is all dusty! Take the hose from Action and give it a nice wash.",
   "alert.murky": "The water is dirty! Tap the tank with the broom to make it clean again.",
   "say.filter.tip": "Put a water filter in the tank. Then the water stays clean much longer.",
   "alert.wrongfood": "{The} does not like that.",

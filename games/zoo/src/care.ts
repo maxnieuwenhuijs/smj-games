@@ -28,7 +28,9 @@ export const HOSE = { soak: 1.2, keep: 3, glee: 40, neglect: 25, mudBack: [20, 4
  * een modderliefhebber `mud` keer zo snel, en bij het rollen in de modder komt er per tel `roll` bij. Zwemmen
  * spoelt het meteen af. Vanaf `shows` zie je het: stofjes op de vacht, en vanaf `puffs` af en toe een wolkje.
  */
-export const DUST = { full: 600, mud: 1.6, roll: 0.35, shows: 0.3, puffs: 0.85 };
+export const DUST = { full: 1500, mud: 1.6, roll: 0.35, shows: 0.3, puffs: 0.85, dirty: 0.9, rain: 60 };
+/** Zo stoffig wil een dier gewassen worden: dan is de wens 'schoon' niet vervuld (zie animal.ts). */
+export const dusty = (dust: number): boolean => dust >= DUST.dirty;
 
 /** Mag dit dier weer een snoepje? `last` is wanneer het zijn vorige kreeg (op de klok van het spel). */
 export const treatReady = (last: number | undefined, now: number): boolean => last === undefined || now - last >= TREAT.every;
