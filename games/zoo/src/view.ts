@@ -3,9 +3,9 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, SHOP_DEEP, onEdge, shopSpan, TERRAINS, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
-  BUMPER_CARS, RESTAURANT_TABLES, SHOW_ROWS, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, bumperCar, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
+  RESTAURANT_TABLES, SHOW_ROWS, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
 } from './data';
-import { CAROUSEL, CAROUSEL_SEATS, FERRIS, carouselAt, carouselLift, ferrisAngle, ferrisSway, newRide, type RideState } from './rides';
+import { BUMPER, CAROUSEL, CAROUSEL_SEATS, FERRIS, carouselAt, carouselLift, ferrisAngle, ferrisSway, newRide, type RideState } from './rides';
 import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type Land, type Side } from './grid';
 import { roadside } from './road';
 import { CABLE, cableHeight } from './cable';
@@ -1233,41 +1233,91 @@ RIDE_BUILD.carousel = (group, mat) => {
   });
 };
 
-// Botsauto's: een gladde vloer met een rubberen rand en een licht dak op vier palen. De auto's zelf zijn los
-// (zie buildShop): het spel laat ze rijden.
+// Botsauto's (4 bij 3 tegels): een hal met een gladde vloer en een rubberen rand eromheen, zeven palen en een dak
+// van glas met een gestreepte rand vol lampjes. Onder het dak hangt het gaas waar de sprieten van de auto's langs
+// strijken. Vooraan is de opening waar je de vloer op stapt, met het kastje van de baas ernaast. De zes auto's zijn
+// los (zie RIDE_BUILD): het spel laat ze rijden en botsen.
+const B = BUMPER;
+/** De hal: zo ver staan de palen uit het midden, waar de rand om de vloer ligt (achter en voor), en hoe hoog de dakrand en de nok zijn. */
+const HALL = { x: B.ax + 0.16, back: B.z0 - 0.14, front: B.z1 + 0.1, eave: 1.92, ridge: 2.34, mesh: 1.86 };
+const HALL_MID = (HALL.back + HALL.front) / 2, HALL_DEEP = HALL.front - HALL.back;
+/** Een strook om en om rode en gele vlakken, van `from` tot `to` langs x (of langs z met `turn`), op hoogte y. */
+const stripes = (from: number, to: number, y: number, at: number, turn = false): [number, ...THREE.BufferGeometry[]][] => {
+  const n = Math.round((to - from) / 0.33), len = (to - from) / n;
+  return [0xe0584f, 0xffd23f].map((color, tone): [number, ...THREE.BufferGeometry[]] => [color, ...Array.from({ length: n }, (_, i) => i).filter(i => i % 2 === tone).map(i => {
+    const mid = from + (i + 0.5) * len;
+    return turn ? boxAt(0.05, 0.2, len, at, y, mid) : boxAt(len, 0.2, 0.05, mid, y, at);
+  })]);
+};
+const HALL_POSTS: [number, number][] = [[-HALL.x, HALL.back], [0, HALL.back], [HALL.x, HALL.back], [-HALL.x, HALL.front], [-0.5, HALL.front], [0.5, HALL.front], [HALL.x, HALL.front]];
+/** Een helft van het glazen dak (`side` is -1 achter of 1 voor): een schuin vlak van de dakrand naar de nok. */
+const hallRoof = (side: number, thick: number, wide: number): THREE.BufferGeometry => {
+  const run = HALL_DEEP / 2 + 0.08, rise = HALL.ridge - HALL.eave, len = Math.hypot(run, rise);
+  return new THREE.BoxGeometry(wide, thick, len).rotateX(side * Math.atan2(rise, run)).translate(0, (HALL.eave + HALL.ridge) / 2 + 0.04, HALL_MID + (side * run) / 2);
+};
 SHOP_PARTS.bumper = [
-  [boxAt(1.84, 0.05, 1.84, 0, 0.025, 0), std(0x6a7480, 0.5), false],
-  [mergeGeometries([boxAt(1.84, 0.12, 0.08, 0, 0.11, -0.88), boxAt(1.84, 0.12, 0.08, 0, 0.11, 0.88), boxAt(0.08, 0.12, 1.68, -0.88, 0.11, 0), boxAt(0.08, 0.12, 1.68, 0.88, 0.11, 0)])!, std(0x2b2f36, 0.8)],
-  [mergeGeometries([boxAt(1.84, 0.025, 0.08, 0, 0.18, -0.88), boxAt(1.84, 0.025, 0.08, 0, 0.18, 0.88), boxAt(0.08, 0.025, 1.68, -0.88, 0.18, 0), boxAt(0.08, 0.025, 1.68, 0.88, 0.18, 0)])!, P_YELLOW],
-  [mergeGeometries(CORNERS.map(([x, z]) => boxAt(0.08, 1.4, 0.08, x * 0.86, 0.7, z * 0.86)))!, P_RED],
-  [merge([
-    boxAt(1.8, 0.05, 0.05, 0, 1.42, -0.86), boxAt(1.8, 0.05, 0.05, 0, 1.42, 0.86), boxAt(0.05, 0.05, 1.8, -0.86, 1.42, 0), boxAt(0.05, 0.05, 1.8, 0.86, 1.42, 0),
-    beam(0.035, [-0.86, 1.42, -0.86], [0.86, 1.42, 0.86]), beam(0.035, [0.86, 1.42, -0.86], [-0.86, 1.42, 0.86]),
-  ]), METAL],
-  [merge([...CORNERS.map(([x, z]) => ball(0.07, x * 0.86, 1.5, z * 0.86)), ball(0.08, 0, 1.4, 0)]), LAMP_MAT, false],
-  // een rand van rode en gele vlakken langs het dak
-  [painted(...[0xe0584f, 0xffd23f].map((color, tone): [number, ...THREE.BufferGeometry[]] => [color, ...[0, 1, 2, 3, 4].filter(i => i % 2 === tone).flatMap(i => {
-    const a = -0.64 + i * 0.32;
-    return [boxAt(0.32, 0.1, 0.02, a, 1.345, -0.86), boxAt(0.32, 0.1, 0.02, a, 1.345, 0.86), boxAt(0.02, 0.1, 0.32, -0.86, 1.345, a), boxAt(0.02, 0.1, 0.32, 0.86, 1.345, a)];
-  })])), PAINT_MAT],
+  floorOf(0xd8c7ab, 4, 3),
+  // de gladde vloer en het opstapje voor de opening: plat, zodat de schaduw van de auto's erop valt
+  [painted(
+    [0x6f7b88, boxAt((B.ax + 0.1) * 2, B.floor, B.z1 - B.z0 + 0.2, 0, B.floor / 2, (B.z0 + B.z1) / 2)],
+    [0x8794a2, ...[-1.05, 0, 1.05].map(x => boxAt(0.05, 0.004, B.z1 - B.z0 - 0.3, x, B.floor + 0.002, (B.z0 + B.z1) / 2))],
+    [0xd3a868, boxAt(0.9, B.floor, 0.32, 0, B.floor / 2, HALL.front + 0.2)],
+  ), MATTE_MAT, false],
+  // de rubberen rand om de vloer (vooraan met een opening), met een gele bies bovenop
+  [painted(
+    [0x2b2f36, boxAt(HALL.x * 2, 0.2, 0.1, 0, 0.1, B.z0 - 0.05), boxAt(0.1, 0.2, HALL_DEEP, -B.ax - 0.05, 0.1, HALL_MID), boxAt(0.1, 0.2, HALL_DEEP, B.ax + 0.05, 0.1, HALL_MID),
+      ...[-1, 1].map(s => boxAt(B.ax - 0.4, 0.2, 0.1, s * (B.ax + 0.4) / 2 + s * 0.05, 0.1, B.z1 + 0.05))],
+    [0xffd23f, boxAt(HALL.x * 2, 0.03, 0.1, 0, 0.215, B.z0 - 0.05), boxAt(0.1, 0.03, HALL_DEEP, -B.ax - 0.05, 0.215, HALL_MID), boxAt(0.1, 0.03, HALL_DEEP, B.ax + 0.05, 0.215, HALL_MID),
+      ...[-1, 1].map(s => boxAt(B.ax - 0.4, 0.03, 0.1, s * (B.ax + 0.4) / 2 + s * 0.05, 0.215, B.z1 + 0.05))],
+    // het kastje van de baas, met een groene en een rode knop
+    [0x4a90e2, boxAt(0.5, 0.52, 0.26, -1.45, 0.26, HALL.front + 0.22)],
+    [0xf7f4ec, boxAt(0.56, 0.04, 0.3, -1.45, 0.54, HALL.front + 0.22)],
+    [0x6cc04a, tube(0.045, 0.045, 0.03, -1.56, 0.575, HALL.front + 0.22)],
+    [0xe0584f, tube(0.045, 0.045, 0.03, -1.36, 0.575, HALL.front + 0.22), ...HALL_POSTS.map(([x, z]) => boxAt(0.1, HALL.eave, 0.1, x, HALL.eave / 2, z))],
+    [0xf7f4ec, ...HALL_POSTS.map(([x, z]) => boxAt(0.12, 0.1, 0.12, x, 0.62, z))],
+  ), PAINT_MAT],
+  // het dak: balken langs de rand en de nok, sporen eroverheen en de gestreepte rand
+  [painted(
+    [0xf7f4ec, boxAt(HALL.x * 2 + 0.2, 0.07, 0.07, 0, HALL.ridge + 0.06, HALL_MID), ...[-1, 1].flatMap(s => [-HALL.x, -HALL.x / 2, 0, HALL.x / 2, HALL.x].map(x => hallRoof(s, 0.05, 0.05).translate(x, 0.01, 0)))],
+    ...stripes(-HALL.x - 0.05, HALL.x + 0.05, HALL.eave, HALL.back - 0.03), ...stripes(-HALL.x - 0.05, HALL.x + 0.05, HALL.eave, HALL.front + 0.03),
+    ...stripes(HALL.back, HALL.front, HALL.eave, -HALL.x - 0.03, true), ...stripes(HALL.back, HALL.front, HALL.eave, HALL.x + 0.03, true),
+    // het gaas onder het dak
+    [0x4a525c, ...[-1.5, -1, -0.5, 0, 0.5, 1, 1.5].map(x => boxAt(0.016, 0.016, HALL_DEEP, x, HALL.mesh, HALL_MID)), ...[-0.9, -0.45, 0, 0.45, 0.9].map(z => boxAt(HALL.x * 2, 0.016, 0.016, 0, HALL.mesh, HALL_MID + (z * HALL_DEEP) / 2))],
+  ), PAINT_MAT],
+  // het glas: je kijkt er dwars doorheen naar de auto's
+  [merge([hallRoof(-1, 0.02, HALL.x * 2 + 0.16), hallRoof(1, 0.02, HALL.x * 2 + 0.16)]), GLASS_MAT, false],
+  // lampjes langs de dakrand: het licht loopt rond
+  ...CHASE_MATS.map((m, k): Part => [merge([HALL.back - 0.07, HALL.front + 0.07].flatMap(z => Array.from({ length: 4 }, (_, i) => dot(0.055, -HALL.x + 0.12 + ((i * 3 + k) * (HALL.x * 2 - 0.24)) / 11, HALL.eave - 0.02, z)))), m, false]),
 ];
-const CAR_PARTS = (color: THREE.Material): Part[] => [
-  [CAR_RUBBER_GEO, CAR_RUBBER_MAT],
-  [CAR_BODY_GEO, color],
-  [CAR_TRIM_GEO, METAL],
-];
-const CAR_RUBBER_MAT = std(0x2b2f36, 0.8);
-const CAR_RUBBER_GEO = new THREE.CylinderGeometry(0.16, 0.16, 0.05, 12).scale(1, 1, 1.32).translate(0, 0.035, 0);
-const CAR_BODY_GEO = mergeGeometries([
-  new THREE.CylinderGeometry(0.115, 0.145, 0.1, 12).scale(1, 1, 1.32).translate(0, 0.1, 0),
-  boxAt(0.2, 0.12, 0.04, 0, 0.2, -0.15),
-])!;
-// het stuur, een sprietje met een bolletje en een koplamp
-const CAR_TRIM_GEO = merge([
-  beam(0.018, [0, 0.14, 0.08], [0, 0.27, 0.03]), boxAt(0.1, 0.022, 0.022, 0, 0.275, 0.03),
-  boxAt(0.014, 0.4, 0.014, 0, 0.42, -0.17), ball(0.03, 0, 0.63, -0.17), ball(0.03, 0, 0.11, 0.2),
-]);
-const CAR_COLORS = [P_RED, P_BLUE, P_YELLOW, P_GREEN];
+/**
+ * Een botsauto, met zijn midden op de vloer en de neus naar +z: een rubberen rand, een gekleurde kuip met een
+ * rugleuning, een stuur, twee koplampen en achterop de spriet tot aan het gaas onder het dak.
+ */
+const bumperCarGeo = (color: number): THREE.BufferGeometry => painted(
+  [0x2b2f36, new THREE.CylinderGeometry(0.2, 0.2, 0.075, 14).scale(1, 1, 1.22).translate(0, 0.05, 0)],
+  [color, new THREE.CylinderGeometry(0.13, 0.185, 0.14, 14).scale(1, 1, 1.22).translate(0, 0.155, 0), boxAt(0.25, 0.2, 0.05, 0, 0.31, -0.18)],
+  [0xf7f4ec, new THREE.CylinderGeometry(0.188, 0.188, 0.022, 14).scale(1, 1, 1.22).translate(0, 0.105, 0)],
+  [0xffe58a, dot(0.032, -0.08, 0.15, 0.21), dot(0.032, 0.08, 0.15, 0.21)],
+  [0x8a8f98, beam(0.02, [0, 0.2, 0.13], [0, 0.34, 0.08]), new THREE.TorusGeometry(0.05, 0.013, 4, 10).rotateX(-1.2).translate(0, 0.35, 0.075),
+    boxAt(0.016, HALL.mesh - B.floor - 0.24, 0.016, 0, (HALL.mesh - B.floor + 0.2) / 2, -0.2), boxAt(0.12, 0.02, 0.03, 0, HALL.mesh - B.floor - 0.03, -0.2)],
+);
+const BUMPER_CAR_GEOS = RIDE_COLORS.map(bumperCarGeo);
+/** De vonk boven aan de spriet: je ziet hem alleen even bij een botsing. */
+const SPARK_GEO = merge([0, 1, 2].map(i => new THREE.BoxGeometry(0.2, 0.03, 0.03).rotateY((i * Math.PI) / 3)));
+RIDE_BUILD.bumper = (group, mat) => {
+  const sparks: THREE.Object3D[] = [];
+  group.userData.cars = Array.from({ length: B.cars }, (_, i) => {
+    const car = piece(BUMPER_CAR_GEOS[i % BUMPER_CAR_GEOS.length], PAINT_MAT, mat), spark = piece(SPARK_GEO, LAMP_MAT, mat, false);
+    spark.position.set(0, HALL.mesh - B.floor - 0.02, -0.2);
+    spark.visible = false;
+    car.add(spark);
+    sparks.push(spark);
+    group.add(car);
+    return car;
+  });
+  group.userData.sparks = sparks;
+};
+
 // Schuilhut: vier palen, een schuin dak, wanden links en achter en een bank langs de achterwand.
 SHOP_PARTS.shelter = [
   floorOf(),
@@ -2466,18 +2516,6 @@ function buildShop(kind: ShopKind, mat?: THREE.Material): THREE.Group {
       group.add(door);
       return door;
     });
-  if (kind === 'bumper') {
-    const cars: THREE.Object3D[] = [];
-    for (let i = 0; i < BUMPER_CARS; i++) {
-      const car = build(CAR_PARTS(CAR_COLORS[i % CAR_COLORS.length]), mat);
-      const [x, z, turn] = bumperCar(i, 0);
-      car.position.set(x, 0.05, z);
-      car.rotation.y = turn;
-      group.add(car);
-      cars.push(car);
-    }
-    group.userData.cars = cars;
-  }
   const bobs = SHOP_BOB[kind];
   if (bobs)
     group.userData.bob = bobs.map(b => {
@@ -2520,6 +2558,19 @@ function poseRide(group: THREE.Object3D, kind: ShopKind, s: RideState): void {
     (u.spinner as THREE.Object3D).rotation.y = s.spin;
     const horses = u.horses as THREE.Object3D[];
     for (let i = 0; i < horses.length; i++) horses[i].position.y = carouselLift(i, s.spin);
+  } else if (kind === 'bumper') {
+    const cars = u.cars as THREE.Object3D[], sparks = u.sparks as THREE.Object3D[];
+    for (let i = 0; i < cars.length && i < s.cars.length; i++) {
+      const c = s.cars[i];
+      cars[i].position.set(c.x, BUMPER.floor, c.z);
+      // bij een botsing schudt de auto even en springt er een vonk van de spriet
+      cars[i].rotation.set(0, c.dir, c.bump * 0.1 * Math.sin(s.clock * 38 + i));
+      sparks[i].visible = c.bump > 0.45;
+      if (sparks[i].visible) {
+        sparks[i].scale.setScalar(0.5 + c.bump);
+        sparks[i].rotation.y = s.clock * 20 + i;
+      }
+    }
   }
 }
 

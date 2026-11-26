@@ -5,7 +5,7 @@
 // &bos=1 (de bomen rond het park), &seizoen=winter, &nacht=1, &spook=1 (het doorzichtige voorbeeld), &draai=1 (kwartslagen), &druk=1 (alsof er
 // gasten zijn), &t=2.5 (het moment van de foto), &zoom=6 (tegels in beeld).
 import * as THREE from 'three';
-import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FOODS, PARK_PROPS, WILD_PROPS, SHOPS, TERRAINS, TOYS, TROUGHS, bumperCar, onEdge, shopSpan, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type Terrain, type ToyKind, type TroughKind } from './data';
+import { BEDS, DECORS, EDGE_DECOR, FOODS, PARK_PROPS, WILD_PROPS, SHOPS, TERRAINS, TOYS, TROUGHS, onEdge, shopSpan, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type Terrain, type ToyKind, type TroughKind } from './data';
 import { BASE_LAND, FULL_LAND, Grid, edgeKey, type Edge, type EdgeKind } from './grid';
 import { View, toWorldX, toWorldZ } from './view';
 import { FACES, sampleHead, showSample } from './faces';
@@ -103,12 +103,6 @@ const shop = (kind: ShopKind): Item => ({
       if (kind === 'swing' && moving) moving.rotation.x = Math.sin(t * 2) * 0.5;
       if (kind === 'seesaw' && moving) moving.rotation.z = Math.sin(t * 2) * 0.3;
       if (kind === 'springer' && moving) moving.rotation.x = Math.sin(t * 2) * 0.3;
-      if (kind === 'bumper')
-        (group.userData.cars as THREE.Object3D[]).slice(0, BUMPER_CARS).forEach((car, i) => {
-          const [cx, cz, heading] = bumperCar(i, t);
-          car.position.set(cx, 0.05, cz);
-          car.rotation.y = heading;
-        });
     });
   },
 });

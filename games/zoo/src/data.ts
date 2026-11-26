@@ -342,14 +342,6 @@ export { FERRIS } from './rides';
 export const TOWER_TOP = 1.75;
 /** De tafels van het restaurant (x, z) met aan weerszijden (x - 0,27 en x + 0,27) een kruk. */
 export const RESTAURANT_TABLES: [number, number][] = [[-0.45, 0.5], [0.5, 0.5], [0.5, -0.4]];
-export const BUMPER_CARS = 3;
-/** Waar botsauto `i` op tijdstip `t` rijdt: [x, z, richting]. De vloer is 1,84 breed; de auto's blijven binnen de rand. */
-export function bumperCar(i: number, t: number): [number, number, number] {
-  const a = t * (0.9 + i * 0.17) + i * 2.1, b = t * (0.7 + i * 0.13) + i * 1.3;
-  const x = Math.sin(a) * 0.55 + Math.sin(b * 1.7) * 0.1, z = Math.cos(b) * 0.55 + Math.cos(a * 1.3) * 0.1;
-  const dx = Math.cos(a) * 0.55 * (0.9 + i * 0.17), dz = -Math.sin(b) * 0.55 * (0.7 + i * 0.13);
-  return [x, z, Math.atan2(dx, dz)];
-}
 /** Het treintje: een locomotief met zoveel wagons, elk met zoveel plekken; `gap` is de afstand tussen twee wagens, `speed` in tegels per tel. */
 export const TRAIN = { wagons: 2, seats: 3, gap: 0.95, speed: 1.5, stop: 5 };
 /** Kramen waar een gast iets koopt voor één munt. */
@@ -395,7 +387,7 @@ export const FENCE_COLORS: Record<1 | 3 | 4 | 5 | 7, number[]> = {
  */
 export const SHOP_SIZE: Record<ShopKind, number> = {
   foodstall: 2, drinkstall: 2, toilet: 2, playground: 2, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2, icecream: 2, balloon: 2, hats: 2, souvenir: 2, bench: 1, flowers: 1, bin: 1, fountain: 2, carousel: 3,
-  tower: 2, restaurant: 2, ferris: 8, bumper: 2, shelter: 2, station: 2, umbrellas: 1, show: 2, cablecar: 2, facepaint: 2,
+  tower: 2, restaurant: 2, ferris: 8, bumper: 4, shelter: 2, station: 2, umbrellas: 1, show: 2, cablecar: 2, facepaint: 2,
 };
 /**
  * Hoe diep een gebouw is (van voor naar achter), als dat anders is dan zijn breedte. Een marktkraam is twee tegels
@@ -404,7 +396,7 @@ export const SHOP_SIZE: Record<ShopKind, number> = {
  */
 export const SHOP_DEEP: Partial<Record<ShopKind, number>> = {
   foodstall: 1, drinkstall: 1, icecream: 1, balloon: 1, hats: 1, souvenir: 1, facepaint: 1,
-  ferris: 2,
+  ferris: 2, bumper: 3,
 };
 /** Wat je op de rand van een tegel zet, net als een hek: een bankje, bloembak, afvalbak of paraplubak neemt geen tegel in. */
 export const EDGE_SHOPS: ShopKind[] = ['bench', 'flowers', 'bin', 'umbrellas'];
@@ -541,7 +533,7 @@ export const SHOP_PRICE: Record<ShopKind, number> = {
   foodstall: 4, drinkstall: 4, bench: 2, toilet: 5, icecream: 8, balloon: 12, flowers: 2, bin: 2, souvenir: 16, playground: 6, slide: 5, swing: 6, seesaw: 6, springer: 5, trampoline: 8, hats: 14,
   // de grote attracties: daar spaar je voor
   fountain: 30, carousel: 60,
-  tower: 25, restaurant: 30, ferris: 90, bumper: 45, shelter: 10, station: 20, umbrellas: 6, show: 30,
+  tower: 25, restaurant: 30, ferris: 90, bumper: 50, shelter: 10, station: 20, umbrellas: 6, show: 30,
   // één huisje van de kabelbaan: je hebt er twee nodig
   cablecar: 25,
   // de schminktent

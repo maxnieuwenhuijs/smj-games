@@ -38,7 +38,7 @@ export type RideKind = 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline' 
 export const RIDE_SPAN: Record<RideKind, [number, number]> = {
   slide: [2, 3], swing: [2, 1], seesaw: [2, 1], springer: [1, 1], trampoline: [2, 2], fountain: [3, 3], tower: [2, 2], carousel: [3, 3], bumper: [4, 3], ferris: [8, 2], restaurant: [3, 2],
 };
-export const RIDE_KINDS: RideKind[] = ['carousel', 'ferris'];
+export const RIDE_KINDS: RideKind[] = ['carousel', 'bumper', 'ferris'];
 export const isRide = (kind: ShopKind): kind is RideKind => (RIDE_KINDS as ShopKind[]).includes(kind);
 
 /** Zo snel loopt een gast over een toestel, in tegels per tel: iets vlotter dan op het pad, want hij heeft er zin in. */
@@ -56,6 +56,8 @@ export interface BumperCar {
   bump: number;
   /** Elke botsing geeft de bestuurder een nieuw doel: dit telt mee in het toeval. */
   turn: number;
+  /** Zoveel tellen rijdt hij nog weg van de laatste botsing, voor hij weer naar zijn doel stuurt. */
+  away: number;
 }
 
 /**
@@ -140,6 +142,11 @@ export interface Visit {
 export const visitTime = (v: Visit): number => v.walk + v.wait + v.ride + v.back;
 /** Zo lang is het bezoek al bezig. */
 export const visitAge = (v: Visit, s: RideState): number => s.clock - v.t0;
+/**
+ * Is de gast al van zijn zitje af en op de terugweg naar het pad? Dan is zijn plek weer vrij voor de volgende: zo
+ * kan de rij al instappen terwijl de vorigen nog van de draaimolen af lopen.
+ */
+export const visitOff = (v: Visit, s: RideState): boolean => s.clock - v.t0 >= v.walk + v.wait + v.ride + 0.4;
 
 /**
  * Een punt in het park omgerekend naar de maat van het gebouw: `cx`, `cy` is het midden van het gebouw op het
@@ -432,15 +439,16 @@ function carouselPose(out: RidePose, v: Visit, s: RideState, e: number): RidePos
 /**
  * De botsauto's. `cars` auto's rijden over een vloer van -`ax` tot `ax` breed en van `z0` (achter) tot `z1` (voor),
  * `floor` hoog. Een auto is voor het botsen een rondje met straal `r`; de bestuurder zit op `seat` hoogte. `speed`:
- * tegels per tel met een gast erin; zonder gasten kruipen ze op `idle` daarvan. Een ritje: `stop` tellen stilstaan
- * (uit- en instappen), `run` tellen rijden en `down` tellen uitrollen. `gate`: daar (z) stap je de vloer op.
+ * tegels per tel met een gast erin; zonder gasten kruipen ze op `idle` daarvan. `hit`: vanaf die vaart schudt een
+ * klap de auto door elkaar. Een ritje: `stop` tellen stilstaan (uit- en instappen), `run` tellen rijden en `down`
+ * tellen uitrollen. `gate`: daar (z) stap je de vloer op.
  */
-export const BUMPER = { cars: 6, ax: 1.74, z0: -1.3, z1: 1.02, floor: 0.06, r: 0.24, seat: 0.21, speed: 1.45, idle: 0.28, stop: 5.5, run: 11, down: 1.5, gate: 1.16 };
+export const BUMPER = { cars: 6, ax: 1.74, z0: -1.3, z1: 1.02, floor: 0.06, r: 0.24, seat: 0.15, speed: 1.3, idle: 0.28, hit: 0.4, stop: 5.5, run: 11, down: 1.5, gate: 1.16 };
 const BUMPER_CYCLE = BUMPER.stop + BUMPER.run + BUMPER.down;
 
 /** De auto's zoals ze er de eerste keer bij staan: in een rij tegen de achterwand. */
 export const newCars = (): BumperCar[] =>
-  Array.from({ length: BUMPER.cars }, (_, i) => ({ x: ((i + 0.5) / BUMPER.cars - 0.5) * 2 * (BUMPER.ax - 0.3), z: BUMPER.z0 + BUMPER.r + 0.06, dir: 0, vx: 0, vz: 0, bump: 0, turn: 0 }));
+  Array.from({ length: BUMPER.cars }, (_, i) => ({ x: ((i + 0.5) / BUMPER.cars - 0.5) * 2 * (BUMPER.ax - 0.3), z: BUMPER.z0 + BUMPER.r + 0.06, dir: 0, vx: 0, vz: 0, bump: 0, turn: 0, away: 0 }));
 
 /**
  * De auto's een stukje verder. `power`: 1 = er staat stroom op, 0 = ze rollen uit. `drivers`: in welke auto's een
@@ -453,15 +461,16 @@ export function stepCars(cars: BumperCar[], dt: number, clock: number, power: nu
   for (let i = 0; i < cars.length; i++) {
     const car = cars[i], driven = power > 0 && (idle || (drivers >> i) & 1);
     if (driven) {
-      // een nieuw doel om de paar tellen, en meteen na een botsing
-      const slot = Math.floor(clock / (1.5 + (i % 3) * 0.4) + i * 0.37) + car.turn * 7, pick = hash(i + 1, slot);
+      // een nieuw doel om de paar tellen, en meteen na een botsing: meestal ergens op de vloer, soms een andere auto
+      const slot = Math.floor(clock / (2.1 + (i % 3) * 0.5) + i * 0.37) + car.turn * 7, pick = hash(i + 1, slot);
       let tx = (hash(slot, i + 11) * 2 - 1) * xr, tz = lerp(zr0, zr1, hash(slot, i + 23));
-      if (pick > 0.55 && !idle) {
+      if (pick > 0.72 && !idle) {
         const other = cars[(i + 1 + Math.floor(pick * 97) % (cars.length - 1)) % cars.length];
         tx = other.x;
         tz = other.z;
       }
-      const want = Math.atan2(tx - car.x, tz - car.z);
+      // vlak na een botsing stuurt hij eerst mee met de terugstuit: zo rijdt hij weg in plaats van er meteen weer tegenaan
+      const want = car.away > 0 && Math.hypot(car.vx, car.vz) > 0.1 ? Math.atan2(car.vx, car.vz) : Math.atan2(tx - car.x, tz - car.z);
       car.dir += Math.max(-3.4 * dt, Math.min(3.4 * dt, turnTo(car.dir, want)));
       const pull = Math.min(1, dt * 2.6);
       car.vx += (Math.sin(car.dir) * top - car.vx) * pull;
@@ -474,18 +483,17 @@ export function stepCars(cars: BumperCar[], dt: number, clock: number, power: nu
     car.x += car.vx * dt;
     car.z += car.vz * dt;
     car.bump = Math.max(0, car.bump - dt * 2.2);
+    car.away = Math.max(0, car.away - dt);
     // de rand: terugstuiteren
     if (car.x > xr || car.x < -xr) {
-      const hit = Math.abs(car.vx);
+      knock(car, Math.abs(car.vx));
       car.x = Math.max(-xr, Math.min(xr, car.x));
       car.vx *= -0.55;
-      if (hit > 0.45) [car.bump, car.turn] = [1, car.turn + 1];
     }
     if (car.z > zr1 || car.z < zr0) {
-      const hit = Math.abs(car.vz);
+      knock(car, Math.abs(car.vz));
       car.z = Math.max(zr0, Math.min(zr1, car.z));
       car.vz *= -0.55;
-      if (hit > 0.45) [car.bump, car.turn] = [1, car.turn + 1];
     }
   }
   // tegen elkaar: uit elkaar duwen en de vaart langs de botsrichting omwisselen
@@ -505,16 +513,26 @@ export function stepCars(cars: BumperCar[], dt: number, clock: number, power: nu
       a.vz -= nz * kick;
       b.vx += nx * kick;
       b.vz += nz * kick;
-      if (closing > 0.45) {
-        [a.bump, a.turn] = [1, a.turn + 1];
-        [b.bump, b.turn] = [1, b.turn + 1];
-      }
+      knock(a, closing);
+      knock(b, closing);
     }
   // (een auto die door een ander is weggeduwd, blijft ook binnen de rand)
   for (const car of cars) {
     car.x = Math.max(-xr, Math.min(xr, car.x));
     car.z = Math.max(zr0, Math.min(zr1, car.z));
   }
+}
+
+/**
+ * Een klap met vaart `speed`: de bestuurder kiest een nieuw doel en rijdt eerst even weg. Is de klap hard genoeg,
+ * dan worden auto en bestuurder door elkaar geschud: hoe harder, hoe meer.
+ */
+function knock(car: BumperCar, speed: number): void {
+  if (speed < 0.06) return;
+  car.turn++;
+  car.away = 0.55;
+  // (alleen twee auto's die recht op elkaar af reden, halen de volle klap)
+  if (speed > BUMPER.hit) car.bump = Math.max(car.bump, Math.min(1, (speed - BUMPER.hit) / (BUMPER.speed * 1.7 - BUMPER.hit) + 0.15));
 }
 
 /** Waar de gast in auto `seat` zit: hij rijdt mee en schudt bij een botsing. */

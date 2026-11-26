@@ -10,7 +10,7 @@ import {
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
   type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, hourAt, WAGE, TOY_OF, DECOR, DECORS, type DecorKind, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, GUESTS_HOME, STAFF_HOME, STAFF_BACK, VENDORS_BACK, LIGHT, SPACE, guestsAt, SERVES,
-  isPath, PATH_KINDS, PATH_FROM, TOY_FROM, TOY_PRICE, CLIMATE, palsOf, PETTABLE, PETTING_MIN, NATURES, pickRare, RARE_CHANCE, MUD_LOVERS, BUMPER_CARS, bumperCar, crowdLoad, CROWD_EASE,
+  isPath, PATH_KINDS, PATH_FROM, TOY_FROM, TOY_PRICE, CLIMATE, palsOf, PETTABLE, PETTING_MIN, NATURES, pickRare, RARE_CHANCE, MUD_LOVERS, crowdLoad, CROWD_EASE,
   EDGE_DECOR, SMALL_DECOR, PARK_GROUPS, ATTRACTIONS, parkShopGroup, PROP, PROPS, WILD_PROPS, PARK_PROPS, WILD_KINDS, wildRange, wildWant, type PropKind, type WildKind, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, SEASONS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
 import { CLIMB_SECONDS, PUSH, SWING, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, sinceHit, sway, swingAt, tetherAt } from './data';
 import { WAYFIND, canStray, wayfound, type WaySign } from './data';
@@ -7691,17 +7691,6 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (shop.ride) {
         // een attractie of speeltoestel: het beeld volgt de stand die het spel hierboven al een stukje verder zette (zie rides.ts)
         this.view.animateRide(shop.mesh, shop.kind, shop.ride);
-        continue;
-      }
-      if (shop.kind === 'bumper') {
-        // de botsauto's rijden hard met iemand erin en kruipen als ze leeg zijn
-        shop.spin = (shop.spin ?? 0) + dt * (shop.busyNow ? 1 : 0.3);
-        const cars = (shop.mesh.userData.cars ?? []) as THREE.Object3D[];
-        for (let i = 0; i < Math.min(cars.length, BUMPER_CARS); i++) {
-          const [cx, cz, heading] = bumperCar(i, shop.spin);
-          cars[i].position.set(cx, 0.05, cz);
-          cars[i].rotation.y = heading;
-        }
         continue;
       }
       // de draaimolen draait, de waterstraal van de fontein gaat op en neer

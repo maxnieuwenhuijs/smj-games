@@ -3,9 +3,9 @@
 import * as THREE from 'three';
 import { PLUSH, PRODUCTS, SEEK_REACH, STALLS, type FoodId, type ShopKind } from './data';
 import { Grid, H, W, tileIndex, tileXY } from './grid';
-import { BUMPER_CARS, DARK_FUN, LOOKS, PETTING_GUESTS, PLAY, RESTAURANT_TABLES, RIDES, SUIT_COLORS, TOWER_TOP, TRAIN, bumperCar, isPath } from './data';
+import { DARK_FUN, LOOKS, PETTING_GUESTS, PLAY, RESTAURANT_TABLES, RIDES, SUIT_COLORS, TOWER_TOP, TRAIN, isPath } from './data';
 import { SHOW_ROWS, SHOW_TIME } from './data';
-import { RIDE_KINDS, RIDE_SEATS, isRide, newPose, planVisit, rideLocal, visitAge, visitPose, visitTime, type RideState, type Visit } from './rides';
+import { RIDE_KINDS, RIDE_SEATS, isRide, newPose, planVisit, rideLocal, visitAge, visitOff, visitPose, visitTime, type RideState, type Visit } from './rides';
 import { CABLE, cableAt, cableLength, cableLoop, cablePassed, cableStop } from './cable';
 import { toWorldX, toWorldZ } from './view';
 import { arrivalPath, busPath, exitPath, pavementY } from './road';
@@ -773,7 +773,7 @@ type MoreIdle = 'yawn' | 'sigh' | 'peek' | 'rainbow' | 'fidget';
 /** Zoveel gasten kan één kraam, wc, bankje of attractie tegelijk helpen; de rest staat in de rij. */
 const AT_ONCE: Partial<Record<ShopKind, number>> = {
   toilet: 2, bench: 2, playground: 3, carousel: 4, fountain: 6, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2,
-  tower: 4, restaurant: 6, bumper: BUMPER_CARS, shelter: 6, station: 8, umbrellas: 2, show: SHOW_TIME.seats,
+  tower: 4, restaurant: 6, shelter: 6, station: 8, umbrellas: 2, show: SHOW_TIME.seats,
   // op het perron van de kabelbaan wachten er vier, elk in een hoekje; wie in een stoeltje zit, telt niet meer mee
   cablecar: 4,
 };
@@ -1306,6 +1306,8 @@ export class Guest implements Leader {
   private onRide: Visit | null = null;
   /** Zit of staat de gast nu echt op het toestel (niet meer onderweg ernaartoe of terug)? De GuestManager telt het per zitje. */
   aboard = false;
+  /** Is hij al van zijn zitje af en op de terugweg naar het pad? Dan is zijn plek weer vrij voor de volgende. */
+  offRide = false;
   /** Het bezoek is voorbij: de gast staat weer op het pad. */
   private rideOver = false;
   private useHeard = false;
@@ -2107,25 +2109,6 @@ export class Guest implements Leader {
         } else if (k > 0.9) arms(-0.4);
         return;
       }
-      if (kind === 'bumper') {
-        // in een botsauto: de auto rijdt, de gast zit erin en stuurt
-        const [x, z, h] = bumperCar(this.seat % BUMPER_CARS, spin);
-        put(mix(here, at(x, 0.16 - sit, z), k), k > 0.5 ? turn + h : this.heading);
-        legs(-1.4 * k);
-        arms(-1.2 * k);
-        // tegen de rand gebotst: de gast wordt door elkaar geschud en juicht met de armen omhoog
-        const jolt = k > 0.9 ? Math.max(0, Math.min(1, (Math.max(Math.abs(x), Math.abs(z)) - 0.58) / 0.05)) : 0;
-        // de bons zelf hoor je één keer, als de auto de rand raakt
-        if (jolt > 0 && !this.rideMark) this.cue = 'ride.bump';
-        this.rideMark = jolt > 0 ? 1 : 0;
-        if (jolt > 0) {
-          m.rotation.z = Math.sin(this.phase * 2.6) * 0.16 * jolt;
-          m.rotation.x = -0.12 * jolt;
-          arms(-1.2 - 1.5 * jolt);
-          this.head.rotation.z = Math.sin(this.phase * 2.6 + 1) * 0.2 * jolt;
-        }
-        return;
-      }
       if (kind === 'tower') {
         // boven op de uitkijktoren: rondkijken en wijzen, door de verrekijker kijken of naar beneden zwaaien
         const look = turn + Math.sin(this.phase * 0.07 + this.seat * 1.7) * 1.4;
@@ -2215,11 +2198,14 @@ export class Guest implements Leader {
     // het toestel draait mee met het gebouw
     const turn = ((shop.rot ?? 0) * Math.PI) / 2, cos = Math.cos(turn), sin = Math.sin(turn);
     const cx = shop.x + (shop.w ?? shop.size) / 2, cy = shop.y + (shop.h ?? shop.size) / 2, k = p.sit;
+    // in een botsauto: bij een botsing wordt de gast door elkaar geschud
+    const jolt = visit.kind === 'bumper' && p.on ? p.u : 0;
     // wie zit, zit met zijn billen op de zitting: de voeten hangen eronder
     m.position.set(toWorldX(cx + p.x * cos + p.z * sin), p.h - k * 0.2 * m.scale.y, toWorldZ(cy - p.x * sin + p.z * cos));
-    m.quaternion.setFromEuler(RIDE_TURN.set(p.pitch, turn + p.face, p.roll));
+    m.quaternion.setFromEuler(RIDE_TURN.set(p.pitch - 0.14 * jolt, turn + p.face, p.roll + Math.sin(this.phase * 2.6) * 0.16 * jolt));
     this.heading = turn + p.face;
     this.aboard = p.on;
+    this.offRide = visitOff(visit, ride);
     this.rideOver = p.done;
     this.stepping = p.act === 'walk' || p.act === 'climb';
     const legs = (a: number): void => {
@@ -2269,6 +2255,18 @@ export class Guest implements Leader {
         // wie vooraan langskomt, zwaait met zijn buitenste arm naar de mensen langs de kant
         if (p.on && p.u > 0.72 && (ride.amp > 0.5 || this.child)) wave(limbs[3]);
         break;
+      case 'bumper': {
+        // in een botsauto: de benen in de kuip, de handen aan het stuur (dat heen en weer gaat)
+        legs(-1.4 * k);
+        const steer = p.on ? Math.sin(this.phase * 0.35 + this.seat) * 0.25 : 0;
+        limbs[2].rotation.x = (-1.2 - steer - 1.5 * jolt) * k;
+        limbs[3].rotation.x = (-1.2 + steer - 1.5 * jolt) * k;
+        // de bons zelf hoor je één keer, en dan gaan de armen juichend omhoog
+        if (jolt > 0.6 && !this.rideMark) this.cue = 'ride.bump';
+        this.rideMark = jolt > 0.6 ? 1 : jolt < 0.3 ? 0 : this.rideMark;
+        head.rotation.z = Math.sin(this.phase * 2.6 + 1) * 0.2 * jolt;
+        break;
+      }
     }
   }
 
@@ -3526,7 +3524,7 @@ export class Guest implements Leader {
       if (!visit) return false;
     }
     this.onRide = visit;
-    this.aboard = this.rideOver = false;
+    this.aboard = this.offRide = this.rideOver = false;
     this.state = SEATED.includes(kind) ? 'sit' : 'buy';
     // de eerste vrije plek: zo zitten er geen twee op hetzelfde zitje
     const places = AT_ONCE[kind] ?? 1;
@@ -3572,7 +3570,7 @@ export class Guest implements Leader {
     const kind = this.shop?.kind;
     // (een bezoek aan een toestel is hiermee voorbij)
     this.onRide = null;
-    this.aboard = this.rideOver = false;
+    this.aboard = this.offRide = this.rideOver = false;
     if (this.state === 'use') return this.endUse(w);
     if (this.state === 'watch' && this.pen && this.penPhase === 3) {
       // genoeg geaaid: door het poortje weer naar buiten
@@ -5751,7 +5749,8 @@ export class GuestManager {
       const shop = g.using;
       if (!shop) continue;
       if (g.queueing) waiting.set(shop, [...(waiting.get(shop) ?? []), g]);
-      else {
+      else if (!g.offRide) {
+        // (wie al van zijn zitje af is en terugloopt naar het pad, houdt geen plek meer bezet)
         shop.busyNow = (shop.busyNow ?? 0) + 1;
         shop.used = (shop.used ?? 0) | (1 << g.seat);
         if (g.aboard) shop.aboard = (shop.aboard ?? 0) | (1 << g.seat);
