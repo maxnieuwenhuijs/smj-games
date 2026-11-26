@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FERRIS, FOODS, PARK_PROPS, WILD_PROPS, SHOPS, SHOP_SIZE, TERRAINS, TOYS, TROUGHS, bumperCar, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type Terrain, type ToyKind, type TroughKind } from './data';
 import { BASE_LAND, FULL_LAND, Grid, edgeKey, type Edge, type EdgeKind } from './grid';
 import { View, toWorldX, toWorldZ } from './view';
+import { CABLE, cableAt, cableChairs, cablePath, cablePoles, cableSpot, type P2 } from './cable';
 import { FACES, sampleHead, showSample } from './faces';
 import { SAMPLE_PEOPLE, samplePerson } from './people';
 
@@ -188,6 +189,39 @@ const train: Item = {
     });
   },
 };
+/**
+ * Een stukje kabelbaan: twee huisjes met twee tussenpalen ertussen (een bocht naar links en een naar rechts), de
+ * palen die er vanzelf onder komen en de stoeltjes die rondgaan. Met &spook=1: een stuk in aanbouw, met het
+ * voorbeeld van de volgende paal en de lijn ernaartoe.
+ */
+const cable: Item = {
+  name: 'kabelbaan', size: 14, deep: 7,
+  put: (x, y) => {
+    const from = { x, y: y + 4 }, to = { x: x + 12, y: y + 1 }, masts: P2[] = [[x + 5.5, y + 5.5], [x + 8.5, y + 2.5]];
+    const pts: P2[] = [cableSpot(from), ...masts, cableSpot(to)];
+    const first = view.makeShop(from.x, from.y, 'cablecar', undefined, rot);
+    if (ghost) {
+      view.makeCableDraft([pts.slice(0, 2)]);
+      view.ghostPylon(x + 8, y + 2, true);
+      view.ghostCable(...masts[0], ...masts[1], true);
+      return;
+    }
+    const path = cablePath(pts), model = view.makeCable(path, cablePoles(path), cableChairs(path.len)), n = pts.length - 1;
+    const second = view.makeShop(to.x, to.y, 'cablecar', undefined, rot);
+    const unit = (a: P2, b: P2): P2 => [(b[0] - a[0]) / Math.hypot(b[0] - a[0], b[1] - a[1]), (b[1] - a[1]) / Math.hypot(b[0] - a[0], b[1] - a[1])];
+    view.cableHouse(first, [unit(pts[0], pts[1])]);
+    view.cableHouse(second, [unit(pts[n], pts[n - 1])]);
+    // de stoeltjes rijden rond en de wielen draaien mee, zoals in het spel (zie CableCar in people.ts)
+    live.push(t => {
+      model.chairs.forEach((chair, i) => {
+        const c = cableAt(path, t * CABLE.speed + (i * path.loop) / model.chairs.length);
+        chair.position.set(toWorldX(c.gx), c.h, toWorldZ(c.gy));
+        chair.rotation.set(0, Math.atan2(c.mx, c.my), -c.turn * 0.1, 'YXZ');
+      });
+      for (const wheel of model.wheels) wheel.rotation.y = ((t * CABLE.speed) / CABLE.r) * (wheel.userData.dir as number);
+    });
+  },
+};
 
 const DECOR_SETS: Record<string, DecorKind[]> = {
   bomen: ['tree', 'pine', 'palm', 'cherry', 'bamboogrove', 'topiary', 'cactus', 'hedge', 'arch'],
@@ -211,6 +245,7 @@ const GROUPS: Record<string, Item[]> = {
   ...Object.fromEntries(Object.entries(SHOP_SETS).map(([name, kinds]) => [name, kinds.map(shop)])),
   afval: [0, 1, 2, 3].map(litter),
   trein: [train],
+  kabelbaan: [cable],
   // alle gezichten van de poppetjes, elk met een andere uitdrukking (&t=... kiest het moment)
   gezichten: Array.from({ length: FACES }, (_, i) => face(i)),
   // hele poppetjes: elk kapsel, kinderen, een paar met een hoedje, een werker en een verkoper
@@ -242,7 +277,7 @@ const items = (GROUPS[groupName] ?? []).filter(item => !only || only.includes(it
 // Per groep: hoe hoog de modellen ongeveer zijn, hoeveel ruimte ertussen moet en hoeveel er op een rij staan.
 const LOOK: Record<string, { tall?: number; gap?: number; row?: number }> = {
   kramen: { tall: 3.2 }, gebouwen: { tall: 3 }, speeltuin: { tall: 3 }, attracties: { tall: 4.6, gap: 2, row: 3 }, afval: { tall: 0.5 }, klein: { tall: 1.2 },
-  voer: { tall: 1.4 }, hekken: { tall: 1.4 }, trein: { tall: 1.2 }, parkjes: { tall: 0.7, gap: 0, row: 5 }, grond: { tall: 0.4, gap: 0, row: 7 }, gezichten: { tall: 0.8, gap: 0, row: 8 },
+  voer: { tall: 1.4 }, hekken: { tall: 1.4 }, trein: { tall: 1.2 }, kabelbaan: { tall: 3.4 }, parkjes: { tall: 0.7, gap: 0, row: 5 }, grond: { tall: 0.4, gap: 0, row: 7 }, gezichten: { tall: 0.8, gap: 0, row: 8 },
   poppetjes: { tall: 1.2, gap: 0, row: 8 },
 };
 const look = only ? {} : LOOK[groupName] ?? {};

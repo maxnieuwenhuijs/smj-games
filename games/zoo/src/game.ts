@@ -36,7 +36,7 @@ import { CLUES, FACE_PAINTS, PARADE, WAY, guessChoices, nearestTile, paintId, pa
 import { WayLine } from './guestui';
 import { HISTORY, addSample, funBands, newHistory, tally, topCounts } from './parkstats';
 import { drum } from './audio';
-import { CABLE, cableChairs, cableFit, cableLength, cableOpen, cablePairs, cablePoles, cableSlot } from './cable';
+import { CABLE, cableChairs, cableCut, cableDrafts, cableFit, cableOpen, cablePairs, cablePath, cablePoles, cableRoute, cableSpot, cableValid, cableWait, type CableDraft, type P2 } from './cable';
 import { PARTY, partyClock, partyDone, partyDue, partyLoop } from './party';
 import { Road } from './road';
 import { ParkPlay, type ParkHost, type SnowSave } from './parkplay';
@@ -75,6 +75,8 @@ const TOOL_GROUPS: [string, ToolId[]][] = [
 ];
 /** Hoe snel een speeltoestel heen en weer gaat. */
 const PLAY_SPEED: Partial<Record<ShopKind, number>> = { swing: 2.6, seesaw: 3, springer: 6, trampoline: 5 };
+/** De tussenpaal van de kabelbaan: een keuze in de rij van de attracties, naast het huisje (zie placePylon). */
+const PYLON = 'cablepole';
 /**
  * De geluidjes van de gasten: [hoe hard, hoeveel tellen het daarna stil blijft]. Wat vaak gebeurt (een hap, een
  * sprong op de trampoline) klinkt zacht en met een lange pauze, zodat een vol park niet één groot lawaai wordt.
@@ -227,6 +229,7 @@ const CUR: Record<string, string> = {
 };
 for (const id of [...TERRAINS, ...BEDS, ...SHOPS, ...TOYS, ...DECORS]) CUR[id] = cursor(id);
 for (const id of ['window', 'picket', 'petgate'] as const) CUR[id] = cursor(id);
+CUR[PYLON] = cursor(PYLON);
 CUR.rake = cursor('rake', 6, 40);
 CUR.snowball = cursor('snowball', 24, 27);
 
@@ -254,7 +257,8 @@ export interface SaveData {
   decor?: { x: number; y: number; kind: DecorKind; edge?: 'h' | 'v' | 'c'; rot?: number; q?: number }[];
   /** Natuur op een kwart tegel: `x`, `y` in vakjes (twee per tegel), `r` de draaiing in kwartslagen. */
   props?: { k: PropKind; x: number; y: number; r?: number }[];
-  shops?: { x: number; y: number; kind: ShopKind; sells?: string[]; edge?: 'h' | 'v'; turned?: boolean; face?: number; rot?: number; manual?: boolean; dirt?: number; link?: [number, number]; link2?: [number, number] }[];
+  /** `link`, `link2`, `via`, `via2`: de kabelbaan (zie CableEnd in cable.ts): de maatjes van een huisje en de tussenpalen op weg daarheen. */
+  shops?: { x: number; y: number; kind: ShopKind; sells?: string[]; edge?: 'h' | 'v'; turned?: boolean; face?: number; rot?: number; manual?: boolean; dirt?: number; link?: [number, number]; link2?: [number, number]; via?: [number, number][]; via2?: [number, number][] }[];
   sold?: Record<string, number>;
   soldAt?: Record<string, number>;
   soldAll?: number;
@@ -453,7 +457,26 @@ interface ShopObj extends ShopSpot {
   link?: [number, number];
   /** Een tussenstation van de kabelbaan heeft een tweede maatje. */
   link2?: [number, number];
+  /**
+   * De tussenpalen van de kabel naar `link` en naar `link2`: de tegel van elke paal ten opzichte van dit huisje, op
+   * volgorde vanaf dit huisje. Staat er nog geen maatje, dan zijn het de palen van het stuk in aanbouw.
+   */
+  via?: [number, number][];
+  via2?: [number, number][];
 }
+/** Een tussenpaal van de kabelbaan: de tegel, bij welk huisje hij bewaard staat, in welk lijstje en de hoeveelste daarin. */
+interface Pylon {
+  x: number;
+  y: number;
+  house: ShopObj;
+  key: 'via' | 'via2';
+  i: number;
+}
+/** Een rijtje tussenpalen uit een bewaard spel: alleen wat echt een rijtje van twee getallen is. */
+const viaFrom = (list: unknown): [number, number][] | undefined => {
+  const ok = Array.isArray(list) ? list.filter(p => Array.isArray(p) && p.length === 2).map((p): [number, number] => [Number(p[0]), Number(p[1])]) : [];
+  return ok.length ? ok : undefined;
+};
 interface PoopObj {
   gx: number;
   gy: number;
@@ -867,6 +890,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // de kabelbaan: welk huisje bij welk hoort (een ouder spel heeft dit niet: dan staat er nog geen kabelbaan)
       if (sh.kind === 'cablecar' && Array.isArray(sh.link) && sh.link.length === 2) made.link = [Number(sh.link[0]), Number(sh.link[1])];
       if (sh.kind === 'cablecar' && Array.isArray(sh.link2) && sh.link2.length === 2) made.link2 = [Number(sh.link2[0]), Number(sh.link2[1])];
+      // en de tussenpalen (een spel van voor de tussenpalen heeft ze niet: dan hangt de kabel recht, zoals hij hing)
+      if (sh.kind === 'cablecar') [made.via, made.via2] = [viaFrom(sh.via), viaFrom(sh.via2)];
     }
     this.syncLifts();
     for (const a of d.animals) {
@@ -934,7 +959,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       toys: this.toys.map(({ x, y, kind, rot }) => ({ x, y, kind, rot: rot || undefined })),
       decor: this.decors.map(({ x, y, kind, edge, rot, q }) => ({ x, y, kind, edge, rot: rot || undefined, q })),
       props: this.props.map(p => ({ k: p.kind, x: p.sx, y: p.sy, r: p.rot || undefined })),
-      shops: this.shops.map(({ x, y, kind, sells, edge, turned, set, rot, manual, dirt, link, link2 }) => ({ x, y, kind, sells, edge, turned, face: set, rot, manual, dirt: dirt ? Math.round(dirt * 100) / 100 : undefined, link, link2 })),
+      shops: this.shops.map(({ x, y, kind, sells, edge, turned, set, rot, manual, dirt, link, link2, via, via2 }) => ({ x, y, kind, sells, edge, turned, face: set, rot, manual, dirt: dirt ? Math.round(dirt * 100) / 100 : undefined, link, link2, via, via2 })),
       gw: W,
       gh: H,
       land: SIDES.filter(side => this.grid.owns(side)),
@@ -1015,9 +1040,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
    * (zoals natuur) en de bloembak, wc's, bankjes en speeltoestellen (zoals een winkel). Dit zegt hoe je nu aan het
    * neerzetten bent, aan de hand van wat er bij Park gekozen is.
    */
-  private mode(): ToolId {
-    // de attracties hebben een eigen knop, maar je zet ze neer zoals een winkel
-    if (this.tool === 'rides') return 'shop';
+  private mode(): ToolId | 'pylon' {
+    // de attracties hebben een eigen knop, maar je zet ze neer zoals een winkel; de tussenpaal van de kabelbaan
+    // staat er als keuze tussen, maar is geen gebouw
+    if (this.tool === 'rides') return this.option.ride === PYLON ? 'pylon' : 'shop';
     if (this.tool !== 'decor') return this.tool;
     const id = this.option.decor;
     return id in PROP ? 'prop' : (SHOPS as string[]).includes(id) ? 'shop' : 'decor';
@@ -1445,7 +1471,15 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Kun je wat je nu vasthebt draaien? Voerbak, slaapplek, speelgoed, alles van Park en alle winkels. */
   private canSpin(): boolean {
+    // (een tussenpaal van de kabelbaan is rond: daar valt niets aan te draaien)
+    if (this.mode() === 'pylon') return false;
     return this.tool === 'trough' || this.tool === 'bed' || this.tool === 'toy' || this.tool === 'prop' || this.tool === 'decor' || this.tool === 'shop' || this.tool === 'rides';
+  }
+
+  /** Staat de tussenpaal van de kabelbaan in de rij van de attracties? Zodra er een huisje staat. En stond hij er de vorige keer? */
+  private pylonOffered = false;
+  private pylonTool(): boolean {
+    return this.shops.some(s => s.kind === 'cablecar');
   }
 
   /** De draaiknop: het ding dat je gaat neerzetten draait een kwartslag; het voorbeeld laat meteen zien hoe het komt te staan. */
@@ -1506,7 +1540,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const stalls = this.shopOptions().filter(k => !ATTRACTIONS.includes(k) && !PLAY.includes(k));
     if (this.option.rideGroup === 'rides' ? !rides.length : !plays.length) this.option.rideGroup = plays.length ? 'play' : 'rides';
     const rideRow = this.option.rideGroup === 'rides' ? rides : plays;
-    pickFrom('ride', rideRow);
+    // staat er een huisje van de kabelbaan, dan staat de tussenpaal ernaast in de rij
+    this.pylonOffered = this.pylonTool();
+    const pylon = this.pylonOffered && rideRow.includes('cablecar');
+    if (!(pylon && this.option.ride === PYLON)) pickFrom('ride', rideRow);
     pickFrom('shop', stalls);
     pickFrom('fence', this.fenceOptions());
     const toys = TOYS.filter(k => TOY_FROM[k] <= this.level);
@@ -1618,7 +1655,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         ...opt('rides', 'carousel', t('tool.rides')),
         fresh: [...rides, ...plays].some(k => this.fresh.has(k)),
         rows: [
-          { key: 'ride', active: this.option.ride, options: rideRow.map(k => ({ ...opt(k, k, t(`shop.${k}`), SHOP_PRICE[k]), fresh: this.fresh.has(k) })) },
+          {
+            key: 'ride', active: this.option.ride,
+            options: rideRow.flatMap(k => [{ ...opt(k, k, t(`shop.${k}`), SHOP_PRICE[k]), fresh: this.fresh.has(k) }, ...(pylon && k === 'cablecar' ? [opt(PYLON, PYLON, t('shop.cablepole'), CABLE.pylon)] : [])]),
+          },
           ...(rides.length && plays.length ? [{
             key: 'rideGroup', active: this.option.rideGroup,
             options: [
@@ -2498,7 +2538,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   private taken(x: number, y: number): boolean {
-    return !!(this.troughAt(x, y) || this.bedAt(x, y) || this.toyAt(x, y) || this.decorAt(x, y) || this.shopAt(x, y));
+    return !!(this.troughAt(x, y) || this.bedAt(x, y) || this.toyAt(x, y) || this.decorAt(x, y) || this.shopAt(x, y) || this.pylonAt(x, y));
   }
 
   private addTrough(x: number, y: number, food: FoodId | null, amount: number, kind: TroughKind = 'wood', rot = 0): TroughObj {
@@ -3886,47 +3926,177 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       }
     // de tribune moet met haar rug tegen de glazen bak van de dolfijnen of orka's staan
     if (kind === 'show' && !this.showPool(x, y, w, h)) return false;
-    // het tweede huisje van de kabelbaan staat in een rechte lijn met het eerste, niet te dichtbij en niet te ver
+    // het huisje van de kabelbaan dat erbij komt, moet passen achter het stuk waar het bij hoort (het huisje dat
+    // wacht, of de laatste tussenpaal): niet te dichtbij, niet te ver weg en niet met een te scherpe bocht
     const open = kind === 'cablecar' ? this.cableOpen({ x, y }) : null;
-    if (open && cableFit(open, { x, y }) !== 'ok') return false;
+    if (open && cableFit(open.pts, cableSpot({ x, y }), true, open.before) !== 'ok') return false;
     return true;
   }
 
   // ------------------------------------------------------------ de kabelbaan
-  /** Het huisje van de kabelbaan dat nog op zijn maatje wacht (het volgende huisje hoort daarbij), of null. */
-  private cableOpen(at?: { x: number; y: number }): ShopObj | null {
-    return cableOpen(this.shops.filter(s => s.kind === 'cablecar'), at);
+  /** De huisjes van de kabelbaan. */
+  private cableHouses(): ShopObj[] {
+    return this.shops.filter(s => s.kind === 'cablecar');
+  }
+
+  /**
+   * Het stuk kabelbaan waar een nieuw huisje (of, met `pylon`, een nieuwe tussenpaal) op tegel `at` bij hoort: het
+   * huisje dat nog op zijn maatje wacht met de palen die er al staan, of een eindhuisje waar het achter past (zie
+   * cableOpen in cable.ts). Of null: dan begint een huisje een nieuwe kabelbaan.
+   */
+  private cableOpen(at?: { x: number; y: number }, pylon = false): CableDraft<ShopObj> | null {
+    return cableOpen(this.cableHouses(), at, pylon);
   }
 
   private liftKey = '';
   private liftCheck = 0;
+  /** De tussenpalen van alle kabelbanen (ook van wat nog in aanbouw is), en per tegel welke paal er staat. */
+  private pylons: Pylon[] = [];
+  private pylonTiles = new Map<number, Pylon>();
+  /** Het beeld van wat nog in aanbouw is: de tussenpalen zonder kabel en het stippellijntje erlangs. */
+  private cableDraft: THREE.Object3D | null = null;
+
+  /** De tussenpaal op deze tegel. */
+  private pylonAt(x: number, y: number): Pylon | undefined {
+    return this.pylonTiles.size && this.grid.inBounds(x, y) ? this.pylonTiles.get(tileIndex(x, y)) : undefined;
+  }
 
   /**
-   * Zorgt dat er bij elk paar huisjes een kabelbaan hangt, en haalt de kabel weg als een huisje weg is. Verandert
-   * er niets aan de huisjes, dan gebeurt er niets.
+   * De tussenpaal onder de vinger: zijn voet, of ergens langs de paal zelf (hij is hoog en dun: je tikt er vaak
+   * halverwege op, en dan ligt het punt op de grond daaronder een paar tegels verder).
+   */
+  private pylonUnder(cx: number, cy: number): Pylon | undefined {
+    let best: Pylon | undefined, bestD = Math.max(14, 0.22 * this.pxPerTile());
+    for (const p of this.pylons) {
+      const a = this.view.toScreen(p.x + 0.5, p.y + 0.5, 0), b = this.view.toScreen(p.x + 0.5, p.y + 0.5, CABLE.high + 0.3);
+      const ux = b.x - a.x, uy = b.y - a.y, t = Math.max(0, Math.min(1, ((cx - a.x) * ux + (cy - a.y) * uy) / (ux * ux + uy * uy || 1)));
+      const d = Math.hypot(cx - a.x - ux * t, cy - a.y - uy * t);
+      if (d < bestD) [best, bestD] = [p, d];
+    }
+    return best;
+  }
+
+  /**
+   * Mag er op deze tegel een tussenpaal staan? Hij is dun: het mag ook in een verblijf en op het pad, maar niet waar
+   * al iets staat, niet in het water, niet onder een boom of op een rots en niet midden in de ingang.
+   */
+  private pylonFits(x: number, y: number): boolean {
+    if (!this.grid.inBounds(x, y) || this.taken(x, y)) return false;
+    const tile = tileIndex(x, y);
+    return this.grid.terrain[tile] !== WATER && !this.tankTiles.has(tile) && !this.solid.has(tile) && tile !== ENTRANCE;
+  }
+
+  /**
+   * Een tussenpaal neerzetten: hij komt achter het stuk dat in aanbouw is, of begint een nieuw stuk bij een
+   * eindhuisje. De knop blijft aan, want je zet er vaak een paar achter elkaar.
+   */
+  private placePylon(x: number, y: number): void {
+    const open = this.cableOpen({ x, y }, true), free = this.pylonFits(x, y);
+    if (!open || !free || cableFit(open.pts, cableSpot({ x, y }, true), false, open.before) !== 'ok') {
+      // de tegel is vrij, maar de paal staat te dichtbij, te ver weg of de bocht is te scherp: de bouwer zegt hoe het moet
+      if (free) this.alert(say.cableWhere(), 25);
+      return this.nope(x + 0.5, y + 0.5);
+    }
+    if (!this.pay(CABLE.pylon, x + 0.5, y + 0.5)) return;
+    const key = open.slot === 'link' ? 'via' : 'via2';
+    (open.from[key] ??= []).push([x - open.from.x, y - open.from.y]);
+    this.syncLifts();
+    this.uncover(x, y);
+    sfx('place');
+    this.floatAt(icon('sparkle'), x + 0.5, y + 0.5, 0.8);
+  }
+
+  /** Het punt naast huisje `e` op zijn andere kabel (niet die naar `skip`): daar mag een kabel niet over terug (zie cableFit). */
+  private cableBefore(e: ShopObj, skip: ShopObj | undefined, pairs: [ShopObj, ShopObj][]): P2 | undefined {
+    for (const [p, q] of pairs) {
+      if ((p !== e && q !== e) || p === skip || q === skip) continue;
+      const route = cableRoute(p, q);
+      return p === e ? route[1] : route[route.length - 2];
+    }
+    return undefined;
+  }
+
+  /**
+   * De gum op een tussenpaal: alleen die paal gaat weg, als de kabel daarna nog klopt (het stuk tussen de twee punten
+   * ernaast niet te lang, de bochten niet te scherp). Anders kan het niet. Wie in een stoeltje zat, stapt uit.
+   */
+  private erasePylon(pylon: Pylon): void {
+    const { house, key, i } = pylon, pairs = cablePairs(this.cableHouses()), to = house[key === 'via' ? 'link' : 'link2'];
+    // het maatje aan het eind van deze kabel, als de kabel al af is
+    const mate = to ? pairs.map(([p, q]) => (p === house ? q : q === house ? p : undefined)).find(o => o && o.x === house.x + to[0] && o.y === house.y + to[1]) : undefined;
+    const left = (house[key] ?? []).filter((_, k) => k !== i);
+    const pts: P2[] = [cableSpot(house), ...left.map(([dx, dy]) => cableSpot({ x: house.x + dx, y: house.y + dy }, true)), ...(mate ? [cableSpot(mate)] : [])];
+    if (!cableValid(pts, !mate, this.cableBefore(house, mate, pairs), mate && this.cableBefore(mate, house, pairs))) return this.nope(pylon.x + 0.5, pylon.y + 0.5, 1.2);
+    house[key] = left.length ? left : undefined;
+    sfx('erase');
+    this.earn(refund(CABLE.pylon), pylon.x + 0.5, pylon.y + 0.5);
+    this.syncLifts();
+  }
+
+  /**
+   * Een huisje van de kabelbaan is weggehaald: zijn kabels gaan ook weg, met hun tussenpalen (daar krijg je de helft
+   * van terug, zoals van alles), en wie erin zat, stapt uit.
+   */
+  private cableGone(house: ShopObj): void {
+    const pylons = cableCut([...this.cableHouses(), house], house);
+    if (pylons) this.earn(refund(CABLE.pylon) * pylons, ...shopCenter(house));
+    this.syncLifts();
+  }
+
+  /**
+   * Zorgt dat er bij elk paar huisjes een kabelbaan hangt langs zijn tussenpalen, dat de palen van een stuk in
+   * aanbouw er staan en dat elk huisje weet waar zijn kabels heen gaan. Is er een huisje of een paal weg, dan gaat
+   * die kabel weg (of hangt hij opnieuw, zonder die paal). Verandert er niets, dan gebeurt er niets.
    */
   private syncLifts(): void {
-    const pairs = cablePairs(this.shops.filter(s => s.kind === 'cablecar'));
-    const key = pairs.map(([p, q]) => `${p.x},${p.y}>${q.x},${q.y}`).join(';');
+    const houses = this.cableHouses(), pairs = cablePairs(houses);
+    const routes = pairs.map(([p, q]) => cableRoute(p, q)), drafts = cableDrafts(houses);
+    const key = `${routes.map(r => r.join(' ')).join(';')}|${drafts.map(r => r.join(' ')).join(';')}|${houses.map(h => `${h.x},${h.y}`).join(';')}`;
     if (key === this.liftKey) return;
     this.liftKey = key;
+    this.pylons = [];
+    this.pylonTiles.clear();
+    for (const house of houses)
+      for (const list of ['via', 'via2'] as const)
+        (house[list] ?? []).forEach(([dx, dy], i) => {
+          const pylon: Pylon = { x: house.x + dx, y: house.y + dy, house, key: list, i };
+          this.pylons.push(pylon);
+          this.pylonTiles.set(tileIndex(pylon.x, pylon.y), pylon);
+        });
+    // dezelfde huisjes langs dezelfde punten: die kabel blijft hangen
+    const same = (lift: CableCar, i: number): boolean => lift.a === pairs[i][0] && lift.b === pairs[i][1] && lift.path.pts.join(' ') === routes[i].join(' ');
     const keep: CableCar[] = [];
     for (const lift of this.guests.lifts) {
-      if (pairs.some(([p, q]) => lift.a === p && lift.b === q)) keep.push(lift);
+      if (pairs.some((_, i) => same(lift, i))) keep.push(lift);
       else {
         lift.drop();
         this.view.scene.remove(lift.model.group);
         lift.model.group.traverse(o => (o as THREE.Mesh).geometry?.dispose());
       }
     }
-    for (const [p, q] of pairs) {
-      if (keep.some(l => l.a === p && l.b === q)) continue;
-      const len = cableLength(p, q), ux = Math.sign(q.x - p.x), uy = Math.sign(q.y - p.y), [ax, ay] = shopCenter(p);
+    pairs.forEach(([p, q], i) => {
+      if (keep.some(l => same(l, i))) return;
+      const path = cablePath(routes[i]);
       // een paal staat niet midden in een gebouw: daar hangt de kabel gewoon wat verder door
-      const poles = cablePoles(len).filter(t => !this.shopAt(Math.floor(ax + ux * t), Math.floor(ay + uy * t)));
-      keep.push(new CableCar(p, q, this.view.makeCable(len, poles, cableChairs(len), ax, ay, ux, uy)));
-    }
+      const poles = cablePoles(path).filter(pole => !this.shopAt(Math.floor(pole.gx), Math.floor(pole.gy)));
+      keep.push(new CableCar(p, q, this.view.makeCable(path, poles, cableChairs(path.len)), path));
+    });
     this.guests.lifts = keep;
+    if (this.cableDraft) {
+      this.view.scene.remove(this.cableDraft);
+      this.cableDraft.traverse(o => (o as THREE.Mesh).geometry?.dispose());
+    }
+    this.cableDraft = drafts.length ? this.view.makeCableDraft(drafts) : null;
+    // elk huisje: waar zijn kabels heen gaan. Daar staat geen hoekpaal, en daar wacht niemand op het perron
+    for (const house of houses) {
+      const dirs: P2[] = [];
+      routes.forEach((r, i) => {
+        const [from, to] = pairs[i][0] === house ? [r[0], r[1]] : [r[r.length - 1], r[r.length - 2]];
+        if (pairs[i].includes(house)) dirs.push([(to[0] - from[0]) / Math.hypot(to[0] - from[0], to[1] - from[1]), (to[1] - from[1]) / Math.hypot(to[0] - from[0], to[1] - from[1])]);
+      });
+      house.spots = dirs.length ? cableWait(dirs) : undefined;
+      this.view.cableHouse(house.mesh, dirs);
+    }
   }
 
   /** Rijdt de kabelbaan bij dit huisje, en mag je nu instappen? */
@@ -3947,12 +4117,21 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.earn(CABLE.price, cx, cy);
   }
 
-  /** Elk beeldje: de kabelbanen bijhouden, en de eerste keer dat er een opengaat zegt de gastvrouw het. */
+  /**
+   * Elk beeldje: de kabelbanen bijhouden. De eerste keer dat de tussenpaal naast het huisje in de rij staat, zegt de
+   * bouwer waar hij voor is; en de eerste keer dat er een kabelbaan opengaat, zegt de gastvrouw het.
+   */
   private updateLifts(dt: number): void {
     this.liftCheck -= dt;
     if (this.liftCheck <= 0) {
       this.liftCheck = 1;
       this.syncLifts();
+      // de knop van de tussenpaal komt en gaat met het eerste huisje (ook na het weghalen met de gum)
+      if (this.pylonOffered !== this.pylonTool()) this.refreshTools(true);
+    }
+    if (this.pylonOffered && !this.told.has('cable.pole')) {
+      this.told.add('cable.pole');
+      this.lines.push(say.cablePole());
     }
     if (this.told.has('cable.first')) return;
     const open = this.guests.lifts.find(l => l.boarding);
@@ -4037,24 +4216,24 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!this.shopFits(x, y, kind, turn)) {
       // de tribune past wel, maar staat niet bij de dolfijnen: de bouwer zegt waar hij moet
       if (kind === 'show' && this.shopFits(x, y, 'tower', turn)) this.alert(say.showWhere(), 25);
-      // het huisje van de kabelbaan past wel, maar staat niet in een rechte lijn met het eerste (of te dichtbij of te ver)
+      // het huisje van de kabelbaan past wel, maar staat te dichtbij of te ver van het stuk waar het bij hoort (of de bocht is te scherp)
       if (kind === 'cablecar' && this.shopFits(x, y, 'tower', turn)) this.alert(say.cableWhere(), 25);
       return this.nope(cx, cy);
     }
     if (!this.pay(SHOP_PRICE[kind], cx, cy)) return;
-    const partner = kind === 'cablecar' ? this.cableOpen({ x, y }) : null;
-    const slot = partner ? cableSlot(partner, this.shops.filter(s => s.kind === 'cablecar')) : 'link';
+    const open = kind === 'cablecar' ? this.cableOpen({ x, y }) : null;
     // zelf gedraaid met de draaiknop? Dan blijft het zo staan; anders kijkt het vanzelf naar het pad
     // (een marktkraam houdt de stand waarin je hem neerzet, en draait uit zichzelf hooguit een halve slag)
     const made = this.quarter ? this.addShop(x, y, kind, undefined, undefined, undefined, turn, true)
       : this.addShop(x, y, kind, undefined, undefined, undefined, SHOP_DEEP[kind] ? turn : undefined);
     if (kind === 'cablecar') {
-      // het tweede huisje: de twee horen nu bij elkaar en de kabel komt ertussen. Het eerste: de bouwer legt uit
-      if (partner) {
-        made.link = [partner.x - x, partner.y - y];
-        partner[slot] = [x - partner.x, y - partner.y];
-        this.syncLifts();
-      } else if (this.shops.filter(s => s.kind === 'cablecar').length === 1) this.sayNow(say.cableOne());
+      // het tweede huisje: de twee horen nu bij elkaar en de kabel komt ertussen, langs de tussenpalen die er al
+      // stonden (die blijven bewaard bij het huisje dat wachtte). Het eerste: de bouwer legt uit
+      if (open) {
+        made.link = [open.from.x - x, open.from.y - y];
+        open.from[open.slot] = [x - open.from.x, y - open.from.y];
+      } else if (this.cableHouses().length === 1) this.sayNow(say.cableOne());
+      this.syncLifts();
     }
     this.sweepProps();
     sfx('place');
@@ -4894,10 +5073,19 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         const [ax, ay, rot] = this.shopPose(g, kind);
         const fits = this.shopFits(ax, ay, kind, rot);
         this.view.ghostShop(ax, ay, kind, fits, undefined, rot);
-        // het tweede huisje van de kabelbaan: de kabel als lijn, groen als hij past en rood als niet
+        // het volgende huisje van de kabelbaan: de kabel als lijn vanaf het laatste punt (het huisje dat wacht of de
+        // laatste tussenpaal), groen als hij past en rood als niet
         const open = kind === 'cablecar' ? this.cableOpen({ x: ax, y: ay }) : null;
-        if (open) this.view.ghostCable(open.x + 1, open.y + 1, ax + 1, ay + 1, fits);
+        if (open) this.view.ghostCable(...open.pts[open.pts.length - 1], ax + 1, ay + 1, fits);
         return this.hud.setCursor(CUR[this.shopKind()]);
+      }
+      case 'pylon': {
+        // een tussenpaal van de kabelbaan: de paal op de tegel onder je vinger, en de kabel als lijn vanaf het laatste punt
+        const open = inside ? this.cableOpen({ x, y }, true) : null;
+        const fits = !!open && this.pylonFits(x, y) && cableFit(open.pts, cableSpot({ x, y }, true), false, open.before) === 'ok';
+        if (inside) this.view.ghostPylon(x, y, fits);
+        if (open) this.view.ghostCable(...open.pts[open.pts.length - 1], x + 0.5, y + 0.5, fits);
+        return this.hud.setCursor(CUR[PYLON]);
       }
       case 'animal': {
         const sex = this.option.sex as Sex;
@@ -4905,6 +5093,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         return this.hud.setCursor(CUR.animal);
       }
       case 'erase': {
+        // een tussenpaal van de kabelbaan onder de gum: die licht rood op (zie erasePylon)
+        const pylon = this.pylonUnder(cx, cy);
+        if (pylon) {
+          this.view.ghostPylon(pylon.x, pylon.y, false);
+          return this.hud.setCursor(CUR.erase);
+        }
         // eerst wat er los op of voor een hek staat (een lamp, een bankje, een bak), dan pas het hek zelf
         const loose = this.eraseLoose(g.gx, g.gy);
         const e = nearestEdge(g.gx, g.gy, 0.3);
@@ -5030,6 +5224,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         this.gridChanged();
       }
     } else if (this.tool === 'erase') {
+      // een tik op een tussenpaal van de kabelbaan: alleen die paal gaat weg (als de kabel dan nog klopt)
+      const pylon = first ? this.pylonUnder(cx, cy) : undefined;
+      if (pylon) return this.erasePylon(pylon);
       // een tik: eerst wat er los op of voor een hek staat (een lamp, een vlag, een bankje, een bak), dan pas het hek
       const loose = first ? this.eraseLoose(g.gx, g.gy) : null;
       if (loose) {
@@ -5117,8 +5314,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     shop.show?.badge?.remove();
     this.shops = this.shops.filter(k => k !== shop);
     this.earn(refund(SHOP_PRICE[shop.kind]), ...shopCenter(shop));
-    // een huisje van de kabelbaan weg: de kabel gaat ook weg, en wie erin zat, stapt uit
-    if (shop.kind === 'cablecar') this.syncLifts();
+    // een huisje van de kabelbaan weg: de kabel gaat ook weg met zijn tussenpalen, en wie erin zat, stapt uit
+    if (shop.kind === 'cablecar') this.cableGone(shop);
   }
 
   /** Het hok dat je aan het slepen bent (in tegels, van hoek tot en met hoek) en de tegels daarvan. */
@@ -5322,6 +5519,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       return SHOP_SIZE[kind] === 1 ? this.placeOnEdge(e, e ? this.edgeSide(e, g.gx, g.gy) : 1) : this.placeShop(...this.shopPose(g, kind));
     }
     if (this.mode() === 'prop' && g) return this.placeProp(g.gx, g.gy);
+    if (this.mode() === 'pylon' && g) return this.placePylon(x, y);
     if (!inside) return;
     const tr = this.troughAt(x, y);
     if (tr) return this.troughMenu(tr);
