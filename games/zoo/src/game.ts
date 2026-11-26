@@ -3385,7 +3385,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
     for (const s of this.shops) if (!s.edge) list.push({ gx: blockCenter(s)[0], gy: blockCenter(s)[1], r: LIGHT.shop });
     // de koplamp van elk treintje, en de rode lampen van een overweg die dicht is
-    for (const train of this.guests.trains) if (train.running) list.push({ gx: train.headX, gy: train.headY, r: TRAIN.light });
+    for (const train of this.guests.trains) if (train.running && !train.asleep) list.push({ gx: train.headX, gy: train.headY, r: TRAIN.light });
     for (const tile of this.crossShut) list.push({ gx: tileXY(tile)[0] + 0.5, gy: tileXY(tile)[1] + 0.5, r: TRAIN.gateLight });
     this.road.lights(list);
     return this.party ? this.partyLights(list) : list;
@@ -3821,6 +3821,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private syncRails(now = false): void {
     if (!now && this.railsIn > 0) return;
     this.railsIn = 0.5;
+    // een hek dwars over het spoor, of tussen een overweg en het pad, laat het anders aansluiten: het beeld kijkt mee
+    this.view.paintRails(this.grid);
     const links = railLinks(this.grid), stations = this.shops.filter(s => s.kind === 'station');
     const crossings: number[] = [];
     let key = stations.map(s => `${s.x},${s.y}`).join(';') + '|';
@@ -3833,8 +3835,6 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.railsKey = key;
     this.crossings = crossings;
     for (const tile of this.crossShut) if (!crossings.includes(tile)) this.crossShut.delete(tile);
-    // een hek dwars over het spoor laat het anders aansluiten: het beeld tekent het opnieuw
-    this.view.paintTerrain(this.grid);
     const plan = planRails(this.grid, links, stations.map(s => ({ x: s.x, y: s.y, w: shopTiles(s)[0], h: shopTiles(s)[1] })));
     this.guests.layRails(plan.routes, stations, n => this.view.makeTrain(n));
     stations.forEach((s, k) => {

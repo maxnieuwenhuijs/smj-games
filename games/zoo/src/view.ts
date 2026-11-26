@@ -3819,9 +3819,10 @@ export class View {
   /**
    * Het spoor: op elke tegel met rails de goede stukken (recht, bocht, wissel, kruising of een eindje met een
    * stootblok), en bij elke overweg de planken en de spoorbomen. Er wordt alleen opnieuw gebouwd als er spoor bij
-   * komt, weggaat of anders aansluit (ook door een hek dat erdwars overheen komt).
+   * komt, weggaat of anders aansluit (ook door een hek dat erdwars overheen komt). paintTerrain doet dit vanzelf; het
+   * spel roept het ook los aan, want een hek verandert de grond niet.
    */
-  private paintRails(grid: Grid): void {
+  paintRails(grid: Grid): void {
     const links = railLinks(grid), found: number[] = [];
     let key = '';
     for (let i = 0; i < links.length; i++) {
@@ -4825,7 +4826,7 @@ export class View {
       for (let k = 0; k < cars.length; k++) {
         const car = cars[k], big = car === loco || car === tail, r = big ? LOCO_WHEEL : WAGON_WHEEL, axles = big ? LOCO_AXLES : WAGON_AXLES;
         // de tweede locomotief staat andersom: zijn wielen draaien de andere kant op. Een wagen die niet meerijdt, heeft geen wielen
-        const angle = (car === tail ? -dist : dist) / r, s = r / LOCO_WHEEL;
+        const angle = (car === tail ? -dist : dist) / r, s = car.visible ? r / LOCO_WHEEL : 0;
         size.set(car.visible ? 1 : 0, s, s);
         for (let a = 0; a < 2; a++) {
           m.makeRotationY(car.rotation.y).setPosition(car.position.x, car.position.y, car.position.z);

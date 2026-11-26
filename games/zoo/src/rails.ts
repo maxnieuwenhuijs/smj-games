@@ -146,6 +146,7 @@ export function trainWagons(length: number, loop: boolean): number {
 
 /** De kant van tegel `a` waar buurtegel `b` tegenaan ligt. */
 const sideTo = (a: number, b: number): number => (b === a - W ? 0 : b === a + 1 ? 1 : b === a + W ? 2 : 3);
+/** De buurtegel aan deze kant van een tegel. */
 const stepTo = (tile: number, side: number): number => tile + SIDE_DX[side] + SIDE_DY[side] * W;
 /**
  * Voor het zoeken is elke tegel één knoop, behalve een kruising: die is er twee (noord-zuid en oost-west), want
@@ -328,18 +329,34 @@ export function railNear(route: RailRoute, x: number, y: number): number {
   return best;
 }
 
+/** Loopt over de stukken van de route tussen de afstanden `from` en `to` (zonder over het begin heen te gaan). */
+function span(route: RailRoute, from: number, to: number, each: (leg: RailLeg) => void): void {
+  const legs = route.legs;
+  for (let i = legAt(route, Math.max(0, from)); i < legs.length && legs[i].at < to; i++) if (legs[i].at + legs[i].len > from) each(legs[i]);
+}
+
 /** Loopt over de stukken van de route tussen de afstanden `lo` en `hi`; een rondje loopt door over het begin heen. */
 function eachLeg(route: RailRoute, lo: number, hi: number, each: (leg: RailLeg) => void): void {
-  const L = route.length, legs = route.legs;
-  const span = (from: number, to: number): void => {
-    for (let i = legAt(route, Math.max(0, from)); i < legs.length && legs[i].at < to; i++) if (legs[i].at + legs[i].len > from) each(legs[i]);
-  };
-  if (!route.loop) return span(lo, Math.min(hi, L));
-  if (hi - lo >= L) return span(0, L);
+  const L = route.length;
+  if (!route.loop) return span(route, lo, Math.min(hi, L), each);
+  if (hi - lo >= L) return span(route, 0, L, each);
   const shift = Math.floor(lo / L) * L;
-  span(lo - shift, Math.min(hi - shift, L));
-  if (hi - shift > L) span(0, hi - shift - L);
+  span(route, lo - shift, Math.min(hi - shift, L), each);
+  if (hi - shift > L) span(route, 0, hi - shift - L, each);
 }
+
+/** Waar railClaim nu in schrijft, en of clearAt een overweg tegenkwam (zo hoeft er niet elk beeldje een functie bij). */
+let claimShut: Uint8Array | null = null, claimMarked: number[] = [], crossFound = false;
+/** Eist de tegel van dit stuk spoor op (voor railClaim). */
+const claimLeg = (leg: RailLeg): void => {
+  if (!claimShut || claimShut[leg.tile]) return;
+  claimShut[leg.tile] = 1;
+  claimMarked.push(leg.tile);
+};
+/** Onthoudt of dit stuk spoor een overweg is (voor clearAt). */
+const crossLeg = (leg: RailLeg): void => {
+  if (leg.cross) crossFound = true;
+};
 
 /**
  * Het stuk spoor dat een trein voor zich opeist. Hij staat met het midden van zijn wagons op `c` en steekt `ahead`
@@ -347,20 +364,16 @@ function eachLeg(route: RailRoute, lo: number, hi: number, each: (leg: RailLeg) 
  * daarvan krijgt een 1 in `shut` en komt in `marked`: daar steekt nu niemand over, en op een overweg gaan de bomen dicht.
  */
 export function railClaim(route: RailRoute, c: number, ahead: number, behind: number, shut: Uint8Array, marked: number[]): void {
-  eachLeg(route, c - behind - MARGIN, c + ahead + MARGIN, leg => {
-    if (shut[leg.tile]) return;
-    shut[leg.tile] = 1;
-    marked.push(leg.tile);
-  });
+  claimShut = shut;
+  claimMarked = marked;
+  eachLeg(route, c - behind - MARGIN, c + ahead + MARGIN, claimLeg);
 }
 
 /** Staat een trein met het midden van zijn wagons op `c` (en zo ver naar voren en naar achteren) op geen enkele overweg? */
 function clearAt(route: RailRoute, c: number, ahead: number, behind: number): boolean {
-  let clear = true;
-  eachLeg(route, c - behind - MARGIN, c + ahead + MARGIN, leg => {
-    if (leg.cross) clear = false;
-  });
-  return clear;
+  crossFound = false;
+  eachLeg(route, c - behind - MARGIN, c + ahead + MARGIN, crossLeg);
+  return !crossFound;
 }
 
 /**

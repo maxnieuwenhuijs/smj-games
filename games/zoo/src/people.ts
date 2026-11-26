@@ -5241,6 +5241,7 @@ const RAIL_A = [0, 0, 0, 0], RAIL_B = [0, 0, 0, 0];
  * Een treintje rijdt over zijn eigen spoor (een route uit rails.ts): een rondje steeds rond, een lijn heen en weer.
  * Bij elke halte stopt het: wie erin zat stapt uit, wie stond te wachten stapt in. Het trekt rustig op, remt af voor
  * een halte en volgt de bochten. Het stuk spoor onder en voor de trein eist hij op: daar gaan de spoorbomen dicht.
+ * 's Nachts, als het park dicht is, blijft het bij een halte staan tot de gasten weer komen.
  */
 export class Train {
   /** De route waar de trein over rijdt; null: er ligt geen spoor voor hem (dan zie je hem niet). */
@@ -5272,6 +5273,8 @@ export class Train {
   /** Net gestopt bij een halte (voor de fluit), en net weggereden (voor het geratel). */
   arrived = false;
   departed = false;
+  /** 's Nachts, als het park dicht is, slaapt de trein bij een halte: geen stoom, de lamp uit, en de overwegen blijven open. */
+  asleep = false;
   /** Het midden van de wagons, en waar de locomotief rijdt die voorop gaat (in tegels). */
   gx = 0;
   gy = 0;
@@ -5498,7 +5501,10 @@ export class Train {
     this.arrived = this.departed = false;
     const route = this.route;
     if (!route) return;
-    if (this.wait > 0) {
+    // is het park dicht, dan blijft hij bij de halte waar hij staat tot het weer opengaat (net als de kabelbaan)
+    this.asleep = this.wait > 0 && this.at >= 0 && w.closed();
+    if (this.asleep) this.wait = Math.max(this.wait, TRAIN.stop / 2);
+    else if (this.wait > 0) {
       this.wait -= dt;
       // wie tijdens het wachten het perron op komt, kan nog mee
       if (this.at >= 0 && (this.boardIn -= dt) <= 0) {
@@ -5522,6 +5528,7 @@ export class Train {
     const back = this.dir * this.face < 0 ? 1 : 0;
     this.turned += (back - this.turned) * Math.min(1, dt * 4);
     this.place();
+    if (this.asleep) return;
     // het spoor onder de trein, en als hij rijdt (of zo vertrekt) ook een stuk voor zijn neus
     const ahead = this.wait > 0 && this.wait > TRAIN.ring ? 0 : Math.min(TRAIN.warn, this.left);
     const fore = this.face > 0 ? route.front : route.back, aft = this.face > 0 ? route.back : route.front;
