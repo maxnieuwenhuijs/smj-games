@@ -845,6 +845,8 @@ Zie de tabel bij Levels. Nieuw zijn vier soorten doelen (`levels.ts`): twee vrie
 
 De dag duurt zeven en een halve minuut in plaats van tien, zodat de nacht vaker langskomt (`DAY_SECONDS`). Een seizoen duurt drie dagen in plaats van één (`SEASON_DAYS`).
 
+Een kortere dag betekent ook minder uren met gasten. Vraagt een level om afval op te rapen, dan laat daarom nu driekwart van de gasten zijn papiertje vallen (`SLOPPY` in `people.ts`; het was bijna de helft). Zonder die aanpassing wachtte de proefspeler-als-kind op een trage tablet (waar hooguit 45 gasten komen) bij level 46 langer dan een kwartier op tien stukjes afval.
+
 ### De dierenshow
 
 - **Meer sterren:** naast dolfijnen, orka's en zeehonden geven nu ook olifanten, apen, papegaaien, pinguïns en otters een show (`SHOW_STARS`). De tribune mag tegen elk soort hek staan; een bak van glas gaat voor.
@@ -859,6 +861,7 @@ De dag duurt zeven en een halve minuut in plaats van tien, zodat de nacht vaker 
 - **Naar de show kijken:** op de tribune zit je op het bovenste bankje, met je gezicht naar het verblijf. Is er geen show bezig, dan begint er zo een (als de dieren kunnen).
 - **Het treintje:** tik een halte aan. Je wacht op het pad bij de halte tot de trein er stilstaat (een klokje laat zien dat hij nog komt), stapt in en rijdt mee zolang je wilt; je zit iets hoger dan de gasten, zodat je over het dak van de locomotief kijkt. Uitstappen zet je bij de halte waar de trein het dichtst bij is (`Train.walkerOn`, `seatPos`, `nearestStation`).
 - **De kabelbaan:** tik een huisje aan. Je neemt het eerste vrije stoeltje dat langs het wiel komt, zweeft naar het andere huisje en stapt daar vanzelf uit (`CableCar.walker`). Is de kabelbaan dicht of rijdt er geen trein, dan zie je een kruisje.
+- **Attracties en speeltoestellen:** tik er een aan en je maakt hetzelfde bezoek als een gast, door je eigen ogen (`Game.walkVisit`, met `planVisit` en `visitPose` uit `rides.ts`): de trap van de glijbaan op en naar beneden, schommelen, wippen, de wipkip, springen op de trampoline, de trap van de uitkijktoren op, een rondje op een paard van de draaimolen, in een botsauto en in een bakje van het reuzenrad tot ruim zeven tegels boven het park. Je zitje is bezet voor de gasten en het toestel gaat voor jou ook voluit (`GuestManager.walker`). Draait de draaimolen al, rijden de botsauto's of zit alles vol, dan wacht je waar je staat op je beurt (een klokje). Na afloop sta je weer waar je instapte. Bij de fontein valt niets in te stappen; in het restaurant koop je iets te eten.
 
 ### De kabelbaan: alle kanten op, met tussenpalen
 
