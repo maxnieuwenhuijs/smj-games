@@ -2651,7 +2651,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Staat er op dit vakje (een kwart tegel) al iets? Een gebouw, voerbak of grote versiering vult de hele tegel. */
   private cellTaken(cx: number, cy: number): boolean {
     const x = cx >> 1, y = cy >> 1, q = (cx & 1) + (cy & 1) * 2;
-    if (this.troughAt(x, y) || this.bedAt(x, y) || this.toyAt(x, y) || this.shopAt(x, y)) return true;
+    // (ook een tussenpaal van de kabelbaan houdt zijn tegel bezet: daar komt geen graspol of boom tegenaan)
+    if (this.troughAt(x, y) || this.bedAt(x, y) || this.toyAt(x, y) || this.shopAt(x, y) || this.pylonAt(x, y)) return true;
     return this.decors.some(d => !d.edge && d.x === x && d.y === y && (d.q === undefined || d.q === q));
   }
 
