@@ -5,6 +5,7 @@ import { ALSO, CLIMATE, GOAL_OWNER, LEVELS, PREY_OF, SEASONS, SPECIES, type Fenc
 import { STAFF, TEACHERS, type FigureId, type Mood, type TeacherId } from './figures';
 import { STAR_FACTORS, type StarFactor } from './stars';
 import { VET_GAMES } from './vetplan';
+import { MENDS, type Mend } from './wear';
 
 export type Vars = Record<string, string | number>;
 export type Tr = (key: string, vars?: Vars) => string;
@@ -183,7 +184,8 @@ export const say = {
   decorNew: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.decor.new' }),
   noGate: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.nogate' }),
   staffHow: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.staff.how' }),
-  broken: (): Line => ({ who: 'builder', mood: 'worried', key: 'alert.broken' }),
+  /** Een hek is kapot. `mend`: wat voor hek, zodat de bouwer zegt hoe je het maakt (timmeren, metselen, knopen of lijmen). */
+  broken: (mend: Mend = 'wood'): Line => ({ who: 'builder', mood: 'worried', key: mend === 'wood' ? 'alert.broken' : `alert.broken.${mend}` }),
   funNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.fun.new' }),
   host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident' | 'nopath' | 'dark' | 'astray' | 'rain' | 'wide', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
   busy: (kind: string): Line => ({ who: 'host', mood: 'worried', key: `host.busy.${kind}` }),
@@ -278,6 +280,9 @@ export const say = {
 
 /** De uitleg bij elk spelletje van de dokter (vetgame.ts): de verzorger leest hem voor. */
 export const VET_SAYS = VET_GAMES.map(game => `vet.${game}.how`);
+
+/** De uitleg bij het maken van een hek (fixgame.ts): de bouwer leest hem voor. */
+export const FIX_SAYS = ['fix.wood.how', 'fix.stone.how', 'fix.stone.how2', 'fix.net.how', 'fix.net.how2', 'fix.glass.how', 'fix.glass.how2', 'fix.done'];
 
 /** De tekst van een zin, zoals hij op het scherm komt en wordt uitgesproken. */
 export const textOf = (tr: Tr, line: Line): string => tr(line.key, line.vars);
@@ -376,7 +381,9 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.guardNew());
   add(say.hired());
   add(say.funNew());
-  add(say.broken());
+  for (const mend of MENDS) add(say.broken(mend));
+  // de uitleg bij het maken van een hek, in de stem van de bouwer
+  for (const key of FIX_SAYS) add({ who: 'builder', mood: 'happy', key });
   add(say.noGate());
   add(say.staffHow());
   add(say.decorNew());

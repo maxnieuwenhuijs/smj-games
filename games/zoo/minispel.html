@@ -14,7 +14,7 @@
 </style>
 </head>
 <body>
-<!-- Alleen voor het bouwen: de puzzeltjes en de spelletjes van de dokter los van het spel uitproberen (zie src/minispel.ts). Niet in het gepubliceerde spel. -->
+<!-- Alleen voor het bouwen: de puzzeltjes, de spelletjes van de dokter en het hek maken los van het spel uitproberen (zie src/minispel.ts). Niet in het gepubliceerde spel. -->
 <div id="proef">
   <h2>Puzzeltjes</h2>
   <div class="rij" id="knoppen"></div>
@@ -29,6 +29,13 @@
   <h2>De dokter</h2>
   <div class="rij" id="dokter"></div>
   <div class="rij"><label>patiënt <select id="patient"></select></label></div>
+  <h2>Een hek maken</h2>
+  <div class="rij" id="hek"></div>
+  <div class="rij">
+    <label><input type="checkbox" id="wit"> het witte hekje</label>
+    <label><input type="checkbox" id="bak" checked> glas van een bak met water</label>
+    <label><input type="checkbox" id="kleur"> in een eigen kleur</label>
+  </div>
   <pre id="uitslag"></pre>
 </div>
 <script type="module" src="/src/minispel.ts"></script>

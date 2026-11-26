@@ -54,13 +54,16 @@
   position: absolute; width: 0; height: 0; pointer-events: none; z-index: 5; font-size: clamp(48px, 13vw, 64px);
   filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.25));
 }
-.pc-hand .ic { position: absolute; left: -0.458em; top: -0.125em; transform-origin: 45.8% 12.5%; }
-.pc-hand.tap .ic { animation: pc-tap 1.5s ease-in-out infinite; }
-.pc-hand.hold .ic { animation: pc-hold 2.4s ease-in-out infinite; }
-.pc-hand.rub, .pc-hand.drag { animation: pc-slide 1.9s ease-in-out infinite; }
-.pc-hand.rub { animation-name: pc-rub; animation-duration: 1.5s; }
-@keyframes pc-tap { 0%, 100% { transform: translateY(16px) rotate(-12deg); } 45%, 60% { transform: translateY(0) rotate(-12deg) scale(0.92); } }
-@keyframes pc-hold { 0%, 100% { transform: translateY(18px) rotate(-12deg); } 20%, 85% { transform: translateY(0) rotate(-12deg) scale(0.92); } }
+/* de arm draait om de vingertop: gewoon een beetje schuin, en onderin het vak op zijn kop (het handje komt dan van boven) */
+.pc-arm { position: absolute; left: -0.458em; top: -0.125em; width: 1em; height: 1em; display: block; transform-origin: 45.8% 12.5%; transform: rotate(-12deg); }
+.pc-hand.down .pc-arm { transform: rotate(168deg); }
+.pc-arm .ic { transform-origin: 45.8% 12.5%; transform: scale(0.92); }
+.pc-hand.tap .pc-arm .ic { animation: pc-tap 1.5s ease-in-out infinite; }
+.pc-hand.hold .pc-arm .ic { animation: pc-hold 2.4s ease-in-out infinite; }
+.pc-hand.drag { animation: pc-slide 1.9s ease-in-out infinite; }
+.pc-hand.rub { animation: pc-rub 1.5s ease-in-out infinite; }
+@keyframes pc-tap { 0%, 100% { transform: translateY(16px); } 45%, 60% { transform: translateY(0) scale(0.92); } }
+@keyframes pc-hold { 0%, 100% { transform: translateY(18px); } 20%, 85% { transform: translateY(0) scale(0.92); } }
 @keyframes pc-slide {
   0% { transform: translate(0, 0); opacity: 0; }
   12%, 20% { transform: translate(0, 0); opacity: 1; }
@@ -68,7 +71,6 @@
   100% { transform: translate(var(--dx, 0), var(--dy, 0)); opacity: 0; }
 }
 @keyframes pc-rub { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(var(--dx, 0), var(--dy, 0)); } }
-.pc-hand.rub .ic, .pc-hand.drag .ic { transform: rotate(-12deg) scale(0.92); }
 
 /* ---------- sterretjes en hartjes die wegspatten ---------- */
 .pc-spark { position: absolute; width: 0; height: 0; pointer-events: none; z-index: 4; font-size: 30px; font-style: normal; opacity: 0; animation: pc-spark 0.9s ease-out var(--d, 0s) forwards; }
@@ -93,5 +95,5 @@
 /* ---------- liever weinig beweging ---------- */
 @media (prefers-reduced-motion: reduce) {
   .pc-card, .pc-step.now { animation: none; }
-  .pc-hand.tap .ic, .pc-hand.hold .ic, .pc-hand.rub, .pc-hand.drag { animation-duration: 4s; }
+  .pc-hand.tap .pc-arm .ic, .pc-hand.hold .pc-arm .ic, .pc-hand.rub, .pc-hand.drag { animation-duration: 4s; }
 }
