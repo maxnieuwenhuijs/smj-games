@@ -857,6 +857,8 @@ De dag duurt zeven en een halve minuut in plaats van tien, zodat de nacht vaker 
 - **Eten en drinken gaat vanzelf en je ziet het:** wat je koopt, eet of drink je vanzelf op, hapje voor hapje (het eerste na ruim een tel, daarna om de drie en een halve tel; tikken mag ook nog). Je hand gaat naar je mond, je hapt twee keer met kruimels, likt aan het ijsje of kantelt het bekertje naar je toe, je hoofd knikt mee en je kauwt nog even na. Een hoed zet je vanzelf op (`held.ts`: `eatPose`, `usesItself`).
 - **Ergens in gaan zitten:** tik een tribune of attractie aan en je zit erin; je ogen volgen de stoel (`WalkSeat` in `walkmode.ts`). Rondkijken kan nog steeds. Uitstappen doe je met de ronde knop onderin (een deur met een pijl), door even vooruit of achteruit te duwen, of door terug naar boven te gaan.
 - **Naar de show kijken:** op de tribune zit je op het bovenste bankje, met je gezicht naar het verblijf. Is er geen show bezig, dan begint er zo een (als de dieren kunnen).
+- **Het treintje:** tik een halte aan. Je wacht op het pad bij de halte tot de trein er stilstaat (een klokje laat zien dat hij nog komt), stapt in en rijdt mee zolang je wilt; je zit iets hoger dan de gasten, zodat je over het dak van de locomotief kijkt. Uitstappen zet je bij de halte waar de trein het dichtst bij is (`Train.walkerOn`, `seatPos`, `nearestStation`).
+- **De kabelbaan:** tik een huisje aan. Je neemt het eerste vrije stoeltje dat langs het wiel komt, zweeft naar het andere huisje en stapt daar vanzelf uit (`CableCar.walker`). Is de kabelbaan dicht of rijdt er geen trein, dan zie je een kruisje.
 
 ## Bekende zwakke punten van de modellen
 
