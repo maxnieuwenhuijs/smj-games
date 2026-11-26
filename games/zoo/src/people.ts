@@ -6,6 +6,8 @@ import { Grid, H, W, tileIndex, tileXY } from './grid';
 import { BUMPER_CARS, DARK_FUN, FERRIS, LOOKS, PETTING_GUESTS, PLAY, RESTAURANT_TABLES, RIDES, SUIT_COLORS, TOWER_TOP, TRAIN, bumperCar, isPath } from './data';
 import { SHOW_ROWS, SHOW_TIME } from './data';
 import { CABLE, cableAt, cablePassed, cableStop, type CablePath, type CableSeat } from './cable';
+import { isRail } from './data';
+import { railAt, railClaim, railNear, railNext, railSpeed, type RailRoute, type RailStop } from './rails';
 import { toWorldX, toWorldZ } from './view';
 import { arrivalPath, busPath, exitPath, pavementY } from './road';
 import { FaceCrowd, beardColor, faceFor, giveFace, setFace } from './faces';
@@ -210,8 +212,10 @@ export interface GuestWorld {
   watched(guest: Guest): void;
   /** Hoeveel er vanaf deze uitkijktoren te zien is: meer soorten in de buurt is leuker (0 tot 0,3). */
   towerView(shop: ShopSpot): number;
-  /** Rijdt het treintje? Daarvoor zijn twee haltes aan hetzelfde pad nodig. */
-  trainRuns(): boolean;
+  /** Stopt er een treintje bij deze halte? Daarvoor moet er spoor langs de halte liggen (zie rails.ts). */
+  trainRuns(shop: ShopSpot): boolean;
+  /** Komt er op deze tegel een trein aan, of staat er een? Dan steekt niemand het spoor over (op een overweg zijn de bomen dicht). */
+  railShut(tile: number): boolean;
   /** De kinderboerderijen waar gasten nu naar binnen mogen. Steeds dezelfde objecten zolang er niets verandert. */
   pettingSpots(): PetSpot[];
   /** Een gast staat in de kinderboerderij: er komt een dier naar hem toe. Geeft terug waar dat dier staat. */
@@ -836,9 +840,16 @@ const SNACK_GEO = new THREE.BoxGeometry(0.06, 0.08, 0.06).translate(0, -0.2, 0.0
 export const PEN = { asleep: 1, playing: 2, sick: 4, dirty: 8, scare: 16 };
 /** Waar een ontsnapt dier loopt: elke keer opnieuw ingevuld door `looseNear`. */
 const LOOSE_AT: [number, number] = [0, 0];
-/** De beroemde gast, als die in het park is, en waar de locomotief van het treintje rijdt (de GuestManager en het treintje vullen dit in). */
+/** De beroemde gast, als die in het park is, en waar de locomotieven van de treintjes rijden (x, y, x, y, ...; de GuestManager vult dit in). */
 let theStar: Guest | null = null;
-const TRAIN_AT = { x: 0, y: 0, on: false };
+const TRAINS_AT: number[] = [];
+/** Een zitplek in de trein, en waar een gast vandaan stapt bij het in- en uitstappen: elke keer opnieuw ingevuld. */
+const TRAIN_SEAT: TrainSeat = { gx: 0, gy: 0, h: 0, heading: 0 };
+const HOP_TO = new THREE.Vector3();
+/** Zo lang duurt de stap van het perron de wagon in (en er weer uit), en zo hoog is het sprongetje. */
+const TRAIN_HOP = 0.4, TRAIN_HOP_UP = 0.14;
+/** Zo ver van het midden van een overweg blijft een gast staan als de bomen dicht zijn (net voor de boom). */
+const BARRIER_HOLD = 0.8;
 /** Een klok voor alle gasten samen, en wie het laatst uit een attractie stapte: stapt er meteen nog iemand uit, dan geven ze een high five. */
 let crowdClock = 0;
 let offRide: Guest | null = null, offRideAt = -9;
@@ -1057,7 +1068,8 @@ function doorOf(w: GuestWorld, reach: Set<number>, shop: ShopSpot): number | nul
   const own = footprint(shop);
   for (const t of own)
     for (const n of w.grid.neighbors(t)) {
-      if (!reach.has(n) || own.includes(n)) continue;
+      // (niet op een overweg: daar blijft niemand staan)
+      if (!reach.has(n) || own.includes(n) || isRail(w.grid.terrain[n])) continue;
       const [x, y] = tileXY(n);
       const d = Math.hypot(x + 0.5 - fx, y + 0.5 - fy);
       if (d < bestD) {
@@ -1548,9 +1560,9 @@ export class Guest implements Leader {
     return true;
   }
 
-  /** Wacht de gast bij deze halte op het treintje? */
+  /** Wacht de gast bij deze halte op het treintje? (Wie net is uitgestapt, wacht niet meer.) */
   get waitingAt(): ShopSpot | null {
-    return this.state === 'sit' && !this.riding && this.shop?.kind === 'station' ? this.shop : null;
+    return this.state === 'sit' && !this.riding && !this.rode && this.shop?.kind === 'station' ? this.shop : null;
   }
 
   /** De kabelbaan waar de gast het laatst in zat, en hoeveel stukken kabel hij al achter elkaar reed (bij een tussenstation). */
@@ -1659,8 +1671,8 @@ export class Guest implements Leader {
 
   /** De kraam waar de gast nu geholpen wordt of voor in de rij staat. */
   get using(): ShopSpot | null {
-    // wie in een stoeltje van de kabelbaan zit, staat niet meer op het perron
-    if (this.riding instanceof CableCar) return null;
+    // wie in een stoeltje van de kabelbaan of in het treintje zit, staat niet meer op het perron
+    if (this.riding) return null;
     return this.state === 'buy' || this.state === 'sit' || this.state === 'queue' ? this.shop : null;
   }
 
@@ -1862,21 +1874,46 @@ export class Guest implements Leader {
     return true;
   }
 
-  /** Instappen in het treintje, op plek `seat`. */
+  /** Instappen in het treintje, op plek `seat`: met een stapje van het perron de wagon in. */
   board(train: Train, seat: number): void {
+    this.hopFrom.copy(this.mesh.position);
+    this.hopAt = this.age;
     this.riding = train;
     this.seat = seat;
     this.timer = 5;
   }
 
-  /** Uitstappen bij de volgende halte. */
-  alight(tile: number): void {
+  /**
+   * Uitstappen bij een halte (`shop`): de gast stapt de wagon uit het perron op en loopt dan naar het pad (`tile`).
+   * Zonder halte (het spoor is weg) staat hij meteen op het pad.
+   */
+  alight(tile: number, shop?: ShopSpot): void {
     const [x, y] = tileXY(tile);
+    this.hopFrom.copy(this.mesh.position);
+    this.hopAt = this.age;
     this.riding = null;
     this.rode = true;
     this.gx = x + 0.5;
     this.gy = y + 0.5;
-    this.timer = 0.05;
+    this.timer = shop ? 0.8 : 0.05;
+    if (shop) {
+      this.shop = shop;
+      this.face = shopCenter(shop);
+    }
+  }
+
+  /** Waar de gast vandaan stapte bij het in- of uitstappen van het treintje, en wanneer (zijn leeftijd toen). */
+  private hopFrom = new THREE.Vector3();
+  private hopAt = -9;
+
+  /** De stap in of uit de wagon: van waar de gast stond naar waar hij nu hoort, met een klein sprongetje. */
+  private stepAboard(): void {
+    const k = (this.age - this.hopAt) / TRAIN_HOP;
+    if (k >= 1) return;
+    const m = this.mesh, s = k * k * (3 - 2 * k);
+    HOP_TO.copy(m.position);
+    m.position.lerpVectors(this.hopFrom, HOP_TO, s);
+    m.position.y += Math.sin(k * Math.PI) * TRAIN_HOP_UP;
   }
 
   /** Kletsen met de gast die naast je staat: naar elkaar toe draaien en praten. */
@@ -1937,9 +1974,10 @@ export class Guest implements Leader {
     }
     if (this.riding) {
       // in het treintje: op het bankje van de wagon, met het gezicht in de rijrichting
-      const [x, y, h] = this.riding.seatPos(this.seat);
-      m.position.set(toWorldX(x), 0.24 - 0.2 * m.scale.y, toWorldZ(y));
-      m.rotation.set(0, h, 0);
+      const seat = this.riding.seatPos(this.seat, TRAIN_SEAT);
+      m.position.set(toWorldX(seat.gx), seat.h + 0.02 - 0.2 * m.scale.y, toWorldZ(seat.gy));
+      m.rotation.set(0, seat.heading, 0);
+      this.stepAboard();
       this.limbs[0].rotation.x = this.limbs[1].rotation.x = -1.4;
       // af en toe naar buiten zwaaien
       if (Math.sin(this.phase * 0.05 + this.seat * 2.3) > 0.2) {
@@ -2194,11 +2232,15 @@ export class Guest implements Leader {
         return;
       }
       if (kind === 'station') {
-        // op het perron wachten tot het treintje komt
-        put(mix(here, at(((this.seat % 4) - 1.5) * 0.36, 0.12, this.seat < 4 ? -0.45 : -0.15), k), k > 0.5 ? turn : this.heading);
-        if (k > 0.9) {
+        // op het perron wachten tot het treintje komt: in twee rijen voor het afdak, achter de gele streep, met het
+        // gezicht naar het spoor. Wie net is uitgestapt, stapt eerst uit de wagon het perron op
+        put(mix(here, at(((this.seat % 4) - 1.5) * 0.38, 0.12, this.seat % 8 < 4 ? 0.44 : 0.12), k), k > 0.5 ? turn : this.heading);
+        this.stepAboard();
+        if (k > 0.9 && !this.rode) {
           const bored = Math.sin(this.phase * 0.04 + this.seat * 1.9);
-          if (TRAIN_AT.on && Math.abs(TRAIN_AT.x - this.gx) + Math.abs(TRAIN_AT.y - this.gy) < 4) {
+          let near = false;
+          for (let i = 0; i < TRAINS_AT.length; i += 2) near ||= Math.abs(TRAINS_AT[i] - cx) + Math.abs(TRAINS_AT[i + 1] - cy) < 5;
+          if (near) {
             // daar komt het treintje: zwaaien
             this.limbs[2].rotation.x = -2.7;
             this.limbs[2].rotation.z = Math.sin(this.phase * 0.85) * 0.45;
@@ -2234,13 +2276,34 @@ export class Guest implements Leader {
     return true;
   }
 
-  /** Een stap langs de route. Geeft true als de gast er is. */
-  private stride(dt: number, speed: number): boolean {
+  /**
+   * Staat de gast voor een dichte spoorboom? Dan mag hij nog zo ver doorlopen (tot vlak voor de boom); 0: wachten.
+   * Wie al op de overweg loopt, loopt gewoon door (dan -1: niets aan de hand). `tile`: de tegel waar hij naartoe stapt.
+   */
+  private barred(w: GuestWorld, tile: number): number {
+    if (!w.railShut(tile) || isRail(w.grid.terrain[this.tile])) return -1;
+    const [tx, ty] = tileXY(tile);
+    return Math.max(0, Math.max(Math.abs(tx + 0.5 - this.gx), Math.abs(ty + 0.5 - this.gy)) - BARRIER_HOLD - Math.abs(this.ox) * 0.6);
+  }
+
+  /** Een stap langs de route. Geeft true als de gast er is. Voor een dichte spoorboom blijft hij staan (als `w` erbij is). */
+  private stride(dt: number, speed: number, w?: GuestWorld): boolean {
     const next = this.route[0];
     if (next === undefined) return true;
     const [tx, ty] = tileXY(next);
     const dx = tx + 0.5 + this.ox - this.gx, dy = ty + 0.5 + this.oy - this.gy;
-    const dist = Math.hypot(dx, dy), step = speed * dt;
+    const dist = Math.hypot(dx, dy);
+    let step = speed * dt;
+    const room = w ? this.barred(w, next) : -1;
+    if (room >= 0) {
+      // de trein komt eraan: tot de boom lopen en daar wachten tot hij weer open is
+      step = Math.min(step, room);
+      if (step <= 0) {
+        this.stall = Math.max(this.stall, 0.12);
+        this.turnTo(dx, dy, dt);
+        return false;
+      }
+    }
     if (dist <= step) {
       this.gx += dx;
       this.gy += dy;
@@ -2267,8 +2330,8 @@ export class Guest implements Leader {
     const options: { shop: ShopSpot; tile: number }[] = [];
     for (const shop of w.shops) {
       if (!sameUse(shop.kind, kind) || (product && shop.kind === kind && !shop.sells.includes(product))) continue;
-      // het treintje rijdt pas als er twee haltes zijn
-      if (shop.kind === 'station' && !w.trainRuns()) continue;
+      // bij een halte zonder spoor komt geen treintje
+      if (shop.kind === 'station' && !w.trainRuns(shop)) continue;
       // de kabelbaan pas met twee huisjes aan het pad, en niet als het park bijna dichtgaat (en niet met een rolstoel
       // of kinderwagen: die past niet in een stoeltje)
       if (shop.kind === 'cablecar' && (this.wheels || !w.liftRuns(shop))) continue;
@@ -3763,7 +3826,7 @@ export class Guest implements Leader {
   }
 
   /** Achter de leider aan: over het spoor dat hij achterlaat, elk op zijn eigen plek in de rij. */
-  private follow(dt: number): void {
+  private follow(dt: number, w: GuestWorld): void {
     const L = this.leader!;
     if (L.gone) {
       // de leider is de stoep af: wie buiten de poort nog achter hem liep, loopt zelf door tot waar hij verdween
@@ -3778,7 +3841,12 @@ export class Guest implements Leader {
     const trail = L.trail, idx = trail.length - 1 - this.rank * 3;
     const target = idx >= 0 ? trail[idx] : trail[0] ?? [L.gx, L.gy];
     const dx = target[0] + this.ox * 0.5 - this.gx, dy = target[1] + this.oy * 0.5 - this.gy, dist = Math.hypot(dx, dy);
-    const moving = dist > 0.1;
+    let moving = dist > 0.1;
+    if (moving && this.gy < H - 0.3) {
+      // een dichte spoorboom vlak voor je: wachten, ook als de leider al aan de overkant is (wie er al op loopt, loopt door)
+      const nx = Math.floor(this.gx + (dx / dist) * 0.3), ny = Math.floor(this.gy + (dy / dist) * 0.3);
+      if (nx >= 0 && ny >= 0 && nx < W && ny < H && w.railShut(tileIndex(nx, ny)) && !isRail(w.grid.terrain[this.tile])) moving = false;
+    }
     if (moving) {
       // wie achterop raakt, zet er even de pas in
       const step = Math.min(dist, (dist > 1.2 ? 1.6 : 0.95) * dt);
@@ -3827,7 +3895,7 @@ export class Guest implements Leader {
         this.gx = P.gx;
         this.gy = P.gy;
       }
-      this.stride(dt, 1.5);
+      this.stride(dt, 1.5, w);
       this.state = 'walk';
       swing(this.limbs, Math.sin(this.phase * 1.4) * 0.9);
       this.limbs[2].rotation.x = this.limbs[3].rotation.x = -2.6;
@@ -3882,7 +3950,7 @@ export class Guest implements Leader {
     const found = w.signed(this.tile);
     if (found || this.astray <= 0) return this.findWay(found);
     if (this.state === 'walk') {
-      if (this.stride(dt, 0.55)) {
+      if (this.stride(dt, 0.55, w)) {
         this.state = 'idle';
         this.timer = 1.5 + Math.random() * 1.5;
       }
@@ -3918,7 +3986,7 @@ export class Guest implements Leader {
       this.sprout = Math.min(1, this.sprout + dt * 4);
       this.mesh.scale.setScalar(this.size * (0.05 + 0.95 * this.sprout));
     }
-    if (this.leader) return this.follow(dt);
+    if (this.leader) return this.follow(dt, w);
     if (this.lost) return this.cry(dt, w, reach);
     if (this.walkway) return this.outdoors(dt, w, reach);
     // wielen, ballon en paraplu, en opletten wat er om de gast heen gebeurt (iets vies, een ontsnapt dier, de ster)
@@ -3991,9 +4059,10 @@ export class Guest implements Leader {
       // (en wie hoge nood heeft, rent naar de wc)
       // wie na sluitingstijd nog in het park is, loopt stevig door naar de uitgang
       const speed = this.wheels ? (this.leaving && w.closed() ? 0.9 : 0.62) : this.dash > 0 || this.hurrying(w) || this.bursting || (this.leaving && w.closed()) ? 1.35 : 0.8;
-      // even blijven staan voor een kort gebaar (bah, kijk daar, een high five)
-      if (this.stall > 0) this.linger(dt);
-      else if (this.stride(dt, speed)) this.arrive(w);
+      // even blijven staan voor een kort gebaar (bah, kijk daar, een high five); niet midden op een overweg waar de
+      // trein aankomt: daar loopt de gast eerst af
+      if (this.stall > 0 && !w.railShut(this.tile)) this.linger(dt);
+      else if (this.stride(dt, speed, w)) this.arrive(w);
     } else if (this.state === 'queue') {
       // in de rij: opschuiven naar je plek en wachten; wie te lang wacht, loopt mopperend weg
       this.waited += dt;
@@ -4025,7 +4094,7 @@ export class Guest implements Leader {
           this.peek = Math.max(0, this.peek - dt);
         } else if (this.shop.kind === 'station' && !this.rode) {
           this.waitT += dt;
-          this.timer = this.waitT > 75 || !w.trainRuns() ? Math.min(this.timer, 0.2) : Math.max(this.timer, 1);
+          this.timer = this.waitT > TRAIN_PATIENCE || !w.trainRuns(this.shop) ? Math.min(this.timer, 0.2) : Math.max(this.timer, 1);
         } else if (this.shop.kind === 'cablecar' && !this.rode) {
           // op het perron van de kabelbaan: wachten tot er een stoeltje langs het wiel komt
           this.waitT += dt;
@@ -5152,129 +5221,324 @@ export class Guest implements Leader {
 }
 
 // ------------------------------------------------------------ het treintje
+/** Het beeld van één treintje (zie View.makeTrain): de locomotief, de wagons en de tweede locomotief voor achteraan. */
+export interface TrainModel {
+  loco: THREE.Object3D;
+  wagons: THREE.Object3D[];
+  tail: THREE.Object3D;
+  /** De wielen draaien mee: zo ver is de trein gereden (in tegels). */
+  roll(dist: number): void;
+  /** Een wolkje stoom uit de schoorsteen van deze locomotief. */
+  puff(from: THREE.Object3D): void;
+}
+/** Waar een zitplek in de trein is: de plek op het raster, hoe hoog het bankje is en de kant waar je naar kijkt. */
+export interface TrainSeat {
+  gx: number;
+  gy: number;
+  h: number;
+  heading: number;
+}
+/** Zo ver zitten de assen van een wagen uit zijn midden (de wagen staat met beide assen op de rails), en zo hoog is een bankje. */
+const TRAIN_AXLE = 0.24, TRAIN_BENCH = 0.22;
+/** Zo lang wacht een gast op het perron tot hij het opgeeft; en om de zoveel tellen kijkt een stilstaande trein wie er nog in wil. */
+const TRAIN_PATIENCE = 120, TRAIN_BOARD = 0.3;
+const RAIL_A = [0, 0, 0, 0], RAIL_B = [0, 0, 0, 0];
+
 /**
- * Het treintje rijdt over het pad van halte naar halte en weer terug naar de eerste. Bij elke halte stopt het
- * even: wie erin zat stapt uit, wie stond te wachten stapt in. Met minder dan twee haltes staat het stil.
+ * Een treintje rijdt over zijn eigen spoor (een route uit rails.ts): een rondje steeds rond, een lijn heen en weer.
+ * Bij elke halte stopt het: wie erin zat stapt uit, wie stond te wachten stapt in. Het trekt rustig op, remt af voor
+ * een halte en volgt de bochten. Het stuk spoor onder en voor de trein eist hij op: daar gaan de spoorbomen dicht.
  */
 export class Train {
-  running = false;
-  private points: [number, number][] = [];
-  private dist: number[] = [];
-  private total = 0;
-  private stops: { shop: ShopSpot; at: number; tile: number }[] = [];
-  private s = 0;
-  private next = 0;
+  /** De route waar de trein over rijdt; null: er ligt geen spoor voor hem (dan zie je hem niet). */
+  route: RailRoute | null = null;
+  /** Alle haltes van het park; de nummers bij de stops van de route wijzen in deze lijst. */
+  private stations: ShopSpot[] = [];
+  /** Waar het midden van de wagons is (de afstand langs de route), hoe hard hij rijdt en welke kant hij op rijdt (1 of -1). */
+  private c = 0;
+  private v = 0;
+  private dir = 1;
+  /** Aan welke kant de locomotief zit: 1 = de kant waar de route naartoe loopt. Na een verbouwing kan dat andersom zijn. */
+  private face = 1;
+  /** Zo lang staat hij nog stil, zo ver is het nog tot waar hij stopt, en welke stop dat is (-1: het eind van de lijn). */
   private wait = 0;
-  private key = '';
-  private checkIn = 0;
+  private left = 0;
+  private goal = -1;
+  /** De stop waar hij nu stilstaat (-1: hij rijdt, of hij staat aan het eind van de lijn). */
+  private at = -1;
   private riders: (Guest | null)[] = new Array(TRAIN.wagons * TRAIN.seats).fill(null);
-  /** Net gestopt bij een halte (voor het belletje). */
+  /** Bij welke halte elke reiziger is ingestapt: daar stapt hij niet weer uit (behalve na een rondje met één halte). */
+  private origin: (ShopSpot | null)[] = new Array(TRAIN.wagons * TRAIN.seats).fill(null);
+  /** Waar elke wagen nu staat (x, y en de richting van zijn neus), voor wie erin zit. */
+  private pose = new Float64Array((TRAIN.wagons + 2) * 3);
+  private rolled = 0;
+  private puffIn = 0.4;
+  private boardIn = 0;
+  /** De reizigers kijken in de rijrichting: op de terugweg draaien ze zich om (0 = naar de locomotief, 1 = andersom). */
+  private turned = 0;
+  /** Net gestopt bij een halte (voor de fluit), en net weggereden (voor het geratel). */
   arrived = false;
+  departed = false;
+  /** Het midden van de wagons, en waar de locomotief rijdt die voorop gaat (in tegels). */
+  gx = 0;
+  gy = 0;
+  headX = 0;
+  headY = 0;
 
-  /** `cars`: de locomotief en de wagons uit het beeld, in die volgorde. */
-  constructor(private cars: THREE.Object3D[]) {}
+  /** De locomotief, de wagons en de tweede locomotief, van voor naar achter. */
+  private cars: THREE.Object3D[];
 
-  /** De route opnieuw uitzoeken: langs alle haltes die aan het pad staan, in de volgorde waarin ze gebouwd zijn. */
-  private plan(w: GuestWorld, reach: Set<number>): void {
-    const stations = w.shops.filter(sh => sh.kind === 'station').map(shop => ({ shop, tile: doorOf(w, reach, shop) })).filter((x): x is { shop: ShopSpot; tile: number } => x.tile !== null);
-    const key = stations.map(x => `${x.shop.x},${x.shop.y},${x.tile}`).join(';') + `/${reach.size}`;
-    if (key === this.key) return;
-    this.key = key;
-    this.points = [];
-    this.dist = [];
-    this.stops = [];
-    this.total = 0;
-    this.drop();
-    let ok = stations.length >= 2;
-    for (let i = 0; ok && i < stations.length; i++) {
-      const leg = w.grid.path(stations[i].tile, stations[(i + 1) % stations.length].tile, t => !reach.has(t));
-      if (!leg) {
-        ok = false;
-        break;
-      }
-      this.stops.push({ shop: stations[i].shop, at: this.total, tile: stations[i].tile });
-      for (let k = 0; k < leg.length - 1; k++) {
-        const [x, y] = tileXY(leg[k]);
-        this.points.push([x + 0.5, y + 0.5]);
-        this.dist.push(this.total);
-        this.total += 1;
-      }
+  constructor(private model: TrainModel) {
+    this.cars = [model.loco, ...model.wagons, model.tail];
+  }
+
+  /** Rijdt deze trein (ligt er spoor voor hem)? */
+  get running(): boolean {
+    return !!this.route;
+  }
+
+  /** Stopt de trein bij deze halte? */
+  serves(shop: ShopSpot): boolean {
+    return !!this.route?.stops.some(stop => stop.stations.some(k => this.stations[k] === shop));
+  }
+
+  /** Staat de trein op (een tegel van) deze route? */
+  on(route: RailRoute): boolean {
+    return !!this.route && railNear(route, this.gx, this.gy) >= 0;
+  }
+
+  /** Zo ver mag het midden van de wagons komen op een lijn: de hele trein blijft op het spoor. */
+  private limits(route: RailRoute): [number, number] {
+    return this.face > 0 ? [route.back, route.length - route.front] : [route.front, route.length - route.back];
+  }
+
+  /**
+   * Een nieuwe route (het spoor of de haltes zijn veranderd). Is het precies dezelfde, dan merk je niets. Staat de
+   * trein op een tegel van de nieuwe route, dan rijdt hij vanaf daar door in de richting waarin hij reed. Anders
+   * stappen de reizigers uit en begint hij bij de eerste halte. `route` null: er is geen spoor meer voor deze trein.
+   */
+  setRoute(route: RailRoute | null, stations: ShopSpot[], w: GuestWorld, reach: Set<number>): void {
+    const old = this.route, were = this.stations;
+    if (old && route && old.loop === route.loop && old.tiles.length === route.tiles.length && old.tiles.every((tile, i) => tile === route.tiles[i])
+      && old.stops.length === route.stops.length && old.stops.every((stop, i) => stop.at === route.stops[i].at && stop.stations.length === route.stops[i].stations.length
+        && stop.stations.every((k, j) => were[k] === stations[route.stops[i].stations[j]]))) {
+      this.route = route;
+      this.stations = stations;
+      return;
     }
-    this.running = ok && this.total > 1;
-    this.s = 0;
-    this.next = 1 % Math.max(1, this.stops.length);
-    this.wait = TRAIN.stop;
-    for (const car of this.cars) car.visible = this.running;
-  }
-
-  /** Iedereen eruit (de route is veranderd). */
-  private drop(): void {
-    const tile = this.stops[0]?.tile ?? ENTRANCE;
-    this.riders.forEach((g, i) => {
-      if (g?.riding === this) g.alight(tile);
-      this.riders[i] = null;
-    });
-  }
-
-  /** Het punt op de route op afstand `d` vanaf het begin: [x, y, richting]. */
-  private point(d: number): [number, number, number] {
-    const n = this.points.length;
-    if (!n) return [0, 0, 0];
-    const u = ((d % this.total) + this.total) % this.total;
-    const i = Math.min(n - 1, Math.floor(u)), a = this.points[i], b = this.points[(i + 1) % n], f = u - i;
-    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, Math.atan2(b[0] - a[0], b[1] - a[1])];
-  }
-
-  /** Waar plek `seat` nu is: de wagon en het bankje daarin. */
-  seatPos(seat: number): [number, number, number] {
-    const wagon = Math.floor(seat / TRAIN.seats) + 1, j = seat % TRAIN.seats;
-    return this.point(this.s - wagon * TRAIN.gap - (j - (TRAIN.seats - 1) / 2) * 0.26);
-  }
-
-  update(dt: number, w: GuestWorld, reach: Set<number>, guests: Guest[]): void {
-    this.arrived = false;
-    this.checkIn -= dt;
-    if (this.checkIn <= 0) {
-      this.checkIn = 1.5;
-      this.plan(w, reach);
+    const near = old && route ? railNear(route, this.gx, this.gy) : -1;
+    if (!route || near < 0) this.drop(w, reach);
+    this.route = route;
+    this.stations = stations;
+    if (!route) {
+      for (const car of this.cars) car.visible = false;
+      this.model.roll(this.rolled);
+      return;
     }
-    TRAIN_AT.on = this.running;
-    if (!this.running) return;
+    if (near >= 0 && old) {
+      // dezelfde kant op blijven kijken en rijden, ook als de nieuwe route andersom is opgeschreven
+      railAt(old, this.c, RAIL_A);
+      railAt(route, near, RAIL_B);
+      if (RAIL_A[2] * RAIL_B[2] + RAIL_A[3] * RAIL_B[3] < 0) {
+        this.face = -this.face;
+        this.dir = -this.dir;
+      }
+      if (route.loop) this.dir = this.face;
+      const [lo, hi] = this.limits(route);
+      this.c = route.loop ? near : Math.max(lo, Math.min(hi, near));
+      // wie in een wagon zat die er nu niet meer is, stapt uit
+      this.drop(w, reach, route.wagons * TRAIN.seats);
+      // stond hij bij een halte die er nog is, dan wacht hij daar gewoon verder
+      this.at = this.wait > 0 ? route.stops.findIndex(stop => Math.abs(stop.at - this.c) < 0.05) : -1;
+      if (this.at < 0 && this.wait > TRAIN.turn) this.wait = TRAIN.turn;
+    } else {
+      this.c = route.stops[0].at;
+      this.v = 0;
+      this.dir = this.face = 1;
+      this.at = 0;
+      this.wait = TRAIN.stop * 0.5;
+      this.turned = 0;
+    }
+    this.aim();
+    this.place();
+  }
+
+  /** Reizigers stappen uit omdat het spoor veranderd is: bij de dichtstbijzijnde halte, of anders bij de ingang. `from`: alleen vanaf deze plek. */
+  private drop(w: GuestWorld, reach: Set<number>, from = 0): void {
+    let tile = ENTRANCE, shop: ShopSpot | undefined, best = Infinity;
+    for (const stop of this.route?.stops ?? [])
+      for (const k of stop.stations) {
+        const station = this.stations[k], door = station ? doorOf(w, reach, station) : null;
+        const [sx, sy] = station ? shopCenter(station) : [0, 0], d = Math.hypot(sx - this.gx, sy - this.gy);
+        if (door !== null && d < best) [tile, shop, best] = [door, station, d];
+      }
+    for (let i = from; i < this.riders.length; i++) {
+      const g = this.riders[i];
+      if (g?.riding === this) g.alight(tile, shop);
+      this.riders[i] = this.origin[i] = null;
+    }
+  }
+
+  /**
+   * Waar hij hierna naartoe rijdt: de volgende halte. Op een lijn keert hij na de laatste halte meteen om; met maar één
+   * halte rijdt hij door tot het eind van de lijn en weer terug, zodat je toch een ritje maakt.
+   */
+  private aim(): void {
+    const route = this.route!, [lo, hi] = this.limits(route);
+    let next = railNext(route, this.c, this.dir, lo, hi);
+    if (!route.loop && next.stop < 0 && this.at >= 0 && (route.stops.length > 1 || next.dist < 0.6)) {
+      this.dir = -this.dir;
+      next = railNext(route, this.c, this.dir, lo, hi);
+    }
+    this.goal = next.stop;
+    this.left = next.dist;
+  }
+
+  /** Gestopt: bij een halte stappen de reizigers uit en in; aan het eind van de lijn keert hij om. */
+  private arrive(w: GuestWorld, reach: Set<number>, guests: Guest[]): void {
+    const route = this.route!;
+    this.v = 0;
+    if (this.goal >= 0) {
+      const stop = route.stops[this.goal];
+      this.c = stop.at;
+      this.at = this.goal;
+      this.wait = TRAIN.stop;
+      this.arrived = true;
+      this.alight(stop, w, reach);
+      this.board(stop, guests);
+      this.boardIn = TRAIN_BOARD;
+    } else {
+      this.at = -1;
+      this.wait = TRAIN.turn;
+      this.dir = -this.dir;
+    }
+    this.aim();
+  }
+
+  /** Wie hier moet zijn, stapt uit: iedereen die bij een andere halte is ingestapt (of, met maar één stop, na zijn rondje). */
+  private alight(stop: RailStop, w: GuestWorld, reach: Set<number>): void {
+    const here = stop.stations.map(k => this.stations[k]), round = this.route!.stops.length === 1;
+    for (let i = 0; i < this.riders.length; i++) {
+      const g = this.riders[i];
+      if (!g) continue;
+      if (g.gone || g.riding !== this) {
+        this.riders[i] = this.origin[i] = null;
+        continue;
+      }
+      const from = this.origin[i];
+      if (from && here.includes(from) && !round) continue;
+      // het liefst bij een andere halte dan waar hij instapte
+      const shop = here.find(s => s !== from && doorOf(w, reach, s) !== null) ?? here.find(s => doorOf(w, reach, s) !== null);
+      const door = shop ? doorOf(w, reach, shop) : null;
+      if (!shop || door === null) continue;
+      g.alight(door, shop);
+      this.riders[i] = this.origin[i] = null;
+    }
+  }
+
+  /** Wie op het perron van deze stop staat te wachten, stapt in zolang er plek is. */
+  private board(stop: RailStop, guests: Guest[]): void {
+    const seats = this.route!.wagons * TRAIN.seats;
+    let seat = 0;
+    for (const g of guests) {
+      const shop = g.waitingAt;
+      if (!shop || !stop.stations.some(k => this.stations[k] === shop)) continue;
+      while (seat < seats && this.riders[seat]) seat++;
+      if (seat >= seats) return;
+      this.riders[seat] = g;
+      this.origin[seat] = shop;
+      g.board(this, seat);
+    }
+  }
+
+  /**
+   * Waar plek `seat` nu is: de plek op het raster, de hoogte van het bankje en de kant waar je naar kijkt (de
+   * rijrichting). Schrijft het in `out`. Voor de gasten in de wagons, en voor wie zelf mee wil rijden.
+   */
+  seatPos(seat: number, out: TrainSeat): TrainSeat {
+    const k = (Math.floor(seat / TRAIN.seats) + 1) * 3, z = ((TRAIN.seats - 1) / 2 - (seat % TRAIN.seats)) * 0.26, h = this.pose[k + 2];
+    out.gx = this.pose[k] + Math.sin(h) * z;
+    out.gy = this.pose[k + 1] + Math.cos(h) * z;
+    out.h = TRAIN.top + TRAIN_BENCH;
+    out.heading = h + this.turned * Math.PI;
+    return out;
+  }
+
+  /** Zet elke wagen op de rails: met zijn twee assen op het spoor, zodat hij de bochten netjes volgt. */
+  private place(): void {
+    const route = this.route;
+    if (!route) return;
+    const cars = this.cars, n = route.wagons, last = cars.length - 1;
+    for (let k = 0; k < cars.length; k++) {
+      const car = cars[k];
+      // de locomotief voorop, dan de wagons, en op een lijn de tweede locomotief achteraan
+      car.visible = k === 0 || (k === last ? !route.loop : k <= n);
+      if (!car.visible) continue;
+      const off = k === last ? -(n + 1) / 2 : (n + 1) / 2 - k, p = this.c + this.face * off * TRAIN.gap;
+      railAt(route, p + this.face * TRAIN_AXLE, RAIL_A);
+      railAt(route, p - this.face * TRAIN_AXLE, RAIL_B);
+      const x = (RAIL_A[0] + RAIL_B[0]) / 2, y = (RAIL_A[1] + RAIL_B[1]) / 2;
+      const dx = RAIL_A[0] - RAIL_B[0], dy = RAIL_A[1] - RAIL_B[1];
+      const h = Math.abs(dx) + Math.abs(dy) > 1e-6 ? Math.atan2(dx, dy) : Math.atan2(RAIL_A[2] * this.face, RAIL_A[3] * this.face);
+      this.pose[k * 3] = x;
+      this.pose[k * 3 + 1] = y;
+      this.pose[k * 3 + 2] = h;
+      car.position.set(toWorldX(x), TRAIN.top, toWorldZ(y));
+      // de tweede locomotief kijkt naar achteren
+      car.rotation.y = k === last ? h + Math.PI : h;
+    }
+    railAt(route, this.c, RAIL_A);
+    this.gx = RAIL_A[0];
+    this.gy = RAIL_A[1];
+    // de locomotief die voorop rijdt: daar komt de stoom uit en daar brandt de lamp
+    const lead = route.loop || this.dir * this.face > 0 ? 0 : last;
+    this.headX = this.pose[lead * 3];
+    this.headY = this.pose[lead * 3 + 1];
+    this.model.roll(this.rolled);
+  }
+
+  /**
+   * Eén beeldje: rijden of wachten, de wagens op hun plek, en het spoor onder en voor de trein opeisen (`shut` krijgt
+   * een 1 op elke tegel waar niemand mag oversteken; `marked` onthoudt welke dat zijn).
+   */
+  update(dt: number, w: GuestWorld, reach: Set<number>, guests: Guest[], shut: Uint8Array, marked: number[]): void {
+    this.arrived = this.departed = false;
+    const route = this.route;
+    if (!route) return;
     if (this.wait > 0) {
       this.wait -= dt;
+      // wie tijdens het wachten het perron op komt, kan nog mee
+      if (this.at >= 0 && (this.boardIn -= dt) <= 0) {
+        this.boardIn = TRAIN_BOARD;
+        this.board(route.stops[this.at], guests);
+      }
+      if (this.wait <= 0) {
+        this.departed = this.at >= 0;
+        this.at = -1;
+      }
     } else {
-      const goal = this.next === 0 ? this.total : this.stops[this.next].at;
-      this.s += TRAIN.speed * dt;
-      if (this.s >= goal) {
-        // bij de halte: uitstappen, instappen, even wachten
-        const stop = this.stops[this.next];
-        this.s = stop.at;
-        this.wait = TRAIN.stop;
-        this.arrived = true;
-        this.riders.forEach((g, i) => {
-          if (g && g.riding === this && !g.gone) g.alight(stop.tile);
-          this.riders[i] = null;
-        });
-        let seat = 0;
-        for (const g of guests) {
-          if (seat >= this.riders.length) break;
-          if (g.waitingAt !== stop.shop) continue;
-          this.riders[seat] = g;
-          g.board(this, seat++);
-        }
-        this.next = (this.next + 1) % this.stops.length;
-      }
+      this.v = railSpeed(this.v, this.left, dt);
+      const step = Math.min(this.left, this.v * dt);
+      this.c += this.dir * step;
+      if (route.loop) this.c = ((this.c % route.length) + route.length) % route.length;
+      this.left -= step;
+      this.rolled += this.dir * this.face * step;
+      if (this.left <= 1e-4) this.arrive(w, reach, guests);
     }
-    this.cars.forEach((car, k) => {
-      const [x, y, h] = this.point(this.s - k * TRAIN.gap);
-      if (!k) {
-        // waar de locomotief is: wie op het perron staat, zwaait als hij eraan komt
-        TRAIN_AT.x = x;
-        TRAIN_AT.y = y;
-      }
-      car.position.set(toWorldX(x), 0, toWorldZ(y));
-      car.rotation.y = h;
-    });
+    // op de terugweg kijken de reizigers ook vooruit: ze draaien zich rustig om
+    const back = this.dir * this.face < 0 ? 1 : 0;
+    this.turned += (back - this.turned) * Math.min(1, dt * 4);
+    this.place();
+    // het spoor onder de trein, en als hij rijdt (of zo vertrekt) ook een stuk voor zijn neus
+    const ahead = this.wait > 0 && this.wait > TRAIN.ring ? 0 : Math.min(TRAIN.warn, this.left);
+    const fore = this.face > 0 ? route.front : route.back, aft = this.face > 0 ? route.back : route.front;
+    railClaim(route, this.c, fore + (this.dir > 0 ? ahead : 0), aft + (this.dir < 0 ? ahead : 0), shut, marked);
+    // stoom: flink als hij rijdt, af en toe een wolkje als hij stilstaat
+    this.puffIn -= dt * (0.25 + this.v);
+    if (this.puffIn <= 0) {
+      this.puffIn = 0.45;
+      this.model.puff(route.loop || this.dir * this.face > 0 ? this.model.loco : this.model.tail);
+    }
   }
 }
 
@@ -5434,8 +5698,14 @@ export class CableCar {
 // ------------------------------------------------------------ alle gasten samen
 export class GuestManager {
   guests: Guest[] = [];
-  /** Het treintje, zodra het beeld er een heeft gemaakt. */
-  train: Train | null = null;
+  /** De treintjes: één per spoor met een halte (het spel legt de routes, zie layRails). */
+  trains: Train[] = [];
+  /**
+   * Per tegel: komt hier een trein aan, of staat er een? Daar steekt niemand over, en op een overweg zijn de bomen
+   * dicht. De treinen vullen dit elk beeldje opnieuw in; `shutList` onthoudt welke tegels het zijn.
+   */
+  readonly shut = new Uint8Array(W * H);
+  private shutList: number[] = [];
   /** De kabelbanen: één per paar huisjes (het spel houdt deze lijst bij). */
   lifts: CableCar[] = [];
   private spawnIn = 2;
@@ -5504,7 +5774,42 @@ export class GuestManager {
             queue.push(n);
           }
     }
-    this.list = [...this.reach];
+    // op een overweg blijft niemand staan: daar loop je alleen overheen
+    this.list = [...this.reach].filter(tile => !isRail(grid.terrain[tile]));
+  }
+
+  /** De padtegel waar gasten bij dit gebouw geholpen worden (zie doorOf), of null als ze er niet bij kunnen. */
+  doorAt(shop: ShopSpot): number | null {
+    return doorOf(this.world, this.reach, shop);
+  }
+
+  /**
+   * Het spoor is veranderd: elke route krijgt een trein. Een trein die al op zo'n route stond, rijdt daar gewoon
+   * door; een trein zonder spoor verdwijnt (zijn reizigers stappen uit). `stations`: alle haltes, in de volgorde
+   * waarin de routes ze noemen. `make` maakt het beeld van een nieuwe trein (de hoeveelste het is).
+   */
+  layRails(routes: RailRoute[], stations: ShopSpot[], make: (n: number) => TrainModel): void {
+    const free = new Set(this.trains);
+    const taken = routes.map(route => {
+      for (const train of free)
+        if (train.on(route)) {
+          free.delete(train);
+          return train;
+        }
+      return null;
+    });
+    routes.forEach((route, i) => {
+      let train = taken[i];
+      if (!train) {
+        const spare = free.values().next();
+        if (!spare.done) {
+          train = spare.value;
+          free.delete(train);
+        } else this.trains.push((train = new Train(make(this.trains.length))));
+      }
+      train.setRoute(route, stations, this.world, this.reach);
+    });
+    for (const train of free) train.setRoute(null, stations, this.world, this.reach);
   }
 
   private make(opts: GuestOptions = {}, tile = ENTRANCE): Guest {
@@ -5630,12 +5935,19 @@ export class GuestManager {
     let astray = 0;
     for (const g of this.guests) if (g.astray > 0) astray++;
     strayRoom = Math.max(STRAY.most, Math.floor(this.guests.length * STRAY.share)) - astray;
-    // eerst de stoeltjes van de kabelbaan, dan de gasten: wie erin zit, zit zo precies op zijn stoeltje
+    // eerst de treinen en de stoeltjes van de kabelbaan, dan de gasten: wie erin zit, zit zo precies op zijn plek.
+    // De treinen zeggen ook welk spoor ze opeisen: daar wachten de gasten voor de spoorboom
+    for (const tile of this.shutList) this.shut[tile] = 0;
+    this.shutList.length = 0;
+    TRAINS_AT.length = 0;
+    for (const train of this.trains) {
+      train.update(dt, this.world, this.reach, this.guests, this.shut, this.shutList);
+      if (train.running) TRAINS_AT.push(train.headX, train.headY);
+    }
     for (const lift of this.lifts) lift.update(dt, this.world, this.reach, this.guests, this.lifts);
     for (const g of this.guests) g.update(dt, this.world, this.list, this.reach);
     for (const g of this.guests) g.showFace();
     if (this.guests.some(g => g.gone)) this.guests = this.guests.filter(g => !g.gone);
-    this.train?.update(dt, this.world, this.reach, this.guests);
     // af en toe maken twee gasten die naast elkaar staan een praatje
     this.chatIn -= dt;
     if (this.chatIn <= 0 && this.guests.length > 1) {
@@ -5693,7 +6005,8 @@ export class GuestManager {
       const sides: [number, number][] = [[away[1] * turn, away[0] * turn], [-away[1] * turn, -away[0] * turn], away];
       const run = (d: [number, number]): number => {
         let n = 0;
-        while (n < 4 && this.reach.has(tileIndex(hx + d[0] * (n + 1), hy + d[1] * (n + 1))) && hx + d[0] * (n + 1) >= 0 && hx + d[0] * (n + 1) < W) n++;
+        // (de rij loopt niet door over een overweg)
+        while (n < 4 && this.reach.has(tileIndex(hx + d[0] * (n + 1), hy + d[1] * (n + 1))) && hx + d[0] * (n + 1) >= 0 && hx + d[0] * (n + 1) < W && !isRail(this.world.grid.terrain[tileIndex(hx + d[0] * (n + 1), hy + d[1] * (n + 1))])) n++;
         return n;
       };
       const dir = sides.reduce((best, d) => (run(d) > run(best) ? d : best));
@@ -5801,6 +6114,8 @@ export interface WorkerWorld {
   workerFix(job: FixJob): void;
   /** Mag een werker over deze tegel lopen? Niet door een gebouw, voerbak of versiering. */
   walkable(tile: number): boolean;
+  /** Komt er op deze tegel een trein aan, of staat er een? Dan wacht een werker even voor hij het spoor oversteekt. */
+  railShut(tile: number): boolean;
   workerFill(trough: KeeperTrough, food: FoodId): void;
   workerClean(mess: KeeperPoop): void;
   /** Deze klus is niet te bereiken: er zit geen poort in het hek. */
@@ -6386,6 +6701,11 @@ export class Worker implements Leader {
     if (next !== undefined) {
       const [tx, ty] = tileXY(next);
       const dx = tx + 0.5 - this.gx, dy = ty + 0.5 - this.gy;
+      // er komt een trein aan: even wachten voor het spoor (wie er al op staat, loopt door)
+      if (w.railShut(next) && !w.railShut(this.tile) && Math.max(Math.abs(dx), Math.abs(dy)) < BARRIER_HOLD + 0.06) {
+        swing(this.limbs, 0);
+        return this.place();
+      }
       // met een groepje achter je aan loop je rustig; met een karretje ben je sneller
       const dist = Math.hypot(dx, dy), step = (this.group.length || this.leading ? 0.8 : this.cart ? 1.5 : 1.05) * dt;
       if (this.job?.guard && (this.recheck -= dt) <= 0) {
@@ -6543,7 +6863,8 @@ export class Clown implements Leader {
     this.leaving = true;
   }
 
-  update(dt: number): void {
+  /** `shut`: per tegel of er een trein aankomt (zie GuestManager.shut): voor een dichte spoorboom wacht de optocht. */
+  update(dt: number, shut?: ArrayLike<number>): void {
     this.t += dt;
     if (this.leaving) {
       this.grow = Math.max(0, this.grow - dt * 1.5);
@@ -6555,7 +6876,11 @@ export class Clown implements Leader {
     if (next !== undefined && !this.leaving && this.grow >= 1) {
       const [tx, ty] = tileXY(next);
       const dx = tx + 0.5 - this.gx, dy = ty + 0.5 - this.gy, dist = Math.hypot(dx, dy), step = PARADE.speed * dt;
-      if (dist <= step) {
+      // de trein komt eraan: trommelend wachten voor de spoorboom (wie er al op loopt, loopt door)
+      const held = !!shut?.[next] && !shut[this.route[0]] && Math.max(Math.abs(dx), Math.abs(dy)) < BARRIER_HOLD + 0.06;
+      if (held) {
+        // niet lopen, wel trommelen
+      } else if (dist <= step) {
         this.gx += dx;
         this.gy += dy;
         this.route.shift();
@@ -6566,7 +6891,7 @@ export class Clown implements Leader {
         turn = Math.atan2(Math.sin(turn), Math.cos(turn));
         this.heading += turn * Math.min(1, dt * 8);
       }
-      walking = true;
+      walking = !held;
       const last = this.trail[this.trail.length - 1];
       if (!last || Math.hypot(last[0] - this.gx, last[1] - this.gy) >= 0.15) this.trail.push([this.gx, this.gy]);
       if (this.trail.length > 90) this.trail.shift();

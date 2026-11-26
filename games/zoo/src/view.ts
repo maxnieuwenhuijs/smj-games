@@ -4,8 +4,10 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, SHOP_DEEP, shopSpan, TERRAINS, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
   BUMPER_CARS, FERRIS, RESTAURANT_TABLES, SHOW_ROWS, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, bumperCar, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
+  CROSSING, isRail,
 } from './data';
 import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type Land, type Side } from './grid';
+import { SIDE_DX, SIDE_DY, railLinks, railPieces, type RailPiece } from './rails';
 import { roadside } from './road';
 import { CABLE, CABLE_CORNERS, CABLE_DECK, cableAt, cableClear, cablePath, type CableMast, type CablePath, type CablePole, type CableSeat, type P2 } from './cable';
 import { Ground, aroundTexture } from './ground';
@@ -1138,19 +1140,21 @@ SHOP_PARTS.shelter = [
   [boxAt(2.04, 0.07, 0.12, 0, 1.82, 0), std(0x2c6a43)],
   [mergeGeometries([boxAt(1.4, 0.06, 0.3, 0, 0.24, -0.62), boxAt(1.4, 0.2, 0.05, 0, 0.42, -0.76), boxAt(0.07, 0.21, 0.26, -0.6, 0.105, -0.62), boxAt(0.07, 0.21, 0.26, 0.6, 0.105, -0.62)])!, FENCE_MAT],
 ];
-// Treinhalte: een perron achter, een afdakje met een bankje, een rond bord met een treintje en een stuk spoor voor.
-const SIGN_AT: P3 = [0.7, 1.5, 0];
+// Treinhalte: een perron over het hele blok, tot aan het spoor dat langs de voorkant ligt (met een witte rand en een
+// gele streep waar je achter blijft), achterop een afdakje met een bankje en een lamp, en een rond bord met een
+// treintje. De gasten wachten voor het afdak (zie de houding 'station' bij de gasten).
+const SIGN_AT: P3 = [0.78, 1.5, 0.36];
 SHOP_PARTS.station = [
-  [boxAt(1.84, 0.12, 1, 0, 0.06, -0.42), std(0xd8c7ab, 1), false],
-  [boxAt(1.84, 0.02, 0.06, 0, 0.125, 0.03), P_YELLOW, false],
+  [boxAt(1.9, 0.12, 1.84, 0, 0.06, 0.02), std(0xd8c7ab, 1), false],
+  [boxAt(1.9, 0.02, 0.07, 0, 0.125, 0.74), P_YELLOW, false],
   [mergeGeometries([
-    boxAt(0.08, 1.2, 0.08, -0.6, 0.72, -0.72), boxAt(0.08, 1.2, 0.08, 0.6, 0.72, -0.72),
-    boxAt(0.8, 0.05, 0.24, 0, 0.34, -0.7), boxAt(0.06, 0.2, 0.2, -0.34, 0.22, -0.7), boxAt(0.06, 0.2, 0.2, 0.34, 0.22, -0.7),
+    ...[-0.72, 0.72].flatMap(x => [boxAt(0.08, 1.24, 0.08, x, 0.74, -0.8), boxAt(0.08, 1.35, 0.08, x, 0.795, -0.12)]),
+    boxAt(1.0, 0.05, 0.26, 0, 0.36, -0.66), boxAt(1.0, 0.2, 0.04, 0, 0.5, -0.78), boxAt(0.06, 0.24, 0.22, -0.42, 0.24, -0.66), boxAt(0.06, 0.24, 0.22, 0.42, 0.24, -0.66),
   ])!, WOOD_MAT],
-  [new THREE.BoxGeometry(1.6, 0.07, 0.8).rotateX(0.12).translate(0, 1.37, -0.55), P_RED],
-  [boxAt(1.84, 0.02, 0.5, 0, 0.01, 0.6), std(0x9a8f80, 1), false],
-  [mergeGeometries([-0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8].map(x => boxAt(0.08, 0.03, 0.4, x, 0.03, 0.6)))!, DARK_MAT],
-  [mergeGeometries([boxAt(1.84, 0.03, 0.035, 0, 0.06, 0.5), boxAt(1.84, 0.03, 0.035, 0, 0.06, 0.7)])!, METAL],
+  [new THREE.BoxGeometry(1.8, 0.07, 0.98).rotateX(-0.16).translate(0, 1.45, -0.46), P_RED],
+  [boxAt(1.9, 0.124, 0.06, 0, 0.062, 0.97), WHITE_MAT, false],
+  [mergeGeometries([boxAt(1.84, 0.05, 0.07, 0, 1.54, 0.02), boxAt(0.03, 0.14, 0.03, 0, 1.33, -0.46)])!, DARK_MAT],
+  [ball(0.07, 0, 1.24, -0.46), LAMP_MAT, false],
   [tube(0.025, 0.03, 1.2, SIGN_AT[0], 0.72, SIGN_AT[2]), METAL],
   // het bord en het treintje erop: los, zodat het kan wiebelen
   [new THREE.CylinderGeometry(0.2, 0.2, 0.04, 16).rotateX(Math.PI / 2).translate(...SIGN_AT), P_BLUE],
@@ -1159,6 +1163,19 @@ SHOP_PARTS.station = [
     boxAt(0.035, 0.06, 0.07, SIGN_AT[0] + 0.06, SIGN_AT[1] + 0.07, SIGN_AT[2]),
     boxAt(0.05, 0.05, 0.07, SIGN_AT[0] - 0.06, SIGN_AT[1] - 0.06, SIGN_AT[2]), boxAt(0.05, 0.05, 0.07, SIGN_AT[0] + 0.06, SIGN_AT[1] - 0.06, SIGN_AT[2]),
   ])!, WHITE_MAT],
+  // de aankleding (achteraan in de lijst, zodat de nummers hierboven blijven): een stationsklok op een paal links
+  // voor, een bak met bloemen ernaast en een koffer met een tas onder het afdak
+  [painted(
+    [0x8a8f98, tube(0.022, 0.028, 1.0, -0.8, 0.62, 0.42)],
+    [0x3d4f5a, new THREE.CylinderGeometry(0.16, 0.16, 0.07, 14).rotateX(Math.PI / 2).translate(-0.8, 1.22, 0.42), boxAt(0.016, 0.1, 0.086, -0.8, 1.26, 0.42), boxAt(0.07, 0.016, 0.086, -0.77, 1.22, 0.42)],
+    [0xf7f4ec, new THREE.CylinderGeometry(0.13, 0.13, 0.08, 14).rotateX(Math.PI / 2).translate(-0.8, 1.22, 0.42)],
+    [0xa8743f, boxAt(0.26, 0.14, 0.2, -0.8, 0.19, 0.06)],
+    [0x5fa544, blob(0.1, 1.2, 0.7, 0.9, -0.8, 0.3, 0.06, 0)],
+    [0xe0584f, dot(0.04, -0.87, 0.36, 0.08), dot(0.04, -0.74, 0.37, 0.02)],
+    [0xffd23f, dot(0.04, -0.8, 0.38, 0.1)],
+    [0x4a90e2, boxAt(0.22, 0.26, 0.12, 0.66, 0.25, -0.62), boxAt(0.1, 0.03, 0.03, 0.66, 0.395, -0.62)],
+    [0xf08a24, boxAt(0.16, 0.14, 0.1, 0.44, 0.19, -0.5)],
+  ), PAINT_MAT],
 ];
 // Bak met paraplu's: een emmer met drie dichte paraplu's die er schuin uit steken.
 const brolly = (parts: THREE.BufferGeometry[], x: number, z: number, tiltX: number, tiltZ: number): THREE.BufferGeometry =>
@@ -2544,6 +2561,157 @@ const BRIDGE_GEO = mergeGeometries([
 const FLOWER_EDGE_GEO = boxAt(1, 0.03, 0.11, 0, 0.015, 0);
 const FLOWER_HEAD_GEO = blob(0.046, 1, 0.75, 1, 0, 0.06, 0, 0);
 const FLOWER_EDGE_MAT = std(0x6fb44c, 1);
+
+// ------------------------------------------------------------ het spoor
+// Elk stuk spoor is voor één tegel gemaakt, met het midden van de tegel op (0, 0): een bedding van grind (RAIL_BED
+// breed en BED_TOP hoog: een plat vlak vlak boven de grond flikkert weg), houten bielzen en twee rails. De bovenkant
+// van de rails ligt op TRAIN.top; de rails liggen RAIL_GAUGE uit het midden. Welke stukken er op een tegel komen en
+// hoe ze gedraaid zijn, staat in rails.ts (railPieces).
+const RAIL_GAUGE = 0.17, RAIL_BED = 0.6, BED_TOP = 0.03, RAIL_HIGH = 0.03;
+const BALLAST = 0xb3a892, SLEEPER = 0x7a5a3a, STEEL = 0x8f959e;
+/** De bedding: een lage plaat grind, `w` breed en `d` diep, met zijn midden op (x, z). */
+const bedding = (w: number, d: number, x = 0, z = 0): THREE.BufferGeometry => boxAt(w, BED_TOP, d, x, BED_TOP / 2, z);
+const sleeper = (z: number): THREE.BufferGeometry => boxAt(0.5, 0.028, 0.1, 0, BED_TOP + 0.014, z);
+/** Twee rails langs z, `len` lang, met hun midden op z; `high`: hoe hoog de rail zelf is. */
+const railPair = (len: number, z = 0, high = RAIL_HIGH): THREE.BufferGeometry[] => [-RAIL_GAUGE, RAIL_GAUGE].map(x => boxAt(0.035, high, len, x, TRAIN.top - high / 2, z));
+/** Een stootblok dwars over het spoor op z: twee paaltjes met een rood-witte balk. */
+const bufferStop = (z: number): [number, ...THREE.BufferGeometry[]][] => [
+  [SLEEPER, boxAt(0.06, 0.2, 0.06, -RAIL_GAUGE, BED_TOP + 0.1, z), boxAt(0.06, 0.2, 0.06, RAIL_GAUGE, BED_TOP + 0.1, z)],
+  [0xe0584f, boxAt(0.5, 0.09, 0.05, 0, BED_TOP + 0.17, z)],
+  [0xf7f4ec, boxAt(0.14, 0.094, 0.054, 0, BED_TOP + 0.17, z)],
+];
+// recht: van noord naar zuid
+const RAIL_STRAIGHT_GEO = painted(
+  [BALLAST, bedding(RAIL_BED, 1)],
+  [SLEEPER, ...[-0.375, -0.125, 0.125, 0.375].map(sleeper)],
+  [STEEL, ...railPair(1)],
+);
+// een bocht van noord naar oost: een kwart cirkel om de hoek rechtsboven, in korte rechte stukjes
+const RAIL_CURVE_GEO = (() => {
+  const cx = 0.5, cz = -0.5, n = 7, steel: THREE.BufferGeometry[] = [];
+  const on = (r: number, a: number): [number, number] => [cx + r * Math.cos(a), cz + r * Math.sin(a)];
+  for (const r of [0.5 - RAIL_GAUGE, 0.5 + RAIL_GAUGE])
+    for (let i = 0; i < n; i++) {
+      const [x0, z0] = on(r, Math.PI - (i / n) * (Math.PI / 2)), [x1, z1] = on(r, Math.PI - ((i + 1) / n) * (Math.PI / 2));
+      steel.push(new THREE.BoxGeometry(0.035, RAIL_HIGH, Math.hypot(x1 - x0, z1 - z0) + 0.006).rotateY(Math.atan2(x1 - x0, z1 - z0)).translate((x0 + x1) / 2, TRAIN.top - RAIL_HIGH / 2, (z0 + z1) / 2));
+    }
+  const ties = [1, 3, 5].map(k => {
+    const a = Math.PI - (k / 6) * (Math.PI / 2), [x, z] = on(0.5, a);
+    return new THREE.BoxGeometry(0.5, 0.028, 0.1).rotateY(-a).translate(x, BED_TOP + 0.014, z);
+  });
+  // de bedding: een kwart ring met dikte (de vorm ligt plat getekend en wordt dan overeind gezet)
+  const bed = new THREE.Shape();
+  bed.absarc(cx, -cz, 0.5 + RAIL_BED / 2, Math.PI, 1.5 * Math.PI, false);
+  bed.absarc(cx, -cz, 0.5 - RAIL_BED / 2, 1.5 * Math.PI, Math.PI, true);
+  return painted(
+    [BALLAST, new THREE.ExtrudeGeometry(bed, { depth: BED_TOP, bevelEnabled: false, curveSegments: 8 }).rotateX(-Math.PI / 2)],
+    [SLEEPER, ...ties],
+    [STEEL, ...steel],
+  );
+})();
+// een eindje: het spoor komt van het noorden en houdt voorbij het midden op bij een stootblok
+const RAIL_END_GEO = painted(
+  [BALLAST, bedding(RAIL_BED, 0.84, 0, -0.08)],
+  [SLEEPER, ...[-0.375, -0.125, 0.125].map(sleeper)],
+  [STEEL, ...railPair(0.75, -0.125)],
+  ...bufferStop(0.27),
+);
+// een los stukje (het ligt nog nergens aan vast): kort, van west naar oost, met aan beide kanten een stootblok
+const RAIL_STUB_GEO = painted(
+  [BALLAST, bedding(RAIL_BED, 0.7)],
+  [SLEEPER, sleeper(-0.125), sleeper(0.125)],
+  [STEEL, ...railPair(0.52)],
+  ...bufferStop(0.27),
+  ...bufferStop(-0.27),
+).rotateY(Math.PI / 2);
+// op een overweg: geen grind, maar planken tussen en naast de rails, zodat je er zo overheen loopt
+const RAIL_XING_GEO = painted(
+  [0xa98558, boxAt(0.145, 0.036, 1, -0.076, 0.022, 0), boxAt(0.14, 0.036, 1, 0.262, 0.022, 0)],
+  [0x97744a, boxAt(0.145, 0.036, 1, 0.076, 0.022, 0), boxAt(0.14, 0.036, 1, -0.262, 0.022, 0)],
+  [STEEL, ...railPair(1, 0, TRAIN.top - 0.02)],
+);
+/**
+ * De spoorboom aan de noordkant van een overweg (waar het pad de tegel op komt), gezien vanuit het midden van de
+ * tegel: een paal rechts van wie aan komt lopen, met een andreaskruis en een kastje voor twee rode lampen. De boom
+ * zelf en de lampen zijn los: die bewegen (zie View.stepCrossings).
+ */
+const GATE_POST: P3 = [-0.4, 0, -0.44];
+const GATE_PIVOT: P3 = [GATE_POST[0], 0.3, GATE_POST[2] + 0.055];
+const GATE_LAMP_Y = 0.52, GATE_LAMP_X = 0.065;
+const crossBar = (tilt: number): [number, ...THREE.BufferGeometry[]][] => {
+  const put = (g: THREE.BufferGeometry): THREE.BufferGeometry => g.rotateZ(tilt).translate(GATE_POST[0], 0.74, GATE_POST[2]);
+  return [
+    [0xf7f4ec, put(boxAt(0.3, 0.06, 0.022, 0, 0, 0))],
+    [0xe0584f, put(boxAt(0.07, 0.062, 0.024, -0.165, 0, 0)), put(boxAt(0.07, 0.062, 0.024, 0.165, 0, 0))],
+  ];
+};
+const GATE_POST_GEO = painted(
+  [0xf7f4ec, boxAt(0.055, 0.6, 0.055, GATE_POST[0], 0.3, GATE_POST[2])],
+  [0xe0584f, boxAt(0.059, 0.1, 0.059, GATE_POST[0], 0.13, GATE_POST[2])],
+  [0x5a6470, boxAt(0.13, 0.04, 0.13, GATE_POST[0], 0.02, GATE_POST[2]), boxAt(0.07, 0.09, 0.09, GATE_PIVOT[0], GATE_PIVOT[1], GATE_PIVOT[2] - 0.02)],
+  [0x2b2f36, boxAt(0.24, 0.1, 0.03, GATE_POST[0], GATE_LAMP_Y, GATE_POST[2])],
+  ...crossBar(Math.PI / 4),
+  ...crossBar(-Math.PI / 4),
+);
+/** De boom: het draaipunt is (0, 0, 0), hij steekt naar +x uit over het pad, in rode en witte stukken; achter het draaipunt zit een gewicht. */
+const GATE_ARM_GEO = painted(
+  [0xe0584f, ...[0, 2, 4].map(i => boxAt(0.165, 0.045, 0.03, 0.0825 + i * 0.165, 0, 0))],
+  [0xf7f4ec, ...[1, 3].map(i => boxAt(0.165, 0.045, 0.03, 0.0825 + i * 0.165, 0, 0))],
+  [0x5a6470, boxAt(0.13, 0.08, 0.045, -0.085, 0, 0)],
+);
+const GATE_LAMP_GEO = new THREE.IcosahedronGeometry(0.036, 1);
+/** De lampen van een overweg krijgen hun kleur per lamp: fel rood als hij aan is, donkerrood als hij uit is. */
+const GATE_LAMP_MAT = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const GATE_LAMP_ON = new THREE.Color(0xff3b2f), GATE_LAMP_OFF = new THREE.Color(0x5a1512);
+/** Zo ver staat een open spoorboom omhoog (in radialen), en zo lang doet hij erover om te zakken of omhoog te gaan. */
+const GATE_OPEN = 1.36, GATE_SECONDS = 0.9;
+/** De stoomwolkjes van alle treinen samen: zoveel tegelijk, en zo lang blijft er een hangen. */
+const STEAM_MAX = 24, STEAM_SECONDS = 1.3;
+const STEAM_GEO = new THREE.IcosahedronGeometry(1, 1);
+const STEAM_MAT = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, emissive: 0x9aa3ad, emissiveIntensity: 0.25 });
+
+// Het treintje (zie View.makeTrain). Elke wagen heeft zijn midden op de rails en zijn neus naar +z. De wielen zijn
+// een los onderdeel (één per trein, voor alle assen samen), zodat ze kunnen draaien.
+/** De kleuren van de locomotief (ketel en cabine) en van de wagons; elke trein heeft zijn eigen kleuren. */
+const TRAIN_LOOKS: { boiler: number; cab: number; wagons: number[] }[] = [
+  { boiler: 0x6cc04a, cab: 0xe0584f, wagons: [0x4a90e2, 0xffd23f, 0x6cc04a] },
+  { boiler: 0x4a90e2, cab: 0xf08a24, wagons: [0xe0584f, 0x6cc04a, 0xffd23f] },
+  { boiler: 0xa06ad9, cab: 0x2bb5a8, wagons: [0xf06aa6, 0x4a90e2, 0xf08a24] },
+];
+const TRAIN_DARK = 0x3d4f5a;
+/** Waar de assen onder een locomotief en een wagon zitten (z), hoe groot hun wielen zijn, en waar de schoorsteen uitkomt. */
+const LOCO_AXLES = [0.22, -0.24], WAGON_AXLES = [0.25, -0.25], LOCO_WHEEL = 0.09, WAGON_WHEEL = 0.082;
+const CHIMNEY: P3 = [0, 0.72, 0.27];
+const trainGeos = new Map<string, THREE.BufferGeometry>();
+/** Een vorm van de trein wordt één keer gemaakt en door alle treinen met die kleuren gedeeld. */
+const trainGeo = (key: string, make: () => THREE.BufferGeometry): THREE.BufferGeometry => {
+  let geo = trainGeos.get(key);
+  if (!geo) trainGeos.set(key, (geo = make()));
+  return geo;
+};
+/** De locomotief: een onderstel met bufferbalken, een ketel met een gele band en een koepel, een schoorsteen en een cabine met ramen en een geel dak. */
+const locoGeo = (boiler: number, cab: number): THREE.BufferGeometry => trainGeo(`loco${boiler}.${cab}`, () => painted(
+  [TRAIN_DARK, boxAt(0.4, 0.06, 0.82, 0, 0.15, 0), boxAt(0.05, 0.04, 0.14, 0, 0.14, -0.46), tube(0.045, 0.04, 0.17, CHIMNEY[0], 0.565, CHIMNEY[2]), tube(0.078, 0.045, 0.05, CHIMNEY[0], 0.675, CHIMNEY[2])],
+  [0xe0584f, boxAt(0.4, 0.07, 0.04, 0, 0.15, 0.42), boxAt(0.4, 0.07, 0.04, 0, 0.15, -0.42)],
+  [boiler, new THREE.CylinderGeometry(0.15, 0.15, 0.5, 12).rotateX(Math.PI / 2).translate(0, 0.33, 0.14), boxAt(0.28, 0.1, 0.5, 0, 0.22, 0.14)],
+  [cab, boxAt(0.38, 0.4, 0.3, 0, 0.38, -0.25)],
+  [0xffd23f, boxAt(0.44, 0.04, 0.38, 0, 0.6, -0.25), tube(0.05, 0.06, 0.07, 0, 0.5, 0.04), new THREE.CylinderGeometry(0.156, 0.156, 0.04, 12).rotateX(Math.PI / 2).translate(0, 0.33, 0.37)],
+  [0x9fd8f5, boxAt(0.386, 0.13, 0.16, 0, 0.45, -0.25), boxAt(0.2, 0.13, 0.306, 0, 0.45, -0.25)],
+));
+const LOCO_LAMP_GEO = ball(0.05, 0, 0.33, 0.405);
+/** Een open wagon in een vrolijke kleur, met een lichte rand, TRAIN.seats houten bankjes achter elkaar en een koppeling voor en achter. */
+const wagonGeo = (color: number): THREE.BufferGeometry => trainGeo(`wagon${color}`, () => painted(
+  [color, boxAt(0.42, 0.06, 0.8, 0, 0.15, 0), boxAt(0.03, 0.11, 0.8, -0.195, 0.235, 0), boxAt(0.03, 0.11, 0.8, 0.195, 0.235, 0), boxAt(0.42, 0.11, 0.03, 0, 0.235, -0.385), boxAt(0.42, 0.11, 0.03, 0, 0.235, 0.385)],
+  [0xf7f4ec, boxAt(0.04, 0.02, 0.82, -0.195, 0.3, 0), boxAt(0.04, 0.02, 0.82, 0.195, 0.3, 0), boxAt(0.43, 0.02, 0.04, 0, 0.3, -0.39), boxAt(0.43, 0.02, 0.04, 0, 0.3, 0.39)],
+  [0xc58a4b, ...Array.from({ length: TRAIN.seats }, (_, i) => boxAt(0.32, 0.04, 0.13, 0, 0.2, (i - (TRAIN.seats - 1) / 2) * 0.26))],
+  [TRAIN_DARK, boxAt(0.05, 0.04, 0.16, 0, 0.14, 0.46), boxAt(0.05, 0.04, 0.16, 0, 0.14, -0.46)],
+));
+/** Eén as: twee rode wielen op de rails, met een geel kruis erop zodat je ze ziet draaien. Het midden van de as is (0, 0, 0). */
+const AXLE_GEO = painted(
+  [0xe0584f, ...[-RAIL_GAUGE, RAIL_GAUGE].map(x => new THREE.CylinderGeometry(LOCO_WHEEL, LOCO_WHEEL, 0.045, 12).rotateZ(Math.PI / 2).translate(x, 0, 0))],
+  [0xffd23f, ...[-1, 1].flatMap(s => [boxAt(0.012, LOCO_WHEEL * 1.7, 0.03, s * (RAIL_GAUGE + 0.026), 0, 0), boxAt(0.012, 0.03, LOCO_WHEEL * 1.7, s * (RAIL_GAUGE + 0.026), 0, 0)])],
+  [TRAIN_DARK, boxAt(2 * RAIL_GAUGE, 0.025, 0.025, 0, 0, 0)],
+);
 const PUDDLE_GEO = new THREE.CircleGeometry(1, 16).rotateX(-Math.PI / 2);
 // Afval in vier soorten, groot en fel genoeg om tussen de gasten op te vallen: een omgevallen beker met een
 // rietje en een plasje, een frietbakje met frietjes en een prop papier, een bananenschil, en een blikje met een
@@ -2811,6 +2979,18 @@ export class View {
   // bruggen en bloemenranden op de paden: alleen opnieuw gebouwd als er een tegel bij komt of weggaat
   private pathKey = '';
   private pathExtras: THREE.InstancedMesh[] = [];
+  // het spoor en de overwegen (zie paintRails): alleen opnieuw gebouwd als het spoor verandert
+  private railKey = '';
+  private railMeshes: THREE.InstancedMesh[] = [];
+  /**
+   * De spoorbomen: bij welke tegel en aan welke kant (`code`: tegel * 4 + kant), waar het draaipunt staat, hoe ver de
+   * boom dicht is (`k`, 0 tot 1) en welke van de twee lampen brandt (`lit`: 0 = geen).
+   */
+  private gates: { tile: number; code: number; base: THREE.Matrix4; k: number; lit: number }[] = [];
+  private gateArms: THREE.InstancedMesh | null = null;
+  private gateLamps: THREE.InstancedMesh | null = null;
+  /** Van het spel: welk soort pad er onder elke overweg ligt (tegel -> het nummer in TERRAINS). */
+  crossLooks: Map<number, number> | null = null;
   // het weer: één stel deeltjes dat rond het midden van het beeld valt
   private weather: THREE.InstancedMesh | null = null;
   private sky: Sky = 'clear';
@@ -2824,7 +3004,11 @@ export class View {
   private ws = new THREE.Vector3();
   private rainbow: THREE.Mesh | null = null;
   private burstMats = new Map<number, THREE.MeshBasicMaterial>();
-  private train: { loco: THREE.Group; wagons: THREE.Group[] } | null = null;
+  /** De stoomwolkjes van de treinen: één onderdeel voor allemaal. Per wolkje: x, y, z en hoe oud het is (in tellen). */
+  private steam: THREE.InstancedMesh | null = null;
+  private steamAt = new Float32Array(STEAM_MAX * 4).fill(STEAM_SECONDS);
+  private steamNext = 0;
+  private steamLive = false;
   // slingers tussen de palen
   private strings: THREE.Group | null = null;
   private stringKey = '';
@@ -3670,7 +3854,8 @@ export class View {
    */
   paintTerrain(grid: Grid): void {
     this.grid = grid;
-    this.ground.paint(grid.terrain, seasonNow);
+    this.ground.paint(this.shownGround(grid), seasonNow);
+    this.paintRails(grid);
     const bridges: number[] = [], flowers: number[] = [];
     for (let y = 0; y < H; y++)
       for (let x = 0; x < W; x++) {
@@ -3741,6 +3926,144 @@ export class View {
       mesh.frustumCulled = false;
       this.scene.add(mesh);
     }
+  }
+
+  /**
+   * Onder een overweg ligt het pad dat er lag toen het spoor erover kwam (`crossLooks`, van het spel): voor de grond
+   * is het dus gewoon die soort pad.
+   */
+  private shownGround(grid: Grid): ArrayLike<number> {
+    const looks = this.crossLooks;
+    if (!looks?.size) return grid.terrain;
+    const shown = Uint8Array.from(grid.terrain);
+    for (const [tile, look] of looks) if (shown[tile] === CROSSING) shown[tile] = look;
+    return shown;
+  }
+
+  /**
+   * Het spoor: op elke tegel met rails de goede stukken (recht, bocht, wissel, kruising of een eindje met een
+   * stootblok), en bij elke overweg de planken en de spoorbomen. Er wordt alleen opnieuw gebouwd als er spoor bij
+   * komt, weggaat of anders aansluit (ook door een hek dat erdwars overheen komt).
+   */
+  private paintRails(grid: Grid): void {
+    const links = railLinks(grid), found: number[] = [];
+    let key = '';
+    for (let i = 0; i < links.length; i++) {
+      if (!links[i]) continue;
+      // bij een overweg: aan welke kanten het pad erop komt (een bit per kant): daar staat een spoorboom
+      let gates = 0;
+      if (grid.terrain[i] === CROSSING) {
+        const [x, y] = tileXY(i);
+        gates = 16;
+        for (let s = 0; s < 4; s++) {
+          const nx = x + SIDE_DX[s], ny = y + SIDE_DY[s], next = nx + ny * W;
+          if (links[i] & (1 << s) || nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+          if (isPath(grid.terrain[next]) && !isRail(grid.terrain[next]) && grid.canStep(x, y, SIDE_DX[s], SIDE_DY[s])) gates |= 1 << s;
+        }
+      }
+      found.push(i, links[i] & 15, gates);
+      key += `${i}.${links[i] & 15}.${gates},`;
+    }
+    if (key === this.railKey) return;
+    this.railKey = key;
+    this.buildRails(found);
+  }
+
+  /** Bouwt alle stukken spoor en de overwegen; `found`: per tegel met spoor de tegel, de kanten waar het doorloopt en de kanten met een spoorboom. */
+  private buildRails(found: number[]): void {
+    for (const mesh of this.railMeshes) {
+      this.scene.remove(mesh);
+      mesh.dispose();
+    }
+    this.railMeshes = [];
+    // een boom die al dicht was, blijft dicht als het spoor ernaast verandert
+    const was = new Map(this.gates.map(g => [g.code, g.k]));
+    this.gates = [];
+    this.gateArms = this.gateLamps = null;
+    // per soort stuk: waar het ligt en hoe het gedraaid is (tegel * 4 + kwartslagen)
+    const spots: Record<RailPiece['kind'] | 'xing', number[]> = { straight: [], curve: [], end: [], stub: [], xing: [] };
+    const posts: number[] = [];
+    for (let k = 0; k < found.length; k += 3) {
+      const tile = found[k], gates = found[k + 2];
+      for (const piece of railPieces(found[k + 1])) {
+        // een los stukje op een overweg ligt dwars op het pad; een recht stuk op een overweg krijgt planken
+        const turn = piece.kind === 'stub' && gates & 10 && !(gates & 5) ? 1 : piece.turn;
+        spots[gates && piece.kind === 'straight' ? 'xing' : piece.kind].push(tile * 4 + turn);
+      }
+      for (let s = 0; s < 4; s++) if (gates & (1 << s)) posts.push(tile * 4 + s);
+    }
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), at = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
+    const pose = (code: number): THREE.Matrix4 => {
+      const [x, y] = tileXY(code >> 2);
+      return m.compose(at.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5)), q.setFromAxisAngle(UP, (-(code & 3) * Math.PI) / 2), one);
+    };
+    const add = (mesh: THREE.InstancedMesh, shadow: boolean): THREE.InstancedMesh => {
+      mesh.castShadow = shadow;
+      mesh.receiveShadow = true;
+      mesh.frustumCulled = false;
+      this.scene.add(mesh);
+      this.railMeshes.push(mesh);
+      return mesh;
+    };
+    const lay = (geo: THREE.BufferGeometry, codes: number[], shadow = false): void => {
+      if (!codes.length) return;
+      const mesh = add(new THREE.InstancedMesh(geo, PAINT_MAT, codes.length), shadow);
+      codes.forEach((code, i) => mesh.setMatrixAt(i, pose(code)));
+    };
+    lay(RAIL_STRAIGHT_GEO, spots.straight);
+    lay(RAIL_CURVE_GEO, spots.curve);
+    lay(RAIL_END_GEO, spots.end, true);
+    lay(RAIL_STUB_GEO, spots.stub, true);
+    lay(RAIL_XING_GEO, spots.xing);
+    if (!posts.length) return;
+    lay(GATE_POST_GEO, posts, true);
+    const arms = add(new THREE.InstancedMesh(GATE_ARM_GEO, PAINT_MAT, posts.length), true);
+    const lamps = add(new THREE.InstancedMesh(GATE_LAMP_GEO, GATE_LAMP_MAT, posts.length * 2), false);
+    const shift = new THREE.Matrix4();
+    posts.forEach((code, i) => {
+      const base = pose(code).clone().multiply(shift.makeTranslation(GATE_PIVOT[0], GATE_PIVOT[1], GATE_PIVOT[2]));
+      this.gates.push({ tile: code >> 2, code, base, k: was.get(code) ?? 0, lit: 0 });
+      for (const side of [0, 1]) {
+        lamps.setMatrixAt(i * 2 + side, shift.makeTranslation(GATE_POST[0] + (side ? GATE_LAMP_X : -GATE_LAMP_X), GATE_LAMP_Y, GATE_POST[2]).premultiply(pose(code)));
+        lamps.setColorAt(i * 2 + side, GATE_LAMP_OFF);
+      }
+    });
+    this.gateArms = arms;
+    this.gateLamps = lamps;
+    for (let i = 0; i < this.gates.length; i++) this.poseGate(i);
+  }
+
+  /** Zet één spoorboom in zijn stand: omhoog (0) of plat over het pad (1), met een rustig begin en eind. */
+  private poseGate(i: number): void {
+    const g = this.gates[i], k = g.k * g.k * (3 - 2 * g.k);
+    this.gateArms!.setMatrixAt(i, this.wm.makeRotationZ(GATE_OPEN * (1 - k)).premultiply(g.base));
+  }
+
+  /**
+   * De overwegen, elk beeldje. `shut` zegt per tegel of er een trein aankomt of overheen rijdt: dan zakken de bomen
+   * en knipperen de twee rode lampen om de beurt; is de trein voorbij, dan gaan de bomen weer omhoog.
+   */
+  stepCrossings(shut: ArrayLike<number>, dt: number): void {
+    const arms = this.gateArms, lamps = this.gateLamps;
+    if (!arms || !lamps) return;
+    const blink = Math.floor(this.speckTime * 2.6) & 1;
+    let moved = false, lit = false;
+    for (let i = 0; i < this.gates.length; i++) {
+      const g = this.gates[i], want = shut[g.tile] ? 1 : 0;
+      if (g.k !== want) {
+        g.k = Math.max(0, Math.min(1, g.k + (want ? dt : -dt) / GATE_SECONDS));
+        this.poseGate(i);
+        moved = true;
+      }
+      const show = want || g.k > 0 ? 1 + blink : 0;
+      if (show === g.lit) continue;
+      g.lit = show;
+      lamps.setColorAt(i * 2, show === 1 ? GATE_LAMP_ON : GATE_LAMP_OFF);
+      lamps.setColorAt(i * 2 + 1, show === 2 ? GATE_LAMP_ON : GATE_LAMP_OFF);
+      lit = true;
+    }
+    if (moved) arms.instanceMatrix.needsUpdate = true;
+    if (lit && lamps.instanceColor) lamps.instanceColor.needsUpdate = true;
   }
 
   private placeEdge(mesh: THREE.Object3D, e: Edge): void {
@@ -4647,39 +4970,80 @@ export class View {
   }
 
   /**
-   * Het treintje: een rood-groene locomotief en TRAIN.wagons open wagons met elk TRAIN.seats bankjes achter
-   * elkaar. Eén keer gemaakt en onzichtbaar in het beeld gezet; het spel zet zelf `position` en `rotation.y`.
-   * Elk deel heeft zijn midden op de grond en zijn neus naar +z.
+   * Een treintje: een locomotief, TRAIN.wagons open wagons met elk TRAIN.seats bankjes achter elkaar, en een tweede
+   * locomotief voor achteraan (die rijdt alleen mee op een lijn, waar de trein heen en weer moet). Alles staat
+   * onzichtbaar in het beeld; de trein zet zelf `position`, `rotation.y` en `visible`. Elk deel heeft zijn midden op
+   * de rails en zijn neus naar +z. `n`: de hoeveelste trein het is; elke trein heeft zijn eigen kleuren.
+   * `roll` laat de wielen draaien (zo ver is de trein gereden, in tegels), `puff` blaast een wolkje stoom uit de
+   * schoorsteen van die locomotief.
    */
-  makeTrain(): { loco: THREE.Group; wagons: THREE.Group[] } {
-    if (this.train) return this.train;
-    const dark = std(0x3d4f5a, 0.7);
-    const wheels = (zs: number[], r: number): THREE.BufferGeometry =>
-      mergeGeometries(zs.flatMap(z => [-0.2, 0.2].map(x => new THREE.CylinderGeometry(r, r, 0.05, 12).rotateZ(Math.PI / 2).translate(x, r, z))))!;
-    const loco = build([
-      [mergeGeometries([boxAt(0.4, 0.07, 0.8, 0, 0.145, 0), boxAt(0.36, 0.06, 0.04, 0, 0.15, 0.41)])!, dark],
-      // de ketel, de cabine met een geel dak, de schoorsteen en de wielen
-      [new THREE.CylinderGeometry(0.15, 0.15, 0.48, 12).rotateX(Math.PI / 2).translate(0, 0.33, 0.15), P_GREEN],
-      [boxAt(0.38, 0.4, 0.3, 0, 0.38, -0.24), P_RED],
-      [boxAt(0.44, 0.04, 0.36, 0, 0.6, -0.24), P_YELLOW],
-      [mergeGeometries([tube(0.045, 0.04, 0.14, 0, 0.55, 0.27), tube(0.07, 0.045, 0.05, 0, 0.645, 0.27), tube(0.05, 0.06, 0.06, 0, 0.5, 0.05)])!, dark],
-      [wheels([-0.24, 0.2], 0.09), P_RED],
-      [boxAt(0.4, 0.13, 0.16, 0, 0.45, -0.24), std(0x9fd8f5, 0.4)],
-      [ball(0.045, 0, 0.33, 0.39), LAMP_MAT],
-    ]);
-    const seats = Array.from({ length: TRAIN.seats }, (_, i) => (i - (TRAIN.seats - 1) / 2) * 0.26);
-    const body = mergeGeometries([
-      boxAt(0.42, 0.06, 0.8, 0, 0.15, 0),
-      boxAt(0.03, 0.1, 0.8, -0.195, 0.23, 0), boxAt(0.03, 0.1, 0.8, 0.195, 0.23, 0), boxAt(0.42, 0.1, 0.03, 0, 0.23, -0.385), boxAt(0.42, 0.1, 0.03, 0, 0.23, 0.385),
-    ])!;
-    const benches = mergeGeometries(seats.map(z => boxAt(0.32, 0.04, 0.13, 0, 0.2, z)))!;
-    const under = mergeGeometries([wheels([-0.24, 0.24], 0.08), boxAt(0.05, 0.04, 0.18, 0, 0.14, 0.47)])!;
-    const wagons = Array.from({ length: TRAIN.wagons }, (_, i) => build([[body, [P_BLUE, P_YELLOW, P_GREEN][i % 3]], [benches, FENCE_MAT], [under, dark]]));
-    for (const part of [loco, ...wagons]) {
-      part.visible = false;
-      this.scene.add(part);
+  makeTrain(n = 0): { loco: THREE.Group; wagons: THREE.Group[]; tail: THREE.Group; roll: (dist: number) => void; puff: (from: THREE.Object3D) => void } {
+    const look = TRAIN_LOOKS[n % TRAIN_LOOKS.length];
+    const engine = (): THREE.Group => build([[locoGeo(look.boiler, look.cab), PAINT_MAT], [LOCO_LAMP_GEO, LAMP_MAT, false]]);
+    const loco = engine(), tail = engine();
+    const wagons = Array.from({ length: TRAIN.wagons }, (_, i) => build([[wagonGeo(look.wagons[i % look.wagons.length]), PAINT_MAT]]));
+    const cars = [loco, ...wagons, tail];
+    // alle assen van deze trein samen: twee per wagen
+    const wheels = new THREE.InstancedMesh(AXLE_GEO, PAINT_MAT, cars.length * 2);
+    wheels.castShadow = true;
+    wheels.frustumCulled = false;
+    for (const car of cars) {
+      car.visible = false;
+      this.scene.add(car);
     }
-    return (this.train = { loco, wagons });
+    this.scene.add(wheels);
+    const m = new THREE.Matrix4(), spin = new THREE.Matrix4(), size = new THREE.Vector3();
+    const roll = (dist: number): void => {
+      for (let k = 0; k < cars.length; k++) {
+        const car = cars[k], big = car === loco || car === tail, r = big ? LOCO_WHEEL : WAGON_WHEEL, axles = big ? LOCO_AXLES : WAGON_AXLES;
+        // de tweede locomotief staat andersom: zijn wielen draaien de andere kant op. Een wagen die niet meerijdt, heeft geen wielen
+        const angle = (car === tail ? -dist : dist) / r, s = r / LOCO_WHEEL;
+        size.set(car.visible ? 1 : 0, s, s);
+        for (let a = 0; a < 2; a++) {
+          m.makeRotationY(car.rotation.y).setPosition(car.position.x, car.position.y, car.position.z);
+          wheels.setMatrixAt(k * 2 + a, m.multiply(spin.makeRotationX(angle).scale(size).setPosition(0, r, axles[a])));
+        }
+      }
+      wheels.instanceMatrix.needsUpdate = true;
+    };
+    const puff = (from: THREE.Object3D): void => {
+      const h = from.rotation.y;
+      this.puffSteam(from.position.x + Math.sin(h) * CHIMNEY[2], from.position.y + CHIMNEY[1], from.position.z + Math.cos(h) * CHIMNEY[2]);
+    };
+    roll(0);
+    return { loco, wagons, tail, roll, puff };
+  }
+
+  /** Een wolkje stoom op deze plek: het stijgt op, wordt groter en lost dan op. */
+  puffSteam(x: number, y: number, z: number): void {
+    if (!this.steam) {
+      this.steam = new THREE.InstancedMesh(STEAM_GEO, STEAM_MAT, STEAM_MAX);
+      this.steam.frustumCulled = false;
+      for (let i = 0; i < STEAM_MAX; i++) this.steam.setMatrixAt(i, this.wm.makeScale(0, 0, 0));
+      this.scene.add(this.steam);
+    }
+    const i = this.steamNext * 4, at = this.steamAt;
+    this.steamNext = (this.steamNext + 1) % STEAM_MAX;
+    at[i] = x;
+    at[i + 1] = y;
+    at[i + 2] = z;
+    at[i + 3] = 0;
+    this.steamLive = true;
+  }
+
+  /** De stoomwolkjes, elk beeldje: omhoog, een beetje opzij en groter; aan het eind krimpen ze weg. */
+  private stepSteam(dt: number): void {
+    const steam = this.steam, at = this.steamAt;
+    if (!steam || !this.steamLive) return;
+    this.steamLive = false;
+    for (let i = 0; i < STEAM_MAX; i++) {
+      if (at[i * 4 + 3] >= STEAM_SECONDS) continue;
+      const age = (at[i * 4 + 3] += dt), u = Math.min(1, age / STEAM_SECONDS);
+      const size = (0.045 + 0.1 * u) * Math.min(1, (1 - u) * 3.5);
+      steam.setMatrixAt(i, this.wm.makeScale(size, size, size).setPosition(at[i * 4] + u * 0.1, at[i * 4 + 1] + u * 0.55, at[i * 4 + 2] - u * 0.06));
+      if (age < STEAM_SECONDS) this.steamLive = true;
+    }
+    steam.instanceMatrix.needsUpdate = true;
   }
 
   /**
@@ -4853,6 +5217,7 @@ export class View {
     this.stepWeather(dt);
     this.placeRainbow();
     this.stepGong(dt);
+    this.stepSteam(dt);
     for (const d of this.drops) {
       d.life -= dt;
       d.vy -= 5 * dt;

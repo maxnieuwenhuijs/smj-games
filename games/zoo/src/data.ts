@@ -3,7 +3,9 @@ export type Terrain = 'grass' | 'mud' | 'sand' | 'water' | 'path' | 'snow' | 'fo
   // soorten pad: gasten lopen over allemaal; de brug leg je over water
   | 'gravel' | 'planks' | 'flowerpath' | 'bridge'
   // nog drie paden om later vrij te spelen: rode klinkers, grijze keien en wit marmer
-  | 'brick' | 'cobble' | 'marble';
+  | 'brick' | 'cobble' | 'marble'
+  // het spoor van het treintje, en een overweg: spoor dwars over een pad (die ontstaat vanzelf, je kiest hem niet)
+  | 'rails' | 'crossing';
 export type FoodId = 'veg' | 'hay' | 'fruit' | 'grain' | 'meat' | 'leaves' | 'fish' | 'bamboo';
 export type BedKind = 'straw' | 'shed' | 'rock' | 'shade' | 'nest' | 'cave' | 'climb' | 'coral';
 export type ShopKind = 'foodstall' | 'drinkstall' | 'bench' | 'toilet' | 'icecream' | 'balloon' | 'flowers' | 'bin' | 'souvenir' | 'playground' | 'hats' | 'fountain' | 'carousel'
@@ -42,7 +44,7 @@ export type ToyKind = 'ball' | 'bush' | 'log' | 'flowerbed' | 'hoop'
   | 'filter';
 
 /** De volgorde is ook de waarde in het opslagbestand: nieuwe soorten komen achteraan. */
-export const TERRAINS: Terrain[] = ['grass', 'mud', 'sand', 'water', 'path', 'snow', 'forest', 'stones', 'ice', 'swamp', 'meadow', 'steppe', 'gravel', 'planks', 'flowerpath', 'bridge', 'brick', 'cobble', 'marble'];
+export const TERRAINS: Terrain[] = ['grass', 'mud', 'sand', 'water', 'path', 'snow', 'forest', 'stones', 'ice', 'swamp', 'meadow', 'steppe', 'gravel', 'planks', 'flowerpath', 'bridge', 'brick', 'cobble', 'marble', 'rails', 'crossing'];
 export const TERRAIN_INFO: Record<Terrain, { colors: [number, number] }> = {
   grass: { colors: [0x86c95c, 0x7cc053] },
   mud: { colors: [0x9c6b44, 0x8f6039] },
@@ -65,13 +67,20 @@ export const TERRAIN_INFO: Record<Terrain, { colors: [number, number] }> = {
   brick: { colors: [0xc9795a, 0xb9694b] },
   cobble: { colors: [0x9fa6ae, 0x8d949c] },
   marble: { colors: [0xf1f3f5, 0xdfe4e8] },
+  // het spoor ligt in het gras (de bedding, de bielzen en de rails tekent het beeld); de overweg is een stuk pad
+  rails: { colors: [0xb3a892, 0xa59a84] },
+  crossing: { colors: [0xd8c7ab, 0xcdbb9d] },
 };
 /** Alles waar gasten over lopen. `PATH_FROM`: na hoeveel gehaalde levels je het vrijspeelt. */
 export const PATH_KINDS: Terrain[] = ['path', 'gravel', 'planks', 'flowerpath', 'bridge', 'brick', 'cobble', 'marble'];
 export const PATH_FROM: Partial<Record<Terrain, number>> = { path: 3, gravel: 10, bridge: 13, planks: 17, brick: 21, flowerpath: 24, cobble: 30, marble: 37 };
-const PATH_IDS = new Set(PATH_KINDS.map(k => TERRAINS.indexOf(k)));
+/** Het spoor en de overweg, als nummer in TERRAINS. Over een overweg lopen de gasten gewoon: voor hen is het pad. */
+export const RAILS = TERRAINS.indexOf('rails'), CROSSING = TERRAINS.indexOf('crossing');
+const PATH_IDS = new Set([...PATH_KINDS.map(k => TERRAINS.indexOf(k)), CROSSING]);
 /** Is dit (het nummer van) een soort pad? */
 export const isPath = (terrain: number): boolean => PATH_IDS.has(terrain);
+/** Ligt hier spoor (rails of een overweg)? Daar rijdt het treintje; je kunt er niets op bouwen. */
+export const isRail = (terrain: number): boolean => terrain === RAILS || terrain === CROSSING;
 /** Grond die met de seizoenen meekleurt: wit in de winter, geel in de herfst. */
 export const SEASONAL: Terrain[] = ['grass', 'forest', 'meadow', 'steppe'];
 
@@ -434,8 +443,16 @@ export function bumperCar(i: number, t: number): [number, number, number] {
   const dx = Math.cos(a) * 0.55 * (0.9 + i * 0.17), dz = -Math.sin(b) * 0.55 * (0.7 + i * 0.13);
   return [x, z, Math.atan2(dx, dz)];
 }
-/** Het treintje: een locomotief met zoveel wagons, elk met zoveel plekken; `gap` is de afstand tussen twee wagens, `speed` in tegels per tel. */
-export const TRAIN = { wagons: 2, seats: 3, gap: 0.95, speed: 1.5, stop: 5 };
+/**
+ * Het treintje: een locomotief met hooguit zoveel wagons (op een kort spoor minder), elk met zoveel plekken; `gap` is
+ * de afstand tussen twee wagens, `half` de halve lengte van een wagen, `speed` in tegels per tel, `stop` zo lang staat
+ * hij bij een halte. `accel`: zo rustig trekt hij op en remt hij af (tegels per tel per tel). `turn`: zo lang staat hij
+ * aan het eind van een lijn voor hij terugrijdt. `warn`: zoveel tegels voor de trein uit gaan de spoorbomen dicht;
+ * `ring`: zoveel tellen voor het vertrek uit een halte al. `top`: zo hoog ligt de bovenkant van de rails. `most`:
+ * hooguit zoveel treinen in het park (één per spoor met een halte). `light` en `gateLight`: zo ver reikt 's nachts
+ * het licht van de koplamp en van de rode lampen van een dichte overweg (in tegels).
+ */
+export const TRAIN = { wagons: 3, seats: 3, gap: 0.95, half: 0.45, speed: 1.5, stop: 5, accel: 0.9, turn: 1.2, warn: 3.5, ring: 1.6, top: 0.085, most: 3, light: 2.2, gateLight: 1.3 };
 /** Kramen waar een gast iets koopt voor één munt. */
 export const STALLS: ShopKind[] = ['foodstall', 'drinkstall', 'icecream', 'balloon', 'hats', 'souvenir', 'facepaint'];
 /** Alles waar kinderen op spelen: de speeltuin en de losse toestellen. Een kind dat wil spelen kiest er zelf een. */

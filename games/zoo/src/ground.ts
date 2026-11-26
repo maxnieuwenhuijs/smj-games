@@ -13,9 +13,13 @@ const S = 512;
 const T = S / GROUND_SPAN;
 const TAU = Math.PI * 2;
 
-/** De brug ligt over water: daar ligt dus gewoon het plaatje van water onder. */
-type Surface = Exclude<Terrain, 'bridge'> | 'around';
-const surfaceOf = (kind: Terrain): Exclude<Terrain, 'bridge'> => (kind === 'bridge' ? 'water' : kind);
+/**
+ * De brug ligt over water: daar ligt dus gewoon het plaatje van water onder. Het spoor ligt in het gras en een
+ * overweg is een stuk pad; de bedding, de bielzen en de rails zelf tekent het beeld (zie View.buildRails).
+ */
+type Drawn = Exclude<Terrain, 'bridge' | 'rails' | 'crossing'>;
+type Surface = Drawn | 'around';
+const surfaceOf = (kind: Terrain): Drawn => (kind === 'bridge' ? 'water' : kind === 'rails' ? 'grass' : kind === 'crossing' ? 'path' : kind);
 
 // ------------------------------------------------------------ kleine hulpjes
 /** Vaste 'toevallige' getallen van 0 tot 1: met hetzelfde begin komt er altijd hetzelfde rijtje uit. */
