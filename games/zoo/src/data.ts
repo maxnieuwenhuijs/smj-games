@@ -443,9 +443,10 @@ export { FERRIS, RESTAURANT_TABLES, TOWER_TOP } from './rides';
  * aan het eind van een lijn voor hij terugrijdt. `warn`: zoveel tegels voor de trein uit gaan de spoorbomen dicht;
  * `ring`: zoveel tellen voor het vertrek uit een halte al. `top`: zo hoog ligt de bovenkant van de rails. `most`:
  * hooguit zoveel treinen in het park (één per spoor met een halte). `light` en `gateLight`: zo ver reikt 's nachts
- * het licht van de koplamp en van de rode lampen van een dichte overweg (in tegels).
+ * het licht van de koplamp en van de rode lampen van een dichte overweg (in tegels). `bell`: om de zoveel tellen
+ * rinkelt de bel bij een dichte overweg. `check`: om de zoveel tellen kijkt het spel of het spoor veranderd is.
  */
-export const TRAIN = { wagons: 3, seats: 3, gap: 0.95, half: 0.45, speed: 1.5, stop: 5, accel: 0.9, turn: 1.2, warn: 3.5, ring: 1.6, top: 0.085, most: 3, light: 2.2, gateLight: 1.3 };
+export const TRAIN = { wagons: 3, seats: 3, gap: 0.95, half: 0.45, speed: 1.5, stop: 5, accel: 0.9, turn: 1.2, warn: 3.5, ring: 1.6, top: 0.085, most: 3, light: 2.2, gateLight: 1.3, bell: 1.2, check: 0.5 };
 /** Kramen waar een gast iets koopt voor één munt. */
 export const STALLS: ShopKind[] = ['foodstall', 'drinkstall', 'icecream', 'balloon', 'hats', 'souvenir', 'facepaint'];
 /** Alles waar kinderen op spelen: de speeltuin en de losse toestellen. Een kind dat wil spelen kiest er zelf een. */

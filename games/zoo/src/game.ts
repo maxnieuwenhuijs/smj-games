@@ -753,13 +753,15 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /**
    * Het spoor (zie rails.ts). `crossLook`: per overweg welk soort pad eronder ligt. `railsKey`: het spoor en de haltes
    * van de laatste keer dat de routes zijn uitgezocht; `railsIn`: over zoveel tellen wordt er weer gekeken of er iets
-   * veranderd is (ook een hek dwars over het spoor, of een pad naar een halte). `crossings`: de overwegen, en welke nu dicht zijn.
+   * veranderd is (ook een hek dwars over het spoor, of een pad naar een halte). `crossings`: de overwegen, en welke nu
+   * dicht zijn; `bellIn`: over zoveel tellen rinkelt daar de bel weer.
    */
   private crossLook = new Map<number, number>();
   private railsKey = '';
   private railsIn = 0;
   private crossings: number[] = [];
   private crossShut = new Set<number>();
+  private bellIn = 0;
 
   constructor(private view: View, private slot: number, data: SaveData | undefined, onHome: () => void, private player = data?.player ?? '') {
     this.park = new ParkPlay(this.parkHost());
@@ -4446,7 +4448,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
    */
   private syncRails(now = false): void {
     if (!now && this.railsIn > 0) return;
-    this.railsIn = 0.5;
+    this.railsIn = TRAIN.check;
     // een hek dwars over het spoor, of tussen een overweg en het pad, laat het anders aansluiten: het beeld kijkt mee
     this.view.paintRails(this.grid);
     const links = railLinks(this.grid), stations = this.shops.filter(s => s.kind === 'station');
@@ -4484,8 +4486,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (shut[tile]) this.crossShut.add(tile);
       else this.crossShut.delete(tile);
     }
-    // ting-ting: zolang er een overweg dicht is, rinkelt daar de bel
-    for (const tile of this.crossShut) sfx('road.bell', { volume: 0.22, rate: 0.85, every: 1.2, at: [tileXY(tile)[0] + 0.5, tileXY(tile)[1] + 0.5] });
+    // ting-ting: zolang er een overweg dicht is, rinkelt daar de bel (om de zoveel tellen, niet elk beeldje)
+    this.bellIn -= dt;
+    if (this.bellIn <= 0 && this.crossShut.size) {
+      this.bellIn = TRAIN.bell;
+      for (const tile of this.crossShut) sfx('road.bell', { volume: 0.22, rate: 0.85, every: TRAIN.bell / 2, at: [tileXY(tile)[0] + 0.5, tileXY(tile)[1] + 0.5] });
+    }
     for (const train of this.guests.trains) {
       if (train.arrived) sfx('train.toot', { volume: 0.3, every: 4, at: [train.headX, train.headY] });
       if (train.departed) sfx('road.car', { volume: 0.18, rate: 0.7, every: 6, at: [train.gx, train.gy] });
