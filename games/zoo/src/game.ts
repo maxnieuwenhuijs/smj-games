@@ -3277,8 +3277,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     for (const d of this.decors) {
       const [gx, gy] = this.decorPos(d);
       const r = (LIGHT as Record<string, number>)[d.kind];
-      // een lamp die je hebt uitgetikt, geeft geen licht
-      if (r && this.park.lit(d)) list.push({ gx, gy, r });
+      // een lamp die je hebt uitgetikt, geeft geen licht (behalve op het avondfeest: dan doen alle lampen mee)
+      if (r && (this.party || this.park.lit(d))) list.push({ gx, gy, r });
     }
     for (const s of this.shops) if (!s.edge) list.push({ gx: blockCenter(s)[0], gy: blockCenter(s)[1], r: LIGHT.shop });
     this.road.lights(list);
@@ -5165,6 +5165,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.party = { due, from: this.clock, until: this.clock + PARTY.seconds, loop, fronts, animalsAt: this.clock + 1.5, popAt: 0, test: this.partyForce > 0 };
     this.placeGong(true, false);
     this.view.hitGong();
+    // uitgetikte lampen gaan voor het feest weer aan
+    this.park.allOn();
     // een diepe bong, de feesttoeter en vrolijke muziek
     sfx('chime', { volume: 0.9, rate: 0.5 });
     sfx('party', { volume: 0.6 });

@@ -500,7 +500,8 @@ export class ParkPlay {
     return true;
   }
 
-  private allOn(): void {
+  /** Alle lampen weer aan (ook bij het begin van het avondfeest). */
+  allOn(): void {
     if (!this.off.size) return;
     const strings = this.host.lamps().some(l => l.kind === 'lightstring' && this.off.has(l.ref));
     this.off.clear();
