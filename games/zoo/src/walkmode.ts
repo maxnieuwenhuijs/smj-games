@@ -176,7 +176,7 @@ export class WalkMode {
     // bij elke stap een zacht tikje
     const before = Math.floor(this.phase / Math.PI);
     this.phase += (moved / WALK.stride) * Math.PI;
-    if (Math.floor(this.phase / Math.PI) !== before) sfx('place', { volume: 0.1, rate: 1.6, every: 0.15 });
+    if (Math.floor(this.phase / Math.PI) !== before) sfx('walk.step', { volume: 0.35, rate: 0.9 + Math.random() * 0.2, every: 0.15 });
   }
 
   /** Wat recht voor je staat: dat krijgt een ring op de grond en een wolkje met zijn naam. */

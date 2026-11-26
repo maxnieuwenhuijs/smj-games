@@ -748,6 +748,15 @@ Veertien ideeën uit `docs/IDEEEN-INTERACTIEF.md`, gekozen door Max en gebouwd d
 - **Lampjes aan en uit** (vanaf level 15, 's nachts): tik op een lamp en hij gaat uit of aan, met een plopje. Zet je er snel een paar weer aan, of tik op de grote lamp boven de ingang, dan gaat er een golfje kleuren langs alle lampen. Elke avond gaan alle lampen vanzelf aan.
 - **Avondfeest** (`party.ts`): na 20, 30, 40 en 50 gehaalde levels is de eerstvolgende avond een feestavond (niet elke avond). 's Ochtends zegt de directeur het; om acht uur staat er een gong bij de ingang. Tik erop (of wacht tot negen uur): alle lampen gloeien in kleuren, er klinkt muziek, gasten lopen een rondje en dansen, de dieren komen naar het hek en doen hun kunstje, en aan het eind komen er zachte plopjes confetti. De klok loopt dan half zo snel, zodat iedereen blijft tot het feest voorbij is. Daarna 10 munten en iedereen gaat naar huis.
 
+### Rondlopen als bezoeker
+
+Vanaf het level met paden staat er een knop met een lopend kindje (onder de trommel). Daarmee zak je in 1,3 tel naar ooghoogte van een kind, op het pad in het midden van je beeld (anders bij de ingang). Met dezelfde knop of Escape vlieg je terug naar precies waar je was (`walk.ts`, `walkmode.ts`).
+
+- **Lopen:** pijltjes of WASD (links en rechts draaien, Shift erbij om opzij te stappen), rondkijken door te slepen; op een tablet een grote ronde knop linksonder. Rustig tempo, een zacht knikkend hoofd en voetstapjes (`walk.step`).
+- **Niet door** hekken, verblijven, water, gebouwen, kramen, versieringen, bomen en rotsen; tegen een muur glijd je erlangs.
+- **Kijken en aantikken:** een stipje in het midden. Kijk je binnen 5 tegels naar een dier, gast of kraam, dan wordt het stipje geel en zie je de naam. Tik (of Spatie/E): een dier laat zich horen, komt naar het hek en doet het kunstje van zijn soort, met een hartje; een gast zwaait terug en een kind springt.
+- Tijdens het lopen verdwijnen de bouwknoppen; munten, sterren en de klok blijven. Dag en nacht, regen en sneeuw lopen gewoon door.
+
 ### Het logo van SMJ Games
 
 SMJ staat voor **Super Magical Journeys**. De drie letters zijn figuurtjes: een oranje S met een cape, een paarse harige M met een toverstaf en een groene J met een safarihoed. De plaatjes zijn losgeknipt van hun witte achtergrond (`tools/logo/knip.py` met Blender, bron in `tools/logo/bron/`, uitkomst in `games/zoo/public/logo/`).

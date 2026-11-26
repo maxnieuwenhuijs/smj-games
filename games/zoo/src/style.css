@@ -131,7 +131,7 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
   #drum { top: auto; bottom: calc(210px + 3 * min(70px, 13vw)); right: 8px; }
 }
 /* de loopstand: de knop links naast de draaipijlen; op een smal scherm rechts, boven de trommel */
-#walk { position: absolute; top: 12px; right: calc(52px + 4 * min(70px, 13vw)); z-index: 2; }
+#walk { position: absolute; top: calc(36px + 2 * min(70px, 13vw)); right: calc(42px + 3 * min(70px, 13vw)); z-index: 2; }
 #walk[hidden] { display: none; }
 #walk.on { background: #ffe9a8; }
 @media (max-width: 620px) {

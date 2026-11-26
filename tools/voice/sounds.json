@@ -1021,6 +1021,12 @@
       "prompt": "A single camera shutter click. Short, dry, clean."
     },
     {
+      "id": "walk.step",
+      "seconds": 0.5,
+      "influence": 0.5,
+      "prompt": "A single soft footstep of a child's sneaker on a gravel garden path. Short, light, close, no reverb."
+    },
+    {
       "id": "logo.jingle",
       "seconds": 2.5,
       "influence": 0.5,
