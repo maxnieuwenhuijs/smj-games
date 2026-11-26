@@ -11,7 +11,7 @@ import {
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
   type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, hourAt, WAGE, TOY_LIKES, DECOR, DECORS, type DecorKind, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, GUESTS_HOME, STAFF_HOME, STAFF_BACK, VENDORS_BACK, LIGHT, SPACE, guestsAt, SERVES,
   isPath, PATH_KINDS, PATH_FROM, TOY_FROM, TOY_PRICE, CLIMATE, palsOf, PETTABLE, PETTING_MIN, NATURES, pickRare, RARE_CHANCE, MUD_LOVERS, FERRIS, BUMPER_CARS, bumperCar, crowdLoad, CROWD_EASE,
-  EDGE_DECOR, POLE_DECOR, LOW_POLES, SMALL_DECOR, PARK_GROUPS, ATTRACTIONS, parkShopGroup, PROP, PROPS, WILD_PROPS, PARK_PROPS, WILD_KINDS, wildRange, wildWant, type PropKind, type WildKind, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, SEASONS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
+  EDGE_DECOR, POLE_DECOR, LOW_POLES, SMALL_DECOR, PARK_GROUPS, ATTRACTIONS, parkShopGroup, PROP, PROPS, WILD_PROPS, PARK_PROPS, WILD_KINDS, wildRange, wildWant, type PropKind, type WildKind, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, seasonOn, homeWorld, PALS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
 import { CLIMB_SECONDS, PUSH, SWING, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, sinceHit, sway, swingAt, tetherAt } from './data';
 import { WAYFIND, canStray, wayfound, type WaySign } from './data';
 import { scares } from './data';
@@ -22,7 +22,7 @@ import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, nearestSpot, spotEd
 import { glassSides } from './grid';
 import { Hud, type GoalView, type ParkPanel, type ToolDef, type ToolOption } from './hud';
 import { ICON_IDS, cursor, icon, stacked, type IconId } from './icons';
-import { emptyStats, goalProgress, levelDone, type Stats } from './levels';
+import { emptyStats, goalProgress, levelDone, pairKey, type Stats } from './levels';
 import { CHEERS, EVENT_SAYS, NAMED, PRAISE, callText, goalLine, say, textOf, voiceId, wishLine, type EventPart, type Line } from './lines';
 import { TEACHERS, type TeacherId } from './figures';
 import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStatic, speciesIcon } from './models';
@@ -1706,7 +1706,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       case 'bed': return 'bed';
       case 'path': return 'terrain';
       case 'shop': return goal.shop && parkShopGroup(goal.shop) ? 'decor' : goal.shop && (ATTRACTIONS.includes(goal.shop) || PLAY.includes(goal.shop)) ? 'rides' : 'shop';
-      case 'animals': return 'animal';
+      case 'animals':
+      case 'together': return 'animal';
+      case 'toys': return 'toy';
       case 'cleaned':
       case 'tidy': return 'action';
       case 'fed':
@@ -1742,6 +1744,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       keeper: icon('keeper'),
       tidy: icon('litter'),
       sold: (g.product ? this.productIcon(g.product) : icon(g.shop ?? 'coin')) + icon('coin', 'badge'),
+      // twee vriendjes samen: de ene kop groot, de andere klein erbij
+      together: (g.species ? speciesIcon(g.species) : icon('paw')) + (g.mate ? speciesIcon(g.mate, 'badge') : ''),
+      young: (g.species ? speciesIcon(g.species) : icon('paw')) + icon('born', 'badge'),
+      toys: icon('ball') + icon('tyre', 'badge'),
+      happyworld: icon(`world_${g.world ?? 'farm'}` as IconId) + icon('heart', 'badge'),
     };
     return { icon: html[g.type], label: textOf(t, line), n: g.n, who: line.who };
   }
@@ -6238,10 +6245,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return this.timeBase + this.clock;
   }
 
-  /** Elk seizoen duurt één dag in het spel (een dag en een nacht: ongeveer dertien minuten). Voor FEATURE.season is het altijd zomer. */
+  /** Elk seizoen duurt een paar dagen in het spel (SEASON_DAYS: ruim een half uur). Voor FEATURE.season is het altijd zomer. */
   private seasonNow(): Season {
-    if (!this.has('season')) return 'summer';
-    return SEASONS[Math.floor(this.now() / (DAY_SECONDS + NIGHT_SECONDS)) % SEASONS.length];
+    return this.has('season') ? seasonOn(this.dayNumber()) : 'summer';
   }
 
   /** Regent het (en is het geen sneeuw)? Dan worden gasten nat en schuilen de dieren. */
@@ -7633,7 +7639,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (a.happy) {
         stats.happy[a.species] = (stats.happy[a.species] ?? 0) + 1;
         stats.happyAll++;
+        const world = homeWorld(a.species);
+        stats.happyWorld[world] = (stats.happyWorld[world] ?? 0) + 1;
       }
+      if (a.young && !a.escaped && this.grid.enclosureAt(x, y)) stats.young[a.species] = (stats.young[a.species] ?? 0) + 1;
       if (a.happy && !was) {
         this.floatAt(icon('heart'), a.gx, a.gy, a.top);
         sfx('heart', { volume: 0.5, every: 1.5 });
@@ -7680,6 +7689,18 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (crowd.lacking.astray) needs.push({ icon: icon('signpost'), badge: icon('question') });
     this.hud.setNeeds(needs);
     stats.kinds = Object.values(stats.happy).filter(n => n >= 2).length;
+    // vriendjes die samen in één verblijf wonen, van elk minstens één blij dier
+    const blije = new Map<number, Set<SpeciesId>>();
+    for (const a of this.animals) {
+      if (!a.happy) continue;
+      const id = this.grid.regionOf[a.tile];
+      if (!blije.has(id)) blije.set(id, new Set());
+      blije.get(id)!.add(a.species);
+    }
+    for (const kinds of blije.values())
+      for (const [p, q] of PALS) if (kinds.has(p) && kinds.has(q)) stats.together[pairKey(p, q)] = (stats.together[pairKey(p, q)] ?? 0) + 1;
+    // hoeveel soorten speelgoed er in de verblijven staan (de warmtelamp, het ijsblok en het filter zijn geen speelgoed)
+    stats.toyKinds = new Set(this.toys.filter(toy => toy.kind !== 'lamp' && toy.kind !== 'icebox' && toy.kind !== 'filter' && this.grid.enclosureAt(toy.x, toy.y)).map(toy => toy.kind)).size;
     this.stats = stats;
     if (taken.length) {
       const first = taken[0];

@@ -16,6 +16,7 @@ import { ATTRACTIONS, SHOW_STARS, SHOW_TIME, newShow, showReady, showSoon, showT
 import { glassSides } from './grid';
 import { LOOKS, RIDES } from './data';
 import { STALLS } from './data';
+import { TOYS, herdOf, homeWorld } from './data';
 
 /** Zet een hek om het blok tegels van (x0,y0) tot en met (x1,y1). */
 function fenceBox(g: Grid, x0: number, y0: number, x1: number, y1: number): Edge[] {
@@ -194,12 +195,35 @@ describe('vijftig levels', () => {
     expect(worldOf(49)).toBe('far');
   });
 
-  it('elk level vraagt om het dier dat je net kreeg', () => {
+  it('elk level gaat over het dier dat je net kreeg', () => {
     LEVELS.forEach((level, i) => {
       if (i < 2) return;
-      const happy = level.goals.find(g => g.type === 'happy');
-      expect(happy?.species, `level ${i + 1}`).toBe(LEVELS[i - 1].reward);
+      const mine = level.goals.filter(g => g.species === LEVELS[i - 1].reward && (g.type === 'happy' || g.type === 'together' || g.type === 'young'));
+      expect(mine.length, `level ${i + 1}`).toBeGreaterThanOrEqual(1);
     });
+  });
+
+  it('de levels vragen niet steeds om hetzelfde: de aantallen en de soorten doelen wisselen', () => {
+    // het aantal blije dieren van de nieuwe soort is niet altijd twee
+    const counts = new Set(LEVELS.flatMap(l => l.goals.filter(g => g.type === 'happy').map(g => g.n)));
+    expect(counts.size).toBeGreaterThanOrEqual(4);
+    // een groepsdier wil met zijn hele groep blij zijn: nooit minder dan de groep
+    for (const level of LEVELS) for (const g of level.goals) if (g.type === 'happy' && g.species) expect(g.n, g.species).toBeGreaterThanOrEqual(Math.min(herdOf(g.species), 2));
+    for (const type of ['together', 'young', 'toys', 'happyworld']) expect(LEVELS.filter(l => l.goals.some(g => g.type === type)).length, type).toBeGreaterThanOrEqual(3);
+    // geen twee levels achter elkaar met precies dezelfde soorten doelen
+    for (let i = 3; i < LEVELS.length; i++) {
+      const shape = (k: number): string => LEVELS[k].goals.map(g => `${g.type}${g.type === 'happy' ? g.n : ''}`).sort().join();
+      expect(shape(i), `level ${i} en ${i + 1}`).not.toBe(shape(i - 1));
+    }
+  });
+
+  it('twee soorten samen in één verblijf zijn altijd vriendjes, en jongen passen in één verblijf', () => {
+    for (const level of LEVELS)
+      for (const g of level.goals) {
+        if (g.type === 'together') expect(PALS.some(p => p.includes(g.species!) && p.includes(g.mate!)), `${g.species} en ${g.mate}`).toBe(true);
+        // een derde jong verhuist naar een andere dierentuin: meer dan twee kan niet in één verblijf
+        if (g.type === 'young') expect(g.n).toBeLessThanOrEqual(2);
+      }
   });
 
   it('een doel vraagt nooit om iets wat nog niet vrij is', () => {
@@ -215,6 +239,13 @@ describe('vijftig levels', () => {
         if (g.type === 'sold' && g.shop) expect(FEATURE[g.shop], `level ${i + 1} ${g.shop}`).toBeLessThanOrEqual(i);
         if (g.type === 'kinds') expect(g.n).toBeLessThanOrEqual(i);
         if (g.species) expect(unlockedSpecies(i)).toContain(g.species);
+        if (g.mate) expect(unlockedSpecies(i), `level ${i + 1} ${g.mate}`).toContain(g.mate);
+        // zoveel soorten speelgoed zijn er dan ook te koop, en een hele wereld vraag je pas als je die dieren hebt
+        if (g.type === 'toys') {
+          expect(FEATURE.fun, `level ${i + 1}`).toBeLessThanOrEqual(i);
+          expect(TOYS.filter(k => TOY_FROM[k] <= i && k !== 'lamp' && k !== 'icebox' && k !== 'filter').length, `level ${i + 1}`).toBeGreaterThanOrEqual(g.n + 2);
+        }
+        if (g.type === 'happyworld') expect(unlockedSpecies(i).filter(sp => homeWorld(sp) === g.world).length * 2, `level ${i + 1}`).toBeGreaterThanOrEqual(g.n);
       }
     });
     for (const kind of SHOPS) {

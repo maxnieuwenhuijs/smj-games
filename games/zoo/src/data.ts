@@ -534,8 +534,8 @@ export const WORLDS: WorldId[] = ['farm', 'savanna', 'jungle', 'ice', 'far'];
 // ------------------------------------------------------------ munten
 /** Er passen nooit meer munten in de kas dan dit: twee cijfers, net genoeg voor twee van de duurste dieren. */
 export const COIN_CAP = 99;
-/** Dag en nacht (vanaf FEATURE.night): zo lang duren ze, in tellen. De schemering duurt DUSK_SECONDS. */
-export const DAY_SECONDS = 600;
+/** Dag en nacht (vanaf FEATURE.night): zo lang duren ze, in tellen. De schemering duurt DUSK_SECONDS. Een dag duurt zeven en een halve minuut: zo komt de nacht (en het werk met de lantaarns) vaak genoeg langs. */
+export const DAY_SECONDS = 450;
 /**
  * De nacht in drie stukken, elk [van uur, tot uur, tellen]: de avond (21 tot 24 uur: donker, het park is nog open),
  * de slaapnacht (0 tot 5 uur: het park is dicht, alles slaapt en er is niemand meer; die duurt anderhalve minuut,
@@ -622,9 +622,12 @@ export const DIRT_PER_USE = 0.02;
 export const CART_PRICE = 6;
 /** De kleuren die je voor het pak van je personeel kunt kiezen (de eerste is het gewone groen). */
 export const SUIT_COLORS = [0x4fa35a, 0x4a90e2, 0xe0584f, 0xf5a623, 0xa06ad9, 0xf06aa6, 0x2bb5a8, 0x6b4a2a, 0xf4f1e8, 0x3d4f7a];
-/** Seizoenen (vanaf FEATURE.season): elk duurt twee dagen in het spel. */
+/** Seizoenen (vanaf FEATURE.season): elk duurt SEASON_DAYS dagen in het spel (een dag en een nacht is ruim elf minuten), dus ruim een half uur. */
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 export const SEASONS: Season[] = ['spring', 'summer', 'autumn', 'winter'];
+export const SEASON_DAYS = 3;
+/** Het seizoen op dag `day` (de eerste dag is 0). */
+export const seasonOn = (day: number): Season => SEASONS[Math.floor(Math.max(0, day) / SEASON_DAYS) % SEASONS.length];
 /** Het weer (vanaf FEATURE.weather): af en toe een rustige bui. Tussen twee buien zit minstens RAIN_EVERY[0] tellen. */
 export const RAIN_EVERY: [number, number] = [330, 560];
 export const RAIN_SECONDS: [number, number] = [45, 75];
@@ -727,7 +730,10 @@ export const ALSO: Partial<Record<SpeciesId, Terrain[]>> = {
 export type GoalType =
   | 'enclosure' | 'trough' | 'bed' | 'animals' | 'happy' | 'fed' | 'cleaned'
   | 'path' | 'guests' | 'coins' | 'shop' | 'born'
-  | 'kinds' | 'happyany' | 'healed' | 'caught' | 'keeper' | 'tidy' | 'sold';
+  | 'kinds' | 'happyany' | 'healed' | 'caught' | 'keeper' | 'tidy' | 'sold'
+  // twee soorten vriendjes samen blij in één verblijf, jongen van één soort, zoveel soorten speelgoed in de
+  // verblijven, en zoveel blije dieren uit één wereld
+  | 'together' | 'young' | 'toys' | 'happyworld';
 export interface Goal {
   type: GoalType;
   n: number;
@@ -735,6 +741,10 @@ export interface Goal {
   shop?: ShopKind;
   /** Bij 'sold': het ding dat verkocht moet worden. Zonder `product` en `shop` telt alles waar een gast precies om vroeg. */
   product?: string;
+  /** Bij 'together': de soort die bij `species` in hetzelfde verblijf moet wonen (een vriendje, zie PALS). */
+  mate?: SpeciesId;
+  /** Bij 'happyworld': de wereld waar de dieren vandaan komen. */
+  world?: WorldId;
 }
 export interface Level {
   goals: Goal[];
@@ -749,10 +759,18 @@ const shop = (kind: ShopKind, n = 1): Goal => ({ type: 'shop', shop: kind, n });
 /** Zoveel keer verkopen: een bepaald ding ('scoop'), alles van een soort kraam ('hats') of alles waar gasten om vragen. */
 const sold = (n: number, what?: string): Goal =>
   what && SHOPS.includes(what as ShopKind) ? { type: 'sold', n, shop: what as ShopKind } : { type: 'sold', n, product: what };
+/** Twee soorten vriendjes samen in één verblijf, van elk minstens één blij dier. */
+const together = (species: SpeciesId, mate: SpeciesId): Goal => ({ type: 'together', species, mate, n: 1 });
+/** Zoveel jongen van deze soort (hooguit twee: een derde jong verhuist naar een andere dierentuin). */
+const young = (species: SpeciesId, n = 1): Goal => ({ type: 'young', species, n });
+/** Zoveel blije dieren uit één wereld. */
+const happyWorld = (world: WorldId, n: number): Goal => ({ type: 'happyworld', world, n });
 
 /**
- * Vijftig levels in vijf werelden van tien. Elk level speelt één dier vrij en vraagt om twee blije dieren
- * van de soort die je net kreeg. De rest loopt op: meer gasten, meer soorten tegelijk blij, en vanaf de
+ * Vijftig levels in vijf werelden van tien. Elk level speelt één dier vrij, en het dier dat je net kreeg komt in het
+ * volgende level terug: steeds op een andere manier. Een groepsdier wil met zijn hele groep blij zijn (drie
+ * schapen, vijf kippen), twee vriendjes moeten samen in één verblijf, of er moet een jong komen. De rest loopt op:
+ * meer gasten, meer soorten tegelijk blij, meer soorten speelgoed, zoveel blije dieren uit één wereld, en vanaf de
  * savanne verzorgers die helpen, en later zieke en ontsnapte dieren.
  */
 export const LEVELS: Level[] = [
@@ -760,63 +778,69 @@ export const LEVELS: Level[] = [
   { goals: [goal('enclosure', 1), goal('trough', 1)], reward: 'pig' },
   { goals: [animals('pig'), goal('bed', 1), goal('fed', 1), happy('pig')], reward: 'cow' },
   { goals: [animals('cow'), happy('cow'), goal('cleaned', 3)], reward: 'sheep' },
-  { goals: [goal('path', 6), happy('sheep'), goal('guests', 3)], reward: 'horse' },
+  { goals: [goal('path', 6), happy('sheep', 3), goal('guests', 3)], reward: 'horse' },
   { goals: [shop('foodstall'), happy('horse'), goal('coins', 8)], reward: 'donkey' },
   { goals: [shop('drinkstall'), happy('donkey'), goal('guests', 5)], reward: 'goat' },
-  { goals: [happy('goat'), goal('born', 1), goal('coins', 12)], reward: 'alpaca' },
-  { goals: [shop('toilet'), happy('alpaca'), goal('guests', 6)], reward: 'chicken' },
-  { goals: [happy('chicken'), shop('bench', 2), goal('cleaned', 5)], reward: 'duck' },
-  { goals: [happy('duck'), goal('kinds', 3), shop('slide')], reward: 'rabbit' },
+  { goals: [happy('goat', 3), goal('born', 1), goal('coins', 12)], reward: 'alpaca' },
+  { goals: [shop('toilet'), together('alpaca', 'goat'), goal('guests', 6)], reward: 'chicken' },
+  { goals: [happy('chicken', 5), shop('bench', 2), goal('cleaned', 5)], reward: 'duck' },
+  { goals: [happy('duck', 4), goal('kinds', 3), shop('slide')], reward: 'rabbit' },
   // ---- wereld 2: savanne. Stenen muren, meer soorten tegelijk, meer gasten.
-  { goals: [happy('rabbit'), goal('born', 2), goal('guests', 8)], reward: 'zebra' },
-  { goals: [happy('zebra'), shop('icecream'), goal('coins', 18)], reward: 'giraffe' },
-  { goals: [happy('giraffe'), goal('keeper', 1), goal('guests', 9)], reward: 'lion' },
+  { goals: [happy('rabbit', 4), young('rabbit', 2), goal('guests', 8)], reward: 'zebra' },
+  { goals: [happy('zebra', 3), shop('icecream'), goal('coins', 18)], reward: 'giraffe' },
+  { goals: [together('giraffe', 'zebra'), goal('keeper', 1), goal('guests', 9)], reward: 'lion' },
   { goals: [happy('lion'), goal('kinds', 4), sold(3, 'scoop')], reward: 'camel' },
-  { goals: [happy('camel'), shop('flowers', 3), goal('guests', 10)], reward: 'rhino' },
+  { goals: [happy('camel'), shop('flowers', 3), happyWorld('farm', 10)], reward: 'rhino' },
   { goals: [happy('rhino'), shop('fountain'), goal('happyany', 12)], reward: 'hippo' },
-  { goals: [happy('hippo'), goal('kinds', 5), sold(3, 'pancake')], reward: 'elephant' },
+  { goals: [happy('hippo'), goal('toys', 4), sold(3, 'pancake')], reward: 'elephant' },
   { goals: [happy('elephant'), shop('bin', 2), goal('guests', 12)], reward: 'ostrich' },
-  { goals: [happy('ostrich'), goal('tidy', 4), goal('born', 3)], reward: 'cheetah' },
+  { goals: [happy('ostrich', 3), goal('tidy', 4), goal('born', 3)], reward: 'cheetah' },
   { goals: [happy('cheetah'), goal('kinds', 6), goal('guests', 13), sold(4, 'lolly')], reward: 'gazelle' },
   // ---- wereld 3: jungle. Hoge netten, zieke dieren en de eerste verzorgers.
-  { goals: [happy('gazelle'), goal('healed', 1), goal('happyany', 14)], reward: 'monkey' },
-  { goals: [happy('monkey'), shop('balloon'), goal('guests', 14)], reward: 'parrot' },
-  { goals: [happy('parrot'), goal('healed', 2), shop('hats')], reward: 'tiger' },
-  { goals: [happy('tiger'), goal('keeper', 3), goal('cleaned', 8)], reward: 'gorilla' },
+  { goals: [happy('gazelle', 4), goal('healed', 1), happyWorld('savanna', 12)], reward: 'monkey' },
+  { goals: [happy('monkey', 4), shop('balloon'), goal('guests', 14)], reward: 'parrot' },
+  { goals: [happy('parrot', 3), goal('healed', 2), shop('hats')], reward: 'tiger' },
+  { goals: [happy('tiger'), goal('keeper', 3), goal('toys', 6)], reward: 'gorilla' },
   { goals: [happy('gorilla'), goal('guests', 15), sold(4, 'hats')], reward: 'crocodile' },
   { goals: [happy('crocodile'), shop('carousel'), goal('tidy', 6)], reward: 'panda' },
-  { goals: [happy('panda'), goal('happyany', 16), shop('souvenir')], reward: 'peacock' },
+  { goals: [happy('panda'), young('panda'), shop('souvenir')], reward: 'peacock' },
   { goals: [happy('peacock'), goal('keeper', 4), goal('healed', 2)], reward: 'toucan' },
-  { goals: [happy('toucan'), goal('kinds', 8), sold(4, 'souvenir')], reward: 'sloth' },
-  { goals: [happy('sloth'), goal('born', 4), goal('happyany', 18), goal('coins', 30)], reward: 'panther' },
+  { goals: [happy('toucan', 3), goal('kinds', 8), sold(4, 'souvenir')], reward: 'sloth' },
+  { goals: [happy('sloth'), happyWorld('jungle', 14), goal('happyany', 18), goal('coins', 30)], reward: 'panther' },
   // ---- wereld 4: ijs en bergen. Sneeuw, vis en dieren die ontsnappen.
   { goals: [happy('panther'), goal('caught', 1), goal('guests', 16)], reward: 'penguin' },
-  { goals: [happy('penguin'), goal('healed', 2), goal('happyany', 18)], reward: 'seal' },
+  { goals: [happy('penguin', 5), goal('healed', 2), goal('happyany', 18)], reward: 'seal' },
   { goals: [happy('seal'), goal('caught', 2), goal('coins', 30)], reward: 'polarbear' },
   { goals: [happy('polarbear'), goal('kinds', 9), goal('guests', 17)], reward: 'reindeer' },
-  { goals: [happy('reindeer'), goal('born', 4), goal('tidy', 8)], reward: 'wolf' },
-  { goals: [happy('wolf'), goal('keeper', 6), goal('happyany', 20)], reward: 'arcticfox' },
+  { goals: [happy('reindeer', 3), young('reindeer'), goal('tidy', 8)], reward: 'wolf' },
+  { goals: [happy('wolf', 3), goal('keeper', 6), goal('happyany', 20)], reward: 'arcticfox' },
   { goals: [happy('arcticfox'), goal('healed', 3), goal('caught', 2), goal('guests', 18)], reward: 'bear' },
-  { goals: [happy('bear'), goal('kinds', 10), sold(5, 'milk')], reward: 'yak' },
-  { goals: [happy('yak'), goal('born', 5), goal('happyany', 22)], reward: 'owl' },
-  { goals: [happy('owl'), goal('guests', 20), goal('healed', 3), goal('cleaned', 10)], reward: 'walrus' },
+  { goals: [happy('bear'), goal('toys', 8), sold(5, 'milk')], reward: 'yak' },
+  { goals: [together('yak', 'reindeer'), goal('born', 5), goal('happyany', 22)], reward: 'owl' },
+  { goals: [happy('owl'), goal('guests', 20), goal('healed', 3), happyWorld('ice', 16)], reward: 'walrus' },
   // ---- wereld 5: water en verre landen. Alles door elkaar, en steeds meer.
   { goals: [happy('walrus'), goal('kinds', 10), goal('guests', 20)], reward: 'flamingo' },
-  { goals: [happy('flamingo'), goal('born', 5), goal('caught', 3)], reward: 'turtle' },
+  { goals: [happy('flamingo', 5), goal('born', 5), goal('caught', 3)], reward: 'turtle' },
   { goals: [happy('turtle'), goal('happyany', 24), sold(10)], reward: 'otter' },
-  { goals: [happy('otter'), goal('keeper', 8), goal('healed', 4)], reward: 'beaver' },
+  { goals: [happy('otter', 3), goal('keeper', 8), goal('healed', 4)], reward: 'beaver' },
   { goals: [happy('beaver'), goal('kinds', 11), goal('guests', 21)], reward: 'pelican' },
-  { goals: [happy('pelican'), goal('born', 6), goal('tidy', 10)], reward: 'koala' },
+  { goals: [together('pelican', 'flamingo'), goal('born', 6), goal('tidy', 10)], reward: 'koala' },
   { goals: [happy('koala'), goal('happyany', 26), goal('caught', 3), sold(15)], reward: 'redpanda' },
-  { goals: [happy('redpanda'), goal('kinds', 12), goal('guests', 22)], reward: 'lemur' },
-  { goals: [happy('lemur'), goal('healed', 5), goal('born', 6), goal('happyany', 28)], reward: 'bison' },
-  { goals: [happy('bison'), goal('kinds', 12), goal('guests', 22), goal('happyany', 30), goal('coins', 30)], reward: 'kangaroo' },
+  { goals: [happy('redpanda'), young('redpanda'), goal('kinds', 12), goal('guests', 22)], reward: 'lemur' },
+  { goals: [happy('lemur', 4), goal('healed', 5), goal('born', 6), goal('happyany', 28)], reward: 'bison' },
+  { goals: [happy('bison', 3), goal('kinds', 12), goal('guests', 22), goal('happyany', 30), goal('coins', 30)], reward: 'kangaroo' },
 ];
 
 export const LEVELS_PER_WORLD = 10;
 /** In welke wereld speelt dit level (0 = het eerste level)? */
 export function worldOf(levelIndex: number): WorldId {
   return WORLDS[Math.min(WORLDS.length - 1, Math.floor(levelIndex / LEVELS_PER_WORLD))];
+}
+
+/** De wereld waar een soort bij hoort: de wereld van het level waarin je hem krijgt. De zeedieren horen bij het aquarium. */
+export function homeWorld(sp: SpeciesId): WorldId | 'aqua' {
+  const i = LEVELS.findIndex(l => l.reward === sp);
+  return i < 0 ? 'aqua' : worldOf(i);
 }
 
 /** Soorten die vrij zijn als je `done` levels hebt gehaald. */
@@ -1067,6 +1091,10 @@ export const GOAL_OWNER: Record<GoalType, 'builder' | 'keeper' | 'host' | 'cashi
   tidy: 'host',
   sold: 'host',
   coins: 'cashier',
+  together: 'keeper',
+  young: 'keeper',
+  toys: 'keeper',
+  happyworld: 'keeper',
 };
 
 /** De wens 'safe' (niet bang zijn) staat vooraan: zolang een dier bang is, zie je dat het eerst. */

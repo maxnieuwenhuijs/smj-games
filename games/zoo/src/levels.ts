@@ -28,12 +28,27 @@ export interface Stats {
   soldAt: Record<string, number>;
   /** Alles wat verkocht is aan een gast die er precies om vroeg. */
   soldAll: number;
+  /** Jongen per soort die nu in een verblijf wonen. */
+  young: Record<string, number>;
+  /**
+   * Per tweetal soorten ('goat+alpaca', de namen op alfabet): in hoeveel verblijven ze samen wonen met van elk
+   * minstens één blij dier.
+   */
+  together: Record<string, number>;
+  /** Hoeveel verschillende soorten speelgoed er in de verblijven staan. */
+  toyKinds: number;
+  /** Blije dieren per wereld. */
+  happyWorld: Record<string, number>;
 }
+
+/** De naam waaronder een tweetal soorten in `Stats.together` staat: op alfabet, zodat de volgorde niet uitmaakt. */
+export const pairKey = (a: string, b: string): string => (a < b ? `${a}+${b}` : `${b}+${a}`);
 
 export function emptyStats(): Stats {
   return {
     enclosures: 0, troughs: 0, beds: 0, paths: 0, guests: 0, coins: 0, shops: {}, animals: {}, happy: {},
     happyAll: 0, kinds: 0, fed: 0, cleaned: 0, born: 0, healed: 0, caught: 0, keepers: 0, tidied: 0, sold: {}, soldAt: {}, soldAll: 0,
+    young: {}, together: {}, toyKinds: 0, happyWorld: {},
   };
 }
 
@@ -59,6 +74,10 @@ export function goalProgress(goal: Goal, s: Stats): number {
     case 'keeper': value = s.keepers; break;
     case 'tidy': value = s.tidied; break;
     case 'sold': value = goal.product ? s.sold[goal.product] ?? 0 : goal.shop ? s.soldAt[goal.shop] ?? 0 : s.soldAll; break;
+    case 'together': value = s.together[pairKey(goal.species ?? '', goal.mate ?? '')] ?? 0; break;
+    case 'young': value = s.young[goal.species ?? ''] ?? 0; break;
+    case 'toys': value = s.toyKinds; break;
+    case 'happyworld': value = s.happyWorld[goal.world ?? ''] ?? 0; break;
   }
   return Math.max(0, Math.min(goal.n, value));
 }

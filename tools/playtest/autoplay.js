@@ -56,6 +56,8 @@ export const T = {
   byGuard: 0,
   looseSince: new Map(),
   home: {},        // soort -> nummer van de plek
+  mates: {},       // soort die bij een vriendje inwoont -> nummer van die plek
+  variety: true,   // speelgoed: liefst een soort die nog nergens staat
   order: [],       // soorten in volgorde van bouwen
   pathsDone: false,
 
@@ -102,13 +104,21 @@ export const T = {
     const info = SPECIES[sp];
     let n = this.order.length;
     if (n >= SLOTS.length) {
-      const needed = new Set(game.levelDef()?.goals.map(g => g.species).filter(Boolean));
+      const goals = game.levelDef()?.goals ?? [];
+      const needed = new Set([...goals.flatMap(g => [g.species, g.mate]), ...goals.filter(g => g.world).flatMap(g => LEVELS.map(l => l.reward).filter(r => data.homeWorld(r) === g.world))].filter(Boolean));
       const old = this.order.find(s => !needed.has(s));
       n = this.home[old];
-      for (const a of this.animalsOf(old)) game.removeAnimal(a);
+      const slot = SLOTS[n];
+      const within = o => Math.floor(o.gx ?? o.x) >= slot.x0 && Math.floor(o.gx ?? o.x) <= slot.x1 && Math.floor(o.gy ?? o.y) >= slot.y0 && Math.floor(o.gy ?? o.y) <= slot.y1;
+      // ook het vriendje van een andere soort dat erbij woonde, en zijn eigen voerbak
+      for (const a of game.animals.filter(a => a.species === old || (!a.escaped && within(a)))) game.removeAnimal(a);
+      for (const tr of game.troughs.filter(t => within(t) && !(t.x === slot.x0 && t.y === slot.y0))) {
+        game.view.scene.remove(tr.mesh.group);
+        game.troughs = game.troughs.filter(k => k !== tr);
+      }
+      for (const mate of Object.keys(this.mates)) if (this.mates[mate] === n) delete this.mates[mate];
       delete this.home[old];
       this.order = this.order.filter(s => s !== old);
-      const slot = SLOTS[n];
       for (const b of game.beds.filter(b => b.x >= slot.x0 && b.x <= slot.x1 && b.y >= slot.y0 && b.y <= slot.y1)) {
         game.view.scene.remove(b.mesh);
         game.beds = game.beds.filter(k => k !== b);
@@ -146,7 +156,13 @@ export const T = {
     if (!game.beds.some(b => b.x === slot.x1 && b.y === slot.y0) && this.pay(PRICE.bed)) game.addBed(slot.x1, slot.y0, SPECIES[sp].bed);
     // vanaf level 10 willen dieren iets leuks in hun verblijf
     const inSlot = b => b.x >= slot.x0 && b.x <= slot.x1 && b.y >= slot.y0 && b.y <= slot.y1;
-    if (game.level >= FEATURE.fun && data.TOY_OF[sp] && !game.toys.some(b => inSlot(b) && b.kind === data.TOY_OF[sp]) && !game.taken(slot.x1, slot.y0 + 1) && this.pay(PRICE.toy)) game.addToy(slot.x1, slot.y0 + 1, data.TOY_OF[sp]);
+    const liked = game.level >= FEATURE.fun ? data.likedToys(sp, game.level) : [];
+    if (liked.length && !game.toys.some(b => inSlot(b) && liked.includes(b.kind)) && !game.taken(slot.x1, slot.y0 + 1)) {
+      // voor de afwisseling in het park: het liefste ding dat nog nergens staat, anders het lievelingsding
+      const fresh = liked.find(k => !game.toys.some(b => b.kind === k)) ?? liked[0];
+      const kind = this.variety ? fresh : liked[0];
+      if (this.pay(data.TOY_PRICE?.[kind] ?? PRICE.toy)) game.addToy(slot.x1, slot.y0 + 1, kind);
+    }
     // warmte of kou: een lamp of een blok ijs op de eerste vrije tegel
     const climate = data.CLIMATE?.[sp];
     if (climate && game.level >= FEATURE.climate && !game.toys.some(b => inSlot(b) && b.kind === climate)) {
@@ -156,6 +172,57 @@ export const T = {
           if (this.pay(data.TOY_PRICE?.[climate] ?? PRICE.toy)) game.addToy(x, y, climate);
           break place;
         }
+    }
+  },
+
+  /**
+   * Twee vriendjes samen in één verblijf: de tweede soort (`mate`) komt bij de eerste (`sp`) in zijn hok wonen, met
+   * een eigen voerbak en slaapplek als die anders zijn, en zijn eigen stukjes grond op de twee middelste tegels.
+   */
+  async together(sp, mate) {
+    const game = z();
+    if (!models.hasSpecies(sp) || !models.hasSpecies(mate)) return false;
+    await models.loadSpecies(mate);
+    const total = Math.max(data.HERD[sp] ?? 2, data.HERD[mate] ?? 2, 4);
+    if (!(await this.stock(sp, Math.max(2, total - 2)))) return false;
+    const n = this.home[sp], slot = SLOTS[n], a = SPECIES[sp], b = SPECIES[mate];
+    this.mates[mate] = n;
+    // de grond die het vriendje erbij wil en die er nog niet ligt: op de twee middelste tegels
+    const spare = [[slot.x0 + 1, slot.y0], [slot.x0 + 1, slot.y0 + 1]];
+    const here = kind => {
+      let count = 0;
+      for (let y = slot.y0; y <= slot.y1; y++) for (let x = slot.x0; x <= slot.x1; x++) if (game.grid.terrain[x + y * W] === TERRAINS.indexOf(kind)) count++;
+      return count;
+    };
+    for (const kind of data.ALSO?.[mate] ?? []) if (here(kind) < 2) for (const [x, y] of spare) game.grid.setTerrain(x, y, TERRAINS.indexOf(kind));
+    game.view.paintTerrain(game.grid);
+    if (b.food !== a.food && !game.troughs.some(t => t.x === spare[0][0] && t.y === spare[0][1]) && !game.taken(...spare[0]) && this.pay(PRICE.trough)) game.addTrough(...spare[0], null, 0);
+    if (b.bed !== a.bed && !game.beds.some(k => k.x === spare[1][0] && k.y === spare[1][1]) && !game.taken(...spare[1]) && this.pay(PRICE.bed)) game.addBed(...spare[1], b.bed);
+    let friends = game.animals.filter(k => k.species === mate && !k.young && !k.escaped && Math.floor(k.gx) >= slot.x0 && Math.floor(k.gx) <= slot.x1 && Math.floor(k.gy) >= slot.y0 && Math.floor(k.gy) <= slot.y1);
+    while (friends.length < 2) {
+      if (!this.pay(b.cost)) return false;
+      friends.push(game.addAnimal(mate, friends.length ? 'female' : 'male', slot.x0 + 0.5 + friends.length, slot.y1 + 0.5));
+    }
+    this.plant(sp);
+    return true;
+  },
+
+  /** De voerbak van het vriendje dat bij een andere soort inwoont (zie together). */
+  mateTrough(mate) {
+    const slot = SLOTS[this.mates[mate]];
+    return slot && z().troughs.find(t => t.x === slot.x0 + 1 && t.y === slot.y0);
+  },
+
+  /** Zoveel verschillende soorten speelgoed in de verblijven: er komt speelgoed bij op de vrije tegel naast de voerbak. */
+  moreToys(n) {
+    const game = z();
+    const kinds = () => new Set(game.toys.filter(b => !['lamp', 'icebox', 'filter'].includes(b.kind)).map(b => b.kind));
+    const fun = data.TOYS.filter(k => data.TOY_FROM[k] <= game.level && !['lamp', 'icebox', 'filter', 'hoop'].includes(k));
+    for (const sp of this.order) {
+      if (kinds().size >= n) return;
+      const slot = SLOTS[this.home[sp]], kind = fun.find(k => !kinds().has(k));
+      if (!kind || game.taken(slot.x0 + 1, slot.y0) || Object.values(this.mates).includes(this.home[sp])) continue;
+      if (this.pay(data.TOY_PRICE?.[kind] ?? PRICE.toy)) game.addToy(slot.x0 + 1, slot.y0, kind);
     }
   },
 
@@ -262,6 +329,12 @@ export const T = {
       const hunger = Math.max(...mine.map(a => a.hunger));
       if (!worst || hunger > worst.hunger) worst = { tr, sp, hunger };
     }
+    for (const mate of Object.keys(this.mates)) {
+      const tr = this.mateTrough(mate), mine = this.animalsOf(mate);
+      if (!tr || !mine.length || (tr.food === SPECIES[mate].food && tr.amount > 0)) continue;
+      const hunger = Math.max(...mine.map(a => a.hunger));
+      if (!worst || hunger > worst.hunger) worst = { tr, sp: mate, hunger };
+    }
     if (worst && worst.hunger > 0.35) return game.feed(worst.tr, SPECIES[worst.sp].food);
     // het vieste verblijf: alle poepjes daar
     const dirty = game.pens.map(p => ({ p, n: game.poopsIn(p.region.id) })).sort((a, b) => b.n - a.n)[0];
@@ -300,6 +373,10 @@ export const T = {
       const tr = game.troughs.find(t => t.x === slot.x0 && t.y === slot.y0);
       if (tr && this.animalsOf(sp).length && (tr.food !== SPECIES[sp].food || tr.amount <= 1)) game.feed(tr, SPECIES[sp].food);
     }
+    for (const mate of Object.keys(this.mates)) {
+      const tr = this.mateTrough(mate);
+      if (tr && (tr.food !== SPECIES[mate].food || tr.amount <= 1)) game.feed(tr, SPECIES[mate].food);
+    }
     for (const p of [...game.poops]) game.cleanPoop(p);
     for (const p of [...game.litter]) game.cleanLitter(p);
     // het water in de bakken van glas: met de veger schoonmaken voordat de zeedieren het vies vinden
@@ -332,7 +409,17 @@ export const T = {
     }
     // groepsdieren willen met meer zijn: vul elke soort aan tot zijn groep
     for (const sp of this.order) if (this.animalsOf(sp).length) await this.stock(sp, data.HERD[sp] ?? 2);
-    for (const g of level.goals) if (g.species) await this.stock(g.species, Math.max(data.HERD[g.species] ?? 2, g.type === 'animals' ? g.n : 2));
+    for (const g of level.goals) if (g.species) await this.stock(g.species, Math.max(data.HERD[g.species] ?? 2, g.type === 'animals' || g.type === 'happy' ? g.n : 2));
+    for (const g of level.goals) {
+      if (g.type === 'together') await this.together(g.species, g.mate);
+      if (g.type === 'toys') this.moreToys(g.n);
+      // zoveel blije dieren uit één wereld: van elke soort uit die wereld zijn hele groep, en dan nog wat erbij
+      if (g.type === 'happyworld') {
+        const mine = have.filter(sp => data.homeWorld(sp) === g.world);
+        for (const sp of mine) await this.stock(sp, data.HERD[sp] ?? 2);
+        for (let extra = 3; extra <= 4 && mine.reduce((sum, sp) => sum + this.animalsOf(sp).length, 0) < g.n + 2; extra++) for (const sp of mine) await this.stock(sp, Math.max(data.HERD[sp] ?? 2, extra));
+      }
+    }
     if (done >= FEATURE.paths) this.paths();
     for (const kind of ['foodstall', 'drinkstall', 'toilet', 'bench', 'slide', 'icecream', 'balloon', 'bin', 'hats', 'souvenir']) if (done >= FEATURE[kind]) this.shop(kind, game.shopsNeeded(kind));
     for (const g of level.goals) {

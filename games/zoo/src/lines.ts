@@ -54,11 +54,19 @@ export function speciesVars(tr: Tr, sp: SpeciesId): Vars {
 export function goalKey(g: Goal): string {
   if (g.type === 'sold') return g.product ? `goal.sold.${g.product}` : g.shop ? `goal.sold.shop.${g.shop}` : 'goal.sold';
   if (g.type === 'shop') return `goal.shop.${g.shop}${g.n > 1 ? '.n' : ''}`;
-  return g.n === 1 && (g.type === 'fed' || g.type === 'born' || g.type === 'healed' || g.type === 'caught' || g.type === 'keeper') ? `goal.${g.type}.1` : `goal.${g.type}`;
+  return g.n === 1 && (g.type === 'fed' || g.type === 'born' || g.type === 'healed' || g.type === 'caught' || g.type === 'keeper' || g.type === 'young') ? `goal.${g.type}.1` : `goal.${g.type}`;
 }
 
 export function goalVars(tr: Tr, g: Goal): Vars {
-  return { n: g.n, many: g.species ? tr(`species.${g.species}.many`) : '' };
+  return {
+    n: g.n,
+    many: g.species ? tr(`species.${g.species}.many`) : '',
+    // twee soorten samen in één verblijf: 'de alpaca' en 'de geit'
+    the: g.species ? tr(`species.${g.species}.the`) : '',
+    mate: g.mate ? tr(`species.${g.mate}.the`) : '',
+    // dieren uit één wereld: 'van de savanne'
+    of: g.world ? tr(`world.${g.world}.of`) : '',
+  };
 }
 
 export function goalLine(tr: Tr, g: Goal): Line {
