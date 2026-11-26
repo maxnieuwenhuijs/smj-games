@@ -114,6 +114,42 @@ describe('attracties', () => {
     }
   });
 
+  it('ligt het pad opzij of achter een groot toestel, dan loopt de gast buitenom naar de voorkant', () => {
+    // waar op de grond iets staat (x van, x tot, z van, z tot): de poten en het huisje van het rad, de vloer van de
+    // botsauto's, de palen en de trap van de toren, en de keuken van het restaurant
+    const blocks: Partial<Record<RideKind, number[][]>> = {
+      ferris: [[1.5, 3.85, -0.9, 0.85], [-3.85, -1.5, -0.9, 0.85]],
+      bumper: [[-BUMPER.ax, BUMPER.ax, BUMPER.z0, BUMPER.z1]],
+      tower: [[-0.9, 0.9, -0.9, 0.45]],
+      restaurant: [[-1.4, 0.26, -0.92, -0.16]],
+    };
+    for (const kind of Object.keys(blocks) as RideKind[]) {
+      const [w, d] = span(kind);
+      for (const [fx, fz] of [[w / 2 + 0.5, 0], [-w / 2 - 0.5, -0.5], [0.5, -d / 2 - 0.5], [-0.5, -d / 2 - 0.5]]) {
+        const s = newRide(kind);
+        let v = planVisit(kind, s, 0, fx, fz);
+        for (let t = 0; !v && t < 40; t += DT) {
+          rideStep(kind, s, DT, 0);
+          v = planVisit(kind, s, 0, fx, fz);
+        }
+        if (!v) throw new Error(`${kind}: geen plek`);
+        const p = newPose();
+        let rode = false;
+        for (let t = 0; t < visitTime(v) + 1; t += DT) {
+          visitPose(p, v, s);
+          if (p.on) rode = true;
+          // over de grond, nog niet op het toestel: nooit dwars door iets heen
+          if (!rode && p.h < 0.02)
+            for (const [x0, x1, z0, z1] of blocks[kind]!) expect(p.x > x0 && p.x < x1 && p.z > z0 && p.z < z1, `${kind} van (${fx}, ${fz}) op ${t.toFixed(2)}: (${p.x.toFixed(2)}, ${p.z.toFixed(2)})`).toBe(false);
+          if (p.done) break;
+          rideStep(kind, s, DT, p.on ? 1 << v.seat : 0);
+        }
+        expect(rode, kind).toBe(true);
+        expect(p.done, kind).toBe(true);
+      }
+    }
+  });
+
   it('seatPose geeft dezelfde plek als waar de gast tijdens het ritje zit', () => {
     for (const kind of ALL) {
       const s = newRide(kind), a = newPose(), b = newPose();

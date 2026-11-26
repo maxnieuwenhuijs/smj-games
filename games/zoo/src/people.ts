@@ -42,6 +42,8 @@ export interface ShopSpot {
   ride?: RideState;
   /** Op welke plekken nu echt iemand zit (een bit per plek): wie er nog naartoe loopt of al weer afstapt, telt niet mee. */
   aboard?: number;
+  /** Vanaf dit moment (op de klok van het toestel) mag de volgende uit de rij instappen (zie RIDE_GAP). */
+  nextIn?: number;
   /**
    * Een bankje, bloembak of afvalbak staat op de rand van tegel (x, y), net als een hek, en neemt geen
    * tegel in: 'h' is de noordrand, 'v' de westrand.
@@ -782,6 +784,8 @@ const AT_ONCE: Partial<Record<ShopKind, number>> = {
 };
 // de attracties en speeltoestellen van rides.ts weten zelf hoeveel plekken ze hebben
 for (const kind of RIDE_KINDS) AT_ONCE[kind] = RIDE_SEATS[kind];
+/** Zoveel tellen zit er tussen twee gasten uit de rij die bij een attractie instappen: ze lopen dan netjes achter elkaar aan. */
+const RIDE_GAP = 0.25;
 /** De houding van een gast op een toestel: één keer gemaakt en bij elke gast opnieuw ingevuld (zie Guest.ridePlace). */
 const RIDE_POSE = newPose();
 /** Eerst de kant waar de gast heen kijkt, dan voorover hellen en dan opzij: zo helt hij altijd vanuit zichzelf gezien. */
@@ -2127,10 +2131,16 @@ export class Guest implements Leader {
    * het beeld het model beweegt, dus de gast zit altijd precies op zijn zitje.
    */
   private ridePlace(shop: ShopSpot, visit: Visit, ride: RideState): void {
-    const m = this.mesh, p = visitPose(RIDE_POSE, visit, ride), limbs = this.limbs, head = this.head;
+    const m = this.mesh, limbs = this.limbs, head = this.head;
     // het toestel draait mee met het gebouw
     const turn = ((shop.rot ?? 0) * Math.PI) / 2, cos = Math.cos(turn), sin = Math.sin(turn);
-    const cx = shop.x + (shop.w ?? shop.size) / 2, cy = shop.y + (shop.h ?? shop.size) / 2, k = p.sit;
+    const cx = shop.x + (shop.w ?? shop.size) / 2, cy = shop.y + (shop.h ?? shop.size) / 2;
+    // waar de gast op het pad stond, gezien vanuit het gebouw zoals het nu staat: draait de speler het gebouw tijdens
+    // het bezoek, dan loopt de gast straks toch naar zijn eigen plek op het pad terug
+    const from = rideLocal(this.gx, this.gy, cx, cy, shop.rot ?? 0);
+    visit.fx = from[0];
+    visit.fz = from[1];
+    const p = visitPose(RIDE_POSE, visit, ride), k = p.sit;
     // in een botsauto: bij een botsing wordt de gast door elkaar geschud
     const jolt = visit.kind === 'bumper' && p.on ? p.u : 0;
     // wie zit, zit met zijn billen op de zitting: de voeten hangen eronder
@@ -6134,7 +6144,13 @@ export class GuestManager {
     for (const [shop, line] of waiting) {
       line.sort((p, q) => p.joined - q.joined);
       // (lukt het de voorste niet, dan draait de draaimolen nog of rijden de botsauto's: de hele rij wacht)
-      while (line.length && (shop.busyNow ?? 0) < (AT_ONCE[shop.kind] ?? 1) && line[0].serve()) line.shift();
+      // Op een attractie stappen de wachtenden om de beurt in, kort na elkaar: zo lopen ze achter elkaar aan naar
+      // hun plek en niet als één kluitje.
+      const ride = shop.ride;
+      while (line.length && (shop.busyNow ?? 0) < (AT_ONCE[shop.kind] ?? 1) && (!ride || ride.clock >= (shop.nextIn ?? 0)) && line[0].serve()) {
+        line.shift();
+        if (ride) shop.nextIn = ride.clock + RIDE_GAP;
+      }
       shop.line = line.length;
       if (!line.length) continue;
       // de rij begint op de tegel voor de kraam waar de gasten aankwamen. Die plek blijft vast: zo schuift de

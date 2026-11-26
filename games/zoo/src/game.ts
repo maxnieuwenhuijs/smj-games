@@ -59,7 +59,7 @@ import { WalkMode, tagHtml, type WalkTarget } from './walkmode';
 import { WalkHand } from './walkhand';
 import { paintOf, walkOffer, walkPrice } from './held';
 import { BlobShadows } from './blobs';
-import { RIDE_GLOW, isRide, newPose, newRide, planVisit, rideLocal, rideStep, rideWorld, visitPose, type Visit } from './rides';
+import { RIDE_GLOW, RIDE_TOP, isRide, newPose, newRide, planVisit, rideLocal, rideStep, rideWorld, visitPose, type Visit } from './rides';
 
 /** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken; een dier een snoepje geven of wassen (care.ts); in de herfst harken, in de winter sneeuw rollen. */
 export type ActionId = 'broom' | 'hammer' | 'picker' | CareAction | 'rake' | 'snowball';
@@ -1551,7 +1551,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (option) this.fresh.delete(option);
     // een ander ding begint weer recht; kies je hetzelfde nog een keer, dan staat het zoals je het had gedraaid
     if (this.canSpin()) {
-      const key = `${id}:${(this.option as Record<string, string>)[id]}`;
+      const key = `${id}:${this.spinning()}`;
       if (key !== this.quarterKey) this.quarter = this.spins = 0;
       this.quarterKey = key;
     }
@@ -1582,12 +1582,17 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return this.shops.some(s => s.kind === 'cablecar');
   }
 
+  /** Wat je nu vasthebt om neer te zetten: de keuze onder het gekozen gereedschap (bij Attracties heet dat rijtje `ride`). */
+  private spinning(): string {
+    return this.tool === 'rides' ? this.option.ride : (this.option as Record<string, string>)[this.tool] ?? '';
+  }
+
   /** De draaiknop: het ding dat je gaat neerzetten draait een kwartslag; het voorbeeld laat meteen zien hoe het komt te staan. */
   private spinGhost(): void {
     if (!this.canSpin()) return;
     this.quarter = (this.quarter + 1) % 4;
     this.spins++;
-    this.hud.setSpin(true, this.spins, (this.option as Record<string, string>)[this.tool] ?? '');
+    this.hud.setSpin(true, this.spins, this.spinning());
     const box = this.view.renderer.domElement.getBoundingClientRect();
     const [cx, cy] = this.lastHover ?? [box.left + box.width / 2, box.top + box.height / 2];
     this.hover(cx, cy, false);
@@ -1793,7 +1798,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     defs.push(opt('erase', 'erase', t('tool.erase')));
     const grouped = TOOL_GROUPS.flatMap(([group, ids]) => ids.flatMap(id => defs.filter(d => d.id === id).map(d => ({ ...d, group }))));
     this.hud.setTools(grouped, this.tool, hint, this.linger);
-    this.hud.setSpin(this.canSpin() && !this.moving, this.spins, (this.option as Record<string, string>)[this.tool] ?? '');
+    this.hud.setSpin(this.canSpin() && !this.moving, this.spins, this.spinning());
     this.hud.setFans(this.tool === 'toy' && !this.moving ? this.toyFans(this.option.toy as ToyKind) : '', this.option.toy);
     // boven het gekozen hek hangen twee knoppen met het plaatje van dat hek: een heel hok slepen, of los plaatsen
     // (een poort, kijkruit of poortje zet je altijd los neer: daar valt niets te kiezen)
@@ -2548,6 +2553,25 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   private shopAt(x: number, y: number): ShopObj | undefined {
     return this.shops.find(s => !s.edge && x >= s.x && x < s.x + shopTiles(s)[0] && y >= s.y && y < s.y + shopTiles(s)[1]);
+  }
+
+  /**
+   * Het hoge toestel waar dit punt van het scherm op valt, ook als de grond eronder een andere tegel is: het rad van
+   * het reuzenrad en de top van de toren steken ver boven hun eigen tegels uit, en juist daar tik je op. Staan er
+   * twee achter elkaar, dan telt het voorste.
+   */
+  private tallShopUnder(cx: number, cy: number): ShopObj | undefined {
+    let best: ShopObj | undefined, least = Infinity;
+    for (const s of this.shops) {
+      const top = RIDE_TOP[s.kind];
+      if (!top || s.edge) continue;
+      const far = this.view.boxUnder(cx, cy, s.x, s.y, shopTiles(s)[0], shopTiles(s)[1], top);
+      if (far >= 0 && far < least) {
+        best = s;
+        least = far;
+      }
+    }
+    return best;
   }
 
   /** Het bankje, de bloembak of de afvalbak op deze rand. */
@@ -5538,6 +5562,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
           if (!this.toyAt(x, y) && !this.bedAt(x, y)) this.hoverPen = this.penAt(x, y) ?? null;
           return this.hud.setCursor(CUR.menu);
         }
+        // boven het stuk van een hoog toestel dat boven zijn tegels uitsteekt (het rad, de toren): ook daar kun je tikken
+        const tall = inside && (this.toyAt(x, y) || this.decorAt(x, y, g.gx, g.gy)) ? undefined : this.tallShopUnder(cx, cy);
+        if (tall) {
+          this.hoverAt = { at: () => [tall.x, tall.y], w: shopTiles(tall)[0], h: shopTiles(tall)[1] };
+          return this.hud.setCursor(CUR.menu);
+        }
         return this.hud.setCursor(CUR.grab);
     }
   }
@@ -5802,6 +5832,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const x = g ? Math.floor(g.gx) : -1, y = g ? Math.floor(g.gy) : -1;
     const inside = this.grid.inBounds(x, y);
 
+    // een tik op het stuk van een hoog toestel dat tot boven de rand van het park uitsteekt (het rad achteraan)
+    const over = !inside && this.tool === 'hand' && !this.moving ? this.tallShopUnder(cx, cy) : undefined;
+    if (over) return this.shopMenu(over);
     // een tik op grond die te koop is: het koopmenu
     if (!inside && g && !this.moving) {
       const side = this.plotAt(g.gx, g.gy);
@@ -5927,7 +5960,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const decor = this.decorAt(x, y, g?.gx, g?.gy);
     if (decor && this.tool === 'hand') return this.pokeDecor(decor);
     const pen = this.penAt(x, y);
-    if (pen) this.penMenu(pen);
+    if (pen) return this.penMenu(pen);
+    // niets op deze tegel zelf: dan misschien het stuk van een hoog toestel dat boven zijn tegels uitsteekt
+    const tall = this.tool === 'hand' ? this.tallShopUnder(cx, cy) : undefined;
+    if (tall) this.shopMenu(tall);
   }
 
   private attachInput(canvas: HTMLCanvasElement): void {

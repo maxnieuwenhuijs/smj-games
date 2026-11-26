@@ -1221,11 +1221,12 @@ SHOP_PARTS.bumper = [
       ...[-1, 1].map(s => boxAt(B.ax - 0.4, 0.2, 0.1, s * (B.ax + 0.4) / 2 + s * 0.05, 0.1, B.z1 + 0.05))],
     [0xffd23f, boxAt(HALL.x * 2, 0.03, 0.1, 0, 0.215, B.z0 - 0.05), boxAt(0.1, 0.03, HALL_DEEP, -B.ax - 0.05, 0.215, HALL_MID), boxAt(0.1, 0.03, HALL_DEEP, B.ax + 0.05, 0.215, HALL_MID),
       ...[-1, 1].map(s => boxAt(B.ax - 0.4, 0.03, 0.1, s * (B.ax + 0.4) / 2 + s * 0.05, 0.215, B.z1 + 0.05))],
-    // het kastje van de baas, met een groene en een rode knop
-    [0x4a90e2, boxAt(0.5, 0.52, 0.26, -1.45, 0.26, HALL.front + 0.22)],
-    [0xf7f4ec, boxAt(0.56, 0.04, 0.3, -1.45, 0.54, HALL.front + 0.22)],
-    [0x6cc04a, tube(0.045, 0.045, 0.03, -1.56, 0.575, HALL.front + 0.22)],
-    [0xe0584f, tube(0.045, 0.045, 0.03, -1.36, 0.575, HALL.front + 0.22), ...HALL_POSTS.map(([x, z]) => boxAt(0.1, HALL.eave, 0.1, x, HALL.eave / 2, z))],
+    // het kastje van de baas, met een groene en een rode knop: smal en op een paaltje tegen de rand, want wie van
+    // opzij komt, loopt er vooromlangs naar de opening
+    [0x4a90e2, boxAt(0.46, 0.3, 0.14, -1.45, 0.62, HALL.front + 0.07), boxAt(0.07, 0.48, 0.07, -1.45, 0.24, HALL.front + 0.07)],
+    [0xf7f4ec, boxAt(0.5, 0.03, 0.18, -1.45, 0.785, HALL.front + 0.07)],
+    [0x6cc04a, tube(0.04, 0.04, 0.03, -1.55, 0.815, HALL.front + 0.07)],
+    [0xe0584f, tube(0.04, 0.04, 0.03, -1.35, 0.815, HALL.front + 0.07), ...HALL_POSTS.map(([x, z]) => boxAt(0.1, HALL.eave, 0.1, x, HALL.eave / 2, z))],
     [0xf7f4ec, ...HALL_POSTS.map(([x, z]) => boxAt(0.12, 0.1, 0.12, x, 0.62, z))],
   ), PAINT_MAT],
   // het dak: balken langs de rand en de nok, sporen eroverheen en de gestreepte rand
@@ -4470,6 +4471,22 @@ export class View {
     this.raycaster.setFromCamera(ndc, this.eye);
     const hit = this.raycaster.ray.intersectPlane(this.plane, this.tmp);
     return hit ? { gx: hit.x + W / 2, gy: hit.z + H / 2 } : null;
+  }
+
+  private pickBox = new THREE.Box3();
+  private pickAt = new THREE.Vector2();
+
+  /**
+   * Gaat de kijklijn door dit punt van het scherm door een blok van `w` bij `h` tegels op tegel (x, y) en `top`
+   * hoog? Zo kun je op een hoog toestel tikken, ook op het stuk dat ver boven zijn tegels uitsteekt (het rad van het
+   * reuzenrad). Geeft hoe ver het blok van de camera af ligt (het kleinste getal ligt vooraan), of -1 bij mis.
+   */
+  boxUnder(clientX: number, clientY: number, x: number, y: number, w: number, h: number, top: number): number {
+    this.raycaster.setFromCamera(this.pickAt.set((clientX / innerWidth) * 2 - 1, -(clientY / innerHeight) * 2 + 1), this.eye);
+    this.pickBox.min.set(toWorldX(x), 0, toWorldZ(y));
+    this.pickBox.max.set(toWorldX(x + w), top, toWorldZ(y + h));
+    const hit = this.raycaster.ray.intersectBox(this.pickBox, this.tmp);
+    return hit ? this.raycaster.ray.origin.distanceTo(hit) : -1;
   }
 
   /** Rasterpunt (met hoogte) naar schermpixels. */

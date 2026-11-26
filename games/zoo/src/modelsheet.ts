@@ -253,8 +253,9 @@ const SHOP_SETS: Record<string, ShopKind[]> = {
   kramen: ['foodstall', 'drinkstall', 'icecream', 'balloon', 'hats', 'souvenir', 'facepaint'],
   gebouwen: ['toilet', 'restaurant', 'shelter', 'station'],
   klein: ['bench', 'flowers', 'bin', 'umbrellas'],
-  speeltuin: ['slide', 'swing', 'seesaw', 'springer', 'trampoline'],
-  attracties: ['fountain', 'carousel', 'tower', 'bumper', 'ferris', 'show', 'cablecar'],
+  // (het hoogste achteraan, op de eerste rij: anders staat het voor de rest)
+  speeltuin: ['slide', 'trampoline', 'swing', 'seesaw', 'springer', 'springer', 'springer'],
+  attracties: ['ferris', 'tower', 'carousel', 'bumper', 'fountain', 'show', 'cablecar'],
 };
 const GROUPS: Record<string, Item[]> = {
   bedden: BEDS.map(bed),
@@ -298,25 +299,31 @@ if (rest.length) GROUPS.rest = rest;
 const groupName = query.get('groep') ?? 'bedden';
 const items = (GROUPS[groupName] ?? []).filter(item => !only || only.includes(item.name));
 
-// Per groep: hoe hoog de modellen ongeveer zijn, hoeveel ruimte ertussen moet en hoeveel er op een rij staan.
-const LOOK: Record<string, { tall?: number; gap?: number; row?: number }> = {
-  kramen: { tall: 3.2 }, gebouwen: { tall: 3 }, speeltuin: { tall: 3 }, attracties: { tall: 4.6, gap: 2, row: 3 }, afval: { tall: 0.5 }, klein: { tall: 1.2 },
+// Per groep: hoe hoog de modellen ongeveer zijn, hoeveel ruimte ertussen moet en hoeveel er op een rij staan. Met
+// `wide` begint een nieuwe rij zodra een rij breder zou worden dan zoveel tegels: zo staat iets groots (het
+// reuzenrad van acht tegels) niet naast een hele rij andere dingen. `rowGap`: zoveel ruimte tussen twee rijen (iets
+// hoogs op de voorste rij staat anders voor de rij erachter).
+const LOOK: Record<string, { tall?: number; gap?: number; row?: number; wide?: number; rowGap?: number }> = {
+  kramen: { tall: 3.2 }, gebouwen: { tall: 3, gap: 2, wide: 9 }, speeltuin: { tall: 3.6, gap: 2, wide: 8 }, attracties: { tall: 8.6, gap: 2, wide: 14, rowGap: 4 }, afval: { tall: 0.5 }, klein: { tall: 1.2 },
   voer: { tall: 1.4 }, hekken: { tall: 1.4 }, slijtage: { tall: 1.4, row: 3 }, trein: { tall: 1.2, row: 1 }, spoor: { tall: 1.2 }, kabelbaan: { tall: 3.4 }, parkjes: { tall: 0.7, gap: 0, row: 5 }, grond: { tall: 0.4, gap: 0, row: 7 }, gezichten: { tall: 0.8, gap: 0, row: 8 },
   poppetjes: { tall: 1.2, gap: 0, row: 8 },
 };
 const look = only ? {} : LOOK[groupName] ?? {};
-const perRow = num('rij', look.row ?? Math.ceil(Math.sqrt(items.length * 1.6)));
-const gap = num('ruimte', look.gap ?? 1), rowGap = num('rijruimte', Math.max(2, look.gap ?? 1));
-// Op een rij zetten: van links naar rechts; na `perRow` begint een nieuwe rij.
+const perRow = num('rij', look.row ?? (look.wide ? Infinity : Math.ceil(Math.sqrt(items.length * 1.6))));
+const gap = num('ruimte', look.gap ?? 1), rowGap = num('rijruimte', look.rowGap ?? Math.max(2, look.gap ?? 1));
+const rowWide = num('breed', look.wide ?? Infinity);
+// Op een rij zetten: van links naar rechts; na `perRow` modellen, of als de rij te breed zou worden, begint een nieuwe rij.
 const labels: { name: string; gx: number; gy: number }[] = [];
 const lights: { gx: number; gy: number; r: number }[] = [];
-let x0 = 22, y0 = 18, maxX = x0, maxY = y0, rowDeep = 0, cx = x0, cy = y0;
-items.forEach((item, i) => {
-  if (i && i % perRow === 0) {
+let x0 = 22, y0 = 18, maxX = x0, maxY = y0, rowDeep = 0, cx = x0, cy = y0, inRow = 0;
+items.forEach(item => {
+  if (inRow && (inRow >= perRow || cx + item.size > x0 + rowWide)) {
     cx = x0;
     cy += rowDeep + rowGap;
     rowDeep = 0;
+    inRow = 0;
   }
+  inRow++;
   item.put(cx, cy);
   labels.push({ name: item.name, gx: cx + item.size + 0.1, gy: cy + deepOf(item) + 0.1 });
   lights.push({ gx: cx + item.size / 2, gy: cy + deepOf(item) / 2, r: Math.max(2.2, Math.max(item.size, deepOf(item)) * 0.6 + 1) });
