@@ -2826,8 +2826,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /**
    * Mag hier een paal (lamp, vlag, slingerpaal)? Op een hoek van een tegel of midden op een rand, en niet dubbel.
    * Staat er een hek, dan staat de paal precies op het hek (niet in een poort: daar moet je doorheen). Zonder hek
-   * niet in een verblijf, niet midden in een gebouw, en niet midden op een rand tussen twee padtegels: daar lopen
-   * de gasten (en jij, als je rondloopt). Op de hoek van een padtegel staat een paal nooit in de weg.
+   * niet in een verblijf, niet midden in een gebouw, en niet midden op een rand tussen twee padtegels of op het
+   * spoor: daar lopen de gasten (en jij, als je rondloopt) en rijdt de trein. Op de hoek van een tegel staat een
+   * paal nooit in de weg.
    */
   private poleFits(spot: Spot): boolean {
     if (!this.grid.validSpot(spot) || this.spotDecorAt(spot)) return false;
@@ -2840,7 +2841,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const fences = spotEdges(spot).map(e => this.grid.getEdge(e)).filter(k => k !== 0);
     if (fences.length) return spot.o === 'c' || (fences[0] !== 2 && fences[0] !== 8);
     if (tiles.some(([x, y]) => this.grid.enclosureAt(x, y))) return false;
-    return spot.o === 'c' || !tiles.every(([x, y]) => isPath(this.grid.terrain[tileIndex(x, y)]));
+    // (ook niet midden op een rand waar het spoor overheen loopt)
+    return spot.o === 'c' || !tiles.every(([x, y]) => isPath(this.grid.terrain[tileIndex(x, y)]) || isRail(this.grid.terrain[tileIndex(x, y)]));
   }
 
   /** Hoe een paal gedraaid staat: op een rand kijkt hij naar het pad of naar jou toe, op een hoek zoals de draaiknop staat. */
@@ -4161,6 +4163,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         // de randen binnen het blok: de westrand van elke tegel behalve de eerste kolom, en de noordrand behalve de eerste rij
         if (tx > x && this.edgeUsed({ o: 'v', x: tx, y: ty })) return false;
         if (ty > y && this.edgeUsed({ o: 'h', x: tx, y: ty })) return false;
+        // en de hoekpunten binnen het blok: daar kan een lamp of vlag staan
+        if (tx > x && ty > y && this.spotDecorAt({ o: 'c', x: tx, y: ty })) return false;
       }
     // de tribune moet met haar rug tegen de glazen bak van de dolfijnen of orka's staan
     if (kind === 'show' && !this.showPool(x, y, w, h)) return false;
