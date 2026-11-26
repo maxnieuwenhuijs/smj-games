@@ -845,7 +845,7 @@ Zie de tabel bij Levels. Nieuw zijn vier soorten doelen (`levels.ts`): twee vrie
 
 De dag duurt zeven en een halve minuut in plaats van tien, zodat de nacht vaker langskomt (`DAY_SECONDS`). Een seizoen duurt drie dagen in plaats van één (`SEASON_DAYS`).
 
-Een kortere dag betekent ook minder uren met gasten. Vraagt een level om afval op te rapen, dan laat daarom nu driekwart van de gasten zijn papiertje vallen (`SLOPPY` in `people.ts`; het was bijna de helft). Zonder die aanpassing wachtte de proefspeler-als-kind op een trage tablet (waar hooguit 45 gasten komen) bij level 46 langer dan een kwartier op tien stukjes afval.
+Een kortere dag betekent ook minder uren met gasten, en afval komt alleen van gasten die iets gekocht hebben. Vraagt een level om afval op te rapen, dan gaat het daarom nu sneller: de gasten krijgen drie keer zo snel trek in eten, drinken en ijs (`craving` in `game.ts`, net als bij een level dat om verkopen vraagt), ook een ballon, hoedje of knuffel geeft een papiertje, en driekwart van de gasten laat het vallen in plaats van bijna de helft (`SLOPPY` in `people.ts`). Zonder die aanpassing wachtte de proefspeler-als-kind bij level 46 soms langer dan een kwartier op tien stukjes afval: na een nacht duurt het lang voor de gasten weer trek hebben.
 
 ### De dierenshow
 
