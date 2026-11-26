@@ -1021,6 +1021,20 @@
       "prompt": "A single camera shutter click. Short, dry, clean."
     },
     {
+      "id": "snore.big",
+      "seconds": 2.5,
+      "influence": 0.5,
+      "prompt": "One slow, deep, funny cartoon snore of a big sleeping animal: a long rumbling breath in and a soft puff out. Gentle and cute, close, no background noise.",
+      "variants": 3
+    },
+    {
+      "id": "snore.small",
+      "seconds": 2,
+      "influence": 0.5,
+      "prompt": "One tiny, cute cartoon snore of a small sleeping animal: a soft squeaky breath in and a little whistle out. Gentle, close, no background noise.",
+      "variants": 3
+    },
+    {
       "id": "walk.step",
       "seconds": 0.5,
       "influence": 0.5,

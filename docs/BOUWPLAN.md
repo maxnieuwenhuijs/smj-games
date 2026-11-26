@@ -760,7 +760,9 @@ Vanaf het level met paden staat er een knop met een lopend kindje. Daarmee zak j
 
 **Knoppen en kas** (26 november): rechtsboven één rij, iets kleiner: draaien, draaien, rondlopen, geluid, huis. Daaronder de kas: sterren, munten, klok, gasten, seizoen en weer. Het snoepje en de tuinslang staan gewoon bij Actie.
 
-**Het overzicht van je park** (tik op de poort bij de ingang, `openPark`, `parkstats.ts`): bovenin sterren, gasten, blije dieren en munten. Daaronder grote knoppen: de optocht (de trommel; grijs met een rondlopende schaduw als de clown nog uitrust) en het gastenboek. Daaronder vakjes met cijfers: een grafiekje van het aantal gasten en van de verdiende munten (een meting om de 20 tellen, de laatste 8 minuten), wat er dit level verkocht is met de prijs per stuk (1 munt), de lievelingsdieren van de gasten in het park, en hoeveel gasten blij, gewoon of niet blij zijn.
+**Het overzicht van je park** (tik op de poort bij de ingang, `openPark`, `parkstats.ts`): hang je met het handje boven de poort, dan krijgt hij dezelfde witte rand als een kraam. bovenin sterren, gasten, blije dieren en munten. Daaronder grote knoppen: de optocht (de trommel; grijs met een rondlopende schaduw als de clown nog uitrust) en het gastenboek. Daaronder vakjes met cijfers: een grafiekje van het aantal gasten en van de verdiende munten (een meting om de 20 tellen, de laatste 8 minuten), wat er dit level verkocht is met de prijs per stuk (1 munt), de lievelingsdieren van de gasten in het park, en hoeveel gasten blij, gewoon of niet blij zijn.
+
+**Snurken** ('s nachts): de slapende dieren die je kunt horen snurken om de paar tellen, een groot dier diep (`snore.big`) en een klein dier piepend (`snore.small`), elk in drie versies (`SNORE` in `game.ts`).
 
 ### Het logo van SMJ Games
 

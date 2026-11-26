@@ -58,6 +58,9 @@ export type ToolId = 'hand' | 'action' | 'terrain' | 'fence' | 'trough' | 'bed' 
 type Verdict = 'good' | 'ok' | 'bad';
 type Sex = 'male' | 'female';
 
+/** Het snurken 's nachts: om de zoveel tellen (van, tot), hoe hard, en vanaf welke hoogte een dier groot snurkt. */
+const SNORE = { gap: [2.5, 5], volume: 0.5, big: 1.3 };
+
 /**
  * De balk in groepjes, van links naar rechts: doen (handje, actie, weghalen), grond (ondergrond en hek),
  * dieren (dier en wat in het verblijf hoort) en dierentuin (winkels, versiering, personeel).
@@ -3246,6 +3249,19 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Hoe donker het is: 0 overdag, 1 in de nacht, met een schemering ertussen. Voor FEATURE.night is het altijd dag. */
   private night = 0;
   private wasNight = false;
+  /** 's Nachts snurken de slapende dieren die je kunt horen: om de paar tellen eentje, een groot of een klein snurkje. */
+  private snoreIn = 3;
+
+  private updateSnore(dt: number): void {
+    if (!this.wasNight) return;
+    this.snoreIn -= dt;
+    if (this.snoreIn > 0) return;
+    this.snoreIn = SNORE.gap[0] + Math.random() * (SNORE.gap[1] - SNORE.gap[0]);
+    const near = this.animals.filter(a => a.sleeping && !a.escaped && heard(a.gx, a.gy) > 0.3);
+    if (!near.length) return;
+    const a = near[Math.floor(Math.random() * near.length)];
+    sfx(a.top >= SNORE.big ? 'snore.big' : 'snore.small', { volume: SNORE.volume, rate: a.young ? 1.25 : 0.9 + Math.random() * 0.2, every: 0.5, at: [a.gx, a.gy] });
+  }
   private nightTold = false;
   private lightList: { gx: number; gy: number; r: number }[] = [];
 
@@ -4608,6 +4624,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         if (dragging) return this.hud.setCursor(CUR.grabbing);
         if (this.pickLoose(cx, cy)) return this.hud.setCursor(CUR.catch);
         // alles waar een tik een menu opent, krijgt een ring zolang je erboven hangt: zo zie je dat je erop kunt tikken
+        // de poort: een rand om de poort heen (iets breder dan de palen), over de tegels ervoor en erachter (het overzicht van je park)
+        if (this.gateTapped(cx, cy)) {
+          this.hoverAt = { at: () => [Math.floor(W / 2) - 1, H - 1], w: 3, h: 2 };
+          return this.hud.setCursor(CUR.menu);
+        }
         const pet = this.pickAnimal(cx, cy);
         if (pet) {
           this.hoverAt = { at: () => [Math.floor(pet.gx), Math.floor(pet.gy)], w: 1, h: 1 };
@@ -7655,6 +7676,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       this.zzzIn = 1.8;
       for (const a of this.animals) if (a.sleeping) this.floatAt(icon('sleep', 'tiny'), a.gx, a.gy, a.top);
     }
+    this.updateSnore(dt);
 
     for (const [a, bubble] of this.bubbles) {
       if (bubble.hidden) continue;
