@@ -943,6 +943,43 @@ function makeHat(product: string): THREE.Group {
   return hat;
 }
 
+/**
+ * Wat de loper in de loopstand in zijn hand heeft (zie walkhand.ts): hetzelfde lekkers, dezelfde knuffel en hoed als
+ * een gast, en een ballon aan een touwtje. Het staat rechtop, met de onderkant (waar je het vasthoudt) op 0.
+ */
+export function makeHeld(kind: ShopKind, product: string): THREE.Group {
+  const g = new THREE.Group();
+  let thing: THREE.Object3D;
+  if (kind === 'balloon') {
+    // de ballon zweeft boven je hand, het touwtje hangt eronder
+    thing = new THREE.Group();
+    const balloon = new THREE.Mesh(BALLOON_GEO, mat(COLOR_OF[product] ?? 0xe0584f));
+    if (product === 'balloon_heart') balloon.scale.set(1.5, 1.25, 0.8);
+    balloon.position.set(0, 0.68, 0);
+    const string = new THREE.Mesh(STRING_GEO, mat(0xf4f1e8));
+    string.position.set(0, 0.31, 0);
+    string.scale.y = 1.8;
+    thing.add(balloon, string);
+  } else if (kind === 'hats') {
+    // een hoed zit bij een gast op 0,65 hoog: hier op de hand
+    thing = makeHat(product);
+    thing.position.y = -0.63;
+  } else if (kind === 'souvenir') {
+    thing = makePlush(product);
+    thing.position.set(0, 0.04, 0);
+  } else {
+    thing = makeTreat(kind, product);
+    thing.position.set(0, 0, 0);
+    thing.rotation.set(0, 0, 0);
+  }
+  g.add(thing);
+  g.traverse(o => {
+    o.castShadow = false;
+    o.receiveShadow = false;
+  });
+  return g;
+}
+
 // ------------------------------------------------------------ schmink uit de schminktent
 /**
  * Eén stukje schmink op het hoofd: [kleur, x, y, z, breed, hoog, diep, draaiing, vorm]. Het voorvlak van het hoofd

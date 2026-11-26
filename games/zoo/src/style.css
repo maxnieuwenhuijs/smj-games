@@ -161,6 +161,23 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
   background: rgba(255, 255, 255, 0.35); border: 4px solid rgba(255, 255, 255, 0.8); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.12); }
 #walkpad .knob { position: absolute; left: 50%; top: 50%; width: 66px; height: 66px; margin: -33px 0 0 -33px; border-radius: 50%;
   background: #ffd23f; border: 4px solid #fff; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18); pointer-events: none; }
+/* iets kopen bij een kraam terwijl je rondloopt (zie walkhand.ts): een rijtje grote plaatjes onderin om te kiezen */
+#walkpick { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); display: flex; gap: 14px; padding: 12px; border-radius: 28px;
+  background: rgba(255, 255, 255, 0.85); box-shadow: 0 5px 0 rgba(0, 0, 0, 0.15); pointer-events: auto; animation: rise-in 0.25s ease-out; }
+#walkpick .tool { width: min(96px, 19vw); height: min(96px, 19vw); border-radius: 24px; }
+#walkpick .tool .ic { font-size: min(62px, 12vw); }
+@keyframes rise-in { from { transform: translate(-50%, 30px); opacity: 0; } }
+@media (pointer: coarse) {
+  #walkpick { bottom: 190px; }
+}
+/* op een tablet: een knop om te happen of te drinken, rechts boven de knop om terug te gaan */
+#walkuse { position: absolute; right: 20px; bottom: calc(44px + min(84px, 20vw)); width: min(84px, 18vw); height: min(84px, 18vw); border-radius: 50%; }
+#walkuse .ic { font-size: min(52px, 11vw); }
+/* de rand van je hoed, bovenin beeld */
+#walkbrim { position: absolute; left: -12%; right: -12%; top: -10vh; height: 17vh; border-radius: 0 0 50% 50%; pointer-events: none;
+  background: var(--brim, #e0584f); box-shadow: inset 0 -8px 0 rgba(0, 0, 0, 0.16), 0 6px 14px rgba(0, 0, 0, 0.12); }
+#walkpick[hidden], #walkuse[hidden], #walkbrim[hidden] { display: none; }
+.pill.worn { padding: 5px 8px; gap: 2px; }
 /* de schminktent: vier grote plaatjes om het volgende gezicht te kiezen */
 #menu[data-kind='paint'] .row .tool.small[data-item^='paint_'] { width: min(92px, 19vw); height: min(92px, 19vw); border-radius: 22px; }
 #menu[data-kind='paint'] .row .tool.small[data-item^='paint_'] .ic { font-size: min(60px, 12vw); }

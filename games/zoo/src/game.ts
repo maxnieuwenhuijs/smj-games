@@ -47,6 +47,8 @@ import { CARE_ACTIONS, CATCH, DUST, HOSE, TREAT, dustAfter, dustSpecks, flightTi
 import { CareFx } from './carefx';
 import { WALK, type Box, type WalkGround } from './walk';
 import { WalkMode, tagHtml, type WalkTarget } from './walkmode';
+import { WalkHand } from './walkhand';
+import { paintOf, walkOffer, walkPrice } from './held';
 
 /** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken; een dier een snoepje geven of wassen (care.ts); in de herfst harken, in de winter sneeuw rollen. */
 export type ActionId = 'broom' | 'hammer' | 'picker' | CareAction | 'rake' | 'snowball';
@@ -636,6 +638,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private walk!: WalkMode;
   /** Wanneer een dier voor het laatst iets deed voor de loper. */
   private walkPoked = new WeakMap<Animal, number>();
+  /** Wat de loper in zijn hand heeft (zie walkhand.ts), en wanneer hij voor het laatst iets kocht. */
+  private hand!: WalkHand;
+  private walkBoughtAt = -99;
 
   constructor(private view: View, private slot: number, data: SaveData | undefined, onHome: () => void, private player = data?.player ?? '') {
     this.park = new ParkPlay(this.parkHost());
@@ -676,6 +681,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.refreshTools();
     this.attachInput(this.view.renderer.domElement);
     this.walk = new WalkMode(this.walkHost());
+    this.hand = new WalkHand({
+      view: this.view,
+      float: (html, x, y, cls) => this.hud.float(html, x, y, cls),
+      gait: () => this.walk.gait,
+      pic: id => this.productIcon(id),
+    });
     addEventListener('pagehide', () => void this.save());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) void this.save();
@@ -5983,6 +5994,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       ground: () => this.walkGround(),
       targets: () => this.walkTargets(),
       changed: (on: boolean) => this.walkChanged(on),
+      use: () => void this.hand.use(),
+      key: (code: string) => this.hand.key(code),
     };
   }
 
@@ -6076,14 +6089,18 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         poke: () => this.waveTo(g),
       });
     }
-    // een kraam: je ziet wat hij verkoopt
+    // een kraam: je ziet wat hij verkoopt, en een tik koopt het (de wc: even plassen)
     for (const shop of this.shops) {
-      if (shop.edge || !shop.sells.length) continue;
+      if (shop.edge) continue;
+      const offer = walkOffer(shop.kind, shop.sells, this.level);
+      if (!shop.sells.length && !offer.length && shop.kind !== 'toilet') continue;
       const [cx, cy] = blockCenter(shop);
       if (!near(cx, cy)) continue;
+      const pics = (offer.length ? offer : shop.sells).slice(0, 5);
       out.push({
         gx: cx, gy: cy, h: 0.7, r: Math.max(shop.w ?? shop.size, shop.h ?? shop.size) * 0.45, top: 1.7, id: shop,
-        tag: () => tagHtml(t(`shop.${shop.kind}`), shop.sells.slice(0, 5).map(id => this.productIcon(id, 'tiny')).join(''), ''),
+        tag: () => tagHtml(t(`shop.${shop.kind}`), pics.map(id => this.productIcon(id, 'tiny')).join(''), ''),
+        poke: () => this.walkShop(shop),
       });
     }
     return out;
@@ -6110,9 +6127,57 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (glad) this.floatAt(icon('heart'), a.px, a.py, a.top + 0.15);
   }
 
+  /**
+   * Je tikt in de loopstand een kraam aan. Verkoopt hij één ding, dan krijg je dat meteen; meer dingen, dan kies je
+   * uit een rijtje grote plaatjes. De wc: even plassen. Een bankje of prullenbak doet niets.
+   */
+  private walkShop(shop: ShopObj): void {
+    const [cx, cy] = blockCenter(shop);
+    if (shop.kind === 'toilet') {
+      if (this.clock - this.walkBoughtAt < 2) return;
+      this.walkBoughtAt = this.clock;
+      sfx('flush', { volume: 0.6 });
+      setTimeout(() => sfx('guest.phew', { volume: 0.7 }), 900);
+      this.floatAt(t('walk.phew'), cx, cy, 1.4, 'word');
+      return;
+    }
+    const offer = walkOffer(shop.kind, shop.sells, this.level);
+    if (!offer.length) return;
+    if (offer.length === 1) return this.walkBuy(shop, offer[0]);
+    const label = (id: string): string => {
+      const face = paintOf(id);
+      return face ? t(`paint.${face}`) : this.productName(id);
+    };
+    this.hand.ask(offer.map(id => ({ id, label: label(id) })), [cx, cy], id => this.walkBuy(shop, id));
+  }
+
+  /**
+   * De loper koopt iets: de verkoper zwaait en lacht, er klinkt een muntje en het kost één munt uit de kas. Zijn er
+   * geen munten, dan krijg je het toch (een kind mag niet vastzitten). De eerste keer zegt de gastvrouw wat je ermee doet.
+   */
+  private walkBuy(shop: ShopObj, product: string): void {
+    // niet per ongeluk twee keer achter elkaar
+    if (this.clock - this.walkBoughtAt < 0.8) return;
+    this.walkBoughtAt = this.clock;
+    const [cx, cy] = blockCenter(shop);
+    const price = walkPrice(this.coins);
+    this.coins -= price;
+    if (price) this.floatAt(icon('coin'), cx, cy, 1.3, 'coin');
+    sfx('coin', { volume: 0.7, every: 0.12 });
+    shop.vendor?.sold();
+    this.pulse(shop.mesh, 0.04);
+    this.floatAt(this.productIcon(product), cx - 0.4, cy, 1.5);
+    this.hand.give(product);
+    if (!paintOf(product) && !this.told.has('walkbuy')) {
+      this.told.add('walkbuy');
+      this.lines.push(say.walkBuy());
+    }
+  }
+
   /** De loopstand gaat aan (menu's en wat je aan het slepen was gaan weg) of uit. De eerste keer legt de gastvrouw het uit. */
   private walkChanged(on: boolean): void {
-    if (!on) return;
+    // weer omhoog: wat je vasthield of droeg, wordt opgeruimd
+    if (!on) return this.hand.clear();
     this.hud.hideMenu();
     this.menuPen = null;
     this.hoverPen = null;
@@ -7156,7 +7221,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     // naast het uur: een plaatje van het seizoen, of een wolkje als het regent
     // (op een feestavond staat er ook een feestmutsje naast)
     const skyIcon = (this.rainLeft > 0 ? icon(this.season === 'winter' ? 'winter' : 'rain') : this.has('season') ? icon(this.season) : '') + (this.partyIcon() ? icon('hat_party') : '');
-    this.hud.setWallet(this.coins, COIN_CAP, this.has('paths') ? crowd.total : null, this.has('night') || this.has('keeper') ? this.clockText() : null, this.has('night') ? (this.night > 0.5 ? 'moon' : 'sun') : null, skyIcon);
+    this.hud.setWallet(this.coins, COIN_CAP, this.has('paths') ? crowd.total : null, this.has('night') || this.has('keeper') ? this.clockText() : null, this.has('night') ? (this.night > 0.5 ? 'moon' : 'sun') : null, skyIcon, this.walk.on ? this.hand.worn() : '');
 
     // een dier wacht al een poos op iets: de verzorger of de bouwer zegt wat er aan de hand is
     const light = worst && (worst.wish === 'bed' || worst.wish === 'terrain' || worst.wish === 'friend' || worst.wish === 'fun' || worst.wish === 'climate' || worst.wish === 'wild' || worst.wish === 'space' || (worst.wish === 'enclosure' && !!worst.a.needsFence));
@@ -7353,6 +7418,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.hud.setWalk(this.has('paths'), this.walk.on);
     if (this.walk.on) this.lastInput = this.clock;
     this.view.update(dt);
+    this.hand.update(dt, this.walk.on && this.view.walkDown, this.walk.at);
     this.updateNight();
     this.updateParty(dt);
     this.updateSky(dt);

@@ -229,6 +229,8 @@ export const say = {
   wayTip: (): Line => ({ who: 'host', mood: 'happy', key: 'say.way.tip' }),
   /** De eerste keer rondlopen in je eigen park (de loopstand, zie walkmode.ts). */
   walkNew: (): Line => ({ who: 'host', mood: 'happy', key: 'say.walk.new' }),
+  /** De eerste keer dat je iets koopt terwijl je rondloopt (zie walkhand.ts). */
+  walkBuy: (): Line => ({ who: 'host', mood: 'happy', key: 'say.walk.buy' }),
   dirty: (): Line => ({ who: 'host', mood: 'worried', key: 'say.dirty' }),
   vetHow: (): Line => ({ who: 'keeper', mood: 'worried', key: 'say.vet.how' }),
   pettingNew: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.petting.new' }),
@@ -374,7 +376,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   for (const who of ['host', 'keeper', 'builder', 'cashier', 'director', 'teacher', 'master'] as const)
     for (const key of ['mini.sum.plus', 'mini.sum.minus', 'mini.spell', 'mini.order.size', 'mini.order.count', 'mini.done.good', 'mini.done.try']) add({ who, mood: 'happy', key });
   // de optocht, de schminktent, de weg wijzen, en de uitleg bij raden (in de stem van de gastvrouw)
-  for (const line of [say.paradeNew(), say.paradeGo(), say.paradeRest(), say.paintNew(), say.wayTip(), say.busy('facepaint'), say.walkNew()]) add(line);
+  for (const line of [say.paradeNew(), say.paradeGo(), say.paradeRest(), say.paintNew(), say.wayTip(), say.busy('facepaint'), say.walkNew(), say.walkBuy()]) add(line);
   for (const key of ['mini.guess', 'mini.guess.no']) add({ who: 'host', mood: 'happy', key });
   // het park gaat om middernacht dicht en om zeven uur weer open
   add({ who: 'director', mood: 'happy', key: 'say.park.closed' });

@@ -1052,5 +1052,9 @@
   "walk": "Walk around",
   "walk.back": "Back up",
   "walk.stick": "Walk",
-  "say.walk.new": "Have a look around! Walk with the arrows and tap an animal."
+  "say.walk.new": "Have a look around! Walk with the arrows and tap an animal.",
+  "say.walk.buy": "Here you go! Tap the screen to enjoy it.",
+  "walk.use": "Use",
+  "walk.paint": "You look like a {face}!",
+  "walk.phew": "Phew, that's better!"
 }

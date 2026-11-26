@@ -1052,5 +1052,9 @@
   "walk": "Rondlopen",
   "walk.back": "Terug naar boven",
   "walk.stick": "Lopen",
-  "say.walk.new": "Kijk eens rond! Loop met de pijltjes en tik op een dier."
+  "say.walk.new": "Kijk eens rond! Loop met de pijltjes en tik op een dier.",
+  "say.walk.buy": "Alsjeblieft! Tik op het scherm om ervan te smullen.",
+  "walk.use": "Gebruiken",
+  "walk.paint": "Je lijkt wel een {face}!",
+  "walk.phew": "Hè hè, dat lucht op!"
 }

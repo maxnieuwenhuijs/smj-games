@@ -30,6 +30,10 @@ export interface WalkHost {
   targets(): WalkTarget[];
   /** De loopstand gaat aan of uit (het spel verstopt dan de knoppenbalk, of laat hem weer zien). */
   changed(on: boolean): void;
+  /** Een tik (of Spatie) terwijl je nergens naar kijkt: gebruik wat je in je hand hebt (zie walkhand.ts). */
+  use?(): void;
+  /** Een toets die het spel zelf wil hebben (een plaatje kiezen bij een kraam). Geeft terug of hij gebruikt is. */
+  key?(code: string): boolean;
 }
 
 /** Toetsen om te lopen. Spatie, Enter en E zijn om iets aan te tikken, Escape om weer omhoog te gaan. */
@@ -123,6 +127,11 @@ export class WalkMode {
   /** Waar de loper nu staat, op het raster. */
   get at(): [number, number] {
     return [this.gx, this.gy];
+  }
+
+  /** Je stapjes: hoe ver je al gelopen hebt en hoe hard je nu loopt (0 tot 1). Daar wiebelt je hand op mee. */
+  get gait(): [number, number] {
+    return [this.phase, this.moving];
   }
 
   /** De ring op de grond onder wat je aankijkt (zie View.showMarks). */
@@ -228,8 +237,10 @@ export class WalkMode {
     this.poke(best ?? this.seen);
   }
 
+  /** Iets aantikken; kijk je nergens naar, dan gebruik je wat je in je hand hebt. */
   private poke(target: WalkTarget | null): void {
-    target?.poke?.();
+    if (target) target.poke?.();
+    else this.host.use?.();
   }
 
   private release(): void {
@@ -245,6 +256,8 @@ export class WalkMode {
       if (e.code === 'Escape') {
         e.preventDefault();
         this.set(false);
+      } else if (!e.repeat && this.host.key?.(e.code)) {
+        e.preventDefault();
       } else if (POKE_KEYS.has(e.code)) {
         e.preventDefault();
         if (!e.repeat) this.poke(this.seen);
@@ -323,6 +336,6 @@ export function tagHtml(name: string, pic: string, sub: string): string {
 }
 
 /** Een scherm met aanraken: dan staat de grote ronde knop er. */
-function touchy(): boolean {
+export function touchy(): boolean {
   return (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 0;
 }

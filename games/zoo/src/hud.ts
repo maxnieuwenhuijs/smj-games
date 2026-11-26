@@ -377,13 +377,14 @@ export class Hud {
   /** De kas (munten) en het aantal gasten in het park. */
   /** `sky`: zon of maan naast het uur (vanaf het level waarin het ook nacht wordt); anders een klokje. */
   /** `extra`: kant-en-klaar plaatje (het seizoen, het weer) dat als laatste vakje onder het uur komt. */
-  setWallet(coins: number, cap: number, guests: number | null, hour: number | string | null = null, sky: 'sun' | 'moon' | null = null, extra = ''): void {
-    const key = `${coins}/${guests}/${hour}/${sky}/${extra}`;
+  /** `worn`: in de loopstand de hoed en de schmink van de loper (zie walkhand.ts), naast de munten. */
+  setWallet(coins: number, cap: number, guests: number | null, hour: number | string | null = null, sky: 'sun' | 'moon' | null = null, extra = '', worn = ''): void {
+    const key = `${coins}/${guests}/${hour}/${sky}/${extra}/${worn}`;
     if (key === this.walletKey) return;
     this.walletKey = key;
     // twee rijen: bovenaan de sterren naast de munten, daaronder de tijd naast het aantal gasten
     this.wallet.innerHTML =
-      `<div class="wrow"><span class="pill${coins >= cap ? ' full' : ''}" title="${t('wallet.coins')}">${icon('coin')}<b>${coins}</b></span></div>` +
+      `<div class="wrow">${worn ? `<span class="pill worn">${worn}</span>` : ''}<span class="pill${coins >= cap ? ' full' : ''}" title="${t('wallet.coins')}">${icon('coin')}<b>${coins}</b></span></div>` +
       `<div class="wrow">` +
       (hour === null ? '' : `<span class="pill" title="${t('wallet.hour')}">${icon(sky ?? 'clock')}<b>${hour}</b></span>`) +
       (guests === null ? '' : `<span class="pill" title="${t('wallet.guests')}">${icon('guest')}<b>${guests}</b></span>`) +
