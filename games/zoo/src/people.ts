@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { PLUSH, PRODUCTS, SEEK_REACH, STALLS, type FoodId, type ShopKind } from './data';
 import { Grid, H, W, tileIndex, tileXY } from './grid';
-import { DARK_FUN, LOOKS, PETTING_GUESTS, PLAY, RESTAURANT_TABLES, RIDES, SUIT_COLORS, TRAIN, isPath } from './data';
+import { DARK_FUN, LOOKS, PETTING_GUESTS, PLAY, RIDES, SUIT_COLORS, TRAIN, isPath } from './data';
 import { SHOW_ROWS, SHOW_TIME } from './data';
 import { FOUNTAIN, RIDE_KINDS, RIDE_SEATS, isRide, newPose, planVisit, rideLocal, visitAge, visitOff, visitPose, visitTime, type RideState, type Visit } from './rides';
 import { CABLE, cableAt, cableLength, cableLoop, cablePassed, cableStop } from './cable';
@@ -1999,7 +1999,7 @@ export class Guest implements Leader {
       const arms = (a: number): void => {
         this.limbs[2].rotation.x = this.limbs[3].rotation.x = a;
       };
-      const total = SERVE_TIME[kind] ?? 6, k = this.settle(total), side = this.seat % 2 ? 1 : -1;
+      const total = SERVE_TIME[kind] ?? 6, k = this.settle(total);
       const sit = m.scale.y * 0.2;
       if (kind === 'show') {
         // op de tribune: drie bankjes van drie, met het gezicht naar het water achter de tribune
@@ -2017,15 +2017,6 @@ export class Guest implements Leader {
             this.limbs[3].rotation.z = clap;
           }
         } else if (k > 0.9) arms(-0.4);
-        return;
-      }
-      if (kind === 'restaurant') {
-        // aan tafel: op een kruk, met het gezicht naar de tafel
-        const [tx, tz] = RESTAURANT_TABLES[(this.seat >> 1) % RESTAURANT_TABLES.length];
-        put(mix(here, at(tx + side * 0.27, 0.25 - sit, tz), k), k > 0.5 ? turn - side * (Math.PI / 2) : this.heading);
-        legs(-1.4 * k);
-        // een hap of een slok
-        if (k > 0.9) this.limbs[3].rotation.x = -1.75 + Math.sin(this.phase * 0.45 + this.seat) * 0.5;
         return;
       }
       if (kind === 'shelter') {
@@ -2219,6 +2210,11 @@ export class Guest implements Leader {
         this.arms(-2.7 * jump * (1 - bum) - 0.5 * bum);
         break;
       }
+      case 'restaurant':
+        // aan tafel op een kruk: af en toe een hap of een slok
+        this.legs(-1.4 * k);
+        if (p.on) limbs[3].rotation.x = -1.75 + Math.sin(this.phase * 0.45 + this.seat) * 0.5;
+        break;
     }
   }
 
