@@ -4,6 +4,7 @@
 import { ALSO, CLIMATE, GOAL_OWNER, LEVELS, PREY_OF, SEASONS, SPECIES, type FenceNeed, type Goal, type Season, type SpeciesId, type WishId, TOY_OF, SPACE, herdOf, SERVES } from './data';
 import { STAFF, TEACHERS, type FigureId, type Mood, type TeacherId } from './figures';
 import { STAR_FACTORS, type StarFactor } from './stars';
+import { VET_GAMES } from './vetplan';
 
 export type Vars = Record<string, string | number>;
 export type Tr = (key: string, vars?: Vars) => string;
@@ -254,7 +255,6 @@ export const say = {
   /** De eerste keer dat je iets koopt terwijl je rondloopt (zie walkhand.ts). */
   walkBuy: (): Line => ({ who: 'host', mood: 'happy', key: 'say.walk.buy' }),
   dirty: (): Line => ({ who: 'host', mood: 'worried', key: 'say.dirty' }),
-  vetHow: (): Line => ({ who: 'keeper', mood: 'worried', key: 'say.vet.how' }),
   pettingNew: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.petting.new' }),
   pettingOpen: (): Line => ({ who: 'host', mood: 'happy', key: 'say.petting.open' }),
   pettingSmall: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.petting.small' }),
@@ -275,6 +275,9 @@ export const say = {
   dusty: (): Line => ({ who: 'keeper', mood: 'worried', key: 'alert.dusty' }),
   filterTip: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.filter.tip' }),
 };
+
+/** De uitleg bij elk spelletje van de dokter (vetgame.ts): de verzorger leest hem voor. */
+export const VET_SAYS = VET_GAMES.map(game => `vet.${game}.how`);
 
 /** De tekst van een zin, zoals hij op het scherm komt en wordt uitgesproken. */
 export const textOf = (tr: Tr, line: Line): string => tr(line.key, line.vars);
@@ -384,7 +387,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   for (const season of SEASONS) add(say.season(season));
   for (const ask of ['green.more', 'green.less', 'stone.more', 'stone.less']) add(wishLine(tr, 'wild', 'pig', null, false, ask));
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
-    say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.dusty(), say.filterTip(), say.showWhere(), say.showFirst(),
+    say.dirty(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.dusty(), say.filterTip(), say.showWhere(), say.showFirst(),
     say.cableOne(), say.cableWhere(), say.cableFirst(), say.partyToday(), say.partyGong(), say.partyStart(), say.partyEnd(), say.treatNew(), say.treatFull(), say.treatSick(), say.hoseNew(), say.hoseMud(), say.leavesNew(), say.leavesJump(), say.snowNew(), say.snowman(), say.lampsNew(), say.lampsWave()]) add(line);
   for (const key of ['balloon', 'icecream', 'coin', 'thanks'] as const) add(say.kid(key));
   add(say.eventNew());
@@ -399,6 +402,8 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   // de uitleg bij een puzzeltje, in de stem van wie om hulp vroeg
   for (const who of ['host', 'keeper', 'builder', 'cashier', 'director', 'teacher', 'master'] as const)
     for (const key of MINI_SAYS) add({ who, mood: 'happy', key });
+  // de uitleg bij de spelletjes van de dokter, in de stem van de verzorger
+  for (const key of VET_SAYS) add({ who: 'keeper', mood: 'happy', key });
   // de optocht, de schminktent, de weg wijzen, en de uitleg bij raden (in de stem van de gastvrouw)
   for (const line of [say.paradeNew(), say.paradeGo(), say.paradeRest(), say.paintNew(), say.wayTip(), say.busy('facepaint'), say.walkNew(), say.walkBuy()]) add(line);
   for (const key of ['mini.guess', 'mini.guess.no']) add({ who: 'host', mood: 'happy', key });

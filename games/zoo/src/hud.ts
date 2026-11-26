@@ -81,7 +81,7 @@ export class Hud {
   private offer = el('div', '');
   /** Het handje dat wijst waar je kunt tikken. */
   private hand = el('div', '', `<i class="ring"></i><span class="arm">${icon('hand')}</span>`);
-  /** Wat er gebeurt als je naast de kaart tikt (alleen bij de dierenarts). */
+  /** Wat er gebeurt als je naast de kaart tikt. */
   private overlayTap: (() => void) | null = null;
 
   constructor(private on: { tool(id: string, row?: string, option?: string): void; home(): void; goal(index: number): void; need(index: number): void; turn(dir: 1 | -1): void; spin(): void; walk(): void }) {
@@ -542,82 +542,6 @@ export class Hud {
       then?.();
     });
     return go;
-  }
-
-  /**
-   * De dierenarts: het zieke dier in het midden en eronder de stappen op volgorde. Alleen de stap die aan de beurt is
-   * licht op. Een tik op een andere knop schudt alleen even; fout gaan kan niet. Na de laatste stap is het dier weer
-   * blij, gaat de kaart dicht en volgt `done`. Naast de kaart tikken sluit hem zonder `done`.
-   */
-  showVet(title: string, animalIcon: string, steps: { id: string; icon: string; label: string }[], done: () => void): void {
-    const card = el('div', 'card vet');
-    const head = el('div', 'big');
-    head.textContent = title;
-    const patient = el('div', 'patient sick', `<span class="pic">${animalIcon}</span>`);
-    const pic = patient.firstElementChild as HTMLElement;
-    const row = el('div', 'steps');
-    let at = 0;
-    const cured = (): void => {
-      // vanaf nu is het dier beter: naast de kaart tikken breekt niets meer af
-      this.overlayTap = null;
-      setTimeout(() => {
-        patient.classList.replace('sick', 'well');
-        for (let i = 0; i < 6; i++) {
-          const spark = el('i', 'spark', icon(i % 2 ? 'sparkle' : 'heart'));
-          const a = (i * 60 - 90) * (Math.PI / 180);
-          spark.style.setProperty('--x', `${Math.round(Math.cos(a) * 96)}px`);
-          spark.style.setProperty('--y', `${Math.round(Math.sin(a) * 96)}px`);
-          spark.style.setProperty('--d', `${i * 0.05}s`);
-          patient.append(spark);
-        }
-      }, 350);
-      setTimeout(() => {
-        // staat er intussen een andere kaart, dan blijft die open
-        if (card.isConnected) this.overlay.hidden = true;
-        done();
-      }, 1250);
-    };
-    const buttons = steps.map((step, i) => {
-      const b = el('button', 'tool vetstep', `${step.icon}<b></b><i class="tick">${icon('check')}</i>`);
-      b.querySelector('b')!.textContent = step.label;
-      b.setAttribute('aria-label', step.label);
-      b.dataset.step = step.id;
-      b.classList.toggle('now', i === 0);
-      b.addEventListener('animationend', e => {
-        if (e.target === b) b.classList.remove('no');
-      });
-      b.addEventListener('click', () => {
-        if (i < at) return;
-        if (i > at) {
-          // nog niet aan de beurt: even schudden
-          b.classList.remove('no');
-          void b.offsetWidth;
-          b.classList.add('no');
-          return;
-        }
-        at++;
-        sfx('place');
-        b.classList.replace('now', 'done');
-        // het ding vliegt van de knop naar het dier
-        const from = b.getBoundingClientRect(), to = patient.getBoundingClientRect();
-        const fly = el('i', 'fly', step.icon);
-        fly.style.setProperty('--dx', `${Math.round(from.left + from.width / 2 - to.left - to.width / 2)}px`);
-        fly.style.setProperty('--dy', `${Math.round(from.top + from.height / 2 - to.top - to.height / 2)}px`);
-        patient.append(fly);
-        setTimeout(() => fly.remove(), 700);
-        // bij elke stap krijgt het dier wat meer kleur
-        pic.style.setProperty('--sick', String(1 - at / steps.length));
-        if (at < steps.length) buttons[at].classList.add('now');
-        else cured();
-      });
-      row.append(b);
-      return b;
-    });
-    card.append(head, patient, row);
-    this.openCard(card, () => {
-      this.overlay.hidden = true;
-    });
-    if (!steps.length) cured();
   }
 
   /**

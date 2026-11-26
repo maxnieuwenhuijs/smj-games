@@ -5,6 +5,8 @@ import { saveSet, t } from '@smj/shared';
 import { Animal, type AnimalWorld, type TrickSound, type Trough } from './animal';
 import { miniOpen, playMini, type MiniKind, type MiniOptions } from './minigame';
 import { pickSetup } from './miniask';
+import { cardOpen } from './playcard';
+import { playVet } from './vetgame';
 import { ambience, animalSound, hasVoice, heard, isMuted, layer, listen, music, playTune, playVoice, reshuffle, sfx } from './audio';
 import {
   BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, SHOP_DEEP, shopSpan, herdOf, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
@@ -6883,6 +6885,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
     this.offer = { kind, who, until: this.clock + 50, ask };
     this.hud.showOffer(picture, t(plan?.label ?? `event.${kind}`), () => {
+      // er ligt al een kaart met een spelletje: het kaartje wacht tot die klaar is
+      if (this.playing()) return;
       this.closeOffer();
       if (species && who) return this.startGuide(species, who);
       this.hud.hush();
@@ -7084,16 +7088,26 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   // ------------------------------------------------------------ dokter, weetjes, vieze kramen en dingen aantikken
-  /** De dokter: eerst de thermometer, dan een pleister, dan een drankje. Daarna is het dier beter. */
+  /** Ligt er een kaart met een spelletje over het park (een puzzeltje, de dokter of een hek maken)? Dan staat het park stil en komt er geen kaart bij. */
+  private playing(): boolean {
+    return miniOpen() || cardOpen();
+  }
+
+  /**
+   * De dokter: een paar kleine spelletjes met het zieke dier (zie vetgame.ts), elke keer andere. Zijn ze gedaan, dan is
+   * het dier beter; klik je de kaart weg, dan blijft het ziek. De verzorger leest de uitleg van elk spelletje voor.
+   */
   private vetGame(a: Animal): void {
-    if (!this.told.has('vet')) {
-      this.told.add('vet');
-      this.sayNow(say.vetHow());
-    }
+    if (this.playing()) return;
+    this.hud.hush();
     animalSound(a.species, a.young, 0.6, [a.gx, a.gy]);
-    const step = (id: string): { id: string; icon: string; label: string } => ({ id, icon: icon(id as IconId), label: t(`vet.${id}`) });
-    this.hud.showVet(t('vet.title'), speciesIcon(a.species), [step('thermo'), step('plaster'), step('syrup')], () => {
-      if (this.animals.includes(a) && a.sick) this.heal(a);
+    playVet({
+      picture: speciesIcon(a.species),
+      say: text => void playVoice(voiceId('keeper', text)),
+      voice: () => animalSound(a.species, a.young, 0.8),
+      onDone: cured => {
+        if (cured && this.animals.includes(a) && a.sick) this.heal(a);
+      },
     });
   }
 
@@ -7564,8 +7578,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   update(dt: number): void {
-    // tijdens een puzzeltje staat het park even stil: een kind mag er rustig over doen
-    if (miniOpen()) return;
+    // tijdens een puzzeltje, bij de dokter en bij het maken van een hek staat het park even stil: een kind mag er rustig over doen
+    if (this.playing()) return;
     this.wildCache = null;
     this.clock += dt;
     // de loopstand: lopen en kijken, voor de camera beweegt; zolang je loopt komt het hulphandje niet

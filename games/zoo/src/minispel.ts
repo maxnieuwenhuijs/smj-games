@@ -1,5 +1,5 @@
-// Ontwikkelpagina (minispel.html): de puzzeltjes uit minigame.ts los van het spel uitproberen.
-// Alleen te zien met `npm run dev`; de pagina zit niet in het gepubliceerde spel.
+// Ontwikkelpagina (minispel.html): de puzzeltjes uit minigame.ts en de spelletjes van de dokter (vetgame.ts) los van
+// het spel uitproberen. Alleen te zien met `npm run dev`; de pagina zit niet in het gepubliceerde spel.
 //
 // In de adresbalk: ?taal=en voor de Engelse teksten en woorden.
 import { setStrings } from '@smj/shared';
@@ -9,9 +9,12 @@ import en from './en.json';
 import { CLUES, guessChoices } from './guestfun';
 import { icon, type IconId } from './icons';
 import { MINI_KINDS, closeMini, miniOpen, playMini, type MiniKind, type MiniOptions, type MiniResult } from './minigame';
-import { probeIcons } from './models';
+import { probeIcons, speciesIcon } from './models';
 import nl from './nl.json';
+import { cardOpen } from './playcard';
 import './style.css';
+import { playVet } from './vetgame';
+import { VET_GAMES, type VetGame } from './vetplan';
 
 const lang = new URLSearchParams(location.search).get('taal') === 'en' ? 'en' : 'nl';
 setStrings(lang === 'en' ? { ...nl, ...en } : nl);
@@ -35,9 +38,13 @@ const THEMES: Record<string, IconId[]> = {
 const PARK = ['pig', 'cow', 'chicken', 'lion', 'giraffe', 'penguin', 'dolphin', 'parrot'] as const;
 const lines: string[] = [];
 
-function report(kind: MiniKind, r: MiniResult): void {
-  lines.unshift(`${kind}: ${JSON.stringify(r)}  (open: ${miniOpen()})`);
+function note(text: string): void {
+  lines.unshift(text);
   $('uitslag').textContent = lines.slice(0, 8).join('\n');
+}
+
+function report(kind: MiniKind, r: MiniResult): void {
+  note(`${kind}: ${JSON.stringify(r)}  (open: ${miniOpen()})`);
 }
 
 function start(kind: MiniKind): void {
@@ -81,6 +88,26 @@ swap.addEventListener('click', () => {
   setTimeout(closeMini, 8000);
 });
 $('knoppen').append(swap);
+
+// de dokter: een heel bezoek (twee of drie spelletjes, zoals in het spel), of één spelletje apart
+const VET_LABELS: Record<VetGame, string> = { thermo: 'Koorts', plaster: 'Pleisters', stetho: 'Hart', thorn: 'Doorn', syrup: 'Drankje', cotton: 'Watje', teeth: 'Tanden' };
+function vet(games?: VetGame[]): void {
+  const sp = ($('patient') as HTMLSelectElement).value || PARK[Math.floor(Math.random() * PARK.length)];
+  playVet({ picture: speciesIcon(sp), games, voice: () => animalSound(sp, false), onDone: cured => note(`dokter ${games?.join('+') ?? 'bezoek'} (${sp}): ${cured ? 'beter' : 'weggeklikt'}  (open: ${cardOpen()})`) });
+}
+for (const [label, games] of [['Bezoek', undefined], ...VET_GAMES.map(g => [VET_LABELS[g], [g]])] as [string, VetGame[] | undefined][]) {
+  const b = document.createElement('button');
+  b.textContent = label;
+  b.dataset.vet = games?.[0] ?? 'visit';
+  b.addEventListener('click', () => vet(games));
+  $('dokter').append(b);
+}
+for (const sp of ['', ...Object.keys(SPECIES)]) {
+  const o = document.createElement('option');
+  o.value = sp;
+  o.textContent = sp || 'een dier uit het park';
+  $('patient').append(o);
+}
 
 // geluid mag pas na een tik
 addEventListener('pointerdown', unlockAudio, { capture: true });

@@ -1,0 +1,97 @@
+/* De kaart van de dokter en van het hek maken (zie playcard.ts). Alle namen beginnen met pc-. De kaart ziet eruit als die van de puzzeltjes. */
+#playcard {
+  --pc-soft: #f1f6ea; --pc-ok: #6cc04a; --pc-ok-shade: #4f9a35;
+  position: fixed; inset: 0; z-index: 8; display: flex; align-items: center; justify-content: center; padding: 8px;
+  background: rgba(40, 70, 30, 0.45); color: var(--ink, #3a2a1a); font-family: system-ui, sans-serif;
+  user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; pointer-events: auto;
+}
+#playcard[hidden] { display: none; }
+#playcard * { box-sizing: border-box; }
+#playcard .ic { width: 1em; height: 1em; display: block; flex: none; object-fit: contain; }
+
+.pc-card {
+  position: relative; width: min(520px, 100%); max-height: 100%; overflow-x: hidden; overflow-y: auto;
+  background: var(--card, #fff); border-radius: 36px; box-shadow: 0 10px 0 rgba(0, 0, 0, 0.18);
+  padding: 14px 16px 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
+  animation: pc-pop 0.35s ease-out;
+}
+@keyframes pc-pop { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* het kruisje: het vlak om te tikken is groter dan het rondje dat je ziet */
+.pc-close {
+  position: absolute; top: 0; right: 0; width: 64px; height: 64px; border: 0; padding: 0; background: none; cursor: pointer;
+  display: grid; place-items: center; z-index: 3;
+}
+.pc-close span {
+  width: 46px; height: 46px; border-radius: 50%; background: var(--pc-soft); box-shadow: 0 4px 0 var(--shade, #c9d6c0);
+  display: grid; place-items: center;
+}
+.pc-close svg { width: 22px; height: 22px; display: block; }
+.pc-close:active span { transform: translateY(2px); box-shadow: 0 2px 0 var(--shade, #c9d6c0); }
+
+/* bovenaan: wat voor kaart het is, en een bolletje per stap met het plaatje van die stap */
+.pc-head { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 50px; padding: 0 52px; }
+.pc-pic { font-size: 46px; display: flex; }
+.pc-pic:empty { display: none; }
+.pc-steps { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.pc-step {
+  width: 40px; height: 40px; border-radius: 50%; background: var(--pc-soft); display: grid; place-items: center; font-size: 26px;
+  filter: grayscale(1); opacity: 0.4; transition: opacity 0.3s, filter 0.3s, background 0.3s;
+}
+.pc-step.now { filter: none; opacity: 1; background: var(--sun, #ffd95a); box-shadow: 0 3px 0 var(--sun-shade, #d9a520); animation: pc-pulse 1.1s ease-in-out infinite; }
+.pc-step.ok { filter: none; opacity: 1; background: #d9f0cc; box-shadow: 0 3px 0 var(--pc-ok-shade); }
+@keyframes pc-pulse { 50% { transform: scale(1.14); } }
+
+.pc-title { font-size: clamp(17px, 4.6vw, 22px); font-weight: 800; line-height: 1.2; min-height: 1.2em; }
+/* wat opzij uit het vak vliegt (een doorn, een spijker) wordt afgesneden; naar boven mag iets wel uitsteken */
+.pc-stage { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; overflow-x: clip; }
+/* een vak waar je met je vinger over sleept: het scherm schuift dan niet mee */
+.pc-touch { touch-action: none; cursor: pointer; }
+
+/* ---------- het handje dat het voordoet ---------- */
+/* het punt (left, top) is de top van de wijsvinger: die zit in het plaatje op 46% van links en 12% van boven */
+.pc-hand {
+  position: absolute; width: 0; height: 0; pointer-events: none; z-index: 5; font-size: clamp(48px, 13vw, 64px);
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.25));
+}
+.pc-hand .ic { position: absolute; left: -0.458em; top: -0.125em; transform-origin: 45.8% 12.5%; }
+.pc-hand.tap .ic { animation: pc-tap 1.5s ease-in-out infinite; }
+.pc-hand.hold .ic { animation: pc-hold 2.4s ease-in-out infinite; }
+.pc-hand.rub, .pc-hand.drag { animation: pc-slide 1.9s ease-in-out infinite; }
+.pc-hand.rub { animation-name: pc-rub; animation-duration: 1.5s; }
+@keyframes pc-tap { 0%, 100% { transform: translateY(16px) rotate(-12deg); } 45%, 60% { transform: translateY(0) rotate(-12deg) scale(0.92); } }
+@keyframes pc-hold { 0%, 100% { transform: translateY(18px) rotate(-12deg); } 20%, 85% { transform: translateY(0) rotate(-12deg) scale(0.92); } }
+@keyframes pc-slide {
+  0% { transform: translate(0, 0); opacity: 0; }
+  12%, 20% { transform: translate(0, 0); opacity: 1; }
+  75% { transform: translate(var(--dx, 0), var(--dy, 0)); opacity: 1; }
+  100% { transform: translate(var(--dx, 0), var(--dy, 0)); opacity: 0; }
+}
+@keyframes pc-rub { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(var(--dx, 0), var(--dy, 0)); } }
+.pc-hand.rub .ic, .pc-hand.drag .ic { transform: rotate(-12deg) scale(0.92); }
+
+/* ---------- sterretjes en hartjes die wegspatten ---------- */
+.pc-spark { position: absolute; width: 0; height: 0; pointer-events: none; z-index: 4; font-size: 30px; font-style: normal; opacity: 0; animation: pc-spark 0.9s ease-out var(--d, 0s) forwards; }
+.pc-spark .ic { position: absolute; left: -0.5em; top: -0.5em; }
+@keyframes pc-spark {
+  0% { transform: translate(0, 0) scale(0.3); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translate(var(--x), var(--y)) scale(1.1); opacity: 0; }
+}
+
+/* ---------- laag scherm (telefoon op zijn kant): alles wat dichter op elkaar ---------- */
+@media (max-height: 480px) {
+  .pc-card { padding: 6px 16px 10px; gap: 5px; border-radius: 28px; }
+  .pc-head { min-height: 40px; }
+  .pc-pic { font-size: 34px; }
+  .pc-step { width: 32px; height: 32px; font-size: 21px; }
+  /* de uitleg staat hier naast het kruisje: aan weerskanten ruimte houden */
+  .pc-title { font-size: 16px; padding: 0 46px; }
+  .pc-stage { gap: 6px; }
+}
+
+/* ---------- liever weinig beweging ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .pc-card, .pc-step.now { animation: none; }
+  .pc-hand.tap .ic, .pc-hand.hold .ic, .pc-hand.rub, .pc-hand.drag { animation-duration: 4s; }
+}

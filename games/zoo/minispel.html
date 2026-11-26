@@ -14,7 +14,7 @@
 </style>
 </head>
 <body>
-<!-- Alleen voor het bouwen: de puzzeltjes los van het spel uitproberen (zie src/minispel.ts). Niet in het gepubliceerde spel. -->
+<!-- Alleen voor het bouwen: de puzzeltjes en de spelletjes van de dokter los van het spel uitproberen (zie src/minispel.ts). Niet in het gepubliceerde spel. -->
 <div id="proef">
   <h2>Puzzeltjes</h2>
   <div class="rij" id="knoppen"></div>
@@ -26,6 +26,9 @@
     <label><input type="checkbox" id="park" checked> een park met dieren</label>
     <label><input type="checkbox" id="geluid" checked> met geluid</label>
   </div>
+  <h2>De dokter</h2>
+  <div class="rij" id="dokter"></div>
+  <div class="rij"><label>patiënt <select id="patient"></select></label></div>
   <pre id="uitslag"></pre>
 </div>
 <script type="module" src="/src/minispel.ts"></script>
