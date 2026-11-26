@@ -6,7 +6,7 @@ import { emptyStats, goalProgress, levelDone } from './levels';
 import { allLines, fill, goalLine, speciesVars, textOf, voiceId, type Tr } from './lines';
 import { ESCAPE_WAY, escapeChance, escapeWay, pickEscaper } from './data';
 import nl from './nl.json';
-import { AQUATIC, PROP, PROPS, WILD_KINDS, WILD_WANT, propPoints, wildRange, wildWant } from './data';
+import { AQUATIC, PROP, PROPS, WILD_BASE, WILD_KINDS, propPoints, wildRange, wildWant } from './data';
 import { DECOR, WAYFIND, WAYFIND_PATHS, canStray, wayfound } from './data';
 import { BONUS, TOY_FROM, TOY_OF, likesToy, type ToyKind } from './data';
 import { PETTABLE, PREY_OF, WISH_ORDER, huntersOf, scares } from './data';
@@ -358,7 +358,7 @@ describe('natuur in de verblijven', () => {
       expect(want, sp).not.toBeNull();
       for (const kind of WILD_KINDS) expect(want![kind][0]).toBeLessThan(want![kind][1]);
     }
-    expect(Object.keys(WILD_WANT).length).toBeGreaterThan(3);
+    expect(Object.keys(WILD_BASE).length).toBeGreaterThan(3);
   });
 
   it('in het kleinste verblijf vraagt geen dier om een boom, en het minimum past er altijd in', () => {
@@ -387,8 +387,8 @@ describe('natuur in de verblijven', () => {
         }
       }
     }
-    // een giraf (zand) in een verblijf van zestien tegels: minstens één boom, hooguit drie
-    expect(wildRange('giraffe', 16)!.tree).toEqual([1, 3]);
+    // een giraf houdt van bomen: in een verblijf van zestien tegels minstens twee, hooguit acht
+    expect(wildRange('giraffe', 16)!.tree).toEqual([2, 8]);
   });
 
   it('iets kleins telt voor één vakje, een boom of rots voor vier', () => {

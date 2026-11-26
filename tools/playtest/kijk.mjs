@@ -27,7 +27,7 @@ function playwright() {
 export const emptyPark = (level = 0, coins = 99, extra = {}) => ({
   v: 4, level, fed: 0, cleaned: 0, terrain: [], h: [], vv: [], troughs: [], animals: [], poops: [], coins, gw: 44, gh: 36,
   // alle uitleg is al gegeven: dan praat er niemand door je foto heen
-  told: ['guests', 'vet', 'walk', 'walkbuy', 'cable.first', 'stars', 'event', 'staff', 'petting', 'night', 'hose', 'treat'],
+  told: ['guests', 'vet', 'walk', 'walkbuy', 'cable.first', 'stars', 'event', 'staff', 'petting', 'night', 'hose', 'treat', 'keys'],
   ...extra,
 });
 

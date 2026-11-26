@@ -3,9 +3,9 @@ import * as THREE from 'three';
 import { dusty } from './care';
 import {
   ALSO, AQUATIC, CLIMATE, MIX_TILES, MUD_LOVERS, PETTABLE, TANK_WATER, TOY_DRINK, TOY_LIFT, type Nature, type Rare, type Terrain, type ToyKind,
-  MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, TOY_OF, WISH_ORDER, herdOf, palsOf, scares, wildRange, WILD_KINDS, type PropGroup, type WildKind, type FenceNeed, type SpeciesId, type Variant, type WishId, type EscapeWay,
+  MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, WISH_ORDER, herdOf, palsOf, scares, wildRange, WILD_KINDS, type PropGroup, type WildKind, type FenceNeed, type SpeciesId, type Variant, type WishId, type EscapeWay,
 } from './data';
-import { CLIMB_SECONDS, PUSH, ROCK_SECONDS, SWING, SWING_SECONDS, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, swingAt, type Beat } from './data';
+import { CLIMB_SECONDS, PUSH, ROCK_SECONDS, SWING, SWING_SECONDS, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, swingAt, toyGap, wishOrder, type Beat } from './data';
 import { MURK, murkyWater } from './data';
 import { CATCH } from './care';
 import { Grid, tileIndex, tileXY } from './grid';
@@ -48,6 +48,17 @@ export interface AnimalWorld {
   toys: Toy[];
   /** Willen dieren al iets leuks in hun verblijf (vanaf level 10)? */
   wantsFun(): boolean;
+  /** Hoeveel levels er gehaald zijn: daar hangt aan welk speelgoed er al te koop is (en dus waar een dier om kan vragen). */
+  levelsDone(): number;
+  /**
+   * De dag van vandaag, voor wat een dier het belangrijkst vindt: elke dag kiest elk dier opnieuw (zie wishOrder).
+   * Null zolang de volgorde nog vast is (op de boerderij).
+   */
+  wishDay(): number | null;
+  /** De bomen, planten en stenen in dit verblijf: daar loopt een dier af en toe naartoe. Steeds dezelfde lijst: niet bewaren. */
+  wildSpots(regionId: number): readonly WildSpot[];
+  /** Een dier doet iets met een boom, plant of steen: een paar blaadjes of stofjes op die plek. */
+  nibbled(gx: number, gy: number, kind: WildKind): void;
   /** Is het nacht? Dan slapen de meeste dieren. */
   isNight(): boolean;
   /**
@@ -112,6 +123,14 @@ export interface AnimalWorld {
   spray(gx: number, gy: number, height: number): void;
   /** Het geluid bij een kunstje, één keer als het begint (de plons: als het dier weer in het water landt). */
   trickSound(animal: Animal, kind: TrickSound): void;
+}
+
+/** Een boom, plant of steen in een verblijf: waar hij staat, en of hij een hele tegel inneemt (dan loop je eromheen). */
+export interface WildSpot {
+  gx: number;
+  gy: number;
+  kind: WildKind;
+  solid: boolean;
 }
 
 /** De geluiden bij een kunstje: stampen, trappelen, klappen met de vinnen, op de buik glijden, pronken met de veren en de plons na een sprong. */
@@ -273,6 +292,20 @@ export class Animal {
    * hoeveel stuks het scheelt (`by`). `group` is groen of steen: daar praat de verzorger over.
    */
   wildAsk: { kind: WildKind; group: PropGroup; more: boolean; by: number } | null = null;
+  /**
+   * Het speelgoed dat dit dier nog mist: het liefste ding uit zijn lijstje dat nog niet in het verblijf staat
+   * (`funAsk`), hoeveel verschillende dingen er nog bij moeten (`funShort`), wat er al staat uit zijn lijstje
+   * (`funGot`) en hoeveel het er in dit verblijf wil (`funNeed`). Zie toyGap in data.ts.
+   */
+  funAsk: ToyKind | null = null;
+  funShort = 0;
+  funGot: ToyKind[] = [];
+  funNeed = 0;
+  /** Een eigen getal voor dit dier: daarmee kiest het elke dag wat het het belangrijkst vindt (zie wishOrder). */
+  seed = Math.floor(Math.random() * 0x7fffffff);
+  /** De volgorde van de wensen van vandaag, en voor welke dag die gekozen is. */
+  wishes: WishId[] = WISH_ORDER;
+  private wishesDay: number | null | undefined = undefined;
   /** Het karakter: verlegen, speels, slaperig of dapper. Je ziet het aan hoe het dier loopt en wat het doet. */
   nature: Nature = 'plain';
   /** Het roofdier in het verblijf waar dit dier bang voor is (vanaf FEATURE.safe), of null. */
@@ -347,7 +380,7 @@ export class Animal {
    * Waar het dier naartoe loopt om te rollen ('roll') of om iemand te begroeten ('come'); en naar een gast bij het
    * hek om hem aan te kijken ('look'), zijn kunstje te laten zien ('show') of te bedelen ('beg').
    */
-  private goal: 'roll' | 'come' | 'look' | 'show' | 'beg' | null = null;
+  private goal: 'roll' | 'come' | 'look' | 'show' | 'beg' | 'rub' | 'nibble' | 'gaze' | null = null;
   private spotX = 0;
   private spotY = 0;
   /** Tikkertje: het dier rent naar zijn vriendje, en dat rent dan weg. */
@@ -1370,8 +1403,8 @@ export class Animal {
       // een schoon hok, en zelf niet helemaal stoffig (dan wil het dier gewassen worden met de slang)
       result.clean = w.poopsIn(region.id) <= MAX_POOPS_CLEAN && !dusty(this.dust);
       result.bed = w.beds.some(b => w.grid.regionOf[tileIndex(b.x, b.y)] === region.id);
-      const fav = TOY_OF[this.species];
-      result.fun = !fav || !w.wantsFun() || w.toys.some(t => likesToy(this.species, t.kind) && w.grid.regionOf[tileIndex(t.x, t.y)] === region.id);
+      // in de kinderboerderij is één ding uit het lijstje genoeg
+      result.fun = this.checkFun(w, region, true);
     } else if (region) {
       const tilesOf = (kind: Terrain): number => {
         const k = TERRAINS.indexOf(kind);
@@ -1393,8 +1426,7 @@ export class Animal {
       // een zeedier wil ook schoon water in zijn bak
       result.clean = w.poopsIn(region.id) <= MAX_POOPS_CLEAN && !(this.aquatic && murkyWater(w.murkIn(region.id))) && !dusty(this.dust);
       result.bed = w.beds.some(b => b.kind === info.bed && w.grid.regionOf[tileIndex(b.x, b.y)] === region.id);
-      const fav = TOY_OF[this.species];
-      result.fun = !fav || !w.wantsFun() || w.toys.some(t => likesToy(this.species, t.kind) && w.grid.regionOf[tileIndex(t.x, t.y)] === region.id);
+      result.fun = this.checkFun(w, region, false);
     }
     if (region) {
       // warmte of kou: een lamp of een blok ijs in het verblijf
@@ -1416,9 +1448,38 @@ export class Animal {
         result.wild = !this.wildAsk;
       }
     }
-    this.unmet = WISH_ORDER.find(k => !result[k]) ?? null;
+    // wat het dier vandaag het belangrijkst vindt, laat het als eerste zien (elke dag en bij elk dier anders)
+    const day = w.wishDay();
+    if (day !== this.wishesDay) {
+      this.wishesDay = day;
+      this.wishes = wishOrder(this.seed, day);
+    }
+    this.unmet = this.wishes.find(k => !result[k]) ?? null;
     this.happy = this.unmet === null;
     return result;
+  }
+
+  /**
+   * Staat er genoeg speelgoed uit het lijstje van deze soort in het verblijf? Hoeveel verschillende dingen dat zijn,
+   * hangt af van de grootte van het verblijf, de grootte van de groep en hoeveel er al te koop is (zie toyNeed).
+   * `tame`: in de kinderboerderij is één ding genoeg.
+   */
+  private checkFun(w: AnimalWorld, region: { id: number; tiles: number[] }, tame: boolean): boolean {
+    this.funAsk = null;
+    this.funShort = this.funNeed = 0;
+    this.funGot = [];
+    if (!w.wantsFun()) return true;
+    const have: string[] = [];
+    for (const t of w.toys) if (w.grid.regionOf[tileIndex(t.x, t.y)] === region.id) have.push(t.kind);
+    let group = 0;
+    for (const a of w.animals) if (a.species === this.species && !a.escaped && w.grid.regionOf[a.tile] === region.id) group++;
+    const gap = toyGap(this.species, w.levelsDone(), region.tiles.length, group, have);
+    const need = tame ? Math.min(1, gap.need) : gap.need, short = Math.max(0, need - gap.got.length);
+    this.funNeed = need;
+    this.funGot = gap.got;
+    this.funShort = short;
+    this.funAsk = short ? gap.missing[0] ?? null : null;
+    return short === 0;
   }
 
   /** Een boerderijdier in een kinderboerderij: extra tam, en tevreden met minder. */
@@ -1787,6 +1848,24 @@ export class Animal {
     this.goal = goal;
     this.spotX = gx;
     this.spotY = gy;
+    return true;
+  }
+
+  /**
+   * Naar een boom, plant of steen in het eigen verblijf lopen en er iets mee doen. Bij iets kleins gaat het dier op
+   * die tegel staan; om een boom of rots (een hele tegel) gaat het ernaast staan. Geeft terug of het dier op weg ging.
+   */
+  private goWild(w: AnimalWorld, spot: WildSpot, regionId: number, blocked: (i: number) => boolean): boolean {
+    const at = tileIndex(Math.floor(spot.gx), Math.floor(spot.gy));
+    const tiles = (spot.solid ? w.grid.neighbors(at) : [at]).filter(i => !blocked(i) && w.grid.regionOf[i] === regionId);
+    const goal = tiles[Math.floor(Math.random() * tiles.length)];
+    const route = goal === undefined ? null : w.grid.path(this.tile, goal, blocked);
+    if (!route) return false;
+    this.drop();
+    this.startWalk(route);
+    this.goal = spot.kind === 'tree' ? 'rub' : spot.kind === 'plant' ? 'nibble' : 'gaze';
+    this.spotX = spot.gx;
+    this.spotY = spot.gy;
     return true;
   }
 
@@ -2271,6 +2350,13 @@ export class Animal {
       const toy = pool[Math.floor(Math.random() * pool.length)];
       if (toy && this.goPlay(w, toy, region.id, isTrough, false)) return;
     }
+    // een blij dier doet ook iets met het groen en de stenen in zijn verblijf: tegen een boom schuren, van een
+    // plant snoepen of bij een steen rondkijken. Zo staat de natuur er niet alleen om naar te kijken
+    if (this.happy && !this.aquatic && Math.random() < 0.13 * lively) {
+      const spots = w.wildSpots(region.id);
+      const spot = spots[Math.floor(Math.random() * spots.length)];
+      if (spot && this.goWild(w, spot, region.id, isTrough)) return;
+    }
     // er staan gasten te kijken: af en toe loopt een dier naar ze toe, laat het zijn kunstje zien of bedelt het
     if (this.heedGuests(w, region, tame, isTrough)) return;
     // een gast in de buurt: een tam of dapper dier loopt ernaartoe, een verlegen dier loopt juist weg
@@ -2554,6 +2640,13 @@ export class Animal {
           // bij de gasten aan het hek: het kunstje van deze soort
           this.goal = null;
           this.perform(w, this.spotX, this.spotY);
+        } else if (this.goal === 'rub' || this.goal === 'nibble' || this.goal === 'gaze') {
+          // bij de boom, de plant of de steen: ertegenaan schuren, ervan snoepen of er rondkijken
+          const what = this.goal;
+          this.goal = null;
+          this.show(what === 'rub' ? 'sway' : what === 'nibble' ? 'sniff' : 'survey');
+          this.face(this.spotX, this.spotY);
+          w.nibbled(this.spotX, this.spotY, what === 'rub' ? 'tree' : what === 'nibble' ? 'plant' : 'stone');
         } else if (this.goal === 'look' || this.goal === 'beg') {
           // de gast aankijken, of in de kinderboerderij met de neus naar zijn hand
           if (this.goal === 'beg') this.show('beg');

@@ -319,19 +319,99 @@ export const TOY_OF: Partial<Record<SpeciesId, ToyKind>> = {
   otter: 'ball', beaver: 'log', koala: 'bush', redpanda: 'log', lemur: 'bush', bison: 'log', kangaroo: 'ball',
 };
 /**
- * Het bewegende speelgoed is voor deze dieren net zo leuk als hun lievelingsding: staat het in hun verblijf, dan
- * vervelen ze zich niet, en ze spelen er het liefst mee.
+ * De speelgoedsleutel: welk speelgoed elke soort leuk vindt, het liefste eerst (dat is zijn lievelingsding uit
+ * TOY_OF; de soorten die daar niet in staan, beginnen met iets eenvoudigs). Een aap houdt van de bal, de
+ * bandenschommel, de klimpaal, het klimrek en de waterval; een schaap van de struik, de wipplank en de heuvel. Zo
+ * heeft elk nieuw ding dat je vrijspeelt een paar dieren die erom gaan vragen.
  */
-export const TOY_ALSO: Partial<Record<ToyKind, SpeciesId[]>> = {
-  tyre: ['pig', 'horse', 'rhino', 'hippo', 'elephant', 'bison', 'bear', 'polarbear', 'wolf', 'walrus'],
-  rocker: ['goat', 'sheep', 'alpaca', 'donkey', 'penguin', 'seal', 'reindeer', 'yak', 'otter'],
-  tetherball: ['lion', 'tiger', 'cheetah', 'panther', 'kangaroo', 'cow', 'zebra', 'camel', 'giraffe', 'arcticfox'],
-  logarch: ['gazelle', 'pig', 'wolf', 'arcticfox', 'beaver', 'otter', 'panda', 'cheetah'],
-  tyreswing: ['monkey', 'gorilla', 'panda', 'lemur', 'koala', 'redpanda', 'sloth', 'parrot', 'toucan'],
-  pole: ['monkey', 'lemur', 'redpanda', 'koala', 'sloth', 'panther', 'goat', 'owl', 'parrot', 'toucan', 'bear'],
+export const TOY_LIKES: Record<SpeciesId, ToyKind[]> = {
+  // boerderij
+  pig: ['ball', 'tyre', 'tunnel', 'logarch', 'hill'],
+  cow: ['bush', 'tetherball', 'drink', 'flowerbed', 'hill'],
+  sheep: ['bush', 'rocker', 'hill', 'flowerbed', 'drink'],
+  horse: ['ball', 'tyre', 'drink', 'hill', 'bush'],
+  donkey: ['log', 'rocker', 'drink', 'hill', 'ball'],
+  goat: ['log', 'rocker', 'hill', 'rocks', 'pole'],
+  alpaca: ['bush', 'rocker', 'hill', 'drink', 'flowerbed'],
+  chicken: ['bush', 'log', 'tunnel', 'hill', 'frame'],
+  duck: ['flowerbed', 'drink', 'ball', 'fall'],
+  rabbit: ['bush', 'tunnel', 'flowerbed', 'hill', 'ball'],
+  // savanne
+  zebra: ['bush', 'tetherball', 'drink', 'hill', 'flowerbed'],
+  giraffe: ['bush', 'tetherball', 'drink', 'flowerbed'],
+  lion: ['ball', 'tetherball', 'rocks', 'hill', 'log'],
+  camel: ['bush', 'tetherball', 'drink', 'rocks', 'hill'],
+  rhino: ['log', 'tyre', 'drink', 'hill', 'ball'],
+  hippo: ['ball', 'tyre', 'drink', 'fall', 'log'],
+  elephant: ['log', 'tyre', 'drink', 'fall', 'ball'],
+  ostrich: ['bush', 'hill', 'drink', 'ball', 'flowerbed'],
+  cheetah: ['ball', 'tetherball', 'logarch', 'hill', 'tunnel'],
+  gazelle: ['flowerbed', 'logarch', 'hill', 'drink', 'bush'],
+  // jungle
+  monkey: ['ball', 'tyreswing', 'pole', 'frame', 'fall'],
+  parrot: ['flowerbed', 'tyreswing', 'pole', 'frame', 'fall'],
+  tiger: ['ball', 'tetherball', 'drink', 'fall', 'rocks'],
+  gorilla: ['log', 'tyreswing', 'frame', 'fall', 'ball'],
+  crocodile: ['log', 'drink', 'rocks', 'fall'],
+  panda: ['bush', 'tyreswing', 'logarch', 'frame', 'tunnel'],
+  peacock: ['flowerbed', 'bush', 'hill', 'drink', 'frame'],
+  toucan: ['bush', 'tyreswing', 'pole', 'frame', 'fall'],
+  sloth: ['log', 'tyreswing', 'pole', 'frame', 'flowerbed'],
+  panther: ['log', 'tetherball', 'pole', 'rocks', 'frame'],
+  // ijs en bergen
+  penguin: ['ball', 'rocker', 'rocks', 'tunnel', 'fall'],
+  seal: ['ball', 'rocker', 'rocks', 'fall'],
+  polarbear: ['log', 'tyre', 'rocks', 'fall', 'ball'],
+  reindeer: ['bush', 'rocker', 'hill', 'drink', 'flowerbed'],
+  wolf: ['ball', 'tyre', 'logarch', 'hill', 'rocks'],
+  arcticfox: ['flowerbed', 'tetherball', 'logarch', 'tunnel', 'rocks'],
+  bear: ['log', 'tyre', 'pole', 'rocks', 'fall'],
+  yak: ['bush', 'rocker', 'hill', 'rocks', 'drink'],
+  owl: ['log', 'pole', 'frame', 'rocks'],
+  walrus: ['ball', 'tyre', 'rocks', 'fall'],
+  // water en verre landen
+  flamingo: ['flowerbed', 'drink', 'fall', 'rocks'],
+  turtle: ['bush', 'rocks', 'drink', 'tunnel', 'log'],
+  otter: ['ball', 'rocker', 'logarch', 'tunnel', 'fall'],
+  beaver: ['log', 'logarch', 'tunnel', 'fall', 'drink'],
+  pelican: ['flowerbed', 'drink', 'fall', 'rocks'],
+  koala: ['bush', 'tyreswing', 'pole', 'frame', 'flowerbed'],
+  redpanda: ['log', 'tyreswing', 'pole', 'frame', 'rocks'],
+  lemur: ['bush', 'tyreswing', 'pole', 'frame', 'rocks'],
+  bison: ['log', 'tyre', 'drink', 'hill', 'bush'],
+  kangaroo: ['ball', 'tetherball', 'hill', 'drink', 'bush'],
+  // aquarium: alleen wat in het water kan
+  dolphin: ['hoop', 'ball'],
+  orca: ['ball', 'hoop'],
+  ray: [],
+  shark: ['ball'],
 };
-/** Is dit het lievelingsding van deze soort, of iets wat hij net zo leuk vindt? */
-export const likesToy = (sp: SpeciesId, kind: string): boolean => TOY_OF[sp] === kind || !!TOY_ALSO[kind as ToyKind]?.includes(sp);
+/** Vindt deze soort dit ding leuk? */
+export const likesToy = (sp: SpeciesId, kind: string): boolean => (TOY_LIKES[sp] as string[]).includes(kind);
+/** Het speelgoed dat deze soort leuk vindt en dat je al hebt vrijgespeeld (na `done` gehaalde levels), het liefste eerst. */
+export const likedToys = (sp: SpeciesId, done: number): ToyKind[] => TOY_LIKES[sp].filter(kind => TOY_FROM[kind] <= done);
+/**
+ * Hoeveel verschillende dingen uit hun lijstje de dieren van een soort in hun verblijf willen. Het begint met één.
+ * Heb je meer van hun speelgoed vrijgespeeld (`TOY_KEY.more`: bij zoveel stuks één erbij), dan willen ze meer
+ * afwisseling, en een grote groep (`group` dieren of meer) wil er nog een bij. Maar nooit meer dan er past:
+ * speelgoed neemt een hele tegel, dus één ding per `room` tegels van het verblijf, en hooguit `most`.
+ */
+export const TOY_KEY = { more: [3, 5], group: 4, room: 5, most: 4 };
+export function toyNeed(sp: SpeciesId, done: number, tiles: number, group: number): number {
+  const liked = likedToys(sp, done).length;
+  if (!liked) return 0;
+  const want = 1 + TOY_KEY.more.filter(n => liked >= n).length + (group >= TOY_KEY.group ? 1 : 0);
+  return Math.min(liked, want, Math.max(1, Math.floor(tiles / TOY_KEY.room)), TOY_KEY.most);
+}
+/**
+ * Wat de dieren van deze soort in dit verblijf nog missen: de dingen uit hun lijstje die er nog niet staan (het
+ * liefste eerst), en hoeveel er nog bij moeten. `have`: de soorten speelgoed die er al staan.
+ */
+export function toyGap(sp: SpeciesId, done: number, tiles: number, group: number, have: readonly string[]): { need: number; got: ToyKind[]; missing: ToyKind[]; short: number } {
+  const liked = likedToys(sp, done), need = toyNeed(sp, done, tiles, group);
+  const got = liked.filter(kind => have.includes(kind));
+  return { need, got, missing: liked.filter(kind => !have.includes(kind)), short: Math.max(0, need - got.length) };
+}
 /**
  * Wat je kunt bouwen. De speeltuin als één gebouw staat er niet meer bij: je bouwt losse toestellen (eerst de
  * glijbaan, later de schommel, de wipwap, de wipkip en de trampoline). 'playground' bestaat nog als naam voor
@@ -787,20 +867,46 @@ export const PARK_PROPS = PROPS.filter(k => PROP[k].group === 'park');
 /** Hoeveel vakjes iets vult: zoveel telt het mee als groen of als steen. */
 export const propPoints = (kind: PropKind): number => PROP[kind].size * PROP[kind].size;
 /**
- * Hoeveel bomen, planten en stenen een dier in zijn verblijf wil (vanaf FEATURE.wild): per tegel land, van minstens
- * tot hooguit. Het hangt af van de grond waar het dier van houdt: een bosdier wil veel bomen en planten, een dier
- * van zand of sneeuw wil stenen en weinig groen. Dieren die alleen in het water leven vragen er niet om. Hoeveel
- * stuks dat in een verblijf zijn, staat in wildRange: hoe groter het verblijf, hoe meer.
+ * De natuursleutel (vanaf FEATURE.wild): hoeveel bomen, planten en stenen een dier in zijn verblijf wil. Elke soort
+ * heeft een eigen smaak, in vier standen per soort natuur: 0 = liever niet, 1 = een beetje, 2 = flink wat, 3 = veel.
+ * Hoeveel stuks dat zijn, hangt af van de grootte van het verblijf (zie WILD_LEVEL en wildRange): niet te weinig en
+ * niet te veel. De smaak begint bij de grond waar het dier van houdt (WILD_BASE) en wijkt per soort af (WILD_TASTE):
+ * een giraf wil veel bomen, een konijn veel planten, een kameel veel stenen en geen groen.
  */
-export const WILD_WANT: Partial<Record<Terrain, Record<WildKind, [number, number]>>> = {
-  grass: { tree: [1 / 16, 1 / 4], plant: [1 / 8, 1], stone: [0, 1 / 4] },
-  mud: { tree: [1 / 16, 1 / 4], plant: [1 / 8, 1], stone: [0, 1 / 4] },
-  forest: { tree: [1 / 8, 1 / 2], plant: [1 / 6, 1.25], stone: [0, 1 / 3] },
-  sand: { tree: [1 / 16, 1 / 5], plant: [1 / 12, 1 / 2], stone: [1 / 8, 2 / 3] },
-  snow: { tree: [0, 1 / 8], plant: [0, 1 / 4], stone: [1 / 8, 2 / 3] },
-  water: { tree: [0, 1 / 5], plant: [0, 1 / 2], stone: [0, 1 / 2] },
+export type WildTaste = Record<WildKind, 0 | 1 | 2 | 3>;
+const taste = (tree: 0 | 1 | 2 | 3, plant: 0 | 1 | 2 | 3, stone: 0 | 1 | 2 | 3): WildTaste => ({ tree, plant, stone });
+export const WILD_BASE: Partial<Record<Terrain, WildTaste>> = {
+  grass: taste(1, 2, 0), mud: taste(1, 1, 0), forest: taste(3, 2, 1), sand: taste(1, 1, 2), snow: taste(0, 0, 2), water: taste(0, 1, 1),
 };
-export const wildWant = (sp: SpeciesId): Record<WildKind, [number, number]> | null => (AQUATIC.includes(sp) ? null : WILD_WANT[SPECIES[sp].terrain] ?? null);
+export const WILD_TASTE: Partial<Record<SpeciesId, Partial<WildTaste>>> = {
+  // boerderij
+  cow: { plant: 3 }, sheep: { plant: 3 }, horse: { tree: 0 }, donkey: { stone: 1 }, goat: { plant: 1, stone: 2 }, alpaca: { stone: 1 }, duck: { plant: 2 }, rabbit: { plant: 3, tree: 0 },
+  // savanne
+  zebra: { plant: 2 }, giraffe: { tree: 3, stone: 1 }, lion: { stone: 2 }, camel: { stone: 3, plant: 0 }, rhino: { stone: 1 }, hippo: { plant: 2 }, elephant: { tree: 2, plant: 2 },
+  ostrich: { tree: 0 }, cheetah: { tree: 0, stone: 1 }, gazelle: { plant: 2 },
+  // jungle
+  tiger: { tree: 2, plant: 3 }, gorilla: { plant: 3 }, crocodile: { stone: 2 }, panda: { tree: 2, plant: 3 }, peacock: { plant: 3 }, sloth: { plant: 1 }, panther: { tree: 2, stone: 2 },
+  // ijs en bergen
+  penguin: { stone: 3 }, seal: { stone: 3, plant: 0 }, reindeer: { tree: 1, plant: 1, stone: 1 }, wolf: { tree: 1 }, bear: { tree: 2, stone: 2 }, yak: { stone: 3 }, owl: { tree: 2 }, walrus: { stone: 3 },
+  // water en verre landen
+  flamingo: { plant: 2 }, turtle: { plant: 2 }, otter: { stone: 2 }, beaver: { tree: 2 }, pelican: { stone: 1 }, redpanda: { stone: 1 }, bison: { plant: 3, tree: 0 }, kangaroo: { plant: 2, tree: 0 },
+};
+/** Per soort natuur en per stand: van minstens tot hooguit zoveel stuks per tegel land. De standen overlappen een stukje, zodat twee soorten met een andere smaak samen kunnen wonen. */
+export const WILD_LEVEL: Record<WildKind, [number, number][]> = {
+  tree: [[0, 1 / 9], [1 / 16, 1 / 4], [1 / 9, 1 / 3], [1 / 6, 1 / 2]],
+  plant: [[0, 1 / 4], [1 / 10, 1 / 2], [1 / 5, 1], [1 / 3, 1.5]],
+  stone: [[0, 1 / 4], [1 / 12, 1 / 2], [1 / 7, 3 / 4], [1 / 4, 1]],
+};
+/** De smaak van deze soort; null voor een dier dat alleen in het water leeft. */
+export function wildTaste(sp: SpeciesId): WildTaste | null {
+  const base = AQUATIC.includes(sp) ? null : WILD_BASE[SPECIES[sp].terrain];
+  return base ? { ...base, ...WILD_TASTE[sp] } : null;
+}
+/** Hoeveel bomen, planten en stenen deze soort per tegel land wil: van minstens tot hooguit. */
+export function wildWant(sp: SpeciesId): Record<WildKind, [number, number]> | null {
+  const t = wildTaste(sp);
+  return t ? { tree: WILD_LEVEL.tree[t.tree], plant: WILD_LEVEL.plant[t.plant], stone: WILD_LEVEL.stone[t.stone] } : null;
+}
 /**
  * Hoeveel bomen, planten en stenen dit dier wil in een verblijf met `land` tegels land: [minstens, hooguit], in
  * stuks. Een klein verblijf vraagt nog geen boom (die neemt een hele tegel in); er mag er altijd minstens één staan.
@@ -882,6 +988,8 @@ export const FEATURE = {
   hose: 19,
   /** Raad het lievelingsdier van een gast (level 7), de optocht met de clown (level 14) en de schminktent (level 18). */
   guess: 6, parade: 13, facepaint: 17,
+  /** Vanaf de savanne kiest elk dier zelf wat het vandaag het belangrijkst vindt (zie wishOrder); op de boerderij is de volgorde nog vast. */
+  moods: 10,
 };
 
 /**
@@ -963,6 +1071,33 @@ export const GOAL_OWNER: Record<GoalType, 'builder' | 'keeper' | 'host' | 'cashi
 
 /** De wens 'safe' (niet bang zijn) staat vooraan: zolang een dier bang is, zie je dat het eerst. */
 export const WISH_ORDER: WishId[] = ['health', 'enclosure', 'safe', 'food', 'bed', 'terrain', 'friend', 'clean', 'space', 'fun', 'climate', 'wild'];
+/** Deze wensen gaan altijd voor: ziek, een open hek en bang zijn zie je meteen. De rest kiest elk dier zelf (zie wishOrder). */
+export const WISH_FIRST: WishId[] = ['health', 'enclosure', 'safe'];
+/** Een rij gokken tussen 0 en 1 die bij hetzelfde getal steeds hetzelfde is (mulberry32). */
+export function seeded(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+/**
+ * In welke volgorde dit dier zijn wensen laat zien: wat het vandaag het belangrijkst vindt. Elk dier heeft een eigen
+ * getal (`seed`) en kiest elke dag (`day`) opnieuw: de een wil eerst eten, de ander eerst een vriendje of iets om mee
+ * te spelen. Zo vraagt niet elk dier in hetzelfde verblijf om hetzelfde. Zonder `day` (op de boerderij, de eerste
+ * levels) is het de vaste volgorde: eerst eten, dan de slaapplek, dan de grond.
+ */
+export function wishOrder(seed: number, day: number | null): WishId[] {
+  if (day === null) return WISH_ORDER;
+  const rest = WISH_ORDER.filter(k => !WISH_FIRST.includes(k)), rnd = seeded((seed ^ Math.imul(day + 1, 0x9e3779b1)) >>> 0);
+  for (let i = rest.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [rest[i], rest[j]] = [rest[j], rest[i]];
+  }
+  return [...WISH_FIRST, ...rest];
+}
 /** Zoveel poepjes mogen er in een verblijf liggen voordat de dieren het vies vinden. */
 export const MAX_POOPS_CLEAN = 3;
 

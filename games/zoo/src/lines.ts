@@ -65,10 +65,14 @@ export function goalLine(tr: Tr, g: Goal): Line {
   return { who: GOAL_OWNER[g.type], mood: 'happy', key: goalKey(g), vars: goalVars(tr, g) };
 }
 
-/** Een dier wacht al een poos op iets. */
-export function wishLine(tr: Tr, wish: WishId, sp: SpeciesId, need: FenceNeed | null, urgent: boolean, ask?: string): Line {
+/**
+ * Een dier wacht al een poos op iets. `toy`: het speelgoed dat het mist; is dat niet zijn lievelingsding (het wil
+ * er nog iets bij), dan klinkt er voor alle dieren dezelfde zin.
+ */
+export function wishLine(tr: Tr, wish: WishId, sp: SpeciesId, need: FenceNeed | null, urgent: boolean, ask?: string, toy?: string): Line {
   // groen en steen: voor alle dieren dezelfde zin (`ask`: 'green.more', 'green.less', 'stone.more' of 'stone.less')
   if (wish === 'wild') return { who: 'keeper', mood: 'worried', key: `alert.wild.${ask ?? 'green.more'}` };
+  if (wish === 'fun' && toy !== TOY_OF[sp]) return { who: 'keeper', mood: 'worried', key: 'alert.fun.more', id: `alert.fun.${sp}` };
   const fence = wish === 'enclosure' && need;
   return {
     who: wish === 'enclosure' || wish === 'space' ? 'builder' : 'keeper',
@@ -165,6 +169,8 @@ export const say = {
   staffHow: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.staff.how' }),
   broken: (): Line => ({ who: 'builder', mood: 'worried', key: 'alert.broken' }),
   funNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.fun.new' }),
+  /** Een ouder spel: de dieren willen nu elk hun eigen speelgoed en hun eigen hoeveelheid groen en steen. */
+  keysNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.keys.new' }),
   host: (key: 'first' | 'food' | 'drink' | 'toilet' | 'sad' | 'litter' | 'product' | 'new' | 'accident' | 'nopath' | 'dark' | 'astray' | 'rain' | 'wide', mood: Mood = 'worried'): Line => ({ who: 'host', mood, key: `host.${key}` }),
   /** Het is ergens te druk. Heeft de gastvrouw voor die winkel geen eigen zin, dan zegt ze het algemeen. */
   busy: (kind?: string): Line => ({ who: 'host', mood: 'worried', key: `host.busy.${kind && BUSY_KINDS.includes(kind) ? kind : 'any'}` }),
@@ -336,7 +342,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
     for (const wish of wishes) {
       // alleen wat dit dier ook echt kan willen
       if ((wish === 'fun' && !TOY_OF[sp]) || (wish === 'space' && !SPACE[sp]) || (wish === 'climate' && !CLIMATE[sp])) continue;
-      add(wishLine(tr, wish, sp, null, false));
+      add(wishLine(tr, wish, sp, null, false, undefined, wish === 'fun' ? TOY_OF[sp] : undefined));
     }
     const need = SPECIES[sp].need;
     if (need) add(wishLine(tr, 'enclosure', sp, need, false));
@@ -365,6 +371,9 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   for (const key of ['first', 'food', 'drink', 'toilet', 'sad', 'litter', 'product', 'new', 'accident', 'nopath', 'dark', 'astray', 'rain', 'wide'] as const) add(say.host(key));
   for (const season of SEASONS) add(say.season(season));
   for (const ask of ['green.more', 'green.less', 'stone.more', 'stone.less']) add(wishLine(tr, 'wild', 'pig', null, false, ask));
+  // een dier wil er nog iets bij om mee te spelen (niet zijn lievelingsding): voor alle dieren dezelfde zin
+  add(wishLine(tr, 'fun', 'pig', null, false, undefined, 'tyre'));
+  add(say.keysNew());
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
     say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.dusty(), say.filterTip(), say.showWhere(), say.showFirst(),
     say.cableOne(), say.cableWhere(), say.cableFirst(), say.partyToday(), say.partyGong(), say.partyStart(), say.partyEnd(), say.treatNew(), say.treatFull(), say.treatSick(), say.hoseNew(), say.hoseMud(), say.leavesNew(), say.leavesJump(), say.snowNew(), say.snowman(), say.lampsNew(), say.lampsWave()]) add(line);

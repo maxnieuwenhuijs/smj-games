@@ -56,6 +56,9 @@ button { font: inherit; color: inherit; }
 /* net vrijgespeeld: een sterretje linksboven */
 .tool .new { position: absolute; left: -7px; top: -9px; animation: needy 1.4s ease-in-out infinite; pointer-events: none; }
 .tool .new .ic { font-size: 24px; width: 24px; height: 24px; }
+/* een dier in je park vraagt om dit speelgoed of deze natuur: een hartje linksonder op de knop */
+.tool .want { position: absolute; left: -5px; bottom: 16px; pointer-events: none; animation: needy 1.8s ease-in-out infinite; }
+.tool .want .ic { font-size: 20px; width: 20px; height: 20px; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.25)); }
 .tool.on { background: var(--sun); box-shadow: 0 5px 0 var(--sun-shade); }
 /* de rij staat nog open, maar het handje is aan: de laatste keuze is alleen omlijnd */
 .tool.open, .tool.last { outline: 3px solid var(--sun); outline-offset: -3px; }
@@ -194,6 +197,13 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 #pick[hidden] { display: none; }
 #pick .tool .mark { position: absolute; right: 1px; top: 1px; width: 24px; height: 24px; font-size: 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15); }
 #spin { position: fixed; left: 0; top: 0; z-index: 3; background: var(--sun); box-shadow: 0 5px 0 var(--sun-shade); }
+/* het strookje boven het gekozen speelgoed: de dieren uit je park die het leuk vinden, met een hartje bij wie het het liefst heeft */
+#fans { position: fixed; left: 0; top: 0; z-index: 3; display: flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15); font-size: 30px; pointer-events: none; }
+#fans[hidden] { display: none; }
+#fans > .ic { font-size: 24px; }
+#fans .fan { position: relative; display: flex; }
+#fans .fan .ic.fav { position: absolute; right: -5px; top: -5px; font-size: 14px; }
+#ui.walking #fans { display: none !important; }
 #spin .ic { rotate: calc(var(--q, 0) * 90deg); transition: rotate 0.18s ease-out; }
 /* (de knop staat in de rij zelf, dus er hoeft geen pijltje naar beneden meer aan) */
 /* rechtsboven, onder de knoppen: sterren en munten, klok en gasten, seizoen en weer */
@@ -285,6 +295,10 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 /* een rond bordje met een plaatje: vieze stal, jarig, kind kwijt */
 .bubble.badge { align-items: center; justify-content: center; gap: 2px; min-width: 40px; padding: 7px; border-radius: 999px; }
 .bubble.badge.tap { pointer-events: auto; cursor: pointer; }
+/* de smiley boven een dier terwijl je met speelgoed of natuur boven zijn verblijf hangt */
+.bubble.badge.face { min-width: 0; padding: 3px; font-size: 30px; background: none; box-shadow: none; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.2)); animation: facein 0.18s ease-out; }
+.bubble.badge.face::after { display: none; }
+@keyframes facein { from { scale: 0.3; } to { scale: 1; } }
 /* de gong van het avondfeest: een geel bordje dat zachtjes klopt, zodat je erop tikt */
 .bubble.badge.gong, .bubble.badge.gong::after { background: #ffe58a; }
 .bubble.badge.gong { animation: gong 1.1s ease-in-out infinite; }
@@ -364,6 +378,12 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 /* in het menu van het dier: grote plaatjes met een staand balkje ernaast, hoe voller hoe beter het gaat */
 #menu .needs { flex-basis: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; font-size: min(38px, 8vw); }
 #menu .needs .wish { padding: 4px 13px 4px 5px; border-radius: 12px; }
+/* onder de wensen van een dier: al het speelgoed dat die soort leuk vindt, met een vinkje bij wat er al staat */
+#menu .likes { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 5px; font-size: min(26px, 6vw); margin-top: 2px; }
+#menu .likes > .ic.lead { font-size: 0.8em; margin-right: 2px; }
+#menu .likes .like { position: relative; display: flex; padding: 3px; border-radius: 9px; background: #f1ede4; opacity: 0.75; }
+#menu .likes .like.got { background: #e2f4d8; opacity: 1; }
+#menu .likes .like .ic.tick { position: absolute; right: -4px; bottom: -4px; font-size: 13px; }
 /* de weetjes van een gast: korte regels onder zijn wensen; wat er nu speelt heeft een plaatje, de rest een stip */
 #menu .facts { flex-basis: 100%; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 13px; font-weight: 700; line-height: 1.25; color: #5a4636; }
 #menu .facts .fact { display: flex; align-items: center; gap: 4px; text-align: center; }

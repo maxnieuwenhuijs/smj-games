@@ -170,6 +170,10 @@ const ICONS = {
   smile_good: face(GREEN, 'M14 28 Q24 38 34 28'),
   smile_ok: face('#f5a623', 'M15 31 H33'),
   smile_bad: face(RED, 'M14 34 Q24 24 34 34'),
+  // het doet dit dier niets: een grijs gezichtje dat de andere kant op kijkt
+  smile_none:
+    `<circle cx="24" cy="24" r="20" fill="#b9c0c8" stroke="#fff" stroke-width="3"/><circle cx="19.5" cy="20" r="3" fill="${INK}"/><circle cx="33.5" cy="20" r="3" fill="${INK}"/>` +
+    `<path d="M18 31 H31" fill="none" stroke="${INK}" stroke-width="3.5" stroke-linecap="round"/>`,
   sparkle: `<path d="M24 3 Q26 20 45 24 Q26 28 24 45 Q22 28 3 24 Q22 20 24 3Z" fill="#fff" stroke="${SUN}" stroke-width="2.5"/>`,
   pet: `<g transform="translate(0 9) scale(.82)">${HAND}</g><g transform="translate(25 0) scale(.48)">${HEART}</g>`,
   feed: `<g transform="translate(9 -2) scale(.62)">${CARROT}</g><path d="M5 32 Q24 46 43 32 L43 38 Q24 52 5 38Z" fill="${SKIN}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`,

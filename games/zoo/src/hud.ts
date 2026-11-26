@@ -21,6 +21,8 @@ export interface ToolOption {
   per?: boolean;
   /** Net vrijgespeeld: er staat een sterretje op tot je het gekozen hebt. */
   fresh?: boolean;
+  /** Een dier in je park vraagt hierom: er staat een hartje op. */
+  wanted?: boolean;
   /** Geen knop maar een kopje in de rij (bijvoorbeeld de wereld waar de dieren erna bij horen). */
   divider?: boolean;
   /** Munten die je ervoor terugkrijgt. */
@@ -52,7 +54,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = '
 
 function button(opt: ToolOption, cls: string): HTMLButtonElement {
   const price = opt.gain ? `<i class="price gain">+${opt.gain}</i>` : opt.price ? `<i class="price${opt.cant ? ' cant' : ''}">${opt.price}${opt.per ? t('per.hour') : ''}</i>` : '';
-  const b = el('button', `tool ${cls} ${opt.tone ?? ''}`, `${opt.icon}<b>${opt.label}</b>${price}${opt.fresh ? `<i class="new">${icon('star')}</i>` : ''}`);
+  const b = el('button', `tool ${cls} ${opt.tone ?? ''}`, `${opt.icon}<b>${opt.label}</b>${price}${opt.fresh ? `<i class="new">${icon('star')}</i>` : ''}${opt.wanted ? `<i class="want">${icon('heart')}</i>` : ''}`);
   b.dataset.id = opt.id;
   if (opt.price) b.dataset.price = String(opt.price);
   return b;
@@ -270,6 +272,38 @@ export class Hud {
     this.pick.style.left = `${Math.max(6, Math.min(innerWidth - b.width - 6, r.left + r.width / 2 - b.width / 2))}px`;
     this.pick.style.top = `${Math.max(6, top - b.height - 10)}px`;
   }
+  /** Het strookje boven het gekozen speelgoed: de dieren uit je park die dat ding leuk vinden. */
+  private fans = el('div', '');
+  private fansAt = '';
+
+  /**
+   * Het strookje met dieren boven het gekozen ding in de balk tonen (`html`: hun plaatjes; `anchor`: die keuze) of
+   * weghalen (leeg). Het hangt boven de draaiknop, zodat het er niet doorheen staat.
+   */
+  setFans(html: string, anchor = ''): void {
+    if (!this.fans.id) {
+      this.fans.id = 'fans';
+      document.getElementById('ui')!.append(this.fans);
+    }
+    this.fans.hidden = !html;
+    this.fans.innerHTML = html;
+    this.fansAt = anchor;
+    this.placeFans();
+  }
+
+  /** Zet het strookje recht boven het gekozen ding: boven de draaiknop als die er is, anders boven de bovenste rij. */
+  private placeFans(): void {
+    if (!this.fans.id || this.fans.hidden) return;
+    const at = this.options.querySelector<HTMLElement>(`[data-option="${this.fansAt}"].on`) ?? this.toolbar.querySelector<HTMLElement>('.tool.on');
+    if (!at) return;
+    const b = this.fans.getBoundingClientRect(), r = at.getBoundingClientRect();
+    const tops = [...this.options.querySelectorAll<HTMLElement>('.tool')].map(k => k.getBoundingClientRect()).filter(k => k.width > 0).map(k => k.top);
+    let top = tops.length ? Math.min(...tops) : r.top;
+    if (!this.spinBtn.hidden) top = Math.min(top, this.spinBtn.getBoundingClientRect().top);
+    this.fans.style.left = `${Math.max(6, Math.min(innerWidth - b.width - 6, r.left + r.width / 2 - b.width / 2))}px`;
+    this.fans.style.top = `${Math.max(6, top - b.height - 8)}px`;
+  }
+
   /** Het ding in de balk onderaan waar de draaiknop boven hangt. */
   private spinAt: HTMLElement | null = null;
 
@@ -293,7 +327,7 @@ export class Hud {
   private placeSpin(): void {
     this.placePick();
     const at = this.spinAt;
-    if (!at || !at.isConnected || this.spinBtn.hidden) return;
+    if (!at || !at.isConnected || this.spinBtn.hidden) return this.placeFans();
     const b = this.spinBtn.getBoundingClientRect();
     const boxes = [...this.options.querySelectorAll<HTMLElement>('.tool')].map(k => k.getBoundingClientRect()).filter(k => k.width > 0);
     if (boxes.length) {
@@ -305,11 +339,12 @@ export class Hud {
       const mid = chosen ? r.left + r.width / 2 : (Math.min(...row.map(k => k.left)) + Math.max(...row.map(k => k.right))) / 2;
       this.spinBtn.style.left = `${Math.max(6, Math.min(innerWidth - b.width - 6, mid - b.width / 2))}px`;
       this.spinBtn.style.top = `${Math.max(6, top - b.height - 10)}px`;
-      return;
+      return this.placeFans();
     }
     const r = at.getBoundingClientRect();
     this.spinBtn.style.left = `${Math.max(6, Math.min(innerWidth - b.width - 6, r.left + r.width / 2 - b.width / 2))}px`;
     this.spinBtn.style.top = `${r.top - b.height - 12}px`;
+    this.placeFans();
   }
 
   /** `open`: de knop waarvan de keuzerij open blijft staan terwijl het handje aan staat (net iets neergezet). */
