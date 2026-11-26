@@ -919,6 +919,30 @@ export class Animal {
   }
 
   /**
+   * Het avondfeest: het dier staat op (ook als het sliep), loopt naar het hek bij (gx, gy) en laat daar het kunstje
+   * van zijn soort zien. Staat het al vlakbij, dan danst het. Geeft terug of het meedoet (niet als het ziek, bang
+   * of weggelopen is, of net al bezig is).
+   */
+  partyShow(w: AnimalWorld, gx: number, gy: number): boolean {
+    if (this.sick || this.escaped || this.drugged || this.leash || this.scaredOf || this.acting || this.goal === 'show') return false;
+    if (this.state === 'poop' || this.state === 'pee' || this.trick?.kind === 'leap' || this.trick?.kind === 'breach') return false;
+    const [x, y] = tileXY(this.tile);
+    const region = w.grid.enclosureAt(x, y);
+    if (!region) return false;
+    this.stop();
+    this.state = 'idle';
+    if (Math.hypot(gx - this.gx, gy - this.gy) > 1.6 && this.goNear(w, region.tiles, gx, gy, i => isTroughTile(w, i), 'show', 7)) {
+      this.acting = true;
+      return true;
+    }
+    this.doTrick('dance', 2.4 + Math.random(), 'Happy');
+    this.face(gx, gy);
+    this.acting = true;
+    w.showOff(this);
+    return true;
+  }
+
+  /**
    * De dierenshow bij de tribune op (gx, gy): kunstje nummer `n`. Om de beurt uit het water springen, een rondje
    * draaien, door de hoepel (als die er is), met de vinnen klappen en nog een sprong. Geeft terug of het lukte
    * (niet als het dier slaapt, ziek is of nog midden in een sprong zit).

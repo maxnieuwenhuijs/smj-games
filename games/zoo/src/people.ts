@@ -1058,6 +1058,8 @@ export class Guest implements Leader {
   private leading = false;
   /** Een rondje langs de dieren (de juf met haar klas, de jarige): nog zoveel keer stoppen, en eerst naar het feest. */
   tour: { stops: number; party?: boolean } | null = null;
+  /** Het avondfeest: het rondje door het park (padtegels voor de verblijven) en de plek waar de gast nu is. */
+  private partyRound: { loop: number[]; i: number } | null = null;
   /** De speler heeft de weg gewezen: bij de volgende stop van het rondje loopt het groepje eerst naar deze padtegel. */
   sendTo?: number;
   private partyShop: ShopSpot | null = null;
@@ -1373,6 +1375,51 @@ export class Guest implements Leader {
 
   get watching(): boolean {
     return this.state === 'watch';
+  }
+
+  /**
+   * Het avondfeest begint: de gast loopt mee in het rondje `loop`, vanaf de plek die het dichtst bij is. Wie in een
+   * groepje loopt, verdwaald is of al naar huis gaat, doet niet mee. Een gast die stond te kijken, gaat meteen.
+   */
+  joinParty(loop: number[]): void {
+    if (this.partyRound || !loop.length || this.leader || this.lost || this.tour || this.leaving || this.walkway) return;
+    let near = 0, best = Infinity;
+    loop.forEach((tile, i) => {
+      const [x, y] = tileXY(tile), d = Math.hypot(x + 0.5 - this.gx, y + 0.5 - this.gy);
+      if (d < best) {
+        best = d;
+        near = i;
+      }
+    });
+    this.partyRound = { loop, i: near - 1 };
+    this.fun = Math.max(this.fun, 0.6);
+    this.joy = Math.max(this.joy, 0.8 + Math.random());
+    if ((this.state === 'idle' || this.state === 'watch') && !this.shop && !this.pen && !this.riding) this.timer = Math.min(this.timer, 0.4 + Math.random() * 1.6);
+  }
+
+  /** Het feest is voorbij: de gast is er een stuk blijer van en juicht nog even. */
+  leaveParty(): void {
+    if (!this.partyRound) return;
+    this.partyRound = null;
+    this.fun = Math.min(1, this.fun + 0.3);
+    this.joy = Math.max(this.joy, 1.2 + Math.random());
+  }
+
+  /** Het feest: naar de volgende plek van het rondje lopen, en daar naar de dieren kijken. Lukt dat? */
+  private partyStep(w: GuestWorld, reach: Set<number>): boolean {
+    const r = this.partyRound!, n = r.loop.length;
+    for (let k = 0; k < Math.min(n, 4); k++) {
+      r.i = (r.i + 1) % n;
+      const tile = r.loop[r.i];
+      if (tile === this.tile || !reach.has(tile) || !this.go(w, reach, tile)) continue;
+      const view = w.viewScore(tile);
+      this.face = view ? [view.x, view.y] : null;
+      this.gain = view ? view.score * 0.5 : 0;
+      this.sees = view?.species ?? [];
+      this.wish = null;
+      return true;
+    }
+    return false;
   }
 
   /** Kan deze gast nu mee met de gids? */
@@ -2994,6 +3041,8 @@ export class Guest implements Leader {
     this.sight = null;
     this.use = null;
     if (this.tour && !this.leaving) return this.tourStep(w, list, reach);
+    // het avondfeest: een rondje door het park; wie meedoet, blijft tot het feest voorbij is
+    if (this.partyRound && !this.leaving && this.partyStep(w, reach)) return;
     if (this.age > this.stay || this.fun < 0.08 || w.goingHome()) this.leaving = true;
     if (this.leaving) {
       this.wish = null;
@@ -3153,6 +3202,14 @@ export class Guest implements Leader {
         this.slot = null;
         this.gate = this.tile;
       }
+    } else if (this.face && this.partyRound) {
+      // feest bij het verblijf: zwaaien, klappen of juichen naar de dieren, of even dansen
+      this.state = 'watch';
+      this.timer = 2.5 + Math.random() * 2;
+      const p = Math.random();
+      this.act = p < 0.35 ? 'wave' : p < 0.55 ? 'clap' : p < 0.7 ? 'jump' : null;
+      this.actT = 0;
+      if (!this.act) this.idle = { kind: 'dance', t: 0, dur: this.timer };
     } else if (this.face) {
       this.state = 'watch';
       this.timer = this.tour ? 6 + Math.random() * 2 : 4 + Math.random() * 3;
@@ -3162,6 +3219,11 @@ export class Guest implements Leader {
       this.actT = 0;
       // kijken wat de dieren doen: slapen ze, speelt er een, is het er vies? Daar past de gast zijn houding bij aan
       if (!this.tour) this.eyePen(w, true);
+    } else if (this.partyRound) {
+      // feest, maar hier valt niets te zien: dan maar dansen
+      this.state = 'idle';
+      this.timer = 2 + Math.random() * 1.5;
+      this.idle = { kind: 'dance', t: 0, dur: this.timer };
     } else {
       this.state = 'idle';
       this.timer = 0.6 + Math.random();
@@ -3988,6 +4050,11 @@ export class Guest implements Leader {
       right.rotation.x = left.rotation.x = -2.9;
       this.hop = Math.abs(Math.sin(this.joy * 9)) * 0.13;
     } else if (this.child && this.state === 'walk' && this.fun > 0.6 && this.stall <= 0 && !(this.sky & 1)) this.hop = Math.abs(Math.sin(this.phase * 0.5)) * 0.05; // een blij kind huppelt
+    // het avondfeest: onder het lopen af en toe zwaaien, de een wat vaker dan de ander
+    if (this.partyRound && this.state === 'walk' && this.joy <= 0 && !this.wheels && Math.sin(this.phase * 0.06 + this.seat * 1.7) > -0.1) {
+      right.rotation.x = -2.7;
+      right.rotation.z = Math.sin(this.phase * 0.8) * 0.45;
+    }
   }
 
   // ------------------------------------------------------------ extra houdingen en dingen in de hand
@@ -5388,6 +5455,16 @@ export class GuestManager {
         } else g.slot = [sx, sy];
       }
     }
+  }
+
+  /** Het avondfeest: elke gast die gewoon rondloopt, maakt een rondje langs `loop` (zie Guest.joinParty). Ook wie later binnenkomt. */
+  startParty(loop: number[]): void {
+    for (const g of this.guests) g.joinParty(loop);
+  }
+
+  /** Het avondfeest is voorbij: iedereen is blijer en loopt weer gewoon (of naar huis). */
+  endParty(): void {
+    for (const g of this.guests) g.leaveParty();
   }
 
   /** Feest: alle gasten juichen even (als een level gehaald is). */

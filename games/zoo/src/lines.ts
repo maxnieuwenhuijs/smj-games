@@ -207,6 +207,11 @@ export const say = {
   cableOne: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.cable.one' }),
   cableWhere: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.cable.where' }),
   cableFirst: (): Line => ({ who: 'host', mood: 'happy', key: 'say.cable.first' }),
+  /** Het avondfeest: de directeur vertelt het 's ochtends, wijst om acht uur op de gong, en zegt iets bij het begin en het eind. */
+  partyToday: (): Line => ({ who: 'director', mood: 'happy', key: 'say.party.today' }),
+  partyGong: (): Line => ({ who: 'director', mood: 'happy', key: 'say.party.gong' }),
+  partyStart: (): Line => ({ who: 'director', mood: 'happy', key: 'say.party.start' }),
+  partyEnd: (): Line => ({ who: 'director', mood: 'happy', key: 'say.party.end' }),
   dirty: (): Line => ({ who: 'host', mood: 'worried', key: 'say.dirty' }),
   vetHow: (): Line => ({ who: 'keeper', mood: 'worried', key: 'say.vet.how' }),
   pettingNew: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.petting.new' }),
@@ -331,7 +336,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   for (const ask of ['green.more', 'green.less', 'stone.more', 'stone.less']) add(wishLine(tr, 'wild', 'pig', null, false, ask));
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
     say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.filterTip(), say.showWhere(), say.showFirst(),
-    say.cableOne(), say.cableWhere(), say.cableFirst()]) add(line);
+    say.cableOne(), say.cableWhere(), say.cableFirst(), say.partyToday(), say.partyGong(), say.partyStart(), say.partyEnd()]) add(line);
   for (const key of ['balloon', 'icecream', 'coin', 'thanks'] as const) add(say.kid(key));
   add(say.eventNew());
   add(say.starsNew());
