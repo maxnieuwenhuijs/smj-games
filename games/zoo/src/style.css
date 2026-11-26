@@ -120,7 +120,7 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
   #turnL { top: auto; bottom: calc(200px + 2 * min(70px, 13vw)); right: 8px; }
 }
 /* de trommel voor de optocht: naast de draaipijlen; grijs met een schaduw die rondloopt zolang de clown uitrust */
-#drum { position: absolute; top: 12px; right: calc(52px + 4 * min(70px, 13vw)); z-index: 2; }
+#drum { position: absolute; top: calc(24px + min(70px, 13vw)); right: calc(42px + 3 * min(70px, 13vw)); z-index: 2; }
 #drum[hidden] { display: none; }
 #drum.rest .ic { filter: grayscale(1); opacity: 0.55; }
 #drum .wait { position: absolute; inset: 4px; border-radius: 50%; pointer-events: none; display: none; background: conic-gradient(rgba(0, 0, 0, 0.22) calc(var(--rest, 0) * 360deg), transparent 0); }
