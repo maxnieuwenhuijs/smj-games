@@ -87,21 +87,15 @@ const shop = (kind: ShopKind): Item => ({
     const edge = onEdge(kind) ? { o: 'h' as const, face: 1 } : undefined, py = edge ? y + 1 : y;
     if (ghost) return view.ghostShop(x, py, kind, true, edge, rot);
     const group = view.makeShop(x, py, kind, edge, rot);
-    const seed = x * 1.3 + y * 0.7, moving = group.userData.moving as THREE.Object3D | undefined;
+    const seed = x * 1.3 + y * 0.7;
     if (kind === 'bin' && query.get('tik') === '1') view.flapLid(group);
     // een attractie uit rides.ts: dezelfde stand en dezelfde stappen als in het spel; met &druk=1 zit hij vol gasten
     const ride = isRide(kind) ? newRide(kind) : null, riders = busy && isRide(kind) ? 2 ** RIDE_SEATS[kind] - 1 : 0;
     live.push(t => {
       view.animateShop(group, kind, t, busy, seed);
-      if (ride) {
-        while (ride.clock < t - 1e-6) rideStep(kind, ride, Math.min(1 / 30, t - ride.clock), riders);
-        view.animateRide(group, kind, ride);
-        return;
-      }
-      // wat het spel zelf laat bewegen: hier net genoeg om te zien dat het goede deel beweegt
-      if (kind === 'swing' && moving) moving.rotation.x = Math.sin(t * 2) * 0.5;
-      if (kind === 'seesaw' && moving) moving.rotation.z = Math.sin(t * 2) * 0.3;
-      if (kind === 'springer' && moving) moving.rotation.x = Math.sin(t * 2) * 0.3;
+      if (!ride) return;
+      while (ride.clock < t - 1e-6) rideStep(kind, ride, Math.min(1 / 30, t - ride.clock), riders);
+      view.animateRide(group, kind, ride);
     });
   },
 });

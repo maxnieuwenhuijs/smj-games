@@ -410,6 +410,26 @@ describe('de glijbaan', () => {
         }
     }
   });
+
+  it('ligt het pad opzij of achter de glijbaan, dan loopt het kind eromheen en nergens dwars doorheen', () => {
+    // waar op de grond iets staat: het torentje, de trap en de glijbaan (x van, x tot, z van, z tot)
+    const blocks = [[-0.9, 0.9, -1.4, SLIDE.chuteTop], [SLIDE.stairX - 0.2, SLIDE.stairX + 0.2, SLIDE.stairTop, SLIDE.stairFoot - 0.25], [SLIDE.chuteX - 0.22, SLIDE.chuteX + 0.22, SLIDE.chuteTop, SLIDE.chuteEnd]];
+    for (const [fx, fz] of [[0.5, 2], [-0.5, 2], [-1.5, 1], [1.5, -1], [-1.5, -1], [0.5, -2], [-0.5, -2]]) {
+      const s = newRide('slide'), v = planVisit('slide', s, 0, fx, fz)!, p = newPose();
+      let rode = false;
+      for (let t = 0; t < visitTime(v) + 1; t += DT) {
+        visitPose(p, v, s);
+        if (p.on) rode = true;
+        // wie over de grond loopt (naar de trap toe, of na het glijden terug naar het pad), raakt niets
+        else if (p.h < 0.02)
+          for (const [x0, x1, z0, z1] of blocks) expect(p.x > x0 && p.x < x1 && p.z > z0 && p.z < z1, `van (${fx}, ${fz}) op ${t.toFixed(2)}: (${p.x.toFixed(2)}, ${p.z.toFixed(2)})`).toBe(false);
+        if (p.done) break;
+        rideStep('slide', s, DT, 0);
+      }
+      expect(rode).toBe(true);
+      expect(p.done).toBe(true);
+    }
+  });
 });
 
 describe('de speeltoestellen', () => {
@@ -499,6 +519,33 @@ describe('de speeltoestellen', () => {
     expect(high[2]).toBeGreaterThan(TRAMPOLINE.jump * 0.9);
     // op de lege plek springt niemand
     expect(high[1]).toBeLessThan(0.02);
+  });
+
+  it('op de trampoline klim je langs het trapje, en aan het eind land je netjes voor je eraf gaat', () => {
+    for (const [fx, fz] of [[0.5, 1.5], [1.5, -0.5], [-0.5, -1.5]]) {
+      const s = newRide('trampoline'), v = planVisit('trampoline', s, 0, fx, fz)!, p = newPose();
+      let climbed = false, last = 0, top = 0;
+      for (let t = 0; t < visitTime(v) + 1; t += DT) {
+        visitPose(p, v, s);
+        if (p.act === 'climb') climbed = true;
+        // wie nog niet boven is, staat buiten de rand of op het trapje: nooit dwars door het doek
+        if (p.h < TRAMPOLINE.mat - 0.05 && Math.hypot(p.x, p.z) < TRAMPOLINE.frame) {
+          expect(Math.abs(p.x), `van (${fx}, ${fz}) op ${t.toFixed(2)}`).toBeLessThan(0.05);
+          expect(p.z).toBeGreaterThan(TRAMPOLINE.frame - 0.12);
+        }
+        if (p.on) {
+          last = p.h;
+          top = Math.max(top, p.h);
+        }
+        if (p.done) break;
+        rideStep('trampoline', s, DT, p.on ? 1 << v.seat : 0);
+      }
+      expect(climbed).toBe(true);
+      expect(top).toBeGreaterThan(TRAMPOLINE.mat + TRAMPOLINE.jump * 0.8);
+      // het laatste beeldje op het doek: de voeten staan er weer op
+      expect(last).toBeLessThan(TRAMPOLINE.mat + 0.03);
+      expect(p.done).toBe(true);
+    }
   });
 });
 

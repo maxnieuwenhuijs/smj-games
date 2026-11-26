@@ -5,7 +5,10 @@ import {
   FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, SHOP_DEEP, onEdge, shopSpan, TERRAINS, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
   RESTAURANT_TABLES, SHOW_ROWS, STALLS, STRING_HEIGHT, STRING_REACH, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
 } from './data';
-import { BUMPER, CAROUSEL, CAROUSEL_SEATS, FERRIS, FOUNTAIN, TOWER, carouselAt, carouselLift, ferrisAngle, ferrisSway, fountainJet, newRide, type RideState } from './rides';
+import {
+  BUMPER, CAROUSEL, CAROUSEL_SEATS, FERRIS, FOUNTAIN, SEESAW, SLIDE, SPRINGER, SWINGSET, TOWER, TRAMPOLINE, carouselAt, carouselLift, ferrisAngle, ferrisSway, fountainJet,
+  newRide, seesawTilt, springerTilt, swingAngle, trampolineDip, type RideState,
+} from './rides';
 import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type Land, type Side } from './grid';
 import { roadside } from './road';
 import { CABLE, cableHeight } from './cable';
@@ -720,16 +723,14 @@ const TOY_LOOSE: Partial<Record<ToyKind, { x: number; z: number; r: number; turn
   ],
 };
 
-// De grote attracties. Wat stilstaat zit in SHOP_PARTS; wat beweegt staat hier los, zodat het kan draaien
-// (de draaimolen) of op en neer kan gaan (de waterstraal van de fontein). `y`: vanaf welke hoogte.
+// Steen, water en goud voor de fontein, de vijver en andere dingen. De attracties en speeltoestellen zelf staan
+// verderop, bij RIDE_BUILD.
 const STONE = std(0xb9c2c9, 0.9);
 const WATER_MAT = std(0x6ec3e8, 0.25);
 const SPRAY_MAT = std(0xd6f1ff, 0.3);
 const GOLD_MAT = std(0xffd23f, 0.5);
 const around = <T>(n: number, r: number, make: (x: number, z: number, i: number) => T): T[] =>
   Array.from({ length: n }, (_, i) => make(Math.sin((i / n) * Math.PI * 2) * r, Math.cos((i / n) * Math.PI * 2) * r, i));
-const SHOP_MOVING: Partial<Record<ShopKind, { y: number; parts: Part[] }>> = {
-};
 // De voersilo: een ronde toren met banden, een ladder en een rood dak, een schuif naar voren en een bakje ervoor
 // waar de dieren uit eten.
 const SILO_GEO = painted(
@@ -741,80 +742,8 @@ const SILO_GEO = painted(
 const SILO_ROOF_GEO = merge([cone(0.3, 0.24, 0, 1.02, -0.2), ball(0.04, 0, 1.15, -0.2)]);
 const SILO_TRAY_GEO = TROUGH_GEO.clone().scale(0.75, 0.8, 0.55).translate(0, 0, 0.26);
 const SILO_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5 });
-// Losse speeltoestellen van 2 bij 2 tegels. Wat beweegt (de zitjes van de schommel, de plank van de wipwap,
-// de wipkippen) staat in SHOP_MOVING en draait om het midden op hoogte `y`.
-const PLAY_FLOOR: Part = [painted(
-  [0xe9b66b, boxAt(1.84, 0.04, 1.84, 0, 0.02, 0)],
-  [0xd39b4e, boxAt(1.84, 0.05, 0.06, 0, 0.025, -0.89), boxAt(1.84, 0.05, 0.06, 0, 0.025, 0.89), boxAt(0.06, 0.05, 1.72, -0.89, 0.025, 0), boxAt(0.06, 0.05, 1.72, 0.89, 0.025, 0)],
-), MATTE_MAT, false];
 const METAL = std(0x8a8f98, 0.6);
 const P_RED = std(0xe0584f), P_BLUE = std(0x4a90e2), P_YELLOW = std(0xffd23f, 0.6);
-SHOP_PARTS.slide = [
-  PLAY_FLOOR,
-  [mergeGeometries([
-    boxAt(0.07, 1.5, 0.07, -0.25, 0.75, -0.75), boxAt(0.07, 1.5, 0.07, 0.25, 0.75, -0.75), boxAt(0.07, 1.5, 0.07, -0.25, 0.75, -0.25), boxAt(0.07, 1.5, 0.07, 0.25, 0.75, -0.25),
-    ...[0.25, 0.5, 0.75, 1.0].map(y => boxAt(0.5, 0.045, 0.045, 0, y, -0.79)),
-  ])!, WOOD_MAT],
-  [boxAt(0.58, 0.06, 0.58, 0, 1.15, -0.5), P_BLUE],
-  [merge([cone(0.48, 0.3, 0, 1.66, -0.5, 4), ball(0.045, 0, 1.83, -0.5)]), P_RED],
-  [new THREE.BoxGeometry(0.42, 0.05, 1.58).rotateX(0.727).translate(0, 0.62, 0.31), P_YELLOW],
-  // de randen van de glijbaan en een leuning om het torentje
-  [mergeGeometries([
-    new THREE.BoxGeometry(0.04, 0.13, 1.58).rotateX(0.727).translate(-0.22, 0.68, 0.31), new THREE.BoxGeometry(0.04, 0.13, 1.58).rotateX(0.727).translate(0.22, 0.68, 0.31),
-    boxAt(0.04, 0.04, 0.5, -0.25, 1.4, -0.5), boxAt(0.04, 0.04, 0.5, 0.25, 1.4, -0.5), boxAt(0.5, 0.04, 0.04, 0, 1.4, -0.75),
-  ])!, P_RED],
-];
-SHOP_PARTS.swing = [
-  PLAY_FLOOR,
-  [mergeGeometries([-0.84, 0.84].flatMap(x => [
-    new THREE.BoxGeometry(0.07, 1.57, 0.07).rotateX(-0.285).translate(x, 0.75, 0.22),
-    new THREE.BoxGeometry(0.07, 1.57, 0.07).rotateX(0.285).translate(x, 0.75, -0.22),
-  ]))!, P_RED],
-  [merge([boxAt(1.78, 0.07, 0.07, 0, 1.5, 0), ball(0.065, -0.86, 1.5, 0), ball(0.065, 0.86, 1.5, 0)]), P_RED],
-];
-SHOP_MOVING.swing = {
-  y: 1.5,
-  parts: [
-    [mergeGeometries([-0.36, 0.36].flatMap(x => [boxAt(0.02, 1.13, 0.02, x - 0.14, -0.565, 0), boxAt(0.02, 1.13, 0.02, x + 0.14, -0.565, 0)]))!, METAL],
-    [boxAt(0.34, 0.04, 0.16, -0.36, -1.15, 0), P_BLUE],
-    [boxAt(0.34, 0.04, 0.16, 0.36, -1.15, 0), P_YELLOW],
-  ],
-};
-SHOP_PARTS.seesaw = [PLAY_FLOOR, [mergeGeometries([boxAt(0.16, 0.4, 0.34, 0, 0.2, 0), boxAt(0.3, 0.06, 0.4, 0, 0.03, 0), new THREE.CylinderGeometry(0.05, 0.05, 0.4, 8).rotateX(Math.PI / 2).translate(0, 0.4, 0)])!, P_RED]];
-SHOP_MOVING.seesaw = {
-  y: 0.42,
-  parts: [
-    [boxAt(1.62, 0.06, 0.24, 0, 0, 0), P_YELLOW],
-    [mergeGeometries([-0.44, 0.44].flatMap(x => [boxAt(0.035, 0.22, 0.035, x, 0.13, 0), boxAt(0.035, 0.035, 0.24, x, 0.24, 0)]))!, P_RED],
-    [mergeGeometries([boxAt(0.26, 0.03, 0.24, -0.67, 0.045, 0), boxAt(0.26, 0.03, 0.24, 0.67, 0.045, 0)])!, P_BLUE],
-  ],
-};
-// een wipkip: een rond diertje met oren, een lichte snuit, oogjes en een zadeltje
-const rider = (x: number, coat: number, light: number): THREE.BufferGeometry => painted(
-  [coat, blob(0.14, 0.75, 0.75, 1.9, x, 0.14, 0), blob(0.1, 0.9, 1.25, 0.95, x, 0.36, 0.2), blob(0.045, 0.7, 1.6, 0.7, x, 0.3, -0.27), cone(0.03, 0.08, x - 0.05, 0.5, 0.18, 4), cone(0.03, 0.08, x + 0.05, 0.5, 0.18, 4)],
-  [light, blob(0.065, 1, 0.8, 1.3, x, 0.33, 0.32), boxAt(0.17, 0.03, 0.2, x, 0.245, -0.04)],
-  [0x22201c, dot(0.018, x - 0.07, 0.4, 0.25), dot(0.018, x + 0.07, 0.4, 0.25)],
-);
-SHOP_PARTS.springer = [
-  PLAY_FLOOR,
-  // de veren: een dunne staaf met ringen eromheen
-  [mergeGeometries([-0.42, 0.42].flatMap(x => [tube(0.035, 0.035, 0.3, x, 0.17, 0), tube(0.16, 0.16, 0.03, x, 0.045, 0), ...[0.09, 0.15, 0.21, 0.27].map(y => tube(0.075, 0.075, 0.028, x, y, 0))]))!, METAL],
-];
-SHOP_MOVING.springer = {
-  y: 0.3,
-  parts: [
-    [rider(-0.42, 0xe0584f, 0xf9c9b4), PAINT_MAT],
-    [rider(0.42, 0x4a90e2, 0xc9e2f8), PAINT_MAT],
-    [mergeGeometries([-0.42, 0.42].flatMap(x => [boxAt(0.32, 0.03, 0.03, x, 0.44, 0.1), boxAt(0.05, 0.045, 0.045, x - 0.16, 0.44, 0.1), boxAt(0.05, 0.045, 0.045, x + 0.16, 0.44, 0.1)]))!, P_YELLOW],
-  ],
-};
-SHOP_PARTS.trampoline = [
-  PLAY_FLOOR,
-  [mergeGeometries(around(6, 0.7, (x, z) => boxAt(0.05, 0.34, 0.05, x, 0.17, z)))!, METAL],
-  // de rand: om en om blauw en geel
-  [striped(new THREE.CylinderGeometry(0.8, 0.8, 0.07, 10), [0x4a90e2, 0xffd23f], 10).translate(0, 0.36, 0), PAINT_MAT],
-  [tube(0.64, 0.64, 0.02, 0, 0.4, 0), std(0x3d4f5a, 0.8), false],
-];
 /** Het licht van een lantaarn: overdag een zacht geel, 's nachts fel. */
 const LAMP_MAT = new THREE.MeshStandardMaterial({ color: 0xfff1a8, emissive: 0xffd23f, emissiveIntensity: 0.6, roughness: 0.4 });
 const FLAME_MAT = new THREE.MeshStandardMaterial({ color: 0xf08a24, emissive: 0xf06a10, emissiveIntensity: 0.9, roughness: 0.6 });
@@ -1416,6 +1345,192 @@ SHOP_PARTS.tower = [
   // de vlag: los, zodat hij kan wapperen (zie SHOP_BOB)
   [boxAt(0.34, 0.2, 0.02, 0.19, TOWER_ROOF + 1.06, 0), P_YELLOW],
 ];
+
+// ------------------------------------------------------------ de speeltoestellen, elk in zijn eigen maat
+/** De zachte vloer onder een speeltoestel van `wide` bij `deep` tegels: een oranje mat met een donkere rand. */
+const playFloor = (wide: number, deep: number): Part => {
+  const w = wide - 0.16, d = deep - 0.16;
+  return [painted(
+    [0xe9b66b, boxAt(w, 0.04, d, 0, 0.02, 0)],
+    [0xd39b4e, boxAt(w, 0.05, 0.06, 0, 0.025, -d / 2 + 0.03), boxAt(w, 0.05, 0.06, 0, 0.025, d / 2 - 0.03), boxAt(0.06, 0.05, d - 0.12, -w / 2 + 0.03, 0.025, 0), boxAt(0.06, 0.05, d - 0.12, w / 2 - 0.03, 0.025, 0)],
+  ), MATTE_MAT, false];
+};
+
+// Glijbaan (2 bij 3 tegels): achteraan een torentje met een dak, rechts de trap ernaartoe en links de lange gele
+// glijbaan, die onderaan bijna vlak uitloopt. De kinderen lopen in een rondje: de trap op, over het torentje, de
+// glijbaan af en vooromlangs terug naar de trap.
+const SL = SLIDE;
+const SLIDE_ROOF = SL.top + 0.95;
+/** Een schuin stuk van de glijbaan, van (z0, h0) naar (z1, h1): `wide` breed en `thick` dik, `lift` boven de baan zelf en `x` opzij. */
+const chutePiece = (z0: number, h0: number, z1: number, h1: number, wide: number, thick: number, lift: number, x: number): THREE.BufferGeometry =>
+  new THREE.BoxGeometry(wide, thick, Math.hypot(z1 - z0, h1 - h0)).rotateX(Math.atan2(h0 - h1, z1 - z0)).translate(SL.chuteX + x, (h0 + h1) / 2 + lift, (z0 + z1) / 2);
+const chute = (wide: number, thick: number, lift: number, x = 0): THREE.BufferGeometry[] => [
+  chutePiece(SL.chuteTop - 0.04, SL.top, SL.chuteBend, SL.bendH, wide, thick, lift, x), chutePiece(SL.chuteBend - 0.02, SL.bendH, SL.chuteEnd + 0.03, SL.endH, wide, thick, lift, x),
+];
+const SLIDE_POSTS: [number, number][] = [[-0.84, SL.back - 0.36], [0.84, SL.back - 0.36], [-0.84, SL.chuteTop + 0.02], [0.84, SL.chuteTop + 0.02]];
+SHOP_PARTS.slide = [
+  playFloor(2, 3),
+  [painted(
+    // het torentje: vier palen en de vloer, met een hek achter en opzij
+    [0xa8743f, ...SLIDE_POSTS.map(([x, z]) => boxAt(0.09, SLIDE_ROOF, 0.09, x, SLIDE_ROOF / 2, z)),
+      // de bomen van de trap en de poten onder de glijbaan
+      ...[-0.21, 0.21].map(x => beam(0.05, [SL.stairX + x, 0, SL.stairFoot - 0.08], [SL.stairX + x, SL.top - 0.04, SL.stairTop])),
+      ...[-0.2, 0.2].flatMap(x => [boxAt(0.05, SL.bendH, 0.05, SL.chuteX + x, SL.bendH / 2 - 0.02, SL.chuteBend), boxAt(0.05, SL.endH, 0.05, SL.chuteX + x, SL.endH / 2 - 0.02, SL.chuteEnd - 0.06)])],
+    [0x4a90e2, boxAt(1.76, 0.07, SL.chuteTop - SL.back + 0.44, 0, SL.top - 0.035, (SL.chuteTop + SL.back - 0.36) / 2 + 0.01)],
+    // de treden
+    [0xe3c08a, ...Array.from({ length: 9 }, (_, i) => boxAt(0.42, 0.03, 0.17, SL.stairX, (SL.top * (i + 0.5)) / 9 - 0.015, SL.stairFoot + ((SL.stairTop - SL.stairFoot) * (i + 0.5)) / 9))],
+    // de leuningen van de trap en het hek om het torentje
+    [0xe0584f,
+      ...[-0.21, 0.21].flatMap(x => [
+        beam(0.035, [SL.stairX + x, 0.42, SL.stairFoot - 0.08], [SL.stairX + x, SL.top + 0.4, SL.stairTop]),
+        boxAt(0.035, 0.44, 0.035, SL.stairX + x, 0.21, SL.stairFoot - 0.08), beam(0.03, [SL.stairX + x, SL.top / 2 - 0.05, (SL.stairFoot + SL.stairTop) / 2], [SL.stairX + x, SL.top / 2 + 0.4, (SL.stairFoot + SL.stairTop) / 2])]),
+      boxAt(1.68, 0.04, 0.04, 0, SL.top + 0.4, SL.back - 0.36), boxAt(1.68, 0.03, 0.03, 0, SL.top + 0.2, SL.back - 0.36),
+      ...[-0.84, 0.84].flatMap(x => [boxAt(0.04, 0.04, SL.chuteTop - SL.back + 0.38, x, SL.top + 0.4, (SL.chuteTop + SL.back - 0.36) / 2), boxAt(0.03, 0.03, SL.chuteTop - SL.back + 0.38, x, SL.top + 0.2, (SL.chuteTop + SL.back - 0.36) / 2)]),
+      boxAt(0.52, 0.04, 0.04, 0.03, SL.top + 0.4, SL.chuteTop + 0.02), boxAt(0.04, 0.4, 0.04, 0.03, SL.top + 0.2, SL.chuteTop + 0.02),
+      // de boog boven aan de glijbaan, op twee korte paaltjes
+      new THREE.TorusGeometry(0.27, 0.035, 5, 10, Math.PI).translate(SL.chuteX, SL.top + 0.32, SL.chuteTop + 0.02),
+      ...[-0.27, 0.27].map(x => boxAt(0.05, 0.34, 0.05, SL.chuteX + x, SL.top + 0.17, SL.chuteTop + 0.02))],
+  ), MATTE_MAT],
+  // de glijbaan zelf: een gele baan met blauwe randen
+  [painted([0xffd23f, ...chute(0.46, 0.04, -0.02)], [0x4a90e2, ...chute(0.045, 0.15, 0.04, -0.235), ...chute(0.045, 0.15, 0.04, 0.235)]), PAINT_MAT],
+  // het dak met een bol en een vlaggetje
+  [painted(
+    [0xe0584f, new THREE.ConeGeometry(0.74, 0.52, 4).rotateY(Math.PI / 4).scale(1.75, 1, 0.98).translate(0, SLIDE_ROOF + 0.26, (SL.chuteTop + SL.back - 0.36) / 2 + 0.01)],
+    [0xb8433b, boxAt(1.9, 0.05, 1.08, 0, SLIDE_ROOF + 0.01, (SL.chuteTop + SL.back - 0.36) / 2 + 0.01)],
+    [0xffd23f, ball(0.06, 0, SLIDE_ROOF + 0.55, (SL.chuteTop + SL.back - 0.36) / 2 + 0.01)],
+  ), PAINT_MAT],
+];
+
+// Schommel (2 bij 1 tegel): twee schuine poten aan elke kant, een balk erbovenop en twee zitjes aan kettingen, die
+// los van elkaar heen en weer gaan (zie RIDE_BUILD).
+const SW = SWINGSET;
+SHOP_PARTS.swing = [
+  playFloor(2, 1),
+  [merge([
+    ...[-0.9, 0.9].flatMap(x => [beam(0.075, [x, 0, 0.4], [x, SW.top + 0.02, 0]), beam(0.075, [x, 0, -0.4], [x, SW.top + 0.02, 0]), boxAt(0.05, 0.05, 0.42, x, SW.top * 0.48, 0)]),
+    new THREE.CylinderGeometry(0.045, 0.045, 1.9, 8).rotateZ(Math.PI / 2).translate(0, SW.top, 0), ball(0.075, -0.95, SW.top, 0), ball(0.075, 0.95, SW.top, 0),
+  ]), P_RED],
+];
+/** Eén zitje met zijn twee kettingen, hangend aan (0, 0, 0). */
+const swingSeatGeo = (color: number): THREE.BufferGeometry => painted(
+  [0x8a8f98, ...[-0.15, 0.15].map(x => boxAt(0.022, SW.rope, 0.022, x, -SW.rope / 2, 0)), ...[-0.15, 0.15].map(x => boxAt(0.05, 0.05, 0.05, x, -0.01, 0))],
+  [color, boxAt(0.38, 0.04, 0.18, 0, -SW.rope - 0.02, 0)],
+);
+const SWING_SEATS = [0x4a90e2, 0xffd23f].map(swingSeatGeo);
+RIDE_BUILD.swing = (group, mat) => {
+  group.userData.seats = Array.from({ length: SW.seats }, (_, i) => {
+    const seat = piece(SWING_SEATS[i % SWING_SEATS.length], PAINT_MAT, mat);
+    seat.position.set((i % 2 ? 1 : -1) * SW.side, SW.top, 0);
+    // (het zitje zwaait: de schaduw in de kleuren zou mee omhoog draaien)
+    seat.userData.noShade = true;
+    group.add(seat);
+    return seat;
+  });
+};
+
+// Wipwap (2 bij 1 tegel): een rode bok in het midden met een gele plank erop, aan elk eind een zitje met een
+// handvat; onder elk eind ligt een halve autoband waar de plank op neerkomt.
+const SS = SEESAW;
+SHOP_PARTS.seesaw = [
+  playFloor(2, 1),
+  [painted(
+    [0xe0584f, new THREE.CylinderGeometry(0.06, 0.2, SS.pivot, 4).rotateY(Math.PI / 4).scale(1, 1, 1.5).translate(0, SS.pivot / 2, 0), boxAt(0.34, 0.05, 0.42, 0, 0.03, 0)],
+    [0x8a8f98, new THREE.CylinderGeometry(0.045, 0.045, 0.34, 8).rotateX(Math.PI / 2).translate(0, SS.pivot - 0.03, 0)],
+    // de halve banden
+    [0x3d4148, ...[-0.8, 0.8].map(x => new THREE.TorusGeometry(0.13, 0.05, 6, 10, Math.PI).rotateY(Math.PI / 2).translate(x, 0.03, 0))],
+  ), MATTE_MAT],
+];
+const SEESAW_PLANK = painted(
+  [0xffd23f, boxAt(1.74, 0.05, 0.22, 0, 0, 0)],
+  [0x4a90e2, ...[-1, 1].flatMap(s => [boxAt(0.3, 0.03, 0.25, s * SS.side, SS.lift - 0.015, 0), boxAt(0.04, 0.16, 0.25, s * (SS.side + 0.17), 0.1, 0)])],
+  [0xe0584f, ...[-1, 1].flatMap(s => [boxAt(0.035, 0.24, 0.035, s * (SS.side - 0.24), 0.14, 0), boxAt(0.035, 0.035, 0.26, s * (SS.side - 0.24), 0.26, 0)])],
+);
+RIDE_BUILD.seesaw = (group, mat) => {
+  const plank = piece(SEESAW_PLANK, PAINT_MAT, mat);
+  plank.position.y = SS.pivot;
+  plank.userData.noShade = true;
+  group.add(plank);
+  group.userData.plank = plank;
+};
+
+// Wipkip (1 bij 1 tegel): een dier op een dikke veer, met een zadel, een handvat en voetsteunen. Er zijn er drie:
+// een kip, een paardje en een kikker; welke het wordt, hangt af van de plek waar hij staat (zie View.makeShop).
+const SP = SPRINGER;
+SHOP_PARTS.springer = [
+  playFloor(1, 1),
+  // de veer: een dunne staaf met ringen eromheen, op een voetplaat
+  [mergeGeometries([tube(0.035, 0.035, 0.3, 0, 0.17, 0), tube(0.17, 0.17, 0.03, 0, 0.045, 0), ...[0.09, 0.15, 0.21, 0.27].map(y => tube(0.08, 0.08, 0.028, 0, y, 0))])!, METAL],
+];
+/** Wat elk dier heeft: het zadel (de bovenkant ligt `seat` hoog), het handvat en de voetsteunen. Alles gemeten vanaf het punt waar de veer wipt. */
+const springerGear = (): [number, ...THREE.BufferGeometry[]][] => {
+  const y = SP.seat - SP.pivot;
+  return [
+    [0xf7f4ec, boxAt(0.17, 0.03, 0.2, 0, y - 0.015, -0.02)],
+    [0xffd23f, boxAt(0.03, 0.16, 0.03, 0, y + 0.09, 0.15), boxAt(0.3, 0.035, 0.035, 0, y + 0.17, 0.15), boxAt(0.36, 0.03, 0.06, 0, y - 0.24, 0.04)],
+  ];
+};
+const SPRINGER_GEOS = ((): THREE.BufferGeometry[] => {
+  const y = SP.seat - SP.pivot;
+  return [
+    // de kip: rood, met een kam, een gele snavel en een staart
+    painted(
+      [0xe0584f, blob(0.15, 0.8, 0.8, 1.7, 0, y - 0.12, 0), blob(0.095, 0.95, 1.2, 0.95, 0, y + 0.12, 0.2), blob(0.06, 0.6, 1.5, 1, 0, y + 0.05, -0.27), blob(0.05, 0.5, 1.3, 1, 0, y - 0.02, -0.31)],
+      [0xb8433b, ...[0.14, 0.2, 0.26].map(z => dot(0.035, 0, y + 0.25, z)), blob(0.09, 0.3, 0.7, 1.1, -0.125, y - 0.1, 0), blob(0.09, 0.3, 0.7, 1.1, 0.125, y - 0.1, 0)],
+      [0xf5a623, new THREE.ConeGeometry(0.04, 0.1, 4).rotateX(Math.PI / 2).translate(0, y + 0.1, 0.32)],
+      [0x22201c, dot(0.018, -0.075, y + 0.16, 0.25), dot(0.018, 0.075, y + 0.16, 0.25)],
+      ...springerGear(),
+    ),
+    // het paardje: blauw, met witte manen en een staart
+    painted(
+      [0x4a90e2, blob(0.14, 0.8, 0.8, 1.8, 0, y - 0.12, 0), rod(0.07, [0, y - 0.06, 0.16], [0, y + 0.12, 0.25], 6, 0.055), blob(0.075, 0.9, 0.95, 1.5, 0, y + 0.16, 0.31), cone(0.022, 0.06, -0.04, y + 0.25, 0.26, 4), cone(0.022, 0.06, 0.04, y + 0.25, 0.26, 4)],
+      [0xf7f4ec, new THREE.BoxGeometry(0.035, 0.2, 0.05).rotateX(0.45).translate(0, y + 0.08, 0.17), blob(0.045, 0.8, 2, 0.9, 0, y - 0.1, -0.27)],
+      [0x22201c, dot(0.016, -0.06, y + 0.19, 0.34), dot(0.016, 0.06, y + 0.19, 0.34)],
+      ...springerGear(),
+    ),
+    // de kikker: groen en breed, met grote ogen bovenop en een lichte buik
+    painted(
+      [0x6cc04a, blob(0.16, 1, 0.7, 1.5, 0, y - 0.11, 0), blob(0.12, 1.15, 0.8, 0.9, 0, y + 0.04, 0.22), dot(0.055, -0.08, y + 0.14, 0.22), dot(0.055, 0.08, y + 0.14, 0.22),
+        blob(0.07, 0.7, 0.6, 1.4, -0.16, y - 0.16, 0.12), blob(0.07, 0.7, 0.6, 1.4, 0.16, y - 0.16, 0.12)],
+      [0xd9f0b8, blob(0.1, 1, 0.5, 0.6, 0, y - 0.02, 0.3)],
+      [0xf7f4ec, dot(0.03, -0.08, y + 0.16, 0.26), dot(0.03, 0.08, y + 0.16, 0.26)],
+      [0x22201c, dot(0.016, -0.08, y + 0.165, 0.285), dot(0.016, 0.08, y + 0.165, 0.285)],
+      ...springerGear(),
+    ),
+  ];
+})();
+RIDE_BUILD.springer = (group, mat) => {
+  const rocker = piece(SPRINGER_GEOS[0], PAINT_MAT, mat);
+  rocker.position.y = SP.pivot;
+  rocker.userData.noShade = true;
+  group.add(rocker);
+  group.userData.rocker = rocker;
+};
+
+// Trampoline (2 bij 2 tegels): een ronde rand van blauwe en gele kussens op zes poten, met het zwarte doek erin
+// (los, zodat het kan veren) en een trapje ervoor.
+const TR = TRAMPOLINE;
+SHOP_PARTS.trampoline = [
+  playFloor(2, 2),
+  [painted(
+    [0x8a8f98, ...around(6, TR.frame - 0.06, (x, z) => boxAt(0.05, TR.mat - 0.06, 0.05, x, (TR.mat - 0.06) / 2, z)), new THREE.TorusGeometry(TR.frame - 0.06, 0.025, 5, 24).rotateX(Math.PI / 2).translate(0, 0.14, 0),
+      // het trapje, aan de voorkant
+      ...[-0.13, 0.13].map(x => beam(0.03, [x, 0, TR.frame + TR.step], [x, TR.mat - 0.02, TR.frame - 0.02])),
+      ...[0.33, 0.67].map(k => boxAt(0.26, 0.025, 0.07, 0, TR.mat * k, TR.frame + TR.step * (1 - k)))],
+  ), MATTE_MAT],
+  // de rand: om en om blauwe en gele kussens
+  [striped(new THREE.LatheGeometry([[TR.r - 0.02, TR.mat - 0.07], [TR.frame, TR.mat - 0.07], [TR.frame, TR.mat + 0.02], [TR.r - 0.02, TR.mat + 0.02], [TR.r - 0.02, TR.mat - 0.07]].map(([r, y]) => new THREE.Vector2(r, y)), 12), [0x4a90e2, 0xffd23f], 12), PAINT_MAT],
+];
+/** Het doek: de bovenkant ligt op hoogte 0, zodat het precies onder de voeten van de springers veert. */
+const TRAMPOLINE_MAT_GEO = painted(
+  [0x39424c, new THREE.CylinderGeometry(TR.r, TR.r, 0.02, 24).translate(0, -0.01, 0)],
+  [0xf7f4ec, new THREE.TorusGeometry(0.14, 0.012, 4, 16).rotateX(Math.PI / 2).translate(0, 0.002, 0)],
+);
+RIDE_BUILD.trampoline = (group, mat) => {
+  const cloth = piece(TRAMPOLINE_MAT_GEO, MATTE_MAT, mat, false);
+  cloth.receiveShadow = !mat;
+  group.add(cloth);
+  group.userData.cloth = cloth;
+};
 
 // Schuilhut: vier palen, een schuin dak, wanden links en achter en een bank langs de achterwand.
 SHOP_PARTS.shelter = [
@@ -2583,28 +2698,18 @@ function shapePond(group: THREE.Object3D, mask: number, x: number, y: number, ro
 }
 
 /**
- * Een winkel met alles erop en eraan. In `userData`: `moving` (het deel dat het spel laat draaien), `cars` (de
- * botsauto's), `bob` (wat zachtjes wiegt), `door` (de wc-deuren), `lid` (de deksel van de afvalbak), `mat` (het
- * doek van de trampoline) en `seat` (het bankje).
+ * Een winkel met alles erop en eraan. In `userData`: `bob` (wat zachtjes wiegt), `door` (de wc-deuren), `lid` (de
+ * deksel van de afvalbak) en `seat` (het bankje); en bij een attractie of speeltoestel de losse stukken die
+ * `poseRide` beweegt (zie RIDE_BUILD).
  */
 function buildShop(kind: ShopKind, mat?: THREE.Material): THREE.Group {
   const group = build(SHOP_PARTS[kind], mat);
   const kids = [...group.children];
   group.userData.kind = kind;
-  const extra = SHOP_MOVING[kind];
-  if (extra) {
-    const moving = build(extra.parts, mat);
-    moving.position.y = extra.y;
-    // wat kantelt of rondgaat, krijgt geen schaduw in de kleuren (die zou mee omhoog draaien); de draaimolen draait alleen rond
-    moving.userData.noShade = kind !== 'carousel';
-    group.add(moving);
-    group.userData.moving = moving;
-  }
   if (kind === 'bin') {
     kids[1].position.set(0, 0.42, -0.19);
     group.userData.lid = kids[1];
   }
-  if (kind === 'trampoline') group.userData.mat = kids[3];
   if (kind === 'bench') group.userData.seat = kids[0];
   if (kind === 'toilet')
     group.userData.door = [-1, 1].map((side, i) => {
@@ -2678,7 +2783,14 @@ function poseRide(group: THREE.Object3D, kind: ShopKind, s: RideState): void {
       if (i < FOUNTAIN.jets) jets[i].scale.setScalar(level);
       else jets[i].scale.set(0.8 + 0.3 * level, level, 0.8 + 0.3 * level);
     }
-  }
+  } else if (kind === 'swing') {
+    const seats = u.seats as THREE.Object3D[];
+    for (let i = 0; i < seats.length; i++) seats[i].rotation.x = swingAngle(i, s);
+  } else if (kind === 'seesaw') (u.plank as THREE.Object3D).rotation.z = seesawTilt(s);
+  else if (kind === 'springer') {
+    const [pitch, roll] = springerTilt(s);
+    (u.rocker as THREE.Object3D).rotation.set(pitch, 0, roll);
+  } else if (kind === 'trampoline') (u.cloth as THREE.Object3D).position.y = TRAMPOLINE.mat - trampolineDip(s);
 }
 
 // Een slinger van a naar b die een beetje doorhangt: het touw, en de vlaggetjes of lampjes die eraan hangen.
@@ -2703,8 +2815,10 @@ const ROPE_MAT = std(0x5a4a3a, 1);
 // is het smaller dan 2 bij 2, dan is er geen plek voor de taart.
 const partyGeos = new Map<string, { white: THREE.BufferGeometry; colors: THREE.BufferGeometry; balloons: THREE.BufferGeometry; at: P3 }>();
 const PARTY_POLE = 1.7;
+/** Waar de taart staat (x, z) bij een toestel dat rechtsvoor zelf iets heeft staan: bij de glijbaan tussen de trap en de glijbaan in. */
+const PARTY_CAKE: Partial<Record<ShopKind, [number, number]>> = { slide: [0.02, 0.45] };
 function partyParts(wide: number, deep: number, cakeAt?: [number, number]): { white: THREE.BufferGeometry; colors: THREE.BufferGeometry; balloons: THREE.BufferGeometry; at: P3 } {
-  const key = `${wide}x${deep}`, made = partyGeos.get(key);
+  const key = `${wide}x${deep}${cakeAt ? `@${cakeAt[0]},${cakeAt[1]}` : ''}`, made = partyGeos.get(key);
   if (made) return made;
   const out = (n: number): number => (n === 1 ? 0.56 : n / 2 - 0.1);
   const side = out(wide), far = out(deep), cake = wide > 1 && deep > 1;
@@ -4428,6 +4542,8 @@ export class View {
   /** Een winkel met zijn linkerbovenhoek op tegel (x, y); hoeveel tegels hij beslaat, hangt af van het soort (zie shopSpan). */
   makeShop(x: number, y: number, kind: ShopKind, edge?: EdgePose, rot = 0): THREE.Group {
     const group = buildShop(kind);
+    // elke wipkip is een ander dier: welk dier, hangt af van de plek waar hij staat
+    if (kind === 'springer') (group.userData.rocker as THREE.Mesh).geometry = SPRINGER_GEOS[Math.floor(hash(x, y, 31) * SPRINGER_GEOS.length)];
     this.poseShop(group, x, y, kind, edge, rot);
     this.scene.add(group);
     return group;
@@ -4605,10 +4721,9 @@ export class View {
   // ------------------------------------------------------------ leven in het park
   /**
    * Het leven in en om een winkel, elk beeldje opnieuw: wat op het dak staat wiegt, de wc-deuren zwaaien elk apart
-   * open als er een gast in of uit stapt (`userData.ajar`, zie de gasten) en daarna weer dicht, het doek van de
-   * trampoline veert, het bankje zakt een haartje in, de deksel van de afvalbak klapt (zie flapLid) en om een
-   * vieze kraam cirkelen vliegen. Wat het spel zelf laat bewegen (`userData.moving` en `userData.cars`) blijft
-   * hier met rust.
+   * open als er een gast in of uit stapt (`userData.ajar`, zie de gasten) en daarna weer dicht, het bankje zakt een
+   * haartje in, de deksel van de afvalbak klapt (zie flapLid) en om een vieze kraam cirkelen vliegen. Wat aan een
+   * attractie of speeltoestel beweegt, doet animateRide.
    */
   animateShop(group: THREE.Object3D, kind: ShopKind, t: number, busy: number, seed: number): void {
     const u = group.userData;
@@ -4637,7 +4752,6 @@ export class View {
         doors[i].rotation.y = d.open * swing * swing * (3 - 2 * swing);
       }
     }
-    if (kind === 'trampoline' && u.mat) (u.mat as THREE.Object3D).position.y = -use * (0.05 + 0.035 * Math.sin(t * 11 + seed));
     if (kind === 'bench' && u.seat) (u.seat as THREE.Object3D).scale.y = 1 - 0.04 * use;
     const lid: THREE.Object3D | undefined = u.lid;
     if (lid) {
@@ -4800,7 +4914,7 @@ export class View {
     if (!party) {
       if (!on) return;
       const kind: ShopKind = group.userData.kind;
-      const geos = partyParts(SHOP_SIZE[kind], SHOP_DEEP[kind] ?? SHOP_SIZE[kind]);
+      const geos = partyParts(SHOP_SIZE[kind], SHOP_DEEP[kind] ?? SHOP_SIZE[kind], PARTY_CAKE[kind]);
       party = new THREE.Group();
       const balloons = new THREE.Mesh(geos.balloons, PAINT_MAT);
       balloons.position.set(...geos.at);

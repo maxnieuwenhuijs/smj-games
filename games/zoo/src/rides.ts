@@ -22,6 +22,16 @@ const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 const wrap = (a: number): number => ((a % TAU) + TAU) % TAU;
 /** Het kleinste verschil tussen twee hoeken, van -pi tot pi. */
 const turnTo = (from: number, to: number): number => Math.atan2(Math.sin(to - from), Math.cos(to - from));
+/**
+ * Twee getallen tegelijk teruggeven zonder iets nieuws aan te maken: altijd hetzelfde lijstje, opnieuw gevuld. Wie
+ * zo'n gedeeld paar krijgt, leest het dus meteen uit (`const [a, b] = ...`) en bewaart het lijstje zelf niet.
+ */
+const PAIR: [number, number] = [0, 0];
+const pair = (a: number, b: number): [number, number] => {
+  PAIR[0] = a;
+  PAIR[1] = b;
+  return PAIR;
+};
 /** Een vast toevalsgetal tussen 0 en 1 bij twee getallen: dezelfde getallen geven altijd hetzelfde. */
 const hash = (a: number, b: number): number => {
   const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
@@ -38,7 +48,7 @@ export type RideKind = 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline' 
 export const RIDE_SPAN: Record<RideKind, [number, number]> = {
   slide: [2, 3], swing: [2, 1], seesaw: [2, 1], springer: [1, 1], trampoline: [2, 2], fountain: [3, 3], tower: [2, 2], carousel: [3, 3], bumper: [4, 3], ferris: [8, 2], restaurant: [3, 2],
 };
-export const RIDE_KINDS: RideKind[] = ['fountain', 'tower', 'carousel', 'bumper', 'ferris'];
+export const RIDE_KINDS: RideKind[] = ['slide', 'swing', 'seesaw', 'springer', 'trampoline', 'fountain', 'tower', 'carousel', 'bumper', 'ferris'];
 export const isRide = (kind: ShopKind): kind is RideKind => (RIDE_KINDS as ShopKind[]).includes(kind);
 
 /** Zo snel loopt een gast over een toestel, in tegels per tel: iets vlotter dan op het pad, want hij heeft er zin in. */
@@ -150,17 +160,18 @@ export const visitOff = (v: Visit, s: RideState): boolean => s.clock - v.t0 >= v
 
 /**
  * Een punt in het park omgerekend naar de maat van het gebouw: `cx`, `cy` is het midden van het gebouw op het
- * raster en `rot` hoeveel kwartslagen het gedraaid staat (0 = voorkant naar het zuiden). Geeft [x, z].
+ * raster en `rot` hoeveel kwartslagen het gedraaid staat (0 = voorkant naar het zuiden). Geeft [x, z], als gedeeld
+ * paar.
  */
 export function rideLocal(gx: number, gy: number, cx: number, cy: number, rot: number): [number, number] {
   const turn = (rot * Math.PI) / 2, cos = Math.cos(turn), sin = Math.sin(turn), dx = gx - cx, dy = gy - cy;
-  return [dx * cos - dy * sin, dx * sin + dy * cos];
+  return pair(dx * cos - dy * sin, dx * sin + dy * cos);
 }
 
-/** En terug: een plek in het gebouw (x, z) als punt op het raster. Geeft [gx, gy]. */
+/** En terug: een plek in het gebouw (x, z) als punt op het raster. Geeft [gx, gy], als gedeeld paar. */
 export function rideWorld(x: number, z: number, cx: number, cy: number, rot: number): [number, number] {
   const turn = (rot * Math.PI) / 2, cos = Math.cos(turn), sin = Math.sin(turn);
-  return [cx + x * cos + z * sin, cy - x * sin + z * cos];
+  return pair(cx + x * cos + z * sin, cy - x * sin + z * cos);
 }
 
 // ------------------------------------------------------------ lopen over een route
@@ -217,6 +228,36 @@ function wayAt(out: RidePose, d: number, back = false): boolean {
   }
   put(out, WAY[0], WAY[1], WAY[2], out.face, 'stand');
   return true;
+}
+
+/** Zo ver binnen de rand van zijn tegels loopt een gast die om een toestel heen moet. */
+const LANE = 0.07;
+/** Langs welke kant een gast om een toestel van `w` breed heen loopt als het pad er niet voor ligt: 1 = rechts, -1 = links. */
+const roundSide = (v: Visit, w: number, tx: number): number => (Math.abs(v.fx) > w / 2 ? Math.sign(v.fx) : tx >= 0 ? 1 : -1);
+
+/**
+ * Het begin van een route: van het pad naar het punt (`tx`, `tz`) vooraan op een toestel van `w` bij `d` tegels.
+ * Ligt het pad opzij of achter het toestel, dan loopt de gast eerst buitenom, vlak langs de rand van de tegels,
+ * naar de voorkant: zo loopt hij nergens dwars doorheen.
+ */
+function wayIn(v: Visit, w: number, d: number, tx: number, tz: number): void {
+  wayFrom(v.fx, 0, v.fz);
+  if (v.fz < d / 2 - 0.25) {
+    const lane = roundSide(v, w, tx) * (w / 2 - LANE);
+    if (Math.abs(v.fx) <= w / 2) wayTo(lane, 0, -d / 2 + LANE);
+    wayTo(lane, 0, d / 2 - LANE);
+  }
+  wayTo(tx, 0, tz);
+}
+
+/** Het eind van een route: van een punt vooraan op het toestel (daar staat de route al, `tx` is zijn x) terug naar het pad, zo nodig buitenom. */
+function wayOut(v: Visit, w: number, d: number, tx: number): void {
+  if (v.fz < d / 2 - 0.25) {
+    const lane = roundSide(v, w, tx) * (w / 2 - LANE);
+    wayTo(lane, 0, d / 2 - LANE);
+    if (Math.abs(v.fx) <= w / 2) wayTo(lane, 0, -d / 2 + LANE);
+  }
+  wayTo(v.fx, 0, v.fz);
 }
 
 /**
@@ -291,7 +332,10 @@ function ferrisPlan(v: Visit, s: RideState, used: number): boolean {
     // zo lang duurt het tot dit bakje onderin is; komt het te vroeg, dan pas het rondje erna
     let till = wrap(-Math.PI / 2 - ferrisAngle(c, s.spin)) / FERRIS.speed;
     if (till < walk + 0.4) till += FERRIS_ROUND;
-    if (till < least) [best, least] = [seat, till];
+    if (till < least) {
+      best = seat;
+      least = till;
+    }
   }
   if (best < 0) return false;
   v.seat = best;
@@ -342,20 +386,13 @@ export const CAROUSEL = {
 export const CAROUSEL_SEATS = CAROUSEL.rings.reduce((n, ring) => n + ring.n, 0);
 const CAROUSEL_CYCLE = CAROUSEL.stop + CAROUSEL.up + CAROUSEL.run + CAROUSEL.down;
 
-/** In welke ring paard `seat` staat en het hoeveelste het daar is: [ring, nummer]. */
-function carouselSpot(seat: number): [number, number] {
-  let i = seat % CAROUSEL_SEATS;
-  for (let k = 0; k < CAROUSEL.rings.length; k++) {
-    if (i < CAROUSEL.rings[k].n) return [k, i];
-    i -= CAROUSEL.rings[k].n;
-  }
-  return [0, 0];
-}
-
-/** De hoek van paard `seat` om het midden (0 = vooraan, oplopend naar rechts), en zijn straal. */
+/** De hoek van paard `seat` om het midden (0 = vooraan, oplopend naar rechts), en zijn straal: een gedeeld paar. */
 export function carouselAt(seat: number, spin: number): [number, number] {
-  const [k, i] = carouselSpot(seat), ring = CAROUSEL.rings[k];
-  return [ring.turn + (i * TAU) / ring.n + spin, ring.r];
+  // in welke ring het paard staat (k) en het hoeveelste het daar is (i)
+  let i = seat % CAROUSEL_SEATS, k = 0;
+  while (k + 1 < CAROUSEL.rings.length && i >= CAROUSEL.rings[k].n) i -= CAROUSEL.rings[k++].n;
+  const ring = CAROUSEL.rings[k];
+  return pair(ring.turn + (i * TAU) / ring.n + spin, ring.r);
 }
 
 /** Hoe hoog het zadel van paard `seat` nu is: het gaat op en neer terwijl de molen draait, en staat stil als de molen stilstaat. */
@@ -400,7 +437,10 @@ function carouselPlan(v: Visit, s: RideState, used: number): boolean {
     v.seat = seat;
     carouselWay(v, s);
     const len = wayLength();
-    if (len < least) [best, least] = [seat, len];
+    if (len < least) {
+      best = seat;
+      least = len;
+    }
   }
   if (best < 0) return false;
   v.seat = best;
@@ -562,7 +602,10 @@ function bumperPlan(v: Visit, s: RideState, used: number): boolean {
     v.seat = seat;
     bumperWay(v, s);
     const len = wayLength();
-    if (len < least) [best, least] = [seat, len];
+    if (len < least) {
+      best = seat;
+      least = len;
+    }
   }
   if (best < 0) return false;
   v.seat = best;
@@ -800,14 +843,29 @@ function slideReturn(): void {
   wayTo(SLIDE.stairX, 0, SLIDE.stairFoot);
 }
 
+/** De route van het pad naar de voet van de trap. */
+function slideIn(v: Visit): void {
+  wayIn(v, RIDE_SPAN.slide[0], RIDE_SPAN.slide[1], SLIDE.stairX, SLIDE.stairFoot);
+}
+
+/** De route van het eind van de glijbaan terug naar het pad. */
+function slideOut(v: Visit): void {
+  wayFrom(SLIDE.chuteX, 0, SLIDE.chuteEnd + 0.16);
+  wayOut(v, RIDE_SPAN.slide[0], RIDE_SPAN.slide[1], SLIDE.chuteX);
+}
+
 function slidePlan(v: Visit, s: RideState, used: number): boolean {
-  const walk = Math.max(0.3, Math.hypot(v.fx - SLIDE.stairX, v.fz - SLIDE.stairFoot) / RIDE_WALK);
+  slideIn(v);
+  const walk = Math.max(0.3, wayLength() / RIDE_WALK);
   // de vrije beurt die het eerst weer onderaan de trap begint
   let best = -1, least = Infinity;
   for (let slot = 0; slot < SLIDE.slots; slot++) {
     if (used & (1 << slot)) continue;
     const wait = (SLIDE_LAP - slidePhase(slot, s.clock + walk)) % SLIDE_LAP;
-    if (wait < least) [best, least] = [slot, wait];
+    if (wait < least) {
+      best = slot;
+      least = wait;
+    }
   }
   if (best < 0) return false;
   v.seat = best;
@@ -815,23 +873,22 @@ function slidePlan(v: Visit, s: RideState, used: number): boolean {
   v.wait = least;
   // het laatste rondje houdt op als het kind van de glijbaan af stapt
   v.ride = SLIDE.laps * SLIDE_LAP - SLIDE.lap[5];
-  v.back = Math.max(0.3, Math.hypot(v.fx - SLIDE.chuteX, v.fz - SLIDE.chuteEnd - 0.16) / RIDE_WALK);
+  slideOut(v);
+  v.back = Math.max(0.3, wayLength() / RIDE_WALK);
   return true;
 }
 
 function slidePose(out: RidePose, v: Visit, e: number): RidePose {
   const start = v.walk + v.wait, leave = start + v.ride;
   if (e < v.walk) {
-    wayFrom(v.fx, 0, v.fz);
-    wayTo(SLIDE.stairX, 0, SLIDE.stairFoot);
+    slideIn(v);
     wayAt(out, (e / v.walk) * wayLength());
     return out;
   }
   // wachten op je beurt, onderaan de trap
   if (e < start) return put(out, SLIDE.stairX, 0, SLIDE.stairFoot, Math.PI, 'stand');
   if (e < leave) return slideLap(out, (e - start) % SLIDE_LAP);
-  wayFrom(SLIDE.chuteX, 0, SLIDE.chuteEnd + 0.16);
-  wayTo(v.fx, 0, v.fz);
+  slideOut(v);
   out.done = wayAt(out, ((e - leave) / v.back) * wayLength());
   return out;
 }
@@ -848,10 +905,12 @@ export const SEESAW = { seats: 2, pivot: 0.46, side: 0.68, lift: 0.07, max: 0.28
 /** De wipkip (1 bij 1): een dier op een veer. Het wipt om het punt `pivot` hoog, het zadel zit op `seat`; `max` is hoe ver het wipt. */
 export const SPRINGER = { seats: 1, pivot: 0.14, seat: 0.5, max: 0.3, speed: 6, calm: 0.12, stay: 6 };
 /**
- * De trampoline (2 bij 2): het doek ligt op hoogte `mat` en is `r` groot; de springers staan op `ring` van het
- * midden. `jump`: zo hoog springen ze, `speed`: hoe snel (een sprong duurt pi gedeeld door `speed` tellen).
+ * De trampoline (2 bij 2): het doek ligt op hoogte `mat` en is `r` groot, met een rand eromheen tot `frame`; de
+ * springers staan op `ring` van het midden. `jump`: zo hoog springen ze, `speed`: hoe snel (een sprong duurt pi
+ * gedeeld door `speed` tellen). Vooraan staat een trapje, `step` voor de rand: daarlangs klim je erop en eraf.
+ * `land`: zoveel tellen voor het eind springt een kind steeds lager, zodat het netjes op het doek staat als het gaat.
  */
-export const TRAMPOLINE = { seats: 3, mat: 0.44, r: 0.72, frame: 0.9, ring: 0.3, jump: 0.55, speed: 4.4, stay: 6.5 };
+export const TRAMPOLINE = { seats: 3, mat: 0.44, r: 0.66, frame: 0.82, ring: 0.28, jump: 0.55, speed: 4.4, stay: 6.5, step: 0.16, land: 0.5 };
 
 /** Hoe ver zitje `seat` van de schommel nu uitzwaait (radialen): de twee zitjes gaan niet gelijk. */
 export const swingAngle = (seat: number, s: RideState): number => SWINGSET.max * (s.amps[seat] ?? SWINGSET.calm) * Math.sin(s.spin + seat * 2.2);
@@ -879,10 +938,10 @@ export function seesawSeat(out: RidePose, seat: number, s: RideState): RidePose 
   return out;
 }
 
-/** Hoe ver de wipkip nu voorover (+) of achterover wipt, en hoe ver opzij: [voorover, opzij] in radialen. */
+/** Hoe ver de wipkip nu voorover (+) of achterover wipt, en hoe ver opzij: [voorover, opzij] in radialen, als gedeeld paar. */
 export function springerTilt(s: RideState): [number, number] {
   const a = s.amps[0] ?? SPRINGER.calm;
-  return [SPRINGER.max * a * Math.sin(s.spin), SPRINGER.max * 0.35 * a * Math.sin(s.spin * 0.5 + 1)];
+  return pair(SPRINGER.max * a * Math.sin(s.spin), SPRINGER.max * 0.35 * a * Math.sin(s.spin * 0.5 + 1));
 }
 
 export function springerSeat(out: RidePose, s: RideState): RidePose {
@@ -894,10 +953,10 @@ export function springerSeat(out: RidePose, s: RideState): RidePose {
   return out;
 }
 
-/** Hoe hoog springer `seat` nu boven het doek is (0 = op het doek, 1 = bovenin), en de hoeveelste sprong het is. */
+/** Hoe hoog springer `seat` nu boven het doek is (0 = op het doek, 1 = bovenin), en de hoeveelste sprong het is: een gedeeld paar. */
 export function trampolineJump(seat: number, s: RideState): [number, number] {
   const f = (s.spin + seat * 2.1) / Math.PI;
-  return [Math.abs(Math.sin(f * Math.PI)) * (s.amps[seat] ?? 0), Math.floor(f)];
+  return pair(Math.abs(Math.sin(f * Math.PI)) * (s.amps[seat] ?? 0), Math.floor(f));
 }
 
 /** Hoe ver het doek nu doorzakt: het veert in waar iemand neerkomt. */
@@ -921,6 +980,48 @@ export function trampolineSeat(out: RidePose, seat: number, s: RideState): RideP
   return out;
 }
 
+/** De route van het pad naar de plek van springer `seat`: het trapje op en over het doek. */
+function trampolineWay(v: Visit): void {
+  const a = (v.seat * TAU) / TRAMPOLINE.seats + 0.5;
+  wayIn(v, RIDE_SPAN.trampoline[0], RIDE_SPAN.trampoline[1], 0, TRAMPOLINE.frame + TRAMPOLINE.step);
+  wayTo(0, TRAMPOLINE.mat, TRAMPOLINE.frame - 0.1);
+  wayTo(Math.sin(a) * TRAMPOLINE.ring, TRAMPOLINE.mat, Math.cos(a) * TRAMPOLINE.ring);
+}
+
+function trampolinePlan(v: Visit, used: number): boolean {
+  if (!freeSeat(v, used, TRAMPOLINE.seats)) return false;
+  trampolineWay(v);
+  v.walk = v.back = wayLength() / RIDE_WALK;
+  v.wait = 0;
+  v.ride = TRAMPOLINE.stay;
+  return true;
+}
+
+function trampolinePose(out: RidePose, v: Visit, s: RideState, e: number): RidePose {
+  const leave = v.walk + v.ride;
+  if (e >= v.walk && e < leave) {
+    trampolineSeat(out, v.seat, s);
+    // het begin en het eind: van de looprichting naar het springen draaien, en aan het eind steeds lager springen
+    const k = ease(Math.min((e - v.walk) / TRAMPOLINE.land, (leave - e) / TRAMPOLINE.land));
+    if (k < 1) {
+      const a = (v.seat * TAU) / TRAMPOLINE.seats + 0.5, came = Math.atan2(Math.sin(a) * TRAMPOLINE.ring, Math.cos(a) * TRAMPOLINE.ring - TRAMPOLINE.frame + 0.1);
+      const walk = e - v.walk < TRAMPOLINE.land ? came : came + Math.PI, rest = TRAMPOLINE.mat - trampolineDip(s);
+      out.face = walk + turnTo(walk, out.face) * k;
+      out.h = rest + (out.h - rest) * k;
+      out.u *= k;
+      out.w *= k;
+    }
+    return out;
+  }
+  trampolineWay(v);
+  if (e < v.walk) {
+    wayAt(out, e * RIDE_WALK);
+    return out;
+  }
+  out.done = wayAt(out, (e - leave) * RIDE_WALK, true);
+  return out;
+}
+
 /** Waar een kind op zo'n toestel zit of springt. */
 function playSeat(out: RidePose, kind: RideKind, seat: number, s: RideState): RidePose {
   if (kind === 'swing') return swingSeat(out, seat, s);
@@ -929,48 +1030,42 @@ function playSeat(out: RidePose, kind: RideKind, seat: number, s: RideState): Ri
   return trampolineSeat(out, seat, s);
 }
 
-const PLAY_SEATS = { swing: SWINGSET.seats, seesaw: SEESAW.seats, springer: SPRINGER.seats, trampoline: TRAMPOLINE.seats };
-const PLAY_STAY = { swing: SWINGSET.stay, seesaw: SEESAW.stay, springer: SPRINGER.stay, trampoline: TRAMPOLINE.stay };
+const PLAY_SEATS = { swing: SWINGSET.seats, seesaw: SEESAW.seats, springer: SPRINGER.seats };
+const PLAY_STAY = { swing: SWINGSET.stay, seesaw: SEESAW.stay, springer: SPRINGER.stay };
 
 /** Naast het zitje: daar staat het kind voor het erop klimt (het zitje in rust, een stapje naar voren). */
 function playSide(out: RidePose, kind: RideKind, seat: number): void {
   const side = seat % 2 ? 1 : -1;
   if (kind === 'swing') put(out, side * SWINGSET.side, 0, 0.3, Math.PI, 'stand');
   else if (kind === 'seesaw') put(out, side * SEESAW.side, 0, 0.3, Math.PI, 'stand');
-  else if (kind === 'springer') put(out, 0.28, 0, 0.12, -Math.PI / 2, 'stand');
-  else {
-    const a = (seat * TAU) / TRAMPOLINE.seats + 0.5;
-    put(out, Math.sin(a) * (TRAMPOLINE.frame + 0.08), 0, Math.cos(a) * (TRAMPOLINE.frame + 0.08), a + Math.PI, 'stand');
-  }
+  else put(out, 0.28, 0, 0.12, -Math.PI / 2, 'stand');
 }
-
-/** Zo lang duurt erop klimmen of eraf stappen: op de trampoline is dat een hele stap omhoog. */
-const playHop = (kind: RideKind): number => (kind === 'trampoline' ? 0.55 : SIT_TIME);
 
 function playPlan(v: Visit, used: number): boolean {
   const kind = v.kind as keyof typeof PLAY_SEATS;
   if (!freeSeat(v, used, PLAY_SEATS[kind])) return false;
   playSide(SCRATCH, kind, v.seat);
-  v.walk = v.back = Math.max(0.3, Math.hypot(SCRATCH.x - v.fx, SCRATCH.z - v.fz) / RIDE_WALK) + playHop(kind);
+  v.walk = v.back = Math.max(0.3, Math.hypot(SCRATCH.x - v.fx, SCRATCH.z - v.fz) / RIDE_WALK) + SIT_TIME;
   v.wait = 0;
   v.ride = PLAY_STAY[kind];
   return true;
 }
 
+/** Een bezoek aan de schommel, de wipwap of de wipkip: naar het zitje lopen, erop, en na een poosje er weer af en terug. */
 function playPose(out: RidePose, v: Visit, s: RideState, e: number): RidePose {
-  const hop = playHop(v.kind), leave = v.walk + v.ride, span = v.walk - hop;
+  const leave = v.walk + v.ride, span = v.walk - SIT_TIME;
   if (e >= v.walk && e < leave) return playSeat(out, v.kind, v.seat, s);
   playSide(out, v.kind, v.seat);
   const sx = out.x, sz = out.z, sf = out.face;
-  if (e >= span && e < leave + hop) {
+  if (e >= span && e < leave + SIT_TIME) {
     // erop klimmen of er weer af: van naast het zitje erop, of andersom
     playSeat(out, v.kind, v.seat, s);
-    hopOn(out, sx, 0, sz, sf, e < v.walk ? (e - span) / hop : 1 - (e - leave) / hop);
+    hopOn(out, sx, 0, sz, sf, e < v.walk ? (e - span) / SIT_TIME : 1 - (e - leave) / SIT_TIME);
     out.on = false;
     return out;
   }
   // van het pad naar het zitje lopen, of terug
-  const t = e < span ? e / span : 1 - (e - leave - hop) / span;
+  const t = e < span ? e / span : 1 - (e - leave - SIT_TIME) / span;
   put(out, lerp(v.fx, sx, clamp01(t)), 0, lerp(v.fz, sz, clamp01(t)), e < span ? Math.atan2(sx - v.fx, sz - v.fz) : Math.atan2(v.fx - sx, v.fz - sz), 'walk');
   out.done = e >= leave && t <= 0;
   return out;
@@ -1040,6 +1135,8 @@ export const RIDE_SEATS: Record<RideKind, number> = {
 };
 
 const SCRATCH = newPose();
+/** Het kladje waarop planVisit een bezoek uitrekent. */
+const PLAN: Visit = { kind: 'slide', seat: 0, fx: 0, fz: 0, t0: 0, walk: 0, wait: 0, ride: 0, back: 0 };
 
 /** Het eerste vrije zitje van de `n`; zo zitten er nooit twee gasten op hetzelfde. Geeft false als alles bezet is. */
 function freeSeat(v: Visit, used: number, n: number): boolean {
@@ -1058,7 +1155,14 @@ function freeSeat(v: Visit, used: number, n: number): boolean {
  * gast in de rij tot het weer stilstaat.
  */
 export function planVisit(kind: RideKind, s: RideState, used: number, fx: number, fz: number): Visit | null {
-  const v: Visit = { kind, seat: 0, fx, fz, t0: s.clock, walk: 0, wait: 0, ride: 0, back: 0 };
+  // (eerst op een kladje: een gast vooraan in de rij vraagt het elk beeldje opnieuw, en pas als het lukt komt er een bezoek bij)
+  const v = PLAN;
+  v.kind = kind;
+  v.seat = 0;
+  v.fx = fx;
+  v.fz = fz;
+  v.t0 = s.clock;
+  v.walk = v.wait = v.ride = v.back = 0;
   const ok = kind === 'ferris' ? ferrisPlan(v, s, used)
     : kind === 'carousel' ? carouselPlan(v, s, used)
     : kind === 'bumper' ? bumperPlan(v, s, used)
@@ -1066,8 +1170,9 @@ export function planVisit(kind: RideKind, s: RideState, used: number, fx: number
     : kind === 'tower' ? towerPlan(v, used)
     : kind === 'slide' ? slidePlan(v, s, used)
     : kind === 'restaurant' ? restaurantPlan(v, used)
+    : kind === 'trampoline' ? trampolinePlan(v, used)
     : playPlan(v, used);
-  return ok ? v : null;
+  return ok ? { ...v } : null;
 }
 
 /**
@@ -1083,6 +1188,7 @@ export function visitPose(out: RidePose, v: Visit, s: RideState): RidePose {
   else if (kind === 'tower') towerPose(out, v, e);
   else if (kind === 'slide') slidePose(out, v, e);
   else if (kind === 'restaurant') restaurantPose(out, v, e);
+  else if (kind === 'trampoline') trampolinePose(out, v, s, e);
   else playPose(out, v, s, e);
   if (e >= visitTime(v)) out.done = true;
   return out;

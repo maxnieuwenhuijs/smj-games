@@ -31,10 +31,6 @@ export interface ShopSpot {
   h?: number;
   /** Wat deze kraam verkoopt (zie PRODUCTS; knuffels heten 'plush_' + soort). */
   sells: string[];
-  /** De stand van de draaimolen, in radialen: wie erin zit, draait mee. */
-  spin?: number;
-  /** Hoe hard een speeltoestel heen en weer gaat (0 tot 1): zachtjes als er niemand op zit. */
-  amp?: number;
   /** Welke plekken bezet zijn (een bit per plek): zo zitten er geen twee gasten op hetzelfde zitje. */
   used?: number;
   /**
@@ -2003,94 +1999,8 @@ export class Guest implements Leader {
       const arms = (a: number): void => {
         this.limbs[2].rotation.x = this.limbs[3].rotation.x = a;
       };
-      if (kind === 'playground' || kind === 'slide') {
-        // de trap op, van de glijbaan af en weer terug: twee keer per bezoek (op de losse glijbaan om de beurt)
-        // wie niet de eerste is, wacht even op zijn beurt en doet zijn twee rondjes daarna iets vlotter
-        const wait = this.seat * (kind === 'slide' ? 1.2 : 0.5), lap = (6 - wait) / 2, e = 6 - this.timer - wait;
-        const u = e > 0 ? (e % lap) / lap : 0;
-        // joehoe: het geluidje op het moment dat het glijden begint
-        if (this.rideMark < 0.45 && u >= 0.45) this.cue = 'guest.whee';
-        this.rideMark = u;
-        const top = kind === 'slide' ? at(0, 1.18, -0.5) : at(-0.39, 1.0, 0.1), low = kind === 'slide' ? at(0, 0.12, 0.95) : at(-0.39, 0.1, 1.1);
-        if (u <= 0) {
-          // nog even wachten op je beurt: wippen van ongeduld
-          put(here, this.heading);
-          if (e < 0) m.position.y = Math.abs(Math.sin(this.phase * 0.6)) * 0.03;
-        } else if (u < 0.45) {
-          // naar de trap lopen en omhoog klimmen: eerst vooruit en dan pas de hoogte in, om de beurt een been en een arm
-          const t = u / 0.45, p = mix(here, top, smooth(0, 1, t)), climb = smooth(0.05, 0.3, t) * (1 - smooth(0.85, 1, t));
-          const step = Math.sin(this.phase * 0.9) * 0.5 * climb, sat = smooth(0.85, 1, t);
-          p[1] = top[1] * smooth(0.3, 1, t);
-          put(p, Math.atan2(top[0] - here[0], top[2] - here[2]));
-          this.limbs[0].rotation.x = step - 0.25 * climb - 1.3 * sat;
-          this.limbs[1].rotation.x = -step - 0.25 * climb - 1.3 * sat;
-          this.limbs[2].rotation.x = -1.1 * climb - step;
-          this.limbs[3].rotation.x = -1.1 * climb + step;
-        } else if (u < 0.8) {
-          // glijden: steeds sneller, achterover en met de armen in de lucht: joehoe
-          const t = (u - 0.45) / 0.35;
-          put(mix(top, low, Math.pow(t, 1.6)), turn);
-          m.rotation.x = -0.2;
-          legs(-1.3);
-          arms(-2.8);
-        } else {
-          // onderaan landen (even door de knieën), en dan juichend terug naar het pad
-          const t = (u - 0.8) / 0.2, up = smooth(0, 0.3, t), cheer = smooth(0.2, 0.4, t) * (1 - smooth(0.85, 1, t));
-          const p = mix(low, here, smooth(0.3, 1, t));
-          p[1] = low[1] * (1 - up) + Math.abs(Math.sin(this.phase * 0.8)) * 0.1 * cheer;
-          put(p, t < 0.3 ? turn : Math.atan2(here[0] - low[0], here[2] - low[2]));
-          legs(-1.3 * (1 - up));
-          arms(-1.2 * (1 - up) - 2.9 * cheer);
-        }
-        return;
-      }
-      const total = SERVE_TIME[kind] ?? 6, k = this.settle(total), spin = shop.spin ?? 0, side = this.seat % 2 ? 1 : -1;
+      const total = SERVE_TIME[kind] ?? 6, k = this.settle(total), side = this.seat % 2 ? 1 : -1;
       const sit = m.scale.y * 0.2;
-      if (PLAY.includes(kind)) {
-        // schommel, wipwap, wipkip en trampoline bewegen mee met het toestel (dezelfde stand en uitslag)
-        const amp = shop.amp ?? 1;
-        let seat: [number, number, number], facing = turn, leg = -1.2, arm = -1.2;
-        if (kind === 'swing') {
-          const a = Math.sin(spin) * 0.55 * amp;
-          seat = at(side * 0.36, 1.54 - 1.15 * Math.cos(a) - sit, -1.15 * Math.sin(a));
-          leg = -1.2 + a * 0.9;
-          arm = -1.5;
-        } else if (kind === 'seesaw') {
-          const b = Math.sin(spin) * 0.3 * amp;
-          seat = at(side * 0.67, 0.5 + side * 0.67 * Math.sin(b) - sit, 0);
-          facing = turn - side * (Math.PI / 2);
-          // onderaan zetten de voeten af tegen de grond; bovenaan zwaaien de benen naar voren, gaan de handen even los
-          // en gaat het hoofd lachend in de nek
-          const lift = side * Math.sin(spin) * amp;
-          // de plank kantelt naar de andere kant: dan kraakt de wip
-          const low = lift < 0 ? 1 : 0;
-          if (low !== this.rideMark && k > 0.9) this.cue = 'ride.creak';
-          this.rideMark = low;
-          leg = -1.2 + 0.8 * Math.max(0, -lift) - 0.35 * Math.max(0, lift);
-          arm = -1.0 - 0.9 * Math.max(0, lift - 0.5);
-          this.head.rotation.x = -0.25 * Math.max(0, lift) * k;
-        } else if (kind === 'springer') {
-          const c = Math.sin(spin) * 0.3 * amp;
-          seat = at(side * 0.42, 0.36 + 0.2 * Math.cos(c) - sit, 0.2 * Math.sin(c));
-          arm = -1.1;
-        } else {
-          // trampoline: springen met de armen omhoog, en elke derde sprong op de billen landen en weer opveren
-          const f = (spin + this.seat * 1.3) / Math.PI, jump = Math.abs(Math.sin(f * Math.PI));
-          const bum = Math.round(f) % 3 === 0 ? Math.max(0, 1 - jump / 0.5) : 0;
-          // boing: het geluidje op het moment dat de gast op het doek neerkomt
-          const down = jump < 0.2 ? 1 : 0;
-          if (down && !this.rideMark && k > 0.9) this.cue = 'ride.boing';
-          this.rideMark = down;
-          seat = at(side * 0.28, 0.41 + jump * 0.55 - bum * sit * 0.8, side * 0.1);
-          facing = this.heading + spin * 0.5;
-          leg = 0.5 * (1 - jump) * (1 - bum) - 1.45 * bum;
-          arm = -2.7 * jump * (1 - bum) - 0.5 * bum;
-        }
-        put(mix(here, seat, k), k > 0.5 ? facing : this.heading);
-        legs(leg * k);
-        arms(arm * k);
-        return;
-      }
       if (kind === 'show') {
         // op de tribune: drie bankjes van drie, met het gezicht naar het water achter de tribune
         const row = SHOW_ROWS[Math.floor(this.seat / 3) % SHOW_ROWS.length], col = (this.seat % 3) - 1;
@@ -2194,16 +2104,6 @@ export class Guest implements Leader {
     this.rideY = cy - p.x * sin + p.z * cos;
     this.rideOver = p.done;
     this.stepping = p.act === 'walk' || p.act === 'climb';
-    const legs = (a: number): void => {
-      limbs[0].rotation.x = limbs[1].rotation.x = a;
-    };
-    const arms = (a: number): void => {
-      limbs[2].rotation.x = limbs[3].rotation.x = a;
-    };
-    const wave = (arm: THREE.Object3D, lift = -2.6): void => {
-      arm.rotation.x = lift;
-      arm.rotation.z = Math.sin(this.phase * 0.85) * 0.45;
-    };
     if (p.act === 'climb') {
       // een trap op of af: om de beurt een been en een arm, de handen aan de leuning
       const step = Math.sin(this.phase * 0.9) * 0.5;
@@ -2216,34 +2116,34 @@ export class Guest implements Leader {
     if (p.act === 'walk') return;
     switch (visit.kind) {
       case 'ferris':
-        legs(-1.3 * k);
+        this.legs(-1.3 * k);
         if (!p.on) {
           // op het perron: omhoog kijken naar het rad; een kind wipt van ongeduld
           if (k <= 0) {
             head.rotation.x = -0.35;
             if (this.child) m.position.y += Math.abs(Math.sin(this.phase * 0.6)) * 0.03;
           }
-        } else if (p.u > 0.78) arms(-2.7); // bovenin gaan de armen omhoog
+        } else if (p.u > 0.78) this.arms(-2.7); // bovenin gaan de armen omhoog
         else if (p.u > 0.25) {
           // onderweg zwaait de een naar beneden en wijst de ander iets aan in de diepte
-          if (this.seat % 2) wave(limbs[2]);
+          if (this.seat % 2) this.wave(limbs[2]);
           else {
             limbs[2].rotation.x = -0.95 + Math.sin(this.phase * 0.3) * 0.08;
             head.rotation.x = 0.35;
           }
-        } else arms(-0.7 * k); // onderin: de handen op de rand
+        } else this.arms(-0.7 * k); // onderin: de handen op de rand
         break;
       case 'carousel':
         // schrijlings op het paard, de handen aan de stang
         this.straddle(k);
-        legs(-0.9 * k);
-        arms(-1.25 * k);
+        this.legs(-0.9 * k);
+        this.arms(-1.25 * k);
         // wie vooraan langskomt, zwaait met zijn buitenste arm naar de mensen langs de kant
-        if (p.on && p.u > 0.72 && (ride.amp > 0.5 || this.child)) wave(limbs[3]);
+        if (p.on && p.u > 0.72 && (ride.amp > 0.5 || this.child)) this.wave(limbs[3]);
         break;
       case 'bumper': {
         // in een botsauto: de benen in de kuip, de handen aan het stuur (dat heen en weer gaat)
-        legs(-1.4 * k);
+        this.legs(-1.4 * k);
         const steer = p.on ? Math.sin(this.phase * 0.35 + this.seat) * 0.25 : 0;
         limbs[2].rotation.x = (-1.2 - steer - 1.5 * jolt) * k;
         limbs[3].rotation.x = (-1.2 + steer - 1.5 * jolt) * k;
@@ -2258,17 +2158,84 @@ export class Guest implements Leader {
         if (!p.on) break;
         const mood = Math.sin(this.phase * 0.02 + this.seat * 2.1);
         if (this.seat % 2 === 0 && mood > -0.3) {
-          arms(-2.25);
+          this.arms(-2.25);
           limbs[2].rotation.z = -0.5;
           limbs[3].rotation.z = 0.5;
           this.spy();
         } else if (mood > 0.3) {
-          wave(limbs[2], -2.2);
+          this.wave(limbs[2], -2.2);
           head.rotation.x = 0.3;
         } else limbs[2].rotation.x = -1.5;
         break;
       }
+      case 'slide':
+        // (de trap en het lopen zijn hierboven al gedaan) boven gaan zitten met de armen omhoog, joehoe de glijbaan
+        // af, en onderaan weer opstaan
+        this.legs(-1.35 * k);
+        if (p.act === 'slide') {
+          // joehoe: het geluidje op het moment dat het glijden begint
+          if (!this.rideMark) this.cue = 'guest.whee';
+          this.rideMark = 1;
+          this.arms(-2.8);
+        } else {
+          this.rideMark = 0;
+          if (p.on) this.arms(p.z < 0 ? -2.8 * k : -2.8 * (1 - p.u));
+          // onderaan de trap wachten op je beurt: wippen van ongeduld
+          else m.position.y += Math.abs(Math.sin(this.phase * 0.6)) * 0.03;
+        }
+        break;
+      case 'swing':
+        // op de schommel: de handen aan de kettingen; naar voren strekken de benen, naar achteren buigen ze
+        this.legs((-0.7 - p.u) * k);
+        this.arms(-1.5 * k);
+        break;
+      case 'seesaw': {
+        // op de wipwap: onderaan zetten de voeten af tegen de grond; bovenaan zwaaien de benen naar voren, gaan de
+        // handen even los en gaat het hoofd lachend in de nek
+        const lift = p.on ? p.u * 2 - 1 : 0, low = lift < 0 ? 1 : 0;
+        // de plank kantelt naar de andere kant: dan kraakt de wip
+        if (p.on && low !== this.rideMark) this.cue = 'ride.creak';
+        this.rideMark = low;
+        this.legs((-1.2 + 0.8 * Math.max(0, -lift) - 0.35 * Math.max(0, lift)) * k);
+        this.arms((-1 - 0.9 * Math.max(0, lift - 0.5)) * k);
+        head.rotation.x = -0.25 * Math.max(0, lift) * k;
+        break;
+      }
+      case 'springer':
+        // op de wipkip: schrijlings, met de handen aan het handvat
+        this.straddle(k);
+        this.legs(-0.8 * k);
+        this.arms(-1.15 * k);
+        break;
+      case 'trampoline': {
+        // springen met de armen omhoog, en elke derde sprong op de billen landen en weer opveren
+        if (!p.on) break;
+        const jump = p.u, bum = p.w, down = jump < 0.2 ? 1 : 0;
+        // boing: het geluidje op het moment dat de springer op het doek neerkomt
+        if (down && !this.rideMark && ride.amps[visit.seat] > 0.5) this.cue = 'ride.boing';
+        this.rideMark = down;
+        m.position.y -= bum * 0.16 * m.scale.y;
+        this.legs(0.5 * (1 - jump) * (1 - bum) - 1.45 * bum);
+        this.arms(-2.7 * jump * (1 - bum) - 0.5 * bum);
+        break;
+      }
     }
+  }
+
+  /** Beide benen in dezelfde stand (0 = recht naar beneden, min = naar voren). */
+  private legs(a: number): void {
+    this.limbs[0].rotation.x = this.limbs[1].rotation.x = a;
+  }
+
+  /** Beide armen in dezelfde stand (0 = langs het lijf, min = naar voren en omhoog). */
+  private arms(a: number): void {
+    this.limbs[2].rotation.x = this.limbs[3].rotation.x = a;
+  }
+
+  /** Zwaaien met één arm, die `lift` omhoog staat. */
+  private wave(arm: THREE.Object3D, lift = -2.6): void {
+    arm.rotation.x = lift;
+    arm.rotation.z = Math.sin(this.phase * 0.85) * 0.45;
   }
 
   /** Schrijlings zitten (op een paard, op de wipkip): de benen een stukje uit elkaar, aan weerszijden van het dier. */
@@ -3538,6 +3505,7 @@ export class Guest implements Leader {
     // een nieuwe gok voor wat de gast op het bankje of bij de fontein doet
     this.whim = Math.random();
     this.useMark = 0;
+    this.rideMark = 0;
     this.shop.busyNow = (this.shop.busyNow ?? 0) + 1;
     this.slot = null;
     if (this.gate >= 0 && this.state === 'buy' && kind !== 'toilet') {

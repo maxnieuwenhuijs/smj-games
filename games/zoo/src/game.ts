@@ -72,8 +72,6 @@ const TOOL_GROUPS: [string, ToolId[]][] = [
   ['animal', ['animal', 'trough', 'bed', 'toy', 'prop']],
   ['park', ['shop', 'rides', 'decor', 'staff']],
 ];
-/** Hoe snel een speeltoestel heen en weer gaat. */
-const PLAY_SPEED: Partial<Record<ShopKind, number>> = { swing: 2.6, seesaw: 3, springer: 6, trampoline: 5 };
 /**
  * Een gebouw uit een ouder spel dat een andere maat heeft gekregen, zoekt een nieuwe plek: hooguit `reach` tegels
  * van waar het stond. Een plek die niet aan het pad ligt telt als `loose` tegels verder weg, en een plek waar de
@@ -7688,26 +7686,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         shop.dirtShown = dirty;
         this.view.setShopDirt(shop.mesh, dirty);
       }
-      if (shop.ride) {
-        // een attractie of speeltoestel: het beeld volgt de stand die het spel hierboven al een stukje verder zette (zie rides.ts)
-        this.view.animateRide(shop.mesh, shop.kind, shop.ride);
-        continue;
-      }
-      // de draaimolen draait, de waterstraal van de fontein gaat op en neer
-      const moving = shop.mesh.userData.moving as THREE.Object3D | undefined;
-      const speed = PLAY_SPEED[shop.kind];
-      if (speed) {
-        // speeltoestellen wiegen zachtjes als er niemand op zit en gaan flink heen en weer met een kind erop
-        shop.spin = ((shop.spin ?? 0) + dt * speed) % (Math.PI * 2);
-        shop.amp = (shop.amp ?? 0.12) + ((shop.busyNow ? 1 : 0.12) - (shop.amp ?? 0.12)) * Math.min(1, dt * 2.5);
-        const swing = Math.sin(shop.spin) * shop.amp;
-        if (moving && shop.kind === 'swing') moving.rotation.x = swing * 0.55;
-        else if (moving && shop.kind === 'seesaw') moving.rotation.z = swing * 0.3;
-        else if (moving && shop.kind === 'springer') moving.rotation.x = swing * 0.3;
-        continue;
-      }
-      if (!moving) continue;
-      moving.scale.y = 1 + 0.25 * Math.sin(this.clock * 5 + shop.x);
+      // een attractie of speeltoestel: het beeld volgt de stand die het spel hierboven al een stukje verder zette (zie rides.ts)
+      if (shop.ride) this.view.animateRide(shop.mesh, shop.kind, shop.ride);
     }
     this.events(dt);
     this.updateShows(dt);
