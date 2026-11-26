@@ -4,7 +4,7 @@ import type * as THREE from 'three';
 import { saveSet, t } from '@smj/shared';
 import { Animal, type AnimalWorld, type TrickSound, type Trough } from './animal';
 import { miniOpen, playMini, type MiniOptions } from './minigame';
-import { ambience, animalSound, hasVoice, heard, layer, listen, music, playVoice, reshuffle, sfx } from './audio';
+import { ambience, animalSound, hasVoice, heard, layer, listen, music, playTune, playVoice, reshuffle, sfx } from './audio';
 import {
   BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, SHOP_DEEP, shopSpan, herdOf, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WISH_ORDER, WORLDS, migrateLevel, unlockedSpecies, worldOf,
@@ -31,6 +31,7 @@ import { SIGHT, type GuestCue, type Sight } from './people';
 import { PEN } from './people';
 import { CableCar } from './people';
 import { CABLE, cableChairs, cableFit, cableLength, cableOpen, cablePairs, cablePoles, cableSlot } from './cable';
+import { PARTY, partyClock, partyDone, partyDue, partyLoop } from './party';
 import { Road } from './road';
 import { STAR_EVERY, STAR_FACTORS, STAR_GOOD, STAR_TIP_GAP, nextStars, parkScore, scoreOf, smoothScore, starFactors, starGuests, weakest, type StarFactor, type StarInput } from './stars';
 import { guestCard } from './traits';
@@ -251,6 +252,8 @@ export interface SaveData {
   fans?: number;
   /** De sterren van het park (1 tot 5), zodat het feestje bij het openen niet opnieuw komt. */
   stars?: number;
+  /** De avondfeesten die al geweest zijn (zie PARTY.levels in party.ts), zodat een feest niet terugkomt. */
+  parties?: number[];
 }
 
 export const slotKey = (slot: number): string => `zoo-slot-${slot}`;
@@ -690,6 +693,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     // een park dat al verder is, heeft zijn eerste gasten al lang gehad
     if (d.level > FEATURE.paths) this.told.add('guests');
     this.classFans = d.fans ?? 0;
+    this.partiesDone = d.parties ?? [];
     this.stars = Math.max(1, Math.min(5, Math.round(d.stars ?? 3)));
     this.starScore = scoreOf(this.stars);
     this.savedPens = (d.pens ?? []).map(p => ({ name: p.name, color: p.color, murk: p.murk, tile: tileIndex((p.tile % ow) + ox, Math.floor(p.tile / ow) + oy) }));
@@ -815,6 +819,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       told: [...this.told],
       fans: this.classFans,
       stars: this.stars,
+      parties: this.partiesDone.length ? this.partiesDone : undefined,
     };
   }
 
@@ -3166,6 +3171,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Vanaf tien uur 's avonds gaan de gasten naar huis, zodat het park om middernacht leeg is. */
   goingHome(): boolean {
+    // tijdens het avondfeest blijft iedereen tot het eind
+    if (this.party) return false;
     return this.has('night') && (this.hourNow() >= GUESTS_HOME || this.hourNow() < 7);
   }
 
@@ -3204,11 +3211,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
     for (const s of this.shops) if (!s.edge) list.push({ gx: blockCenter(s)[0], gy: blockCenter(s)[1], r: LIGHT.shop });
     this.road.lights(list);
-    return list;
+    return this.party ? this.partyLights(list) : list;
   }
 
   isNight(): boolean {
-    return this.night > 0.6;
+    // tijdens het avondfeest is het park overal verlicht: niemand gaat slapen en de gasten zien alles
+    return this.night > 0.6 && !this.party;
   }
 
   dark(tile: number): boolean {
@@ -4720,6 +4728,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   private tap(cx: number, cy: number): void {
+    if (this.gongTapped(cx, cy)) return;
     const g = this.view.groundPoint(cx, cy);
     const x = g ? Math.floor(g.gx) : -1, y = g ? Math.floor(g.gy) : -1;
     const inside = this.grid.inBounds(x, y);
@@ -4948,6 +4957,212 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private pinchState(): { dist: number; cx: number; cy: number } {
     const [a, b] = [...this.pointers.values()];
     return { dist: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
+  }
+
+  // ------------------------------------------------------------ het avondfeest (zie party.ts)
+  /** De feesten die al geweest zijn (getallen uit PARTY.levels); wordt bewaard, zodat een feest niet terugkomt. */
+  private partiesDone: number[] = [];
+  /**
+   * Het feest dat nu bezig is: voor welk level, wanneer het begon en ophoudt (speltijd), het rondje van de gasten,
+   * per verblijf de plek op het pad ervoor, wanneer de dieren weer naar het hek komen en wanneer de volgende plop komt.
+   */
+  private party: { due: number; from: number; until: number; loop: number[]; fronts: Map<Pen, { tile: number; x: number; y: number }>; animalsAt: number; popAt: number; test: boolean } | null = null;
+  /** Op welke dag de directeur vertelde dat er feest is, en wanneer hij op de gong wees. */
+  private partyToldDay = -1;
+  private gongToldDay = -1;
+  /** Het kloppende bordje boven de gong: tik erop en het feest begint. */
+  private gongBadge: HTMLElement | null = null;
+  /** Om te testen (partyTest): vanavond is er hoe dan ook feest. */
+  private partyForce = 0;
+
+  /** Is het nu feest? Dan blijven de gasten, slaapt er niemand en branden alle lampen in kleuren. */
+  partyOn(): boolean {
+    return !!this.party;
+  }
+
+  /** Het feest dat vanavond komt (een getal uit PARTY.levels), of 0. Alleen als het in het spel ook nacht wordt. */
+  private partyDueNow(): number {
+    if (!this.has('night')) return 0;
+    return this.partyForce || partyDue(this.level, this.partiesDone);
+  }
+
+  /** De hoeveelste dag het is in het park (een dag begint om zeven uur 's ochtends). */
+  private dayNumber(): number {
+    return Math.floor(this.now() / (DAY_SECONDS + NIGHT_SECONDS));
+  }
+
+  /** Het feestmutsje naast de klok: vanaf de ochtend van een feestavond tot het feest voorbij is. */
+  private partyIcon(): boolean {
+    return !!this.party || (!!this.partyDueNow() && this.partyToldDay === this.dayNumber() && partyClock(this.hourNow()) !== 'late');
+  }
+
+  /** Elk beeldje: vertellen dat er feest is, de gong neerzetten, het feest laten beginnen en verder laten gaan. */
+  private updateParty(dt: number): void {
+    if (this.party) return this.runParty(dt);
+    const due = this.partyDueNow(), phase = due ? partyClock(this.hourNow()) : 'late', day = this.dayNumber();
+    // overdag (of zodra het level gehaald is): de directeur vertelt dat er vanavond feest is. Wie het level pas na
+    // negen uur 's avonds haalt, krijgt het feest de volgende avond; alleen bij het openen van het spel mag het dan nog.
+    const early = phase === 'wait' || phase === 'gong' || (phase === 'start' && this.clock < 3);
+    if (due && early && this.partyToldDay !== day) {
+      this.partyToldDay = day;
+      this.lines.push(say.partyToday());
+    }
+    const gong = (phase === 'gong' || phase === 'start') && this.partyToldDay === day;
+    this.placeGong(gong, gong);
+    if (!gong) return;
+    if (this.gongToldDay !== day) {
+      this.gongToldDay = day;
+      this.lines.push(say.partyGong());
+    }
+    // om negen uur begint het vanzelf: zo mis je het feest nooit
+    if (phase === 'start') this.startParty(due);
+  }
+
+  /** De gong bij de ingang, met het kloppende bordje erboven (`hint`) zolang je er nog op kunt tikken. */
+  private placeGong(on: boolean, hint: boolean): void {
+    this.view.showGong(on);
+    if (!on || !hint) {
+      if (this.gongBadge) this.gongBadge.hidden = true;
+      return;
+    }
+    if (!this.gongBadge) {
+      this.gongBadge = this.hud.makeBadge(icon('gong'), 'tap gong');
+      this.gongBadge.addEventListener('click', () => this.tapGong());
+    }
+    this.gongBadge.hidden = false;
+    const [gx, gy] = this.view.gongSpot(), s = this.view.toScreen(gx, gy, 1.45);
+    this.gongBadge.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%)`;
+  }
+
+  /** Een tik op de gong zelf (niet op het bordje): vlak bij de schijf op het scherm. */
+  private gongTapped(cx: number, cy: number): boolean {
+    if (!this.gongBadge || this.gongBadge.hidden) return false;
+    const [gx, gy] = this.view.gongSpot(), s = this.view.toScreen(gx, gy, 0.6);
+    if (Math.hypot(s.x - cx, s.y - cy) > this.pxPerTile() * 0.7) return false;
+    this.tapGong();
+    return true;
+  }
+
+  /** Bong! Het feest begint. */
+  private tapGong(): void {
+    const due = this.partyDueNow();
+    if (this.party || !due) return;
+    const phase = partyClock(this.hourNow());
+    if (phase === 'gong' || phase === 'start') this.startParty(due);
+  }
+
+  /** Voor elk verblijf met dieren: de padtegel waar je het best kijkt (het dichtst bij het midden van het verblijf). */
+  private partyFronts(): Map<Pen, { tile: number; x: number; y: number }> {
+    const out = new Map<Pen, { tile: number; x: number; y: number }>(), paths = [...this.pathTiles()];
+    if (!paths.length) return out;
+    for (const pen of this.pens) {
+      if (!this.animalsIn(pen.region.id).length) continue;
+      let best = paths[0], far = Infinity;
+      for (const tile of paths) {
+        const [x, y] = tileXY(tile), d = Math.hypot(x + 0.5 - pen.cx, y + 0.5 - pen.cy);
+        if (d < far) {
+          far = d;
+          best = tile;
+        }
+      }
+      const [x, y] = tileXY(best);
+      out.set(pen, { tile: best, x: x + 0.5, y: y + 0.5 });
+    }
+    return out;
+  }
+
+  private startParty(due: number): void {
+    // wat nog over de gong gezegd zou worden, hoeft niet meer
+    this.lines = this.lines.filter(l => l.key !== 'say.party.today' && l.key !== 'say.party.gong');
+    const fronts = this.partyFronts(), [ex, ey] = tileXY(ENTRANCE);
+    // het rondje: langs alle verblijven en langs de poort, met de klok mee
+    const loop = partyLoop([{ tile: ENTRANCE, x: ex + 0.5, y: ey + 0.5 }, ...fronts.values()]);
+    this.party = { due, from: this.clock, until: this.clock + PARTY.seconds, loop, fronts, animalsAt: this.clock + 1.5, popAt: 0, test: this.partyForce > 0 };
+    this.placeGong(true, false);
+    this.view.hitGong();
+    // een diepe bong, de feesttoeter en vrolijke muziek
+    sfx('chime', { volume: 0.9, rate: 0.5 });
+    sfx('party', { volume: 0.6 });
+    playTune(PARTY.track);
+    this.guests.startParty(loop);
+    this.guests.cheer();
+    this.lines.unshift(say.partyStart());
+  }
+
+  /** Tijdens het feest: de klok loopt langzamer, de lampen kleuren, de dieren komen naar het hek en aan het eind confetti. */
+  private runParty(dt: number): void {
+    const p = this.party!;
+    // de klok loopt half zo snel: zo schuift de sluitingstijd vanavond wat op
+    this.timeBase -= dt * (1 - PARTY.pace);
+    this.view.setParty(this.clock - p.from);
+    this.placeGong(true, false);
+    if (this.clock >= p.animalsAt) {
+      p.animalsAt = this.clock + PARTY.animalEvery;
+      // wie net binnenkwam, doet ook mee; de dieren staan op en doen aan het hek hun kunstje
+      this.guests.startParty(p.loop);
+      for (const [pen, at] of p.fronts) {
+        if (!this.pens.includes(pen)) continue;
+        for (const a of this.animalsIn(pen.region.id)) if (Math.random() < 0.7) a.partyShow(this, at.x, at.y);
+      }
+    }
+    // de laatste tellen: zachte plopjes confetti boven de poort
+    if (p.until - this.clock < PARTY.fireworks && this.clock >= p.popAt) {
+      p.popAt = this.clock + 0.4 + Math.random() * 0.4;
+      const [gx, gy] = this.view.gongSpot();
+      this.view.burst(gx - 1.3 + (Math.random() - 0.5) * 3, gy - 0.4 + (Math.random() - 0.5), 2.3 + Math.random() * 0.8, PARTY.colors[Math.floor(Math.random() * PARTY.colors.length)], 9);
+      sfx('tap', { volume: 0.3, rate: 0.55 + Math.random() * 0.3, every: 0.1 });
+    }
+    if (this.clock >= p.until) this.endParty();
+  }
+
+  /** Het feest is voorbij: iedereen juicht nog één keer, er zijn munten, en daarna gaat iedereen gewoon naar huis. */
+  private endParty(): void {
+    const p = this.party!;
+    this.party = null;
+    if (p.test) this.partyForce = 0;
+    else this.partiesDone = partyDone(p.due, this.partiesDone);
+    this.view.setParty(null);
+    this.placeGong(false, false);
+    this.guests.endParty();
+    this.guests.cheer();
+    let hearts = 0;
+    for (const a of this.animals) {
+      if (a.sleeping || a.sick || a.escaped) continue;
+      a.cheer();
+      if (hearts++ < 12) this.heart(a.gx, a.gy, a.top);
+    }
+    const [ex, ey] = tileXY(ENTRANCE);
+    this.earn(PARTY.coins, ex + 0.5, ey + 0.5);
+    sfx('fanfare', { volume: 0.6 });
+    this.lines.unshift(say.partyEnd());
+    void this.save();
+  }
+
+  /** Tijdens het feest geven ook de slingers met vlaggetjes licht, en schijnt elk licht wat verder. */
+  private partyLights(list: { gx: number; gy: number; r: number }[]): { gx: number; gy: number; r: number }[] {
+    const out = list.map(l => ({ gx: l.gx, gy: l.gy, r: l.r * 1.3 }));
+    for (const d of this.decors) {
+      if (d.kind !== 'bunting') continue;
+      const [gx, gy] = this.decorPos(d);
+      out.push({ gx, gy, r: LIGHT.lightstring * 1.3 });
+    }
+    return out;
+  }
+
+  /**
+   * Om te testen in de browser (`__zoo.partyTest()`): vanavond is er feest en de klok springt naar vlak voor acht
+   * uur, zodat de gong zo komt. Met `now` begint het feest meteen. Werkt vanaf het level waarin het nacht wordt.
+   */
+  partyTest(now = false): boolean {
+    if (!this.has('night') || this.party) return false;
+    if (!partyDue(this.level, this.partiesDone)) this.partyForce = PARTY.levels[0];
+    const cycle = DAY_SECONDS + NIGHT_SECONDS, want = ((PARTY.gongFrom - 0.1 - 7) / 14) * DAY_SECONDS;
+    this.timeBase += (want - (this.now() % cycle) + cycle) % cycle;
+    if (now) {
+      this.timeBase += (0.2 / 14) * DAY_SECONDS;
+      this.startParty(this.partyDueNow());
+    }
+    return true;
   }
 
   // ------------------------------------------------------------ tijd, seizoenen en weer
@@ -5464,7 +5679,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       this.hud.hideOffer();
     }
     // na tien uur 's avonds komt er geen klas meer binnen en gebeurt er niets nieuws: iedereen gaat naar huis
-    if (this.goingHome()) {
+    // (en tijdens het avondfeest komt er ook niets tussendoor)
+    if (this.goingHome() || this.party) {
       this.classDue = null;
       return;
     }
@@ -6035,7 +6251,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.checkBirths();
     this.rateStars(0.4, crowd);
     // naast het uur: een plaatje van het seizoen, of een wolkje als het regent
-    const skyIcon = this.rainLeft > 0 ? icon(this.season === 'winter' ? 'winter' : 'rain') : this.has('season') ? icon(this.season) : '';
+    // (op een feestavond staat er ook een feestmutsje naast)
+    const skyIcon = (this.rainLeft > 0 ? icon(this.season === 'winter' ? 'winter' : 'rain') : this.has('season') ? icon(this.season) : '') + (this.partyIcon() ? icon('hat_party') : '');
     this.hud.setWallet(this.coins, COIN_CAP, this.has('paths') ? crowd.total : null, this.has('night') || this.has('keeper') ? this.clockText() : null, this.has('night') ? (this.night > 0.5 ? 'moon' : 'sun') : null, skyIcon);
 
     // een dier wacht al een poos op iets: de verzorger of de bouwer zegt wat er aan de hand is
@@ -6230,6 +6447,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.clock += dt;
     this.view.update(dt);
     this.updateNight();
+    this.updateParty(dt);
     this.updateSky(dt);
     this.updateHand();
     // wat er oplicht: met de veger alle poepjes en afval, anders alleen wat onder de muis ligt; en het dier in nood

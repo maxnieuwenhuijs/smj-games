@@ -856,6 +856,11 @@ const ICONS = {
     '<rect x="3" y="13" width="27" height="21" rx="3" fill="#f08a24"/><path d="M8 19 h17 M8 25 h17" stroke="#c96f14" stroke-width="2.2" stroke-linecap="round"/>' +
     '<path d="M30 19 H39 L45 26 V34 H30Z" fill="#4a90e2"/><path d="M33 21.5 H38 L41.5 26 H33Z" fill="#d6ecfb"/>' +
     '<rect x="2" y="33" width="44" height="3.5" rx="1.5" fill="#5a6670"/><circle cx="12" cy="38" r="5.5" fill="#3d4f5a"/><circle cx="12" cy="38" r="2" fill="#b9c2c9"/><circle cx="37" cy="38" r="5.5" fill="#3d4f5a"/><circle cx="37" cy="38" r="2" fill="#b9c2c9"/>',
+  /** De grote gong van het avondfeest: een gouden schijf in een rood rek. */
+  gong:
+    `<path d="M10 44 V9 M38 44 V9 M6 8 Q24 5 42 8" stroke="${RED}" stroke-width="4.5" stroke-linecap="round" fill="none"/>` +
+    `<path d="M19 8 V14 M29 8 V14" stroke="#5a4a3a" stroke-width="2"/><circle cx="24" cy="26" r="12" fill="${SUN}" stroke="${SUN_D}" stroke-width="2.5"/>` +
+    `<circle cx="24" cy="26" r="4" fill="${SUN_D}"/><path d="M17 21 Q20 18 23 18" stroke="#fff3c2" stroke-width="2" stroke-linecap="round" fill="none"/>`,
   cake:
     '<ellipse cx="24" cy="41.5" rx="21" ry="4" fill="#cfd6dc"/><rect x="7" y="23" width="34" height="18" rx="3" fill="#f7a8c8"/>' +
     '<path d="M7 28 Q7 22 12 22 H36 Q41 22 41 28 Q38 33 35 28.5 Q32 33 29.5 28.5 Q26.5 33 24 28.5 Q21.5 33 18.5 28.5 Q16 33 13 28.5 Q10 33 7 28Z" fill="#fff7e0"/>' +

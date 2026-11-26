@@ -211,6 +211,11 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 /* een rond bordje met een plaatje: vieze stal, jarig, kind kwijt */
 .bubble.badge { align-items: center; justify-content: center; gap: 2px; min-width: 40px; padding: 7px; border-radius: 999px; }
 .bubble.badge.tap { pointer-events: auto; cursor: pointer; }
+/* de gong van het avondfeest: een geel bordje dat zachtjes klopt, zodat je erop tikt */
+.bubble.badge.gong, .bubble.badge.gong::after { background: #ffe58a; }
+.bubble.badge.gong { animation: gong 1.1s ease-in-out infinite; }
+.bubble.badge.gong .ic { font-size: 34px; width: 34px; height: 34px; }
+@keyframes gong { 50% { scale: 1.18; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15), 0 0 0 9px rgba(255, 190, 40, 0.4); } }
 /* verdrietig: lichtblauw, met een traan die langzaam valt */
 .bubble.sad, .bubble.sad::after { background: #d7ebff; }
 .bubble.sad { box-shadow: 0 3px 0 rgba(60, 110, 170, 0.3); }

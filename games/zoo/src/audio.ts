@@ -389,6 +389,23 @@ function playTrack(world: string): void {
   tune = { id: world, el, gain };
 }
 
+/**
+ * Meteen dit nummer (bij het avondfeest): het nummer dat nu speelt, sterft snel weg. Daarna gaan de nummers gewoon
+ * weer om de beurt verder. Staat het al op, dan gebeurt er niets.
+ */
+export function playTune(id: string): void {
+  wantedTune = true;
+  if (!ctx || !master || !tracks[id] || tune?.id === id) return;
+  const old = tune;
+  tune = null;
+  if (old) {
+    if (old.gain) old.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.4);
+    else old.el.volume = 0;
+    setTimeout(() => old.el.pause(), 2000);
+  }
+  playTrack(id);
+}
+
 /** Na de eerste tik: het achtergrondgeluid, de lagen en de muziek die al gevraagd waren alsnog starten. */
 export function resumeAmbience(): void {
   if (wantedAmbience && !ambient) ambience(wantedAmbience);

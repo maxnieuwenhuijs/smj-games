@@ -9,6 +9,7 @@ import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type Land, ty
 import { roadside } from './road';
 import { CABLE, cableHeight } from './cable';
 import { Ground, aroundTexture } from './ground';
+import { partyHue } from './party';
 
 const SQRT2 = Math.SQRT2;
 const SQRT3 = Math.sqrt(3);
@@ -2715,6 +2716,84 @@ export class View {
     });
   }
 
+  // ------------------------------------------------------------ het avondfeest
+  /** De grote gong naast de poort (alleen op een feestavond): het rek, de schijf die kan zwaaien, en hoe ver hij is. */
+  private gong: { group: THREE.Group; disc: THREE.Group; mat: THREE.MeshStandardMaterial; swing: number; grow: number; on: boolean } | null = null;
+  /** Tijdens het feest: hoe lang het al bezig is, voor de kleuren van de lampen (null = geen feest). */
+  private partyT: number | null = null;
+  private partyWhite = new THREE.Color(0xffffff);
+
+  /** Waar de gong staat, in tegels: op het pleintje voor de poort, rechts van de gasten die binnenkomen. */
+  gongSpot(): [number, number] {
+    return [Math.floor(W / 2) + 0.5 + 1.3, H + 0.5];
+  }
+
+  /** De gong zetten of weghalen. Hij groeit even op als hij komt. Wordt pas gemaakt als hij nodig is. */
+  showGong(on: boolean): void {
+    if (!this.gong) {
+      if (!on) return;
+      const red = ROOF_MAT, mat = new THREE.MeshStandardMaterial({ color: 0xf2b632, metalness: 0.45, roughness: 0.35, emissive: 0x7a4a00, emissiveIntensity: 0.35 });
+      const group = new THREE.Group(), disc = new THREE.Group();
+      // het rek: twee rode palen op voetjes, met een balk erover die aan de uiteinden iets omhoog krult
+      group.add(new THREE.Mesh(merge([
+        boxAt(0.08, 1.05, 0.08, -0.34, 0.525, 0), boxAt(0.08, 1.05, 0.08, 0.34, 0.525, 0),
+        boxAt(0.86, 0.09, 0.1, 0, 1.07, 0), boxAt(0.1, 0.1, 0.1, -0.46, 1.12, 0), boxAt(0.1, 0.1, 0.1, 0.46, 1.12, 0),
+      ]), red));
+      group.add(new THREE.Mesh(merge([boxAt(0.26, 0.06, 0.3, -0.34, 0.03, 0), boxAt(0.26, 0.06, 0.3, 0.34, 0.03, 0)]), WOOD_MAT));
+      // de schijf hangt aan twee touwtjes onder de balk en zwaait om die balk
+      disc.position.set(0, 1.02, 0);
+      disc.add(new THREE.Mesh(merge([boxAt(0.02, 0.22, 0.02, -0.12, -0.11, 0), boxAt(0.02, 0.22, 0.02, 0.12, -0.11, 0)]), ROPE_MAT));
+      disc.add(new THREE.Mesh(merge([new THREE.CylinderGeometry(0.28, 0.28, 0.05, 28).rotateX(Math.PI / 2).translate(0, -0.47, 0), ball(0.07, 0, -0.47, 0.03)]), mat));
+      group.add(disc);
+      // de stok met de zachte bol leunt tegen de paal
+      const stick = new THREE.Mesh(merge([new THREE.CylinderGeometry(0.018, 0.018, 0.6, 6).translate(0, 0.3, 0), ball(0.06, 0, 0.62, 0)]), WOOD_MAT);
+      stick.position.set(0.44, 0, 0.12);
+      stick.rotation.z = 0.25;
+      group.add(stick);
+      group.traverse(o => { o.castShadow = true; });
+      const [gx, gy] = this.gongSpot();
+      group.position.set(toWorldX(gx), 0, toWorldZ(gy));
+      this.scene.add(group);
+      this.gong = { group, disc, mat, swing: 0, grow: 0, on };
+    }
+    if (on && !this.gong.on) this.gong.grow = 0;
+    this.gong.on = on;
+    this.gong.group.visible = on;
+  }
+
+  /** Bong! De schijf zwaait en glanst even. */
+  hitGong(): void {
+    if (this.gong) this.gong.swing = 1;
+  }
+
+  /** De gong bewegen: opgroeien als hij net staat, en uitzwaaien na een klap. */
+  private stepGong(dt: number): void {
+    const g = this.gong;
+    if (!g?.on) return;
+    g.grow = Math.min(1, g.grow + dt * 2.5);
+    g.group.scale.setScalar(0.2 + 0.8 * (1 - (1 - g.grow) ** 3));
+    g.swing = Math.max(0, g.swing - dt * 0.45);
+    g.disc.rotation.x = Math.sin(this.speckTime * 9) * 0.35 * g.swing;
+    g.mat.emissiveIntensity = 0.35 + 1.4 * g.swing;
+  }
+
+  /**
+   * Het feest in de lampen: alle lampjes (lantaarns, lichtjes in de slingers) gaan langzaam door alle kleuren en
+   * branden fel; ook de gloed bij elk licht in de nacht krijgt een kleur. Met null is alles weer gewoon.
+   */
+  setParty(t: number | null): void {
+    this.partyT = t;
+    if (t === null) {
+      LAMP_MAT.emissive.setHex(0xffd23f);
+      LAMP_MAT.color.setHex(0xfff1a8);
+      this.relight();
+      return;
+    }
+    LAMP_MAT.emissive.setHSL(partyHue(t) / 360, 0.9, 0.55);
+    LAMP_MAT.color.copy(LAMP_MAT.emissive).lerp(this.partyWhite, 0.5);
+    LAMP_MAT.emissiveIntensity = 2.2;
+  }
+
   /**
    * Bomen rond het park en op de grond die je nog niet hebt. Ze staan verspreid over het hele gebied; een boom
    * verdwijnt zodra het park er komt (zie setLand).
@@ -2898,13 +2977,18 @@ export class View {
     // een cirkel op de grond is op het scherm een platte ovaal
     for (const pass of ['destination-out', 'source-over'] as const) {
       ctx.globalCompositeOperation = pass;
-      for (const { s, r } of spots) {
+      for (const [i, { s, r }] of spots.entries()) {
         ctx.setTransform(1, 0, 0, 0.62, s.x * k, s.y * k);
         const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
         if (pass === 'destination-out') {
           g.addColorStop(0, 'rgba(0,0,0,1)');
           g.addColorStop(0.55, 'rgba(0,0,0,0.9)');
           g.addColorStop(1, 'rgba(0,0,0,0)');
+        } else if (this.partyT !== null) {
+          // feest: elk licht gloeit in een eigen kleur, en die kleuren schuiven langzaam op
+          const hue = partyHue(this.partyT, i);
+          g.addColorStop(0, `hsla(${hue}, 95%, 62%, ${0.3 * dark})`);
+          g.addColorStop(0.9, `hsla(${hue}, 95%, 62%, 0)`);
         } else {
           // een warme gloed in het licht
           g.addColorStop(0, `rgba(255, 196, 96, ${0.16 * dark})`);
@@ -4233,6 +4317,7 @@ export class View {
     this.placeSpecks();
     this.stepWeather(dt);
     this.placeRainbow();
+    this.stepGong(dt);
     for (const d of this.drops) {
       d.life -= dt;
       d.vy -= 5 * dt;
