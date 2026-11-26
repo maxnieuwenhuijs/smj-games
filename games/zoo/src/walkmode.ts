@@ -23,8 +23,11 @@ export interface WalkTarget extends LookTarget {
  * de draaimolen, een wagon van de trein. Je ogen volgen de stoel; rondkijken (slepen of de pijltjes) kan nog steeds.
  */
 export interface WalkSeat {
-  /** Waar je ogen nu zijn en waar de stoel naartoe wijst: [gx, gy, hoogte, richting]. Null: de rit is voorbij en je stapt uit. */
-  pose(): [gx: number, gy: number, h: number, yaw: number] | null;
+  /**
+   * Waar je ogen nu zijn en waar de stoel naartoe wijst: [gx, gy, hoogte, richting], en als de stoel zelf kantelt (de
+   * schommel, de glijbaan) hoe ver je daardoor omhoog (+) of omlaag (-) kijkt. Null: de rit is voorbij en je stapt uit.
+   */
+  pose(): [gx: number, gy: number, h: number, yaw: number, tilt?: number] | null;
   /** Waar je staat als je uitstapt, en waar je dan naar kijkt (als dat ertoe doet). */
   exit(): [gx: number, gy: number, yaw?: number];
   /** Je bent uitgestapt: zelf, of omdat de rit voorbij was. */
@@ -250,7 +253,7 @@ export class WalkMode {
     this.moving = 0;
     // zolang er een rijtje plaatjes openstaat (iets kopen), zit de knop om uit te stappen niet in de weg
     this.out.hidden = !!document.querySelector('#walkpick:not([hidden])');
-    this.host.view.setEye(p[0], p[1], p[2], this.yaw, this.pitch);
+    this.host.view.setEye(p[0], p[1], p[2], this.yaw, clampPitch(this.pitch + (p[4] ?? 0)));
     this.lookAround();
     return true;
   }
