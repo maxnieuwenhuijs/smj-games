@@ -17,14 +17,14 @@ import { PERSON_SHADE, shadeAttribute } from './shade';
 export const ENTRANCE = tileIndex(Math.floor(W / 2), H - 1);
 
 export interface ShopSpot {
-  /** De linkerbovenhoek; een gebouw beslaat `size` bij `size` tegels. */
+  /** De linkerbovenhoek; `size` is hoe breed het gebouw is langs zijn voorkant (zie SHOP_SIZE). */
   x: number;
   y: number;
   kind: ShopKind;
   size: number;
   /**
-   * Zoveel tegels beslaat het echt, van west naar oost en van noord naar zuid. Alleen bij een marktkraam is dat
-   * anders dan `size`: die is 2 bij 1, of 1 bij 2 als hij een kwartslag gedraaid staat.
+   * Zoveel tegels beslaat het echt, van west naar oost en van noord naar zuid. Wat niet vierkant is (een marktkraam
+   * van 2 bij 1, het reuzenrad van 8 bij 2) staat een kwartslag gedraaid andersom: 1 bij 2, of 2 bij 8.
    */
   w?: number;
   h?: number;
@@ -1679,7 +1679,7 @@ export class Guest implements Leader {
     const e = WC_TIME - this.timer, out = WC_TIME - this.wcTail;
     // de deur draait mee met het gebouw: links of rechts van het midden, aan de voorkant
     const turn = ((shop.rot ?? 0) * Math.PI) / 2, cos = Math.cos(turn), sin = Math.sin(turn);
-    const cx = shop.x + shop.size / 2, cy = shop.y + shop.size / 2, lx = this.seat % 2 ? WC.door : -WC.door;
+    const [cx, cy] = shopCenter(shop), lx = this.seat % 2 ? WC.door : -WC.door;
     const fx = cx + lx * cos + WC.front * sin, fy = cy - lx * sin + WC.front * cos;
     const ix = cx + lx * cos + WC.deep * sin, iy = cy - lx * sin + WC.deep * cos;
     let ax = ix, ay = iy, bx = ix, by = iy, k = 0;
@@ -1963,7 +1963,7 @@ export class Guest implements Leader {
     }
     if (kind && this.shop && !this.shop.edge && kind !== 'fountain') {
       const shop = this.shop;
-      const cx = shop.x + 1, cy = shop.y + 1;
+      const [cx, cy] = shopCenter(shop);
       // het toestel draait mee met het gebouw
       const turn = ((shop.rot ?? 0) * Math.PI) / 2, cos = Math.cos(turn), sin = Math.sin(turn);
       const at = (lx: number, h: number, lz: number): [number, number, number] => [cx + lx * cos + lz * sin, h, cy - lx * sin + lz * cos];
@@ -2619,8 +2619,9 @@ export class Guest implements Leader {
       this.stepping = t < 0 || this.timer < 0.35;
       if (this.useMark < (coin ? 1 : 2) && t > (coin ? 0.95 : this.useMark ? 2.1 : 1) && this.timer > 0.4) {
         this.useMark++;
-        const a = Math.atan2(this.gx - shop.x - 1, this.gy - shop.y - 1) + RIM_SPREAD[this.seat % RIM_SPREAD.length], r = coin ? 0.45 : 0.72;
-        w.plons(shop.x + 1 + Math.sin(a) * r, shop.y + 1 + Math.cos(a) * r, 0.3, coin);
+        const [cx, cy] = shopCenter(shop);
+        const a = Math.atan2(this.gx - cx, this.gy - cy) + RIM_SPREAD[this.seat % RIM_SPREAD.length], r = coin ? 0.45 : 0.72;
+        w.plons(cx + Math.sin(a) * r, cy + Math.cos(a) * r, 0.3, coin);
       }
       return;
     }
@@ -2706,7 +2707,7 @@ export class Guest implements Leader {
 
   /** Aan de fontein: van het pad naar de rand van het bassin, elk op zijn eigen plekje, met het gezicht naar het water. */
   private fountainPlace(): void {
-    const m = this.mesh, shop = this.shop!, cx = shop.x + 1, cy = shop.y + 1;
+    const m = this.mesh, shop = this.shop!, [cx, cy] = shopCenter(shop);
     const k = this.settle(SERVE_TIME.fountain ?? 4);
     const a = Math.atan2(this.gx - cx, this.gy - cy) + RIM_SPREAD[this.seat % RIM_SPREAD.length];
     const x = this.gx + (cx + Math.sin(a) * RIM - this.gx) * k, y = this.gy + (cy + Math.cos(a) * RIM - this.gy) * k;

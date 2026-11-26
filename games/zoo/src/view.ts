@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
-  FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, SHOP_DEEP, shopSpan, TERRAINS, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
+  FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, SHOP_DEEP, onEdge, shopSpan, TERRAINS, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
   BUMPER_CARS, FERRIS, RESTAURANT_TABLES, SHOW_ROWS, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, bumperCar, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
 } from './data';
 import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type Land, type Side } from './grid';
@@ -2348,38 +2348,42 @@ function garland(a: THREE.Vector3, b: THREE.Vector3, kind: 'bunting' | 'lightstr
 const ROPE_MAT = std(0x5a4a3a, 1);
 
 // Verjaardag bij een gebouw: vier dunne palen met slingers ertussen, ballonnen aan de paal rechtsvoor en een taart
-// op een tafeltje. Eén keer gemaakt per diepte, door alle gebouwen gedeeld. Bij een marktkraam (één tegel diep)
-// staan de palen net voor en achter het zeil en is er geen plek voor de taart.
-const partyGeos = new Map<number, { white: THREE.BufferGeometry; colors: THREE.BufferGeometry; balloons: THREE.BufferGeometry; at: P3 }>();
+// op een tafeltje. Eén keer gemaakt per maat (breed bij diep), door alle gebouwen van die maat gedeeld. Waar het
+// gebouw maar één tegel meet, staan de palen net buiten die tegel (bij een marktkraam: voor en achter het zeil);
+// is het smaller dan 2 bij 2, dan is er geen plek voor de taart.
+const partyGeos = new Map<string, { white: THREE.BufferGeometry; colors: THREE.BufferGeometry; balloons: THREE.BufferGeometry; at: P3 }>();
 const PARTY_POLE = 1.7;
-function partyParts(deep: number): { white: THREE.BufferGeometry; colors: THREE.BufferGeometry; balloons: THREE.BufferGeometry; at: P3 } {
-  const made = partyGeos.get(deep);
+function partyParts(wide: number, deep: number, cakeAt?: [number, number]): { white: THREE.BufferGeometry; colors: THREE.BufferGeometry; balloons: THREE.BufferGeometry; at: P3 } {
+  const key = `${wide}x${deep}`, made = partyGeos.get(key);
   if (made) return made;
-  const far = deep === 1 ? 0.56 : 0.9, cake = deep !== 1;
+  const out = (n: number): number => (n === 1 ? 0.56 : n / 2 - 0.1);
+  const side = out(wide), far = out(deep), cake = wide > 1 && deep > 1;
+  // de taart staat rechtsvoor, tenzij het toestel daar zelf iets heeft staan (`cakeAt`)
+  const [cx, cz] = cakeAt ?? [side - 0.16, far - 0.16];
   const rope: THREE.BufferGeometry[] = [], flags: THREE.BufferGeometry[] = [];
-  const top = (i: number): THREE.Vector3 => new THREE.Vector3(CORNERS[i][0] * 0.9, PARTY_POLE, CORNERS[i][1] * far);
+  const top = (i: number): THREE.Vector3 => new THREE.Vector3(CORNERS[i][0] * side, PARTY_POLE, CORNERS[i][1] * far);
   for (const [i, j] of [[0, 1], [1, 3], [3, 2], [2, 0]]) garland(top(i), top(j), 'bunting', rope, flags);
   const white = merge([
-    ...CORNERS.map(([x, z]) => tube(0.022, 0.028, PARTY_POLE, x * 0.9, PARTY_POLE / 2, z * far)),
+    ...CORNERS.map(([x, z]) => tube(0.022, 0.028, PARTY_POLE, x * side, PARTY_POLE / 2, z * far)),
     ...rope,
     // het tafeltje en het glazuur van de taart
-    ...(cake ? [boxAt(0.3, 0.04, 0.3, 0.74, 0.5, 0.74), ...CORNERS.map(([x, z]) => boxAt(0.035, 0.48, 0.035, 0.74 + x * 0.12, 0.24, 0.74 + z * 0.12)), tube(0.115, 0.115, 0.03, 0.74, 0.625, 0.74)] : []),
+    ...(cake ? [boxAt(0.3, 0.04, 0.3, cx, 0.5, cz), ...CORNERS.map(([x, z]) => boxAt(0.035, 0.48, 0.035, cx + x * 0.12, 0.24, cz + z * 0.12)), tube(0.115, 0.115, 0.03, cx, 0.625, cz)] : []),
   ]);
   const colors = merge([
     ...flags,
     ...(cake ? [
-      paint(tube(0.11, 0.11, 0.1, 0.74, 0.57, 0.74), 0xf48fb1),
+      paint(tube(0.11, 0.11, 0.1, cx, 0.57, cz), 0xf48fb1),
       ...[[-0.05, 0.03], [0.05, 0.02], [0, -0.05]].flatMap(([x, z], i) => [
-        paint(boxAt(0.018, 0.07, 0.018, 0.74 + x, 0.675, 0.74 + z), PENNANTS[i]),
-        paint(boxAt(0.024, 0.03, 0.024, 0.74 + x, 0.725, 0.74 + z), 0xffc21f),
+        paint(boxAt(0.018, 0.07, 0.018, cx + x, 0.675, cz + z), PENNANTS[i]),
+        paint(boxAt(0.024, 0.03, 0.024, cx + x, 0.725, cz + z), 0xffc21f),
       ]),
     ] : []),
   ]);
   // de ballonnen: om de top van de paal, zodat ze kunnen wiegen
   const spots: P3[] = [[0.02, 0.36, 0], [-0.17, 0.26, 0.05], [0.14, 0.24, -0.1]];
   const balloons = merge(spots.flatMap((p, i) => [paint(ball(0.13, ...p), PENNANTS[i]), paint(beam(0.008, [0, 0, 0], [p[0], p[1] - 0.12, p[2]]), 0xf7f4ec)]));
-  const geos = { white, colors, balloons, at: [0.9, PARTY_POLE, far] as P3 };
-  partyGeos.set(deep, geos);
+  const geos = { white, colors, balloons, at: [side, PARTY_POLE, far] as P3 };
+  partyGeos.set(key, geos);
   return geos;
 }
 // Een vieze kraam: bruine vlekken op de vloer (en bij een kraam ook op de toonbank), en twee vliegen.
@@ -2577,6 +2581,18 @@ export interface TroughMesh {
   group: THREE.Group;
   food: THREE.Group;
   kind: TroughKind;
+}
+
+/**
+ * Een licht in het donker: het midden op het raster en hoe ver het reikt, in tegels. Met `h` hangt het licht zo
+ * hoog boven de grond (de lampjes van het reuzenrad, het dak van de toren): dan is het een ronde gloed in de lucht
+ * in plaats van een platte kring op de grond.
+ */
+export interface ParkLight {
+  gx: number;
+  gy: number;
+  r: number;
+  h?: number;
 }
 
 export class View {
@@ -3097,7 +3113,7 @@ export class View {
    * Tekent de nacht: een donkerblauw vlak over het hele beeld, met een zacht rond gat bij elk licht (een
    * lantaarn, een kampvuur, een winkel, de ingang). Zo zie je alleen goed wat verlicht is.
    */
-  drawNight(dark: number, lights: { gx: number; gy: number; r: number }[]): void {
+  drawNight(dark: number, lights: ParkLight[]): void {
     const c = this.nightCanvas;
     if (dark <= 0.01) {
       if (c.style.display !== 'none') c.style.display = 'none';
@@ -3119,14 +3135,15 @@ export class View {
     ctx.fillStyle = `rgba(6, 9, 30, ${0.95 * dark * (1 - (1 - WALK.night) * this.walkK)})`;
     ctx.fillRect(0, 0, w, h);
     const spots = lights
-      .map(l => ({ s: this.project(l.gx, l.gy, 0.3, false), r: l.r * this.pxPerTile(l.gx, l.gy, 0.3) * k * 1.25 }))
+      .map(l => ({ s: this.project(l.gx, l.gy, l.h ?? 0.3, false), r: l.r * this.pxPerTile(l.gx, l.gy, l.h ?? 0.3) * k * 1.25, high: !!l.h }))
       .filter(p => p.s.x > -p.r / k && p.s.x < innerWidth + p.r / k && p.s.y > -p.r / k && p.s.y < innerHeight + p.r / k);
-    // een cirkel op de grond is op het scherm een platte ovaal; van dichtbij is het licht meer een bol om de lamp
+    // een cirkel op de grond is op het scherm een platte ovaal; van dichtbij is het licht meer een bol om de lamp.
+    // Een licht hoog in de lucht (het reuzenrad) is altijd een ronde gloed
     const flat = 0.62 + (0.8 - 0.62) * this.walkK;
     for (const pass of ['destination-out', 'source-over'] as const) {
       ctx.globalCompositeOperation = pass;
-      for (const [i, { s, r }] of spots.entries()) {
-        ctx.setTransform(1, 0, 0, flat, s.x * k, s.y * k);
+      for (const [i, { s, r, high }] of spots.entries()) {
+        ctx.setTransform(1, 0, 0, high ? 1 : flat, s.x * k, s.y * k);
         const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
         if (pass === 'destination-out') {
           g.addColorStop(0, 'rgba(0,0,0,1)');
@@ -4058,7 +4075,7 @@ export class View {
     this.at(this.ghostToys[kind], x, y, rot).visible = true;
   }
 
-  /** Een winkel met zijn linkerbovenhoek op tegel (x, y); een gebouw beslaat 2 bij 2 tegels. */
+  /** Een winkel met zijn linkerbovenhoek op tegel (x, y); hoeveel tegels hij beslaat, hangt af van het soort (zie shopSpan). */
   makeShop(x: number, y: number, kind: ShopKind, edge?: EdgePose, rot = 0): THREE.Group {
     const group = buildShop(kind);
     this.poseShop(group, x, y, kind, edge, rot);
@@ -4420,15 +4437,15 @@ export class View {
   }
 
   /**
-   * Feest bij een gebouw van 2 bij 2: slingers tussen vier dunne palen op de hoeken, ballonnen en een taart op
-   * een tafeltje rechtsvoor. Wordt pas gemaakt als het voor het eerst nodig is.
+   * Feest bij een gebouw: slingers tussen vier dunne palen op de hoeken van zijn tegels, ballonnen en (als er plek
+   * is) een taart op een tafeltje rechtsvoor. Wordt pas gemaakt als het voor het eerst nodig is.
    */
   setShopParty(group: THREE.Object3D, on: boolean): void {
     let party: THREE.Group | undefined = group.userData.party;
     if (!party) {
       if (!on) return;
       const kind: ShopKind = group.userData.kind;
-      const geos = partyParts(SHOP_DEEP[kind] ?? SHOP_SIZE[kind]);
+      const geos = partyParts(SHOP_SIZE[kind], SHOP_DEEP[kind] ?? SHOP_SIZE[kind]);
       party = new THREE.Group();
       const balloons = new THREE.Mesh(geos.balloons, PAINT_MAT);
       balloons.position.set(...geos.at);
@@ -4452,11 +4469,11 @@ export class View {
       const made = new THREE.Group();
       const kind: ShopKind = group.userData.kind;
       const floor = new THREE.Mesh(GRIME_FLOOR_GEO, GRIME_MAT);
-      if (SHOP_DEEP[kind]) {
+      if (STALLS.includes(kind)) {
         // een marktkraam is maar één tegel diep en heeft een dun matje
         floor.scale.z = 0.42;
         floor.position.y = -0.024;
-      }
+      } else floor.scale.set(SHOP_SIZE[kind] / 2, 1, (SHOP_DEEP[kind] ?? SHOP_SIZE[kind]) / 2); // de vlekken liggen over de hele vloer
       made.add(floor);
       if (STALLS.includes(kind)) made.add(new THREE.Mesh(GRIME_FRONT_GEO, GRIME_MAT));
       group.userData.flies = [[0.25, 0.8, 0.55], [-0.3, 1, 0.2]].map(([x, y, z]) => {
@@ -4467,7 +4484,7 @@ export class View {
         return fly;
       });
       // een bankje of een bak is maar klein
-      if (SHOP_SIZE[kind] === 1) made.scale.setScalar(0.45);
+      if (onEdge(kind)) made.scale.setScalar(0.45);
       group.add(made);
       group.userData.dirt = dirt = made;
     }

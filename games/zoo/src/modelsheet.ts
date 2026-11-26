@@ -5,7 +5,7 @@
 // &bos=1 (de bomen rond het park), &seizoen=winter, &nacht=1, &spook=1 (het doorzichtige voorbeeld), &draai=1 (kwartslagen), &druk=1 (alsof er
 // gasten zijn), &t=2.5 (het moment van de foto), &zoom=6 (tegels in beeld).
 import * as THREE from 'three';
-import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FERRIS, FOODS, PARK_PROPS, WILD_PROPS, SHOPS, SHOP_SIZE, TERRAINS, TOYS, TROUGHS, bumperCar, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type Terrain, type ToyKind, type TroughKind } from './data';
+import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FERRIS, FOODS, PARK_PROPS, WILD_PROPS, SHOPS, TERRAINS, TOYS, TROUGHS, bumperCar, onEdge, shopSpan, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type Terrain, type ToyKind, type TroughKind } from './data';
 import { BASE_LAND, FULL_LAND, Grid, edgeKey, type Edge, type EdgeKind } from './grid';
 import { View, toWorldX, toWorldZ } from './view';
 import { FACES, sampleHead, showSample } from './faces';
@@ -79,10 +79,11 @@ const pond = (name: string, size: number, tiles: [number, number][]): Item => ({
   },
 });
 const shop = (kind: ShopKind): Item => ({
-  name: kind, size: SHOP_SIZE[kind],
+  // (zoveel tegels beslaat het zoals het hier gedraaid staat: niet elk gebouw is vierkant)
+  name: kind, size: onEdge(kind) ? 1 : shopSpan(kind, rot)[0], deep: onEdge(kind) ? 1 : shopSpan(kind, rot)[1],
   put: (x, y) => {
     // een bankje, bloembak of afvalbak staat op de rand van een pad en kijkt naar het pad (hier: naar voren)
-    const edge = SHOP_SIZE[kind] === 1 ? { o: 'h' as const, face: 1 } : undefined, py = edge ? y + 1 : y;
+    const edge = onEdge(kind) ? { o: 'h' as const, face: 1 } : undefined, py = edge ? y + 1 : y;
     if (ghost) return view.ghostShop(x, py, kind, true, edge, rot);
     const group = view.makeShop(x, py, kind, edge, rot);
     const seed = x * 1.3 + y * 0.7, moving = group.userData.moving as THREE.Object3D | undefined;
@@ -260,7 +261,7 @@ items.forEach((item, i) => {
   }
   item.put(cx, cy);
   labels.push({ name: item.name, gx: cx + item.size + 0.1, gy: cy + deepOf(item) + 0.1 });
-  lights.push({ gx: cx + item.size / 2, gy: cy + item.size / 2, r: 2.2 });
+  lights.push({ gx: cx + item.size / 2, gy: cy + deepOf(item) / 2, r: Math.max(2.2, Math.max(item.size, deepOf(item)) * 0.6 + 1) });
   rowDeep = Math.max(rowDeep, deepOf(item));
   maxX = Math.max(maxX, cx + item.size);
   maxY = Math.max(maxY, cy + rowDeep);
