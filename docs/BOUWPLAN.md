@@ -756,6 +756,9 @@ Vanaf het level met paden staat er een knop met een lopend kindje (onder de trom
 - **Niet door** hekken, verblijven, water, gebouwen, kramen, versieringen, bomen en rotsen; tegen een muur glijd je erlangs.
 - **Kijken en aantikken:** een stipje in het midden. Kijk je binnen 5 tegels naar een dier, gast of kraam, dan wordt het stipje geel en zie je de naam. Tik (of Spatie/E): een dier laat zich horen, komt naar het hek en doet het kunstje van zijn soort, met een hartje; een gast zwaait terug en een kind springt.
 - Tijdens het lopen verdwijnen de bouwknoppen; munten, sterren en de klok blijven. Dag en nacht, regen en sneeuw lopen gewoon door.
+- **Kopen bij een kraam:** tik op een kraam en je krijgt iets van wat hij verkoopt (verkoopt hij meer dingen, dan kies je met grote plaatjes). Het kost 1 munt; zonder munten krijg je het toch. Je houdt het rechtsonder in beeld vast en het wiebelt mee met je stappen. Tik op het scherm (als je nergens naar kijkt) of Spatie om het te gebruiken: drie hapjes of slokjes, een hoedje opzetten (je ziet de rand bovenin en een hoedje bij je munten), aan de ballon trekken, de knuffel knuffelen, of je schmink zien. De wc spoelt door. Wat je vasthoudt wordt altijd vooraan getekend (`held.ts`, `walkhand.ts`).
+
+**Knoppen en kas** (26 november): rechtsboven één rij, iets kleiner: draaien, rondlopen, draaien, geluid, huis. Daaronder een rijtje snelknoppen: de trommel voor de optocht, het snoepje en de tuinslang (die laatste twee kiezen meteen dat gereedschap bij Actie). Wat alleen iets laat zien (sterren, munten, klok, gasten, seizoen en weer) staat rechtsonder naast de knoppenbalk; op een smal scherm en tijdens het rondlopen staat het rechtsboven onder de knoppen.
 
 ### Het logo van SMJ Games
 

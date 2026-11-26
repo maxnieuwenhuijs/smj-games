@@ -97,6 +97,7 @@ export class WalkHand {
     ui.append(this.pick, this.useBtn);
     this.root.visible = false;
     this.fist.visible = false;
+    onTop(this.fist);
     this.root.add(this.fist);
   }
 
@@ -167,6 +168,7 @@ export class WalkHand {
     this.held = h;
     this.act = null;
     this.model = makeHeld(SHOP_OF[h.kind], product);
+    onTop(this.model);
     this.root.add(this.model);
     this.place(0, 0);
     this.useBtn.innerHTML = this.host.pic(product);
@@ -338,4 +340,24 @@ export class WalkHand {
   worn(): string {
     return (this.hat ? icon(this.hat as IconId) : '') + (this.paint ? icon(`paint_${this.paint}` as IconId) : '');
   }
+}
+
+/**
+ * Wat je in je hand hebt, wordt altijd vooraan getekend: ook als je vlak tegen een kraam of muur staat, steekt het er
+ * niet in. Elk stukje krijgt een eigen kopie van zijn materiaal, zodat de gasten met hetzelfde ding gewoon blijven.
+ */
+function onTop(obj: THREE.Object3D): void {
+  obj.traverse(o => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const mats = (Array.isArray(m.material) ? m.material : [m.material]).map(x => {
+      const own = x.clone();
+      own.depthTest = false;
+      own.depthWrite = false;
+      return own;
+    });
+    m.material = Array.isArray(m.material) ? mats : mats[0];
+    m.renderOrder = 1000;
+    m.castShadow = false;
+  });
 }

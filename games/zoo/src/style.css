@@ -108,38 +108,43 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 #options .row:has(.tool:nth-child(12)) .tool { width: min(64px, 7.2vw); }
 #options .row:has(.tool:nth-child(12)) .tool b { font-size: clamp(7px, 1.5vw, 11px); }
 
+/* de knoppen rechtsboven, in één rij van rechts naar links: huis, geluid, draaien, rondlopen, draaien. Iets kleiner
+   dan de knoppen onderin (--hb). Daaronder het rijtje snelknoppen: trommel, snoepje en slang. Wat alleen iets laat
+   zien (sterren, munten, klok, gasten, seizoen en weer) staat rechtsonder, zodat het bovenin rustig blijft. */
+#ui { --hb: min(58px, 11vw); }
+#home, #sound, #turnR, #walk, #turnL, #quick .tool { width: var(--hb); height: var(--hb); border-radius: 16px; }
+#home .ic, #sound .ic, #turnR .ic, #walk .ic, #turnL .ic, #quick .tool .ic { font-size: calc(var(--hb) * 0.48); }
 #home { position: absolute; top: 12px; right: 12px; }
-#sound { position: absolute; top: 12px; right: calc(22px + min(70px, 13vw)); }
-/* het beeld draaien: twee pijlen naast de geluidsknop; de linker is gespiegeld */
-#turnR { position: absolute; top: 12px; right: calc(32px + 2 * min(70px, 13vw)); }
-#turnL { position: absolute; top: 12px; right: calc(42px + 3 * min(70px, 13vw)); }
+#sound { position: absolute; top: 12px; right: calc(12px + 1 * (var(--hb) + 8px)); }
+/* het beeld draaien: twee pijlen, met de knop voor rondlopen ertussen; de linker pijl is gespiegeld */
+#turnR { position: absolute; top: 12px; right: calc(12px + 2 * (var(--hb) + 8px)); }
+#walk { position: absolute; top: 12px; right: calc(12px + 3 * (var(--hb) + 8px)); z-index: 2; }
+#turnL { position: absolute; top: 12px; right: calc(12px + 4 * (var(--hb) + 8px)); }
 #turnL .ic { transform: scaleX(-1); }
-/* op een smal scherm is er bovenaan geen plek: daar staan ze rechts onder elkaar, onder de kas */
+#walk[hidden] { display: none; }
+#walk.on { background: #ffe9a8; }
+/* het rijtje snelknoppen onder de knoppen bovenin */
+#quick { position: absolute; top: calc(20px + var(--hb)); right: 12px; display: flex; gap: 8px; justify-content: flex-end; z-index: 2; }
+#quick:not(:has(.tool:not([hidden]))) { display: none; }
+#quick .tool[hidden] { display: none; }
+#quick .tool.on { background: #ffe9a8; }
+/* op een smal scherm is er bovenaan geen plek: daar staan de draaipijlen en rondlopen rechts onder elkaar */
 @media (max-width: 620px) {
-  #turnR { top: auto; bottom: calc(190px + min(70px, 13vw)); right: 8px; }
-  #turnL { top: auto; bottom: calc(200px + 2 * min(70px, 13vw)); right: 8px; }
+  #turnR { top: auto; bottom: calc(190px + var(--hb)); right: 8px; }
+  #turnL { top: auto; bottom: calc(198px + 2 * var(--hb)); right: 8px; }
+  #walk { top: auto; bottom: calc(206px + 3 * var(--hb)); right: 8px; }
 }
-/* de trommel voor de optocht: naast de draaipijlen; grijs met een schaduw die rondloopt zolang de clown uitrust */
-#drum { position: absolute; top: calc(24px + min(70px, 13vw)); right: calc(42px + 3 * min(70px, 13vw)); z-index: 2; }
+/* de trommel voor de optocht: grijs met een schaduw die rondloopt zolang de clown uitrust */
+#drum { position: relative; }
 #drum[hidden] { display: none; }
 #drum.rest .ic { filter: grayscale(1); opacity: 0.55; }
 #drum .wait { position: absolute; inset: 4px; border-radius: 50%; pointer-events: none; display: none; background: conic-gradient(rgba(0, 0, 0, 0.22) calc(var(--rest, 0) * 360deg), transparent 0); }
 #drum.rest .wait { display: block; }
 #drum.on { animation: drum-beat 0.5s ease-in-out infinite; }
 @keyframes drum-beat { 50% { transform: scale(1.12) rotate(-5deg); } }
-@media (max-width: 620px) {
-  #drum { top: auto; bottom: calc(210px + 3 * min(70px, 13vw)); right: 8px; }
-}
-/* de loopstand: de knop links naast de draaipijlen; op een smal scherm rechts, boven de trommel */
-#walk { position: absolute; top: calc(36px + 2 * min(70px, 13vw)); right: calc(42px + 3 * min(70px, 13vw)); z-index: 2; }
-#walk[hidden] { display: none; }
-#walk.on { background: #ffe9a8; }
-@media (max-width: 620px) {
-  #walk { top: auto; bottom: calc(220px + 4 * min(70px, 13vw)); right: 8px; }
-}
 /* tijdens het lopen: geen knoppenbalk, geen menu's en geen draaipijlen; munten, sterren en de klok blijven */
 #ui.walking #bottom, #ui.walking #goals, #ui.walking #needs, #ui.walking #offer, #ui.walking #menu, #ui.walking #pick,
-#ui.walking #spin, #ui.walking #turnL, #ui.walking #turnR, #ui.walking #drum, #ui.walking #pointer, #ui.walking #wayline { display: none !important; }
+#ui.walking #spin, #ui.walking #turnL, #ui.walking #turnR, #ui.walking #quick, #ui.walking #pointer, #ui.walking #wayline { display: none !important; }
 @media (max-width: 620px) {
   #ui.walking #walk { top: auto; bottom: 24px; right: 16px; width: min(84px, 20vw); height: min(84px, 20vw); }
 }
@@ -200,12 +205,18 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 #spin { position: fixed; left: 0; top: 0; z-index: 3; background: var(--sun); box-shadow: 0 5px 0 var(--sun-shade); }
 #spin .ic { rotate: calc(var(--q, 0) * 90deg); transition: rotate 0.18s ease-out; }
 /* (de knop staat in de rij zelf, dus er hoeft geen pijltje naar beneden meer aan) */
-#wallet { position: absolute; top: calc(24px + min(70px, 13vw)); right: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+/* rechtsonder, naast de knoppenbalk: van onder naar boven sterren en munten, klok en gasten, seizoen en weer */
+#wallet { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 8px; z-index: 2; pointer-events: none; }
+#wallet .pill, #wallet button { pointer-events: auto; }
+/* is het scherm te smal naast de knoppenbalk, dan staat het rechtsboven, onder de snelknoppen */
+@media (max-width: 960px) { #wallet { bottom: auto; top: calc(28px + 2 * var(--hb)); flex-direction: column; } }
+/* tijdens het rondlopen zit rechtsonder je hand: dan staat de kas rechtsboven */
+#ui.walking #wallet { bottom: auto; top: calc(20px + var(--hb)); flex-direction: column; }
 #wallet .wrow { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 #wallet .wrow:empty { display: none; }
 .pill {
-  display: flex; align-items: center; gap: 5px; background: rgba(255, 255, 255, 0.92); border-radius: 18px; padding: 5px 12px 5px 6px;
-  font-size: 26px; box-shadow: 0 4px 0 var(--shade);
+  display: flex; align-items: center; gap: 5px; background: rgba(255, 255, 255, 0.92); border-radius: 16px; padding: 4px 10px 4px 5px;
+  font-size: 22px; box-shadow: 0 4px 0 var(--shade);
 }
 .pill b { font-size: 20px; font-weight: 800; min-width: 22px; text-align: center; }
 .pill.full { background: #ffe58a; box-shadow: 0 4px 0 var(--sun-shade); }
@@ -402,7 +413,7 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 
 /* ---------- praatvenster ---------- */
 /* Bovenin tussen de doelen en de huisknop; op een smal scherm even over de doelen heen. */
-#speechbar { position: absolute; top: 12px; left: 250px; right: 330px; display: flex; justify-content: center; z-index: 2; }
+#speechbar { position: absolute; top: 12px; left: 250px; right: calc(20px + 5 * (var(--hb) + 8px)); display: flex; justify-content: center; z-index: 2; }
 @media (max-width: 900px) { #speechbar { left: 12px; right: 12px; } }
 #speech {
   display: flex; align-items: center; gap: 12px; text-align: left; border: 0; cursor: pointer; background: #fff;

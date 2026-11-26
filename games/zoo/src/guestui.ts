@@ -103,7 +103,10 @@ export class DrumButton {
     this.el.setAttribute('aria-label', t('parade.drum'));
     this.el.hidden = true;
     this.el.addEventListener('click', onTap);
-    layer().append(this.el);
+    // in het rijtje onder de kas, als eerste (daarna het snoepje en de slang)
+    const quick = document.getElementById('quick');
+    if (quick) quick.prepend(this.el);
+    else layer().append(this.el);
   }
 
   /** `show`: de knop staat er. `rest`: zoveel van de wachttijd is er nog (1 tot 0). `on`: de optocht is bezig. */

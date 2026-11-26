@@ -5708,8 +5708,32 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return true;
   }
 
+  /** De snelknoppen onder de kas: het snoepje en de tuinslang, zonder eerst de knop Actie te openen. */
+  private quickBtns: Partial<Record<'treat' | 'hose', HTMLButtonElement>> = {};
+
+  private updateQuick(): void {
+    for (const id of ['treat', 'hose'] as const) {
+      let b = this.quickBtns[id];
+      if (!b && this.has(id)) {
+        b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'tool small';
+        b.id = `q${id}`;
+        b.innerHTML = icon(id);
+        b.setAttribute('aria-label', t(`action.${id}`));
+        b.addEventListener('click', () => this.selectTool('action', 'action', id));
+        document.getElementById('quick')?.append(b);
+        this.quickBtns[id] = b;
+      }
+      if (!b) continue;
+      b.hidden = !this.has(id);
+      b.classList.toggle('on', this.tool === 'action' && this.option.action === id);
+    }
+  }
+
   /** De optocht: de clown loopt en trommelt, kinderen in de buurt sluiten aan, springen en zwaaien, en grote mensen klappen. */
   private updateParade(dt: number): void {
+    this.updateQuick();
     if (this.has('parade') && !this.drumButton) this.drumButton = new DrumButton(() => void this.startParade());
     this.drumButton?.set(this.has('parade') && this.guests.open, this.parade ? 0 : paradeWait(this.clock, this.paradeEnded) / PARADE.rest, !!this.parade && !this.parade.over);
     const p = this.parade;
