@@ -1,0 +1,97 @@
+/* Een hek maken (zie fixgame.ts), op de kaart uit playcard.ts. Alle namen beginnen met fx-. */
+/* --fx is hoe breed de tekening is (320 bij 220); het gereedschap op de tekening is daar een deel van */
+#playcard[data-kind='fix'] { --fx: min(440px, 100vw - 48px, 80vh); }
+
+.fx-scene { position: relative; width: var(--fx); height: calc(var(--fx) * 0.6875); margin: 4px 0 6px; }
+.fx-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+/* de klap van de hamer: de hele tekening schudt even */
+.fx-scene.thud { animation: fx-thud 0.16s ease-out; }
+@keyframes fx-thud { 30% { transform: translateY(3px); } 70% { transform: translateY(-1px); } }
+
+/* een oranje ring om wat je moet aantikken: hij klopt, zodat je hem ziet */
+.fx-ring { fill: none; stroke: #ffb428; stroke-width: 4; transform-box: fill-box; transform-origin: center; animation: fx-ring 1.1s ease-in-out infinite; pointer-events: none; }
+@keyframes fx-ring { 0%, 100% { transform: scale(0.8); opacity: 0.95; } 50% { transform: scale(1.15); opacity: 0.55; } }
+
+/* het gereedschap dat de vinger volgt: pas te zien als je de tekening aanraakt, en je tikt er dwars doorheen */
+.fx-tool {
+  position: absolute; left: 50%; top: 50%; display: flex; pointer-events: none; font-size: calc(var(--fx) * 0.2); opacity: 0; transform: translate(-50%, -50%);
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.2)); z-index: 3;
+}
+.fx-tool.on { opacity: 1; }
+
+/* ---------- hout ---------- */
+.fx-plank { transition: transform 0.14s ease-out; }
+.fx-nail.in .fx-ring { display: none; }
+.fx-nail.in .fx-head { fill: #9aa1ab; }
+/* de hamer: de slagkant ligt op de kop van de spijker, en hij zwaait om het eind van de steel */
+.fx-hammer { font-size: calc(var(--fx) * 0.24); transform-origin: 24% 85%; transform: translate(-97%, -82%) rotate(-18deg); }
+.fx-hammer.hit { animation: fx-hit 0.3s ease-in; }
+@keyframes fx-hit {
+  0% { transform: translate(-97%, -82%) rotate(-42deg); }
+  38% { transform: translate(-97%, -82%) rotate(25deg); }
+  100% { transform: translate(-97%, -82%) rotate(-18deg); }
+}
+
+/* ---------- steen ---------- */
+.fx-hole { fill: #4f545c; stroke: #3a3f46; stroke-width: 2.5; }
+/* een losse steen: hij schuift naar zijn plek; in de hand volgt hij de vinger zonder vertraging */
+.fx-brick { transition: transform 0.28s ease-out; cursor: grab; }
+.fx-brick.held { transition: none; filter: drop-shadow(0 5px 0 rgba(0, 0, 0, 0.25)); }
+/* om een teruggelegde steen zit eerst een donkere kier; met de troffel loopt die vol met lichte specie */
+.fx-gapline, .fx-joint { fill: none; stroke-width: 4; opacity: 0; }
+.fx-gapline { stroke: #3a3f46; }
+.fx-joint { stroke: #f4f1e8; stroke-dasharray: 100; stroke-dashoffset: calc(100 * (1 - var(--mortar, 0))); transition: stroke-dashoffset 0.12s; }
+.fx-brick.laid .fx-gapline, .fx-brick.laid .fx-joint { opacity: 1; }
+.fx-scene.smear .fx-brick { cursor: pointer; }
+/* de punt van de troffel (linksonder in het plaatje) ligt onder de vinger */
+.fx-trowel { transform: translate(-10%, -86%); }
+
+/* ---------- net ---------- */
+.fx-net, .fx-rope { transition: none; }
+/* de gele ring om het net aan omhoog te trekken; hij wipt op en neer */
+.fx-pull circle, .fx-pull path { animation: fx-bob 0.9s ease-in-out infinite; }
+@keyframes fx-bob { 50% { transform: translateY(-7px); } }
+.fx-scene.tight .fx-pull { display: none; }
+.fx-scene.tight .fx-rope { animation: fx-twang 0.3s ease-out; }
+@keyframes fx-twang { 30% { transform: translateY(-4px); } 60% { transform: translateY(3px); } }
+/* de plek van een geknapte draad: pas aan de beurt als het net strak is; een tik legt er een knoop in */
+.fx-scene:not(.tight) .fx-tear .fx-ring { display: none; }
+.fx-knot { transform-box: fill-box; transform-origin: center; transform: scale(0); transition: transform 0.2s ease-out; }
+.fx-tear.tied .fx-knot { transform: scale(1); }
+.fx-tear.tied .fx-ring { display: none; }
+
+/* ---------- glas ---------- */
+.fx-crack { fill: none; stroke: #3d5a6c; stroke-width: 4; stroke-linecap: round; transition: opacity 0.5s; }
+.fx-glue { fill: none; stroke: #fff2a8; stroke-width: 12; stroke-linecap: round; opacity: 0; transition: opacity 0.15s, stroke-width 0.5s; }
+.fx-part.sealed .fx-glue { opacity: 1; }
+.fx-part.sealed .fx-ring, .fx-scene.wipe .fx-ring { display: none; }
+/* water dat langs de barst naar beneden druppelt (alleen bij een bak) */
+.fx-drip { fill: none; stroke: #f4fbff; stroke-width: 5; stroke-linecap: round; animation: fx-drip 1s ease-in infinite; }
+.fx-drip.dry { display: none; }
+@keyframes fx-drip { 0% { transform: translateY(-4px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(26px); opacity: 0; } }
+.fx-fish { animation: fx-swim 4s ease-in-out infinite alternate; }
+@keyframes fx-swim { from { transform: translate(60px, 132px); } to { transform: translate(190px, 118px); } }
+/* de vlekken lijm: pas te zien als de barst dicht is; ze worden per veeg lichter */
+.fx-smudge { fill: #fff2a8; stroke: #e3cf6a; stroke-width: 2; opacity: 0; }
+.fx-scene.wipe .fx-smudge { opacity: calc(0.25 + var(--dirt, 1) * 0.75); }
+.fx-scene.wipe .fx-smudge.clean { opacity: 0; transition: opacity 0.25s; }
+/* de punt van de lijmtube (linksboven in het plaatje) ligt onder de vinger */
+.fx-glue-tool { transform: translate(-19%, -17%); }
+/* klaar: de barst is weg, de lijm is nog een dun naadje, en er glijdt een glans over de ruit */
+.fx-scene.fixed .fx-crack { opacity: 0; }
+.fx-scene.fixed .fx-glue { stroke-width: 4; opacity: 0.5; }
+.fx-shine { opacity: 0; }
+.fx-scene.fixed .fx-shine { animation: fx-shine 0.9s ease-out; }
+@keyframes fx-shine { 0% { transform: translateX(0); opacity: 0.75; } 100% { transform: translateX(360px); opacity: 0.2; } }
+
+/* ---------- laag scherm (telefoon op zijn kant) ---------- */
+@media (max-height: 480px) {
+  #playcard[data-kind='fix'] { --fx: min(440px, 100vw - 48px, 78vh); }
+  .fx-scene { margin: 0; }
+}
+
+/* ---------- liever weinig beweging ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .fx-ring, .fx-pull circle, .fx-pull path, .fx-drip, .fx-fish, .fx-scene.thud { animation: none; }
+  .fx-fish { transform: translate(120px, 126px); }
+}

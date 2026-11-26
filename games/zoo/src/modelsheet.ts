@@ -107,7 +107,7 @@ const trough = (kind: TroughKind, food: FoodId | null, amount: number): Item => 
     view.fillTrough(view.makeTrough(x, y, kind, rot), food, amount);
   },
 });
-/** Drie hekdelen naast elkaar; `worn` is hoe versleten het houten hek is. */
+/** Drie hekdelen naast elkaar; `worn` is hoe versleten het hek is. */
 const fence = (name: string, kind: EdgeKind, worn = 0): Item => ({
   name, size: 3,
   put: (x, y) => {
@@ -261,6 +261,8 @@ const GROUPS: Record<string, Item[]> = {
   voer: [...TROUGHS.map(kind => trough(kind, null, 0)), ...FOODS.map(food => trough('wood', food, 4)), trough('big', 'hay', 8), trough('silo', 'grain', 12)],
   speeltjes: TOYS.map(toy),
   hekken: [fence('hek', 1), fence('hek, versleten 1', 1, 1), fence('hek, versleten 2', 1, 2), fence('hek, versleten 3', 1, 3), fence('poort', 2), fence('muur', 3), fence('net', 4), fence('glas', 5), fence('kijkvenster', 6), fence('wit hekje', 7), fence('poortje', 8)],
+  // elk soort hek dat slijt, in zijn drie fases (zie wear.ts)
+  slijtage: ([['hek', 1], ['wit hekje', 7], ['muur', 3], ['net', 4], ['glas', 5]] as [string, EdgeKind][]).flatMap(([name, kind]) => [1, 2, 3].map(worn => fence(`${name} ${worn}`, kind, worn))),
   ...Object.fromEntries(Object.entries(DECOR_SETS).map(([name, kinds]) => [name, kinds.map(decor)])),
   ...Object.fromEntries(Object.entries(SHOP_SETS).map(([name, kinds]) => [name, kinds.map(shop)])),
   afval: [0, 1, 2, 3].map(litter),
@@ -299,7 +301,7 @@ const items = (GROUPS[groupName] ?? []).filter(item => !only || only.includes(it
 // Per groep: hoe hoog de modellen ongeveer zijn, hoeveel ruimte ertussen moet en hoeveel er op een rij staan.
 const LOOK: Record<string, { tall?: number; gap?: number; row?: number }> = {
   kramen: { tall: 3.2 }, gebouwen: { tall: 3 }, speeltuin: { tall: 3 }, attracties: { tall: 4.6, gap: 2, row: 3 }, afval: { tall: 0.5 }, klein: { tall: 1.2 },
-  voer: { tall: 1.4 }, hekken: { tall: 1.4 }, trein: { tall: 1.2, row: 1 }, spoor: { tall: 1.2 }, kabelbaan: { tall: 3.4 }, parkjes: { tall: 0.7, gap: 0, row: 5 }, grond: { tall: 0.4, gap: 0, row: 7 }, gezichten: { tall: 0.8, gap: 0, row: 8 },
+  voer: { tall: 1.4 }, hekken: { tall: 1.4 }, slijtage: { tall: 1.4, row: 3 }, trein: { tall: 1.2, row: 1 }, spoor: { tall: 1.2 }, kabelbaan: { tall: 3.4 }, parkjes: { tall: 0.7, gap: 0, row: 5 }, grond: { tall: 0.4, gap: 0, row: 7 }, gezichten: { tall: 0.8, gap: 0, row: 8 },
   poppetjes: { tall: 1.2, gap: 0, row: 8 },
 };
 const look = only ? {} : LOOK[groupName] ?? {};

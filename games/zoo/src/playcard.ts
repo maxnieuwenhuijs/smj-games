@@ -105,8 +105,9 @@ function showHand(card: Live): void {
   root!.querySelector('.pc-hand')?.remove();
   if (!h || !h.el.isConnected) return;
   const hand = document.createElement('span');
-  hand.className = `pc-hand ${h.how}`;
-  hand.innerHTML = icon('hand');
+  // onderin het vak (ook als het daar pas naartoe sleept) komt het handje van boven: zo steekt het nooit onder de kaart uit
+  hand.className = `pc-hand ${h.how}${Math.max(h.at.y, h.to.y) > 0.66 ? ' down' : ''}`;
+  hand.innerHTML = `<span class="pc-arm">${icon('hand')}</span>`;
   hand.style.left = `${(h.at.x * 100).toFixed(1)}%`;
   hand.style.top = `${(h.at.y * 100).toFixed(1)}%`;
   // hoe ver het handje sleept of veegt, in procenten van het vak waar het in staat
@@ -244,6 +245,9 @@ export function track(el: HTMLElement, on: { down?: (p: Point) => void; move?: (
 
 /** Een wolkje plaatjes dat vanaf een plek in `el` naar buiten spat (sterretjes, hartjes) en vanzelf weer weg is. */
 export function burst(el: HTMLElement, at: Point, icons: IconId[] = ['sparkle'], n = 6): void {
+  // onderaan de kaart vliegen ze minder ver naar beneden: zo steekt er niets onder de kaart uit
+  const box = el.getBoundingClientRect(), card = root?.querySelector('.pc-card')?.getBoundingClientRect();
+  const room = card ? Math.max(0, card.bottom - (box.top + at.y * box.height) - 22) : 70;
   for (let i = 0; i < n; i++) {
     const spark = document.createElement('i');
     spark.className = 'pc-spark';
@@ -252,7 +256,7 @@ export function burst(el: HTMLElement, at: Point, icons: IconId[] = ['sparkle'],
     spark.style.left = `${(at.x * 100).toFixed(1)}%`;
     spark.style.top = `${(at.y * 100).toFixed(1)}%`;
     spark.style.setProperty('--x', `${Math.round(Math.cos(a) * 70)}px`);
-    spark.style.setProperty('--y', `${Math.round(Math.sin(a) * 70)}px`);
+    spark.style.setProperty('--y', `${Math.round(Math.min(room, Math.sin(a) * 70))}px`);
     spark.style.setProperty('--d', `${(i * 0.04).toFixed(2)}s`);
     el.append(spark);
     setTimeout(() => spark.remove(), 1100);

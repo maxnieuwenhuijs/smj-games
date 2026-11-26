@@ -7,6 +7,8 @@ import { miniOpen, playMini, type MiniKind, type MiniOptions } from './minigame'
 import { pickSetup } from './miniask';
 import { cardOpen } from './playcard';
 import { playVet } from './vetgame';
+import { playFix } from './fixgame';
+import { MEND, MEND_ICON, MEND_SOUND, WEAR, needsGame, pushable, wearGap, wearStep, wears, type Mend } from './wear';
 import { ambience, animalSound, hasVoice, heard, isMuted, layer, listen, music, playTune, playVoice, reshuffle, sfx } from './audio';
 import {
   BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, SHOP_DEEP, RESIZED_V5, onEdge, shopSpan, herdOf, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
@@ -231,6 +233,11 @@ const CLASS_TASKS: Record<Exclude<ClassTask, 'guide'>, { label: string; minis: M
 const TEACHER_SHIRT: Record<TeacherId, number> = { teacher: 0xf08a24, master: 0x4f9a5a };
 const HOME = Object.fromEntries(LEVELS.map((l, i) => [l.reward, worldOf(i)])) as Record<SpeciesId, WorldId>;
 const between = ([lo, hi]: [number, number]): number => lo + Math.random() * (hi - lo);
+/** De rand bij een sleutel van edgeKey ('h12,7'). */
+const edgeOf = (key: string): Edge => {
+  const [x, y] = key.slice(1).split(',').map(Number);
+  return { o: key[0] as 'h' | 'v', x, y };
+};
 /** Het midden van het blok tegels waar een winkel op staat (bij iets op een rand: het midden van zijn tegel). */
 const blockCenter = (shop: ShopSpot): [number, number] => [shop.x + shopTiles(shop)[0] / 2, shop.y + shopTiles(shop)[1] / 2];
 /** Zoveel dieren in nood staan er hooguit in het lijstje links; daaronder komt de knop voor gasten die de weg kwijt zijn. */
@@ -306,7 +313,7 @@ export interface SaveData {
   litter?: { gx: number; gy: number }[];
   /** De gasten die in het park liepen toen het spel werd bewaard. */
   guests?: GuestSave[];
-  /** Versleten houten hekken: per rand de fase (1, 2 of 3). */
+  /** Versleten hekken: per rand de fase (1, 2 of 3). */
   wear?: Record<string, number>;
   coins?: number;
   debt?: number;
@@ -598,10 +605,17 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private saveIn = 5;
   private zzzIn = 1.5;
   private chatterIn = 6;
-  /** Versleten houten hekken (rand -> fase 1, 2 of 3) en de verblijven waar er een helemaal kapot is. */
+  /**
+   * Versleten hekken (rand -> fase 1, 2 of 3; zie wear.ts), het soort hek dat daar stond toen het begon te slijten, en
+   * de verblijven waar een hek helemaal kapot is (met hoe je dat hek maakt).
+   */
   private wear = new Map<string, number>();
-  private broken = new Set<number>();
-  private wearIn = 70;
+  private wornKind = new Map<string, number>();
+  private broken = new Map<number, Mend>();
+  private wearIn = WEAR.first;
+  /** Waar water uit een gebarsten bak druppelt (aan de droge kant van het glas), en over hoeveel tellen de volgende druppels komen. */
+  private leaks: [number, number][] = [];
+  private leakIn = 0;
   /** Afval dat je hebt opgeraapt en nog naar een afvalbak moet. */
   private carry = 0;
   /** Dingen die even opveren omdat ze gebruikt worden. */
@@ -2145,8 +2159,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     for (const key of [...this.fixTargets.keys()]) if (!this.wear.has(key)) this.fixTargets.delete(key);
     for (const key of this.wear.keys()) {
       if (this.fixTargets.has(key)) continue;
-      const o = key[0] as 'h' | 'v', [x, y] = key.slice(1).split(',').map(Number);
-      this.fixTargets.set(key, { e: { o, x, y }, gx: o === 'h' ? x + 0.5 : x, gy: o === 'h' ? y : y + 0.5 });
+      const e = edgeOf(key);
+      this.fixTargets.set(key, { e, gx: e.o === 'h' ? e.x + 0.5 : e.x, gy: e.o === 'h' ? e.y : e.y + 0.5 });
     }
     return [...this.fixTargets.values()];
   }
@@ -2330,42 +2344,92 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Tekent de hekken opnieuw met hun slijtage en houdt bij welke verblijven een kapot hek hebben. */
   private syncWear(): void {
-    const wood = new Set(this.grid.edges().filter(x => x.kind === 1).map(x => edgeKey(x.e)));
-    for (const key of [...this.wear.keys()]) if (!wood.has(key)) this.wear.delete(key);
+    const kinds = new Map<string, number>(this.grid.edges().map(x => [edgeKey(x.e), x.kind]));
+    for (const key of [...this.wear.keys()]) {
+      const kind = kinds.get(key) ?? 0;
+      // het hek is weg, slijt niet (een poort), of er staat nu een ander soort hek: dat is weer heel
+      if (!wears(kind) || (this.wornKind.get(key) ?? kind) !== kind) this.wear.delete(key);
+      else this.wornKind.set(key, kind);
+    }
+    for (const key of [...this.wornKind.keys()]) if (!this.wear.has(key)) this.wornKind.delete(key);
     // elk verblijf kleurt zijn eigen hek; een hek tussen twee verblijven krijgt de kleur van het laatste
     const tints = new Map<string, number>();
     for (const pen of this.pens) if (pen.color) for (const e of this.grid.borderEdges(pen.region)) tints.set(edgeKey(e), pen.color);
     this.view.syncFences(this.grid, this.wear, tints);
     this.syncTanks();
-    this.broken = new Set(this.grid.enclosures().filter(r => this.grid.borderEdges(r).some(e => this.wear.get(edgeKey(e)) === 3)).map(r => r.id));
+    this.broken = new Map();
+    for (const region of this.grid.enclosures()) {
+      const gone = this.grid.borderEdges(region).find(e => this.wear.get(edgeKey(e)) === WEAR.broken);
+      const mend = gone && MEND[this.grid.getEdge(gone)];
+      if (mend) this.broken.set(region.id, mend);
+    }
+    // uit een gebarsten ruit met water erachter druppelt het: de plek aan de droge kant van het glas
+    this.leaks = [];
+    for (const [key, phase] of this.wear) {
+      if (this.wornKind.get(key) !== 5 || !needsGame(phase)) continue;
+      const e = edgeOf(key);
+      const sides: [number, number][] = e.o === 'h' ? [[e.x, e.y - 1], [e.x, e.y]] : [[e.x - 1, e.y], [e.x, e.y]];
+      const wet = sides.map(([x, y]) => this.grid.inBounds(x, y) && this.tankTiles.has(tileIndex(x, y)));
+      if (wet[0] === wet[1]) continue;
+      const [dx, dy] = sides[wet[0] ? 1 : 0], [mx, my] = e.o === 'h' ? [e.x + 0.5, e.y] : [e.x, e.y + 0.5];
+      this.leaks.push([mx + (dx + 0.5 - mx) * 0.4, my + (dy + 0.5 - my) * 0.4]);
+    }
   }
 
   brokenPen(regionId: number): boolean {
     return this.broken.has(regionId);
   }
 
-  /** Een houten hek slijt een stapje: meestal een hek dat al versleten is, soms een nieuw. Hooguit vier tegelijk. */
+  /**
+   * Een hek slijt een stapje (zie wearStep in wear.ts): meestal een hek dat al versleten is, soms een nieuw. Elk soort
+   * hek doet mee (hout, het witte hekje, steen, net en glas), maar alleen om een verblijf waar dieren wonen.
+   */
   private wearFence(): void {
-    const worn = [...this.wear.entries()].filter(([, phase]) => phase < 3).map(([key]) => key);
-    if (worn.length && (this.wear.size >= 4 || Math.random() < 0.6)) {
-      const key = worn[Math.floor(Math.random() * worn.length)];
-      this.wear.set(key, this.wear.get(key)! + 1);
-    } else if (this.wear.size < 4) {
-      const edges = this.pens.filter(p => this.animalsIn(p.region.id).length).flatMap(p => this.grid.borderEdges(p.region)).filter(e => this.grid.getEdge(e) === 1 && !this.wear.has(edgeKey(e)));
-      if (!edges.length) return;
-      this.wear.set(edgeKey(edges[Math.floor(Math.random() * edges.length)]), 1);
-    } else return;
+    const fresh = this.pens.filter(p => this.animalsIn(p.region.id).length).flatMap(p => this.grid.borderEdges(p.region)).filter(e => wears(this.grid.getEdge(e)) && !this.wear.has(edgeKey(e))).map(edgeKey);
+    const step = wearStep(this.wear, fresh);
+    if (!step) return;
+    this.wear.set(step.key, step.phase);
     this.syncWear();
   }
 
-  /** Een tik met de hamer timmert een versleten hek weer vast. */
+  /**
+   * Een versleten hek is weer heel: na één tik met de hamer, na het spelletje, of door de klusser. Het gereedschap van
+   * dat soort hek zweeft op (hamer, troffel, knoop of lijm).
+   */
   private repair(e: Edge): void {
+    const mend = MEND[this.grid.getEdge(e)] ?? 'wood';
     this.wear.delete(edgeKey(e));
     this.syncWear();
-    sfx('fence');
+    sfx(MEND_SOUND[mend]);
     const [x, y] = e.o === 'h' ? [e.x + 0.5, e.y] : [e.x, e.y + 0.5];
-    this.floatAt(icon('hammer'), x, y, 0.6);
+    this.floatAt(icon(MEND_ICON[mend]), x, y, 0.6);
     this.floatAt(icon('sparkle'), x, y, 0.3);
+  }
+
+  /**
+   * Een tik met de hamer op een versleten hek. Licht versleten (fase 1): één tik en het zit weer vast, zodat je er
+   * met de hamer zo een paar achter elkaar meepakt. Los of kapot: het spelletje van dat soort hek (zie fixgame.ts). Is
+   * dat af, dan is het hek weer heel; klik je het weg, dan blijft het zoals het was. Ligt er al een kaart (je sleept
+   * met de hamer over nog een hek), dan gebeurt er niets. De bouwer leest de uitleg voor.
+   */
+  private mend(e: Edge): void {
+    const key = edgeKey(e), kind = this.grid.getEdge(e), how = MEND[kind], phase = this.wear.get(key);
+    if (!how || !phase || this.playing()) return;
+    if (!needsGame(phase)) return this.repair(e);
+    this.hud.hush();
+    // het hek krijgt in de tekening de kleur die het in het park heeft
+    const pen = this.pens.find(p => p.color && this.grid.borderEdges(p.region).some(b => edgeKey(b) === key));
+    const tint = pen?.color ? (FENCE_COLORS as Record<number, number[]>)[kind]?.[pen.color] : undefined;
+    const sides: [number, number][] = e.o === 'h' ? [[e.x, e.y - 1], [e.x, e.y]] : [[e.x - 1, e.y], [e.x, e.y]];
+    playFix({
+      mend: how, phase, white: kind === 7,
+      color: tint === undefined ? undefined : `#${tint.toString(16).padStart(6, '0')}`,
+      tank: sides.some(([x, y]) => this.grid.inBounds(x, y) && this.tankTiles.has(tileIndex(x, y))),
+      say: text => void playVoice(voiceId('builder', text)),
+      onDone: fixed => {
+        if (fixed && this.wear.has(key) && this.grid.getEdge(e) === kind) this.repair(e);
+      },
+    });
   }
 
   /** Afval prikken: het gaat mee tot je op een afvalbak tikt. */
@@ -4751,8 +4815,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         if (!this.grid.inBounds(nx, ny) || inside.has(tileIndex(nx, ny)) || this.grid.enclosureAt(nx, ny) || this.taken(nx, ny)) continue;
         const e: Edge = dx ? { o: 'v', x: x + Math.max(0, dx), y } : { o: 'h', x, y: y + Math.max(0, dy) };
         const kind = this.grid.getEdge(e);
-        // het hek dicht bij het dier; wie duwt, kiest liefst hout (dat valt om), wie glipt liefst een poort
-        const likes = (way === 'push' && kind === 1) || (way === 'slip' && (kind === 2 || kind === 8));
+        // het hek dicht bij het dier; wie duwt, kiest liefst een hek dat kapot kan (geen steen), wie glipt liefst een poort
+        const likes = (way === 'push' && pushable(kind)) || (way === 'slip' && (kind === 2 || kind === 8));
         const score = Math.hypot(x + 0.5 - a.gx, y + 0.5 - a.gy) + Math.random() * 0.8 - (likes ? 1.5 : 0);
         if (!best || score < best.score) best = { x: nx, y: ny, d: dx + dy, e, score };
       }
@@ -4762,7 +4826,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     a.homeTile = a.tile;
     a.fledFence = a.needsFence;
     const hit = a.escape(best.x + 0.5, best.y + 0.5, way, mid);
-    if (way === 'push' && this.grid.getEdge(e) === 1) this.pushes.push({ a, e, out: best.d > 0 ? 1 : -1, at: this.clock + hit });
+    if (way === 'push' && pushable(this.grid.getEdge(e))) this.pushes.push({ a, e, out: best.d > 0 ? 1 : -1, at: this.clock + hit });
     sfx('alarm');
     animalSound(a.species, a.young, 1, [a.gx, a.gy]);
     this.floatAt(icon('catch'), a.gx, a.gy, a.top + 0.25);
@@ -4772,14 +4836,20 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
   }
 
-  /** Het sterke dier duwt tegen het hek: dat stuk valt om en is kapot, tot de klusser of jij het weer maakt. */
+  /**
+   * Het sterke dier duwt tegen het hek: dat stuk is kapot, tot de klusser of jij het weer maakt. Een houten hek valt om
+   * (de planken kantelen naar buiten); een net scheurt en glas breekt, daar spatten alleen de stukjes weg.
+   */
   private knockDown(e: Edge, out: 1 | -1): void {
-    this.wear.set(edgeKey(e), 3);
+    const kind = this.grid.getEdge(e), mend = MEND[kind] ?? 'wood';
+    this.wear.set(edgeKey(e), WEAR.broken);
     this.syncWear();
-    this.view.topple(e, out);
-    sfx('fence', { volume: 1.2, rate: 0.7 });
     const [x, y] = e.o === 'h' ? [e.x + 0.5, e.y] : [e.x, e.y + 0.5];
-    this.view.burst(x, y, 0.15, 0xc9b28a, 8);
+    if (mend === 'wood') {
+      this.view.topple(e, out, kind === 7);
+      this.view.burst(x, y, 0.15, 0xc9b28a, 8);
+    } else this.view.burst(x, y, 0.5, mend === 'net' ? 0x3f7f6b : 0xd9f2ff, 10);
+    sfx(mend === 'net' ? 'net' : mend === 'glass' ? 'stone' : 'fence', { volume: 1.2, rate: 0.7 });
     this.floatAt(icon('hammer'), x, y, 0.7);
   }
 
@@ -4873,7 +4943,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
     // een sterk dier dat het hek omduwt: het hek valt pas om als het dier ertegenaan duwt
     if (this.pushes.length) {
-      for (const p of this.pushes) if (this.clock >= p.at && p.a.escaped && p.a.bolting && this.grid.getEdge(p.e) === 1) this.knockDown(p.e, p.out);
+      for (const p of this.pushes) if (this.clock >= p.at && p.a.escaped && p.a.bolting && pushable(this.grid.getEdge(p.e))) this.knockDown(p.e, p.out);
       this.pushes = this.pushes.filter(p => this.clock < p.at);
     }
     // het oor van de speler: het midden van het beeld. Ingezoomd hoor je alleen wat daar vlakbij is, maar wel goed;
@@ -4904,9 +4974,14 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.has('wear')) {
       this.wearIn -= dt;
       if (this.wearIn <= 0) {
-        this.wearIn = 50 + Math.random() * 40;
+        this.wearIn = wearGap();
         this.wearFence();
       }
+    }
+    // uit een gebarsten bak druppelt water, tot het glas gelijmd is
+    if (this.leaks.length && (this.leakIn -= dt) <= 0) {
+      this.leakIn = WEAR.leak;
+      for (const [gx, gy] of this.leaks) this.view.splash(gx, gy);
     }
     this.shuffleIn -= dt;
     if (this.shuffleIn <= 0) {
@@ -5479,7 +5554,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         if (litter) this.pickUp(litter);
       } else {
         const worn = this.wornAt(g.gx, g.gy);
-        if (worn) this.repair(worn);
+        if (worn) this.mend(worn);
       }
       return;
     }
@@ -8507,7 +8582,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const dust = wish === 'clean' && !a.escaped && this.dustOnly(a);
       // vies water: na de melding vertelt de verzorger dat een waterfilter helpt (als die er nog niet in staat)
       if (murky && this.said.has('alert.murky') && !this.toys.some(toy => toy.kind === 'filter' && this.grid.regionOf[tileIndex(toy.x, toy.y)] === this.grid.regionOf[a.tile])) this.mention(say.filterTip(), 600);
-      this.alert(this.lineAbout(a.escaped ? say.escaped(t, a.species, a.fledFence) : murky ? say.murky() : dust ? say.dusty() : wish === 'enclosure' && a.fenceBroken ? say.broken() : wish === 'safe' && a.scaredOf ? say.scared(t, a.species, a.scaredOf) : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN, a.wildAsk ? `${a.wildAsk.group}.${a.wildAsk.more ? 'more' : 'less'}` : undefined, a.funAsk ?? TOY_LIKES[a.species][0]), a));
+      this.alert(this.lineAbout(a.escaped ? say.escaped(t, a.species, a.fledFence) : murky ? say.murky() : dust ? say.dusty() : wish === 'enclosure' && a.fenceBroken ? say.broken(this.broken.get(this.grid.regionOf[a.tile])) : wish === 'safe' && a.scaredOf ? say.scared(t, a.species, a.scaredOf) : wishLine(t, wish, a.species, a.needsFence, a.neglect > NEGLECT_WARN, a.wildAsk ? `${a.wildAsk.group}.${a.wildAsk.more ? 'more' : 'less'}` : undefined, a.funAsk ?? TOY_LIKES[a.species][0]), a));
       if (a.neglect > NEGLECT_WARN * 1.5 && !this.hud.speaking) this.callForHelp('name.help.1');
     }
     // de gastvrouw let op de gasten

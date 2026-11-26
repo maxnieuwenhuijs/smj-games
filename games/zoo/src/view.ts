@@ -19,6 +19,7 @@ import { partyHue } from './party';
 import { WALK } from './walk';
 import { SkyDome, useHaze } from './sky';
 import { dayLook, newLook } from './daylight';
+import { wears } from './wear';
 
 /**
  * Het licht: tone mapping laat felle plekken zacht aflopen in plaats van hard wit af te kappen. Neutral houdt de
@@ -2569,6 +2570,121 @@ const PETSIGN_GEO = mergeGeometries([
     .map(g => paint(g, 0xe0241f)),
 ])!;
 
+// ------------------------------------------------------------ versleten hekken per soort
+// Elk soort hek slijt in drie fases (zie wear.ts). Het houten hek staat bovenaan (WORN_GEOS); hier staan het witte
+// hekje, de stenen muur, het hoge net en het glas. Op plek 0 staat steeds het hele hek.
+
+// Het witte hekje: eerst staat er een latje scheef, dan ligt er een op de grond en hangt de ligger los, dan ligt het
+// hekje half plat. De verf wordt per fase grauwer.
+const lath = (x: number, tilt: number): THREE.BufferGeometry => mergeGeometries(picket(0))!.rotateZ(tilt).translate(x, 0, 0);
+const lathDown = (x: number, z: number, turn: number): THREE.BufferGeometry => mergeGeometries(picket(0))!.rotateZ(Math.PI / 2).rotateY(turn).translate(x, 0.03, z);
+const picketPost = (x: number, h = 0.4): THREE.BufferGeometry[] => [boxAt(0.1, h, 0.1, x, h / 2, 0), new THREE.ConeGeometry(0.075, 0.07, 4).rotateY(Math.PI / 4).translate(x, h + 0.035, 0)];
+const picketRail = (len: number, x: number, y: number, tilt: number): THREE.BufferGeometry => new THREE.BoxGeometry(len, 0.035, 0.06).rotateZ(tilt).translate(x, y, 0);
+const PICKET_WORN = [
+  PICKET_GEO,
+  merge([...picketPost(0), ...picketPost(1), picketRail(0.9, 0.5, 0.1, 0), picketRail(0.9, 0.5, 0.215, 0.05), lath(0.2, 0), lath(0.35, 0.06), lath(0.5, -0.38), lath(0.65, 0), lath(0.8, 0.24)]),
+  merge([...picketPost(0), ...picketPost(1, 0.37), picketRail(0.9, 0.5, 0.1, -0.02), picketRail(0.62, 0.34, 0.2, -0.17), lath(0.2, 0), lath(0.35, 0.12), lathDown(0.6, 0.17, 0.5), lath(0.65, -0.32), lath(0.8, 0.14)]),
+  merge([...picketPost(0), ...picketPost(1, 0.2), picketRail(0.86, 0.5, 0.045, 0.03), picketRail(0.5, 0.27, 0.13, -0.42), lath(0.2, 0.12), lath(0.34, -0.55), lathDown(0.62, 0.18, 0.4), lathDown(0.8, -0.16, -0.7), lathDown(0.9, 0.14, 2.6)]),
+];
+const PICKET_WORN_MATS = [WHITE_MAT, ...[0xe9e3d3, 0xd6cdb8, 0xbfb49c].map(color => std(color, 0.95))];
+
+// De stenen muur: eerst scheuren en een deksteen die scheef ligt, dan een hap uit de bovenrand met de steen ervoor
+// op de grond, dan een gat tot bijna op de grond met de stenen aan weerskanten. De scheuren zijn een los onderdeel
+// (donker), zodat de muur zelf zijn eigen kleur houdt.
+const WALL_FOOT = boxAt(1.06, 0.06, 0.17, 0.5, 0.03, 0);
+const WALL_STONES = [boxAt(0.22, 0.08, 0.15, 0.2, 0.14, 0), boxAt(0.2, 0.08, 0.15, 0.62, 0.21, 0), boxAt(0.18, 0.08, 0.15, 0.86, 0.12, 0), boxAt(0.16, 0.07, 0.15, 0.4, 0.24, 0)];
+const capStone = (x: number, tilt = 0, y = 0.345): THREE.BufferGeometry => new THREE.BoxGeometry(0.2, 0.09, 0.16).rotateZ(tilt).translate(x, y, 0);
+const looseStone = (x: number, z: number, turn: number, w = 0.18): THREE.BufferGeometry => new THREE.BoxGeometry(w, 0.08, 0.12).rotateY(turn).translate(x, 0.04, z);
+const WALL_WORN = [
+  WALL_GEO,
+  merge([boxAt(1.06, 0.3, 0.13, 0.5, 0.15, 0), capStone(0.12), capStone(0.5, 0.17, 0.357), capStone(0.88), WALL_FOOT, ...WALL_STONES]),
+  merge([boxAt(0.4, 0.3, 0.13, 0.17, 0.15, 0), boxAt(0.28, 0.19, 0.13, 0.51, 0.095, 0), boxAt(0.41, 0.3, 0.13, 0.855, 0.15, 0), capStone(0.12), capStone(0.88, -0.1, 0.35), WALL_FOOT, WALL_STONES[0], WALL_STONES[2], looseStone(0.5, 0.21, 0.5), looseStone(0.36, -0.2, -0.3, 0.14)]),
+  merge([
+    boxAt(0.3, 0.3, 0.13, 0.12, 0.15, 0), boxAt(0.14, 0.18, 0.13, 0.34, 0.09, 0), boxAt(0.3, 0.07, 0.13, 0.56, 0.035, 0), boxAt(0.12, 0.2, 0.13, 0.77, 0.1, 0), boxAt(0.2, 0.3, 0.13, 0.93, 0.15, 0),
+    capStone(0.12, 0.08, 0.35), WALL_FOOT, WALL_STONES[2], looseStone(0.45, 0.22, 0.6), looseStone(0.62, -0.2, -0.4, 0.2), looseStone(0.72, 0.27, 1.2, 0.14), looseStone(0.3, -0.25, 0.2, 0.16),
+  ]),
+];
+/** Een scheur: een zigzaglijn van punt naar punt (x, hoogte) op allebei de kanten van een wand die `half` dik is. */
+const crackLine = (points: [number, number][], half: number, t: number): THREE.BufferGeometry[] =>
+  [half, -half].flatMap(z => points.slice(1).map((p, i) => beam(t, [points[i][0], points[i][1], z], [p[0], p[1], z])));
+const CRACK_MAT = std(0x4a4f57, 1);
+const WALL_CRACKS = [
+  null,
+  merge(crackLine([[0.56, 0.3], [0.61, 0.22], [0.55, 0.15], [0.6, 0.07]], 0.062, 0.03)),
+  merge([...crackLine([[0.3, 0.3], [0.34, 0.2], [0.27, 0.12], [0.31, 0.04]], 0.062, 0.03), ...crackLine([[0.76, 0.3], [0.71, 0.2], [0.77, 0.1]], 0.062, 0.03)]),
+  merge([...crackLine([[0.2, 0.3], [0.24, 0.2], [0.18, 0.1], [0.22, 0.02]], 0.062, 0.03), ...crackLine([[0.94, 0.3], [0.9, 0.18], [0.95, 0.06]], 0.062, 0.03)]),
+];
+
+// Het hoge net: eerst hangt het door in het midden, dan hangt het verder door en is er een draad geknapt (de eindjes
+// hangen naar beneden), dan is de bovenrand door en zit er een groot gat in.
+const netStrand = (a: [number, number], b: [number, number]): THREE.BufferGeometry => beam(0.018, [a[0], a[1], 0], [b[0], b[1], 0]);
+const netRope = (a: [number, number], b: [number, number]): THREE.BufferGeometry => beam(0.06, [a[0], a[1], 0], [b[0], b[1], 0]);
+const NET_FRAME = [boxAt(0.1, 0.92, 0.1, 0, 0.46, 0), boxAt(0.1, 0.92, 0.1, 1, 0.46, 0), boxAt(1, 0.05, 0.05, 0.5, 0.06, 0)];
+const NET_WORN = [
+  NET_GEO,
+  merge([
+    ...NET_FRAME, netRope([0, 0.89], [0.5, 0.79]), netRope([0.5, 0.79], [1, 0.89]),
+    ...[0.34, 0.62].flatMap(y => [netStrand([0, y], [0.5, y - 0.06]), netStrand([0.5, y - 0.06], [1, y])]),
+    netStrand([0.25, 0.06], [0.25, 0.84]), netStrand([0.5, 0.06], [0.5, 0.79]), netStrand([0.75, 0.06], [0.75, 0.84]),
+  ]),
+  merge([
+    ...NET_FRAME, netRope([0, 0.89], [0.5, 0.7]), netRope([0.5, 0.7], [1, 0.89]),
+    netStrand([0, 0.62], [0.3, 0.55]), netStrand([0.3, 0.55], [0.36, 0.4]), netStrand([1, 0.62], [0.72, 0.56]), netStrand([0.72, 0.56], [0.66, 0.43]),
+    netStrand([0, 0.34], [0.5, 0.26]), netStrand([0.5, 0.26], [1, 0.34]), netStrand([0.25, 0.06], [0.25, 0.79]), netStrand([0.75, 0.06], [0.75, 0.79]), netStrand([0.5, 0.06], [0.5, 0.28]),
+  ]),
+  merge([
+    ...NET_FRAME, netRope([0, 0.89], [0.34, 0.6]), netRope([1, 0.89], [0.7, 0.66]),
+    netStrand([0, 0.62], [0.22, 0.52]), netStrand([0.22, 0.52], [0.26, 0.38]), netStrand([1, 0.62], [0.8, 0.54]), netStrand([0.8, 0.54], [0.78, 0.4]),
+    netStrand([0, 0.34], [0.2, 0.28]), netStrand([1, 0.34], [0.82, 0.3]), netStrand([0.2, 0.06], [0.2, 0.5]), netStrand([0.82, 0.06], [0.82, 0.52]),
+    netStrand([0.34, 0.6], [0.4, 0.42]), netStrand([0.7, 0.66], [0.64, 0.5]),
+    // een paar losse draadjes op de grond
+    beam(0.018, [0.4, 0.02, 0.13], [0.62, 0.02, 0.2]), beam(0.018, [0.5, 0.02, -0.17], [0.7, 0.02, -0.11]),
+  ]),
+];
+
+// Het glas: een barst die groeit (witte lijnen op de ruit, een los onderdeel), en in de laatste fase een gat in de
+// ruit met een ster van barsten eromheen en scherven op de grond.
+const GLASS_CRACK_MAT = std(0xffffff, 0.35);
+const GLASS_HOLE: [number, number][] = [[0.44, 0.3], [0.58, 0.24], [0.72, 0.34], [0.7, 0.5], [0.56, 0.58], [0.42, 0.48]];
+const GLASS_RAYS: [number, number][] = [[0.2, 0.14], [0.6, 0.08], [0.94, 0.26], [0.92, 0.62], [0.52, 0.69], [0.12, 0.6]];
+const shard = (x: number, z: number, turn: number, r = 0.06): THREE.BufferGeometry => new THREE.CylinderGeometry(r, r, 0.012, 3).rotateY(turn).translate(x, 0.008, z);
+const GLASS_CRACKS = [
+  null,
+  merge(crackLine([[0.82, 0.69], [0.72, 0.57], [0.77, 0.49], [0.66, 0.4]], 0.016, 0.024)),
+  merge([
+    ...crackLine([[0.84, 0.69], [0.72, 0.56], [0.77, 0.46], [0.58, 0.36], [0.61, 0.26], [0.46, 0.15]], 0.016, 0.024),
+    ...crackLine([[0.72, 0.56], [0.55, 0.58]], 0.016, 0.024), ...crackLine([[0.58, 0.36], [0.76, 0.3]], 0.016, 0.024),
+  ]),
+  merge([
+    ...crackLine([...GLASS_HOLE, GLASS_HOLE[0]], 0.016, 0.024), ...GLASS_HOLE.flatMap((p, i) => crackLine([p, GLASS_RAYS[i]], 0.016, 0.024)),
+    shard(0.45, 0.16, 0.4), shard(0.62, 0.22, 1.5, 0.045), shard(0.55, -0.17, 2.3), shard(0.7, -0.13, 0.9, 0.04),
+  ]),
+];
+/** De ruit met een gat erin (even groot als de gewone ruit, GLASS_PANE_GEO). */
+const GLASS_BROKEN_PANE = ((): THREE.BufferGeometry => {
+  const shape = new THREE.Shape([[0.04, 0.07], [0.96, 0.07], [0.96, 0.69], [0.04, 0.69]].map(([x, y]) => new THREE.Vector2(x, y)));
+  shape.holes.push(new THREE.Path(GLASS_HOLE.map(([x, y]) => new THREE.Vector2(x, y))));
+  return new THREE.ExtrudeGeometry(shape, { depth: 0.025, bevelEnabled: false }).translate(0, 0, -0.0125);
+})();
+
+/**
+ * Hoe een versleten muur, net, glas of wit hekje eruitziet, per fase. `geo`: de vorm van het hek zelf; `mats`: een
+ * eigen materiaal per fase (zonder: dat van het hele hek); `extra`: een los onderdeel erbij in een eigen kleur (de
+ * scheuren); `pane`: een andere ruit (met een gat erin).
+ */
+interface WornLook {
+  geo: THREE.BufferGeometry[];
+  mats?: THREE.Material[];
+  extra?: (Part | null)[];
+  pane?: (THREE.BufferGeometry | null)[];
+}
+const WORN_LOOK: Partial<Record<number, WornLook>> = {
+  3: { geo: WALL_WORN, extra: WALL_CRACKS.map((g): Part | null => (g ? [g, CRACK_MAT] : null)) },
+  4: { geo: NET_WORN },
+  5: { geo: [GLASS_FRAME_GEO, GLASS_FRAME_GEO, GLASS_FRAME_GEO, GLASS_FRAME_GEO], extra: GLASS_CRACKS.map((g): Part | null => (g ? [g, GLASS_CRACK_MAT] : null)), pane: [null, null, null, GLASS_BROKEN_PANE] },
+  7: { geo: PICKET_WORN, mats: PICKET_WORN_MATS },
+};
+
 /** Een versiering; wat los moet kunnen bewegen (wieken, vlammen, een zwengel, een blad) krijgt hier zijn plek. */
 const PENDULUM_GEO = mergeGeometries([boxAt(0.025, 0.3, 0.02, 0, -0.15, 0), new THREE.CylinderGeometry(0.06, 0.06, 0.025, 12).rotateX(Math.PI / 2).translate(0, -0.32, 0)])!;
 const PAGE_TILT = 0.45;
@@ -4131,9 +4247,10 @@ export class View {
   /**
    * Een sterk dier duwt een houten hek om: de planken kantelen naar buiten (`out`: 1 naar hoger x of y, -1 naar
    * lager), stuiteren even op de grond en verdwijnen dan langzaam. Wat er blijft staan, is het kapotte hek.
+   * `white`: het is het witte hekje.
    */
-  topple(e: Edge, out: 1 | -1): void {
-    const mat = (WORN_MATS[0] as THREE.MeshStandardMaterial).clone();
+  topple(e: Edge, out: 1 | -1, white = false): void {
+    const mat = ((white ? WHITE_MAT : WORN_MATS[0]) as THREE.MeshStandardMaterial).clone();
     mat.transparent = true;
     const plank = new THREE.Mesh(FALL_GEO, mat);
     plank.castShadow = true;
@@ -4650,26 +4767,26 @@ export class View {
     return tank(plus) && !tank(minus) ? -1 : 1;
   }
 
-  /** Een hek in een eigen kleur; versleten hout wordt per fase donkerder. */
+  /** Een hek in een eigen kleur; versleten hout (ook het witte hekje) wordt per fase donkerder, steen, net en glas niet. */
   private tintMats = new Map<string, THREE.Material>();
   private tintMat(style: number, tint: number, worn: number): THREE.Material {
     const key = `${style}:${tint}:${worn}`;
     let mat = this.tintMats.get(key);
     if (!mat) {
-      const color = new THREE.Color((FENCE_COLORS as Record<number, number[]>)[style]?.[tint] ?? 0xffffff).multiplyScalar([1, 0.86, 0.7, 0.54][worn]);
+      const color = new THREE.Color((FENCE_COLORS as Record<number, number[]>)[style]?.[tint] ?? 0xffffff).multiplyScalar(style === 1 || style === 7 ? [1, 0.86, 0.7, 0.54][worn] : 1);
       mat = new THREE.MeshStandardMaterial({ color, roughness: style === 4 ? 0.7 : 0.95 });
       this.tintMats.set(key, mat);
     }
     return mat;
   }
 
-  /** `wear`: per rand hoe versleten het houten hek is (1, 2 of 3). `tints`: per rand de gekozen kleur (zie FENCE_COLORS). */
+  /** `wear`: per rand hoe versleten het hek is (1, 2 of 3; zie wear.ts). `tints`: per rand de gekozen kleur (zie FENCE_COLORS). */
   syncFences(grid: Grid, wear?: Map<string, number>, tints?: Map<string, number>): void {
     const wanted = new Map<string, { e: Edge; kind: number; style: number; worn: number; tint: number; stair: number }>();
     for (const item of grid.edges()) {
       // een kijkvenster is van steen, het poortje van de kinderboerderij hoort bij het witte hekje
       const style = item.kind === 2 ? this.gateStyle(grid, item.e) : item.kind === 6 ? 3 : item.kind === 8 ? 7 : item.kind;
-      const worn = item.kind === 1 ? wear?.get(edgeKey(item.e)) ?? 0 : 0;
+      const worn = wears(item.kind) ? wear?.get(edgeKey(item.e)) ?? 0 : 0;
       const tint = tints?.get(edgeKey(item.e)) ?? 0;
       // een poort in een bak van glas is een trapje aan de buitenkant: aan welke kant dat is
       const stair = item.kind === 2 && style === 5 ? this.stairSide(grid, item.e) : 0;
@@ -4702,6 +4819,15 @@ export class View {
         const sign = new THREE.Mesh(PETSIGN_GEO, PAINT_MAT);
         sign.castShadow = true;
         mesh = new THREE.Group().add(frame, sign);
+      }
+      // een versleten muur, net, glas of wit hekje (zie WORN_LOOK): een eigen vorm per fase, zo nodig met de scheuren erbij
+      const look = worn ? WORN_LOOK[kind] : undefined;
+      if (look) {
+        frame.geometry = look.geo[worn];
+        if (!tint && look.mats) frame.material = look.mats[worn];
+        const extra = look.extra?.[worn], pane = look.pane?.[worn];
+        if (pane && mesh !== frame) (mesh.children[1] as THREE.Mesh).geometry = pane;
+        if (extra) mesh = (mesh === frame ? new THREE.Group().add(frame) : mesh).add(new THREE.Mesh(extra[0], extra[1]));
       }
       this.placeEdge(mesh, e);
       this.scene.add(mesh);

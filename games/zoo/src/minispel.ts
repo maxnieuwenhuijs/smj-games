@@ -1,11 +1,13 @@
-// Ontwikkelpagina (minispel.html): de puzzeltjes uit minigame.ts en de spelletjes van de dokter (vetgame.ts) los van
-// het spel uitproberen. Alleen te zien met `npm run dev`; de pagina zit niet in het gepubliceerde spel.
+// Ontwikkelpagina (minispel.html): de puzzeltjes uit minigame.ts, de spelletjes van de dokter (vetgame.ts) en het
+// maken van een hek (fixgame.ts) los van het spel uitproberen. Alleen te zien met `npm run dev`; de pagina zit niet in
+// het gepubliceerde spel.
 //
 // In de adresbalk: ?taal=en voor de Engelse teksten en woorden.
 import { setStrings } from '@smj/shared';
 import { animalSound, loadAudio, unlockAudio } from './audio';
 import { SPECIES } from './data';
 import en from './en.json';
+import { playFix } from './fixgame';
 import { CLUES, guessChoices } from './guestfun';
 import { icon, type IconId } from './icons';
 import { MINI_KINDS, closeMini, miniOpen, playMini, type MiniKind, type MiniOptions, type MiniResult } from './minigame';
@@ -15,6 +17,7 @@ import { cardOpen } from './playcard';
 import './style.css';
 import { playVet } from './vetgame';
 import { VET_GAMES, type VetGame } from './vetplan';
+import { MENDS, type Mend } from './wear';
 
 const lang = new URLSearchParams(location.search).get('taal') === 'en' ? 'en' : 'nl';
 setStrings(lang === 'en' ? { ...nl, ...en } : nl);
@@ -108,6 +111,23 @@ for (const sp of ['', ...Object.keys(SPECIES)]) {
   o.textContent = sp || 'een dier uit het park';
   $('patient').append(o);
 }
+
+// een hek maken: elk soort hek, los (fase 2) en kapot (fase 3); en licht versleten om te zien dat het spelletje dat ook kan
+const FIX_LABELS: Record<Mend, string> = { wood: 'Hout', stone: 'Steen', net: 'Net', glass: 'Glas' };
+for (const mend of MENDS)
+  for (const phase of [1, 2, 3]) {
+    const b = document.createElement('button');
+    b.textContent = `${FIX_LABELS[mend]} ${phase}`;
+    b.dataset.fix = `${mend}${phase}`;
+    b.addEventListener('click', () => {
+      const color = ($('kleur') as HTMLInputElement).checked ? { wood: '#4a90e2', stone: '#c9553f', net: '#2b2f36', glass: '#e0584f' }[mend] : undefined;
+      playFix({
+        mend, phase, color, white: ($('wit') as HTMLInputElement).checked, tank: ($('bak') as HTMLInputElement).checked,
+        onDone: fixed => note(`hek ${mend} ${phase}: ${fixed ? 'gemaakt' : 'weggeklikt'}  (open: ${cardOpen()})`),
+      });
+    });
+    $('hek').append(b);
+  }
 
 // geluid mag pas na een tik
 addEventListener('pointerdown', unlockAudio, { capture: true });
