@@ -61,7 +61,14 @@ Bij `npm run dev` gebruikt het spel die sleutel ook als standaard om een naam in
 
 ## Proefspelen
 
-Start het spel, begin een nieuw spel en typ in de console van de browser (met het pad naar deze map):
+De proefspeler speelt alle levels achter elkaar. Het snelst gaat dat zonder venster (met Playwright); start eerst `npm run dev`:
+
+```bash
+node tools/playtest/speel.mjs 50      # snel en foutloos: is elk level haalbaar?
+node tools/playtest/speel.mjs 50 8    # als een kind: één handeling per acht tellen, de kas wordt nooit bijgevuld
+```
+
+Of in je eigen browser: start het spel, begin een nieuw spel en typ in de console (met het pad naar deze map):
 
 ```js
 const { T } = await import('/@fs/<pad naar deze map>/tools/playtest/autoplay.js');

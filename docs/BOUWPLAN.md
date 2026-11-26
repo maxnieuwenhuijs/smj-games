@@ -893,7 +893,7 @@ De modellen zijn op stilstaande beelden bekeken en doorgemeten (niets zakt meer 
 
 - Dier toevoegen of aanpassen: `tools/animals/packs/*.py`, exporteren met Blender, daarna `node tools/animals/optimize.mjs`.
 - Level, prijs of wens aanpassen: `games/zoo/src/data.ts`. Tekst: `games/zoo/src/nl.json` en `en.json`, daarna het stemmenscript.
-- Proefspeler: `tools/playtest/autoplay.js` speelt alle levels achter elkaar en meet de tijd per level.
+- Proefspeler: `tools/playtest/autoplay.js` speelt alle levels achter elkaar en meet de tijd per level. Zonder venster: `node tools/playtest/speel.mjs 50` (snel) of `node tools/playtest/speel.mjs 50 8` (als een kind). Iets nalopen of een foto maken zonder venster: `tools/playtest/kijk.mjs`.
 
 ## Nog te beslissen
 
