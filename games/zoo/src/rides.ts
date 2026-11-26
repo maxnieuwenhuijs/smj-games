@@ -8,6 +8,11 @@
 // voren (de voorkant, waar het pad hoort te liggen) en `h` is de hoogte boven de grond, alles in tegels. Een
 // kijkrichting van 0 is naar voren (+z), een halve pi naar rechts (+x). Hoe het gebouw in het park gedraaid staat,
 // rekent de gebruiker er zelf bij (zie `rideLocal` en `rideWorld`).
+//
+// Wie een toestel wil gebruiken (een gast, of later de speler die zelf meerijdt): `newRide` maakt de stand van een
+// toestel en `rideStep` zet hem elk beeldje een stukje verder. `planVisit` kiest een vrij zitje en rekent een heel
+// bezoek uit; `visitPose` zegt waar je op elk moment van dat bezoek bent, van het pad tot en met weer op het pad.
+// `seatPose` geeft alleen het zitje zelf (zonder het lopen), en `rideRunning` of het ritje nu bezig is.
 import type { ShopKind } from './data';
 
 const TAU = Math.PI * 2;
@@ -907,10 +912,11 @@ function slidePose(out: RidePose, v: Visit, e: number): RidePose {
 // ------------------------------------------------------------ schommel, wipwap, wipkip en trampoline
 /**
  * De schommel (2 bij 1): twee zitjes, `side` links en rechts van het midden, aan touwen van `rope` lang onder een
- * balk op hoogte `top`. `max`: zo ver zwaait een zitje hooguit uit (radialen), `speed`: hoe snel het heen en weer
- * gaat. Een leeg zitje wiegt op `calm` daarvan. `stay`: zo lang schommelt een kind.
+ * balk op hoogte `top`. `max`: zo ver zwaait een zitje hooguit uit (radialen; het zitje blijft dan net boven zijn
+ * eigen tegel en zwaait niet door een hek erachter), `speed`: hoe snel het heen en weer gaat. Een leeg zitje wiegt op
+ * `calm` daarvan. `stay`: zo lang schommelt een kind.
  */
-export const SWINGSET = { seats: 2, side: 0.42, top: 1.62, rope: 1.18, max: 0.5, speed: 2.5, calm: 0.1, stay: 7 };
+export const SWINGSET = { seats: 2, side: 0.42, top: 1.62, rope: 1.18, max: 0.44, speed: 2.5, calm: 0.1, stay: 7 };
 /** De wipwap (2 bij 1): een plank om een as op hoogte `pivot`, met een zitje op `side` van het midden; hij kantelt hooguit `max` radialen. */
 export const SEESAW = { seats: 2, pivot: 0.46, side: 0.68, lift: 0.07, max: 0.28, speed: 3, calm: 0.12, stay: 7 };
 /** De wipkip (1 bij 1): een dier op een veer. Het wipt om het punt `pivot` hoog, het zadel zit op `seat`; `max` is hoe ver het wipt. */
