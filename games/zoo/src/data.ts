@@ -1015,7 +1015,7 @@ export const FEATURE = {
   wild: 8,
   /** Vanaf hier kun je het park mooi maken met bomen, bloemen, water en beelden. */
   decor: 5,
-  /** Vanaf hier slijten houten hekken: af en toe moet je er een repareren. */
+  /** Vanaf hier slijten de hekken (hout, wit hekje, steen, net en glas; zie wear.ts): af en toe moet je er een maken. */
   wear: 7,
   /** Vanaf hier willen dieren iets leuks in hun verblijf: speelgoed of een plant. */
   fun: 9,
