@@ -713,6 +713,18 @@ const ICONS = {
     '<path d="M13 19.5 q1.5 -1.6 3 0 M19 15 q1.5 -1.6 3 0 M27 33 q1.5 -1.6 3 0 M33 29 q1.5 -1.6 3 0" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>' +
     `<path d="M9.3 28.5 L30.3 13.5 L38.7 19.5 L17.7 34.5Z" fill="${WOOD}"/><path d="M13.5 25.5 L21.9 31.5 M17.7 22.5 L26.1 28.5 M21.9 19.5 L30.3 25.5 M26.1 16.5 L34.5 22.5" stroke="${WOOD_D}" stroke-width="1.8"/>` +
     '<path d="M9.3 28.5 V22.5 M19.8 21 V15 M30.3 13.5 V7.5 M9.3 22.5 L30.3 7.5 M17.7 34.5 V28.5 M28.2 27 V21 M38.7 19.5 V13.5 M17.7 28.5 L38.7 13.5" fill="none" stroke="#8a5a2c" stroke-width="2.6" stroke-linecap="round"/>',
+  // het spoor van het treintje: een tegel gras met een bedding van grind, bielzen en twee rails
+  rails:
+    tile(GRASS) +
+    '<path d="M7.2 27 L28.2 12 L40.8 21 L19.8 36Z" fill="#b3a892"/>' +
+    '<path d="M10.9 25.9 L21.4 33.4 M16.1 22.1 L26.6 29.6 M21.4 18.4 L31.9 25.9 M26.6 14.6 L37.1 22.1" stroke="#7a5a3a" stroke-width="2.8" stroke-linecap="round"/>' +
+    '<path d="M9.9 29 L30.9 14 M17.1 34 L38.1 19" stroke="#5a6470" stroke-width="2.2" stroke-linecap="round"/>',
+  // een overweg: het pad met de rails erdoorheen, planken ertussen en een rood-witte spoorboom
+  crossing:
+    tile('#d8c7ab') +
+    '<path d="M8.6 28 L29.6 13 L39.4 20 L18.4 35Z" fill="#a98558"/>' +
+    '<path d="M9.9 29 L30.9 14 M17.1 34 L38.1 19" stroke="#5a6470" stroke-width="2.2" stroke-linecap="round"/>' +
+    `<path d="M7 20 L24 8" stroke="#fff" stroke-width="4" stroke-linecap="round"/><path d="M7 20 L24 8" stroke="${RED}" stroke-width="4" stroke-dasharray="4.2 4.2"/><rect x="4.5" y="17" width="4.4" height="12" rx="1.4" fill="#5a6470"/>`,
   // meer hekken: een muur met een ruit, een laag wit hekje en het poortje van de kinderboerderij
   window:
     '<rect x="4" y="9" width="40" height="32" rx="2" fill="#a9adb3"/>' +

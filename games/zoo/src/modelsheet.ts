@@ -5,8 +5,8 @@
 // &bos=1 (de bomen rond het park), &seizoen=winter, &nacht=1, &spook=1 (het doorzichtige voorbeeld), &draai=1 (kwartslagen), &druk=1 (alsof er
 // gasten zijn), &t=2.5 (het moment van de foto), &zoom=6 (tegels in beeld).
 import * as THREE from 'three';
-import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FERRIS, FOODS, PARK_PROPS, WILD_PROPS, SHOPS, SHOP_SIZE, TERRAINS, TOYS, TROUGHS, bumperCar, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type Terrain, type ToyKind, type TroughKind } from './data';
-import { BASE_LAND, FULL_LAND, Grid, edgeKey, type Edge, type EdgeKind } from './grid';
+import { BEDS, BUMPER_CARS, DECORS, EDGE_DECOR, FERRIS, FOODS, PARK_PROPS, WILD_PROPS, SHOPS, SHOP_SIZE, TERRAINS, TOYS, TROUGHS, CROSSING, RAILS, TRAIN, bumperCar, type BedKind, type DecorKind, type FoodId, type PropKind, type Season, type ShopKind, type Terrain, type ToyKind, type TroughKind } from './data';
+import { BASE_LAND, FULL_LAND, Grid, edgeKey, tileIndex, type Edge, type EdgeKind } from './grid';
 import { View, toWorldX, toWorldZ } from './view';
 import { FACES, sampleHead, showSample } from './faces';
 import { SAMPLE_PEOPLE, samplePerson } from './people';
@@ -177,15 +177,41 @@ const person = (name: string, i: number): Item => ({
     view.scene.add(figure);
   },
 });
-const train: Item = {
-  name: 'trein', size: 3,
+/**
+ * Een treintje op een recht stuk spoor: de locomotief, de wagons en de tweede locomotief (die rijdt alleen mee op een
+ * lijn heen en weer). `n`: de hoeveelste trein het is; elke trein heeft zijn eigen kleuren. De wielen draaien.
+ */
+const train = (n: number): Item => ({
+  name: `trein ${n + 1}`, size: 6, deep: 1,
   put: (x, y) => {
-    const { loco, wagons } = view.makeTrain();
-    [loco, ...wagons].forEach((part, i) => {
+    for (let i = 0; i < 6; i++) grid.setTerrain(x + i, y, RAILS);
+    const model = view.makeTrain(n);
+    [model.loco, ...model.wagons, model.tail].forEach((part, i, all) => {
       part.visible = true;
-      part.position.set(toWorldX(x + 2.4 - i * 0.95), 0, toWorldZ(y + 0.5));
-      part.rotation.y = Math.PI / 2;
+      part.position.set(toWorldX(x + 5.3 - i * TRAIN.gap), TRAIN.top, toWorldZ(y + 0.5));
+      part.rotation.y = i === all.length - 1 ? -Math.PI / 2 : Math.PI / 2;
     });
+    live.push(t => {
+      model.roll(t * 0.4);
+      if (Math.floor(t * 2.5) !== Math.floor((t - 0.016) * 2.5)) model.puff(model.loco);
+    });
+  },
+});
+/** De overwegen op de plaat: met &druk=1 zijn de spoorbomen dicht en knipperen de lampen. */
+const shutTiles = new Uint8Array(grid.terrain.length);
+/**
+ * Een stukje park met spoor in alle vormen: recht, bochten, een wissel, een kruising, een eindje met een stootblok,
+ * een los stukje, en twee overwegen waar een pad het spoor kruist (R = rails, P = pad, X = overweg).
+ */
+const track: Item = {
+  name: 'spoor', size: 7, deep: 6,
+  put: (x, y) => {
+    ['RRRRR..', 'R.P.R..', 'RRXRRRR', 'R.P.R..', 'RRXRR.R', '..P....'].forEach((row, dy) => [...row].forEach((ch, dx) => {
+      if (ch === '.') return;
+      grid.setTerrain(x + dx, y + dy, ch === 'R' ? RAILS : ch === 'X' ? CROSSING : TERRAINS.indexOf('path'));
+      if (ch === 'X' && busy) shutTiles[tileIndex(x + dx, y + dy)] = 1;
+    }));
+    live.push(() => view.stepCrossings(shutTiles, 0.05));
   },
 };
 
@@ -210,14 +236,16 @@ const GROUPS: Record<string, Item[]> = {
   ...Object.fromEntries(Object.entries(DECOR_SETS).map(([name, kinds]) => [name, kinds.map(decor)])),
   ...Object.fromEntries(Object.entries(SHOP_SETS).map(([name, kinds]) => [name, kinds.map(shop)])),
   afval: [0, 1, 2, 3].map(litter),
-  trein: [train],
+  // de drie treinen (elk met eigen kleuren), en het spoor in alle vormen met twee overwegen (&druk=1: de bomen dicht)
+  trein: [0, 1, 2].map(train),
+  spoor: [track],
   // alle gezichten van de poppetjes, elk met een andere uitdrukking (&t=... kiest het moment)
   gezichten: Array.from({ length: FACES }, (_, i) => face(i)),
   // hele poppetjes: elk kapsel, kinderen, een paar met een hoedje, een werker en een verkoper
   poppetjes: SAMPLE_PEOPLE.map(person),
   pad: [path('flowerpath'), path('bridge')],
   // elke soort ondergrond als een veldje, tegen elkaar aan: zo zie je ook de overgangen
-  grond: TERRAINS.map(patch),
+  grond: TERRAINS.filter(kind => kind !== 'rails' && kind !== 'crossing').map(patch),
   natuur: WILD_PROPS.map(prop),
   // het kleine spul voor het park, elk in het midden van een eigen tegel
   parkjes: PARK_PROPS.map(prop),
@@ -242,7 +270,7 @@ const items = (GROUPS[groupName] ?? []).filter(item => !only || only.includes(it
 // Per groep: hoe hoog de modellen ongeveer zijn, hoeveel ruimte ertussen moet en hoeveel er op een rij staan.
 const LOOK: Record<string, { tall?: number; gap?: number; row?: number }> = {
   kramen: { tall: 3.2 }, gebouwen: { tall: 3 }, speeltuin: { tall: 3 }, attracties: { tall: 4.6, gap: 2, row: 3 }, afval: { tall: 0.5 }, klein: { tall: 1.2 },
-  voer: { tall: 1.4 }, hekken: { tall: 1.4 }, trein: { tall: 1.2 }, parkjes: { tall: 0.7, gap: 0, row: 5 }, grond: { tall: 0.4, gap: 0, row: 7 }, gezichten: { tall: 0.8, gap: 0, row: 8 },
+  voer: { tall: 1.4 }, hekken: { tall: 1.4 }, trein: { tall: 1.2, row: 1 }, spoor: { tall: 1.2 }, parkjes: { tall: 0.7, gap: 0, row: 5 }, grond: { tall: 0.4, gap: 0, row: 7 }, gezichten: { tall: 0.8, gap: 0, row: 8 },
   poppetjes: { tall: 1.2, gap: 0, row: 8 },
 };
 const look = only ? {} : LOOK[groupName] ?? {};

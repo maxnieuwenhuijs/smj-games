@@ -17,6 +17,8 @@ import { WAYFIND, canStray, wayfound, type WaySign } from './data';
 import { scares } from './data';
 import { MURK, murkAfter, murkLoad, murkyWater } from './data';
 import { SHOW_FENCES, SHOW_STARS, SHOW_TIME, newShow, showReady, showSoon, showTick, type ShowClock } from './data';
+import { CROSSING, RAILS, TRAIN, isRail } from './data';
+import { planRails, railLinks } from './rails';
 import { ESCAPE_WAY, escapeChance, escapeWay, pickEscaper, type EscapeWay } from './data';
 import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region, type Side } from './grid';
 import { glassSides } from './grid';
@@ -26,7 +28,7 @@ import { emptyStats, goalProgress, levelDone, type Stats } from './levels';
 import { CHEERS, EVENT_SAYS, NAMED, PRAISE, callText, goalLine, say, textOf, voiceId, wishLine, type EventPart, type Line } from './lines';
 import { TEACHERS, type TeacherId } from './figures';
 import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStatic, speciesIcon } from './models';
-import { ENTRANCE, GuestManager, Train, Vendor, Worker, edgePose, edgeSides, shopCenter, shopTiles, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type PetSpot, type ShopSpot, type VetJob, type WorkerRole, type WorkerWorld, type FixJob, type GuardJob } from './people';
+import { ENTRANCE, GuestManager, Vendor, Worker, edgePose, edgeSides, shopCenter, shopTiles, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type PetSpot, type ShopSpot, type VetJob, type WorkerRole, type WorkerWorld, type FixJob, type GuardJob } from './people';
 import { SIGHT, type GuestCue, type Sight } from './people';
 import { PEN } from './people';
 import { CableCar } from './people';
@@ -281,6 +283,8 @@ export interface SaveData {
   parties?: number[];
   /** Sneeuwpoppen die de speler zelf heeft gebouwd (alleen in de winter). */
   snowmen?: SnowSave[];
+  /** De overwegen: per tegel welk soort pad eronder ligt (het nummer in TERRAINS). Zonder dit is het het gewone pad. */
+  cross?: [number, number][];
 }
 
 export const slotKey = (slot: number): string => `zoo-slot-${slot}`;
@@ -426,6 +430,9 @@ interface ShopObj extends ShopSpot {
   /** Staat het niet aan een pad dat gasten kunnen bereiken? Dan hangt er een bordje boven. */
   off?: boolean;
   warn?: HTMLElement;
+  /** Een treinhalte waar geen trein komt: er ligt geen spoor langs (of te weinig). Dan hangt er een bordje met rails boven. */
+  noRails?: boolean;
+  railWarn?: HTMLElement;
   /** Het poppetje dat in de kraam werkt, als er een is. */
   vendor: Vendor | null;
   /**
@@ -648,6 +655,16 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Wat de loper in zijn hand heeft (zie walkhand.ts), en wanneer hij voor het laatst iets kocht. */
   private hand!: WalkHand;
   private walkBoughtAt = -99;
+  /**
+   * Het spoor (zie rails.ts). `crossLook`: per overweg welk soort pad eronder ligt. `railsKey`: het spoor en de haltes
+   * van de laatste keer dat de routes zijn uitgezocht; `railsIn`: over zoveel tellen wordt er weer gekeken of er iets
+   * veranderd is (ook een hek dwars over het spoor, of een pad naar een halte). `crossings`: de overwegen, en welke nu dicht zijn.
+   */
+  private crossLook = new Map<number, number>();
+  private railsKey = '';
+  private railsIn = 0;
+  private crossings: number[] = [];
+  private crossShut = new Set<number>();
 
   constructor(private view: View, private slot: number, data: SaveData | undefined, onHome: () => void, private player = data?.player ?? '') {
     this.park = new ParkPlay(this.parkHost());
@@ -666,9 +683,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.guests = new GuestManager(this.view.scene, this);
     this.road = new Road(this.view.scene);
     this.blobs = new BlobShadows(this.view.scene);
-    const train = this.view.makeTrain();
-    this.guests.train = new Train([train.loco, ...train.wagons]);
+    this.view.crossLooks = this.crossLook;
     if (data) this.load(data);
+    // een ouder spel: daar reed het treintje nog over het pad. De bouwer zegt één keer dat het nu rails nodig heeft
+    if (data && !this.told.has('rails') && this.shops.some(s => s.kind === 'station') && !this.grid.terrain.some(isRail)) {
+      this.told.add('rails');
+      this.lines.push(say.trainOld());
+    }
     this.season = this.seasonNow();
     this.view.setSeason(this.season);
     this.park.restore(data?.snowmen);
@@ -726,7 +747,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         const x = Math.floor(gx), y = Math.floor(gy);
         if (!this.grid.inBounds(x, y) || this.grid.enclosureAt(x, y) || this.shopAt(x, y)) return null;
         const t = this.grid.terrain[tileIndex(x, y)];
-        return isPath(t) ? 'path' : t === grass ? 'grass' : null;
+        // (op het spoor en op een overweg niet: daar rijdt de trein)
+        return isRail(t) ? null : isPath(t) ? 'path' : t === grass ? 'grass' : null;
       },
       tilesNear: (gx, gy) => {
         const i = tileIndex(Math.floor(gx), Math.floor(gy));
@@ -766,6 +788,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (d.vv.length === (ow + 1) * oh)
       for (let y = 0; y < oh; y++) for (let x = 0; x <= ow; x++) this.grid.v[x + ox + (y + oy) * (W + 1)] = d.vv[x + y * (ow + 1)];
     for (const side of d.land ?? []) if (SIDES.includes(side)) this.grid.expand(side);
+    // onder elke overweg het soort pad dat er lag (zonder dit: het gewone pad)
+    for (const [tile, look] of d.cross ?? []) {
+      const at = tileIndex((tile % ow) + ox, Math.floor(tile / ow) + oy);
+      if (this.grid.terrain[at] === CROSSING && PATH_KINDS.includes(TERRAINS[look])) this.crossLook.set(at, look);
+    }
     this.grid.recompute();
     this.syncLand();
     this.savedLevel = migrateLevel(d.level, d.v ?? 1);
@@ -917,6 +944,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       stars: this.stars,
       parties: this.partiesDone.length ? this.partiesDone : undefined,
       snowmen: this.park.save(),
+      cross: this.crossLook.size ? [...this.crossLook].filter(([tile]) => this.grid.terrain[tile] === CROSSING) : undefined,
     };
   }
 
@@ -955,17 +983,18 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const list = this.unlocked(TERRAINS.filter(k => !PATH_KINDS.includes(k)), ['grass', 'mud'], sp => SPECIES[sp].terrain);
     for (const k of TERRAINS) if (mix.has(k) && !list.includes(k)) list.push(k);
     list.sort((p, q) => TERRAINS.indexOf(p) - TERRAINS.indexOf(q));
-    // de paden komen er een voor een bij: eerst het gewone pad, later kiezels, een brug, planken, klinkers en meer
-    return [...list, ...PATH_KINDS.filter(k => (PATH_FROM[k] ?? 0) <= this.level)];
+    // de paden komen er een voor een bij: eerst het gewone pad, later kiezels, een brug, planken, klinkers en meer;
+    // en zodra de treinhalte er is ook de rails voor het treintje (een overweg ontstaat vanzelf, die kies je niet)
+    return [...list, ...PATH_KINDS.filter(k => (PATH_FROM[k] ?? 0) <= this.level), ...(this.has('station') ? (['rails'] as const) : [])];
   }
 
   /**
    * Grond staat in twee groepen: grond voor in de verblijven (waar de dieren van houden) en paden voor het park
-   * (waar de gasten over lopen). Zolang er nog geen pad is, is er maar één groep.
+   * (waar de gasten over lopen, en de rails voor het treintje). Zolang er nog geen pad is, is er maar één groep.
    */
   private terrainGroups(): { pen: Terrain[]; park: Terrain[] } {
-    const all = this.terrainOptions();
-    return { pen: all.filter(k => !PATH_KINDS.includes(k)), park: all.filter(k => PATH_KINDS.includes(k)) };
+    const all = this.terrainOptions(), park = (k: Terrain): boolean => PATH_KINDS.includes(k) || k === 'rails';
+    return { pen: all.filter(k => !park(k)), park: all.filter(park) };
   }
 
   private foodList(): FoodId[] {
@@ -1301,6 +1330,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Wat een gast op deze padtegel te zien krijgt: het leukste verblijf ernaast. */
   viewScore(tile: number): { score: number; x: number; y: number; species: string[] } | null {
+    // (op een overweg blijft niemand staan kijken)
+    if (isRail(this.grid.terrain[tile])) return null;
     const [x, y] = tileXY(tile);
     let best: { score: number; x: number; y: number; species: string[] } | null = null;
     for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
@@ -1875,7 +1906,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Personeel zet je neer in het park, buiten de verblijven: daar begint de werker te lopen. */
   private placeStaff(x: number, y: number): void {
-    if (!this.grid.inBounds(x, y) || this.grid.enclosureAt(x, y) || this.taken(x, y)) return this.nope(x + 0.5, y + 0.5);
+    if (!this.grid.inBounds(x, y) || this.grid.enclosureAt(x, y) || this.taken(x, y) || isRail(this.grid.terrain[tileIndex(x, y)])) return this.nope(x + 0.5, y + 0.5);
     const role = this.option.staff as WorkerRole;
     this.addWorker(role, x + 0.5, y + 0.5).plop();
     if (this.staffGhost) this.staffGhost.worker.mesh.visible = false;
@@ -2329,7 +2360,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!sides.length) return false;
     const free = (i: number): boolean => {
       const [x, y] = tileXY(i);
-      return !this.grid.enclosureAt(x, y) && !this.shopAt(x, y) && this.grid.terrain[i] !== WATER;
+      return !this.grid.enclosureAt(x, y) && !this.shopAt(x, y) && this.grid.terrain[i] !== WATER && !isRail(this.grid.terrain[i]);
     };
     const fence = this.grid.getEdge(e);
     if (fence !== 0) return fence !== 2 && fence !== 8 && sides.length === 2 && sides.filter(free).length === 1;
@@ -2408,6 +2439,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     // de tribune kijkt naar het water: haar rug (waar de bankjes naartoe kijken) tegen de bak van glas
     const pool = kind === 'show' ? this.showPool(x, y, ...shopSpan(kind, like)) : null;
     if (pool) return (pool.side + 2) % 4;
+    // de treinhalte kijkt met zijn perron naar het spoor; ligt er nog geen spoor, dan naar het pad
+    const rails = kind === 'station' ? this.railSides(x, y, ...shopSpan(kind, like)) : null;
+    if (rails?.some(n => n > 0)) return rails.reduce((best, n, r) => (n > rails[best] ? r : best), 0);
     const sides = this.pathSides(x, y, ...shopSpan(kind, like));
     const turns = SHOP_DEEP[kind] ? [like % 2, (like % 2) + 2] : [0, 1, 2, 3];
     return turns.reduce((best, r) => (sides[r] > sides[best] ? r : best), turns[0]);
@@ -2415,7 +2449,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Hoeveel tegels pad er tegen elke kant van een blok aan liggen: [zuid, oost, noord, west]. */
   private pathSides(x: number, y: number, w: number, h: number): number[] {
-    const onPath = (tx: number, ty: number): number => (this.grid.inBounds(tx, ty) && isPath(this.grid.terrain[tileIndex(tx, ty)]) ? 1 : 0);
+    // (een overweg telt niet: daar kun je niet blijven staan)
+    const onPath = (tx: number, ty: number): number => (this.grid.inBounds(tx, ty) && isPath(this.grid.terrain[tileIndex(tx, ty)]) && !isRail(this.grid.terrain[tileIndex(tx, ty)]) ? 1 : 0);
     const sides = [0, 0, 0, 0];
     for (let i = 0; i < w; i++) {
       sides[0] += onPath(x + i, y + h);
@@ -2424,6 +2459,22 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     for (let i = 0; i < h; i++) {
       sides[1] += onPath(x + w, y + i);
       sides[3] += onPath(x - 1, y + i);
+    }
+    return sides;
+  }
+
+  /** Hoeveel tegels spoor er tegen elke kant van een blok aan liggen (zonder hek ertussen): [zuid, oost, noord, west]. */
+  private railSides(x: number, y: number, w: number, h: number): number[] {
+    const rail = (fx: number, fy: number, dx: number, dy: number): number =>
+      this.grid.inBounds(fx + dx, fy + dy) && isRail(this.grid.terrain[tileIndex(fx + dx, fy + dy)]) && this.grid.canStep(fx, fy, dx, dy) ? 1 : 0;
+    const sides = [0, 0, 0, 0];
+    for (let i = 0; i < w; i++) {
+      sides[0] += rail(x + i, y + h - 1, 0, 1);
+      sides[2] += rail(x + i, y, 0, -1);
+    }
+    for (let i = 0; i < h; i++) {
+      sides[1] += rail(x + w - 1, y + i, 1, 0);
+      sides[3] += rail(x, y + i, -1, 0);
     }
     return sides;
   }
@@ -2517,10 +2568,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const fence = this.grid.getEdge(e);
     if (fence !== 0) {
       if (fence === 2 || fence === 8 || kind === 'arch') return false;
-      return edgeSides({ x: e.x, y: e.y, edge: e.o }).some(i => !this.grid.enclosureAt(...tileXY(i)) && !this.shopAt(...tileXY(i)) && this.grid.terrain[i] !== WATER);
+      return edgeSides({ x: e.x, y: e.y, edge: e.o }).some(i => !this.grid.enclosureAt(...tileXY(i)) && !this.shopAt(...tileXY(i)) && this.grid.terrain[i] !== WATER && !isRail(this.grid.terrain[i]));
     }
     const sides = edgeSides({ x: e.x, y: e.y, edge: e.o }).map(i => tileXY(i));
     if (!sides.length || sides.some(([x, y]) => !this.grid.inBounds(x, y) || this.grid.enclosureAt(x, y))) return false;
+    // langs het spoor mag het; dwars over het spoor (spoor aan beide kanten) of tegen een overweg niet
+    const ground = sides.map(([x, y]) => this.grid.terrain[tileIndex(x, y)]);
+    if (ground.every(isRail) || ground.includes(CROSSING)) return false;
     const [a, b] = sides.map(([x, y]) => this.shopAt(x, y));
     return !(a && a === b);
   }
@@ -2563,7 +2617,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private decorFits(x: number, y: number, q?: number): boolean {
     if (!this.grid.inBounds(x, y) || this.grid.enclosureAt(x, y)) return false;
     const terrain = this.grid.terrain[tileIndex(x, y)];
-    if (isPath(terrain) || terrain === WATER) return false;
+    if (isPath(terrain) || terrain === WATER || isRail(terrain)) return false;
     if (q === undefined) return !this.taken(x, y);
     const cx = x * 2 + (q & 1), cy = y * 2 + (q >> 1);
     return !this.cellTaken(cx, cy) && !this.propCells.has(this.cellKey(cx, cy));
@@ -2705,7 +2759,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         if (park && this.grid.enclosureAt(x, y)) return false;
         const terrain = this.grid.terrain[tileIndex(x, y)];
         // klein spul voor het park (een bloempot, een kabouter) mag ook op het pad staan, in een hoekje van de tegel
-        if ((isPath(terrain) && !park) || terrain === WATER) return false;
+        if ((isPath(terrain) && !park) || terrain === WATER || isRail(terrain)) return false;
       }
     return true;
   }
@@ -2748,7 +2802,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       for (let dy = 0; dy < n; dy++)
         for (let dx = 0; dx < n; dx++) {
           const x = (p.sx + dx) >> 1, y = (p.sy + dy) >> 1, terrain = this.grid.terrain[tileIndex(x, y)];
-          if (this.cellTaken(p.sx + dx, p.sy + dy) || (isPath(terrain) && PROP[p.kind].group !== 'park') || terrain === WATER) return true;
+          if (this.cellTaken(p.sx + dx, p.sy + dy) || (isPath(terrain) && PROP[p.kind].group !== 'park') || terrain === WATER || isRail(terrain)) return true;
         }
       return false;
     });
@@ -3330,6 +3384,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       if (r && (this.party || this.park.lit(d))) list.push({ gx, gy, r });
     }
     for (const s of this.shops) if (!s.edge) list.push({ gx: blockCenter(s)[0], gy: blockCenter(s)[1], r: LIGHT.shop });
+    // de koplamp van elk treintje, en de rode lampen van een overweg die dicht is
+    for (const train of this.guests.trains) if (train.running) list.push({ gx: train.headX, gy: train.headY, r: TRAIN.light });
+    for (const tile of this.crossShut) list.push({ gx: tileXY(tile)[0] + 0.5, gy: tileXY(tile)[1] + 0.5, r: TRAIN.gateLight });
     this.road.lights(list);
     return this.party ? this.partyLights(list) : list;
   }
@@ -3624,7 +3681,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       for (let tx = x; tx < x + w; tx++) {
         if (!this.grid.inBounds(tx, ty) || this.grid.enclosureAt(tx, ty) || this.taken(tx, ty)) return false;
         const terrain = this.grid.terrain[tileIndex(tx, ty)];
-        if (isPath(terrain) || terrain === WATER) return false;
+        if (isPath(terrain) || terrain === WATER || isRail(terrain)) return false;
       }
     // de tribune moet met haar rug tegen de glazen bak van de dolfijnen of orka's staan
     if (kind === 'show' && !this.showPool(x, y, w, h)) return false;
@@ -3702,6 +3759,116 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.told.add('cable.first');
     const [cx, cy] = shopCenter(open.a);
     this.lines.push(this.lineAbout(say.cableFirst(), { gx: cx, gy: cy }));
+  }
+
+  // ------------------------------------------------------------ het spoor en de treintjes
+  /**
+   * Wat er op tegel (x, y) komt te liggen als je er deze grond op legt: [het nummer in TERRAINS, het soort pad onder
+   * een overweg (anders -1)]. Rails op een pad, of een pad op rails, wordt een overweg. Null: dat kan hier niet. Rails
+   * mogen niet in een verblijf, in het water, op een brug of waar iets staat (ook niet langs een bankje op de rand).
+   */
+  private groundFor(x: number, y: number, terrain: Terrain): [number, number] | null {
+    const kind = TERRAINS.indexOf(terrain);
+    if (!this.grid.inBounds(x, y)) return [kind, -1];
+    const i = tileIndex(x, y), now = this.grid.terrain[i];
+    if (terrain === 'rails') {
+      if (isRail(now)) return [now, this.crossLook.get(i) ?? -1];
+      if (this.grid.enclosureAt(x, y) || this.taken(x, y) || now === WATER || TERRAINS[now] === 'bridge' || this.edgeInWay(x, y, isPath(now))) return null;
+      return isPath(now) ? [CROSSING, now] : [RAILS, -1];
+    }
+    if (isRail(now) && PATH_KINDS.includes(terrain) && terrain !== 'bridge') return now === RAILS && this.edgeInWay(x, y, true) ? null : [CROSSING, kind];
+    return [kind, -1];
+  }
+
+  /**
+   * Staat er op een rand van deze tegel iets wat het spoor in de weg staat? Een bankje of bak altijd; een paal, bord
+   * of heg als aan de andere kant van die rand ook spoor ligt, of als hier een overweg komt (`crossing`).
+   */
+  private edgeInWay(x: number, y: number, crossing: boolean): boolean {
+    const edges: [Edge, number, number][] = [[{ o: 'h', x, y }, x, y - 1], [{ o: 'h', x, y: y + 1 }, x, y + 1], [{ o: 'v', x, y }, x - 1, y], [{ o: 'v', x: x + 1, y }, x + 1, y]];
+    return edges.some(([e, nx, ny]) => !!this.edgeItemAt(e) || (!!this.edgeDecorAt(e) && (crossing || (this.grid.inBounds(nx, ny) && isRail(this.grid.terrain[tileIndex(nx, ny)])))));
+  }
+
+  /**
+   * Legt grond neer op tegel (x, y) (zie groundFor): het nummer in TERRAINS, en bij een overweg het soort pad eronder.
+   * Geeft terug of er iets veranderd is; dan gaan het beeld, de gebouwen, de natuur en het spoor mee.
+   */
+  private layGround(x: number, y: number, kind: number, look = -1): boolean {
+    if (!this.grid.inBounds(x, y)) return false;
+    const i = tileIndex(x, y), was = this.grid.terrain[i], under = kind === CROSSING ? look : -1;
+    if (was === kind && (this.crossLook.get(i) ?? -1) === under) return false;
+    this.grid.setTerrain(x, y, kind);
+    if (under >= 0) this.crossLook.set(i, under);
+    else this.crossLook.delete(i);
+    this.view.paintTerrain(this.grid);
+    this.faceEdgeItems();
+    this.sweepProps();
+    if (!isRail(was) && !isRail(kind)) return true;
+    this.syncRails(true);
+    // de eerste overweg: de bouwer vertelt wat de spoorbomen doen
+    if (kind === CROSSING && was !== CROSSING && !this.told.has('crossing')) {
+      this.told.add('crossing');
+      this.lines.push(say.trainCrossing());
+    }
+    return true;
+  }
+
+  /**
+   * Zoekt de routes van de treintjes opnieuw uit als het spoor, een hek erover of een halte veranderd is; anders
+   * gebeurt er niets. Elk spoor met een halte ernaast krijgt een trein (zie planRails); een halte waar geen trein
+   * komt, krijgt een bordje. `now`: meteen kijken, er is net iets gebouwd. Anders kijkt updateRails om de halve tel.
+   */
+  private syncRails(now = false): void {
+    if (!now && this.railsIn > 0) return;
+    this.railsIn = 0.5;
+    const links = railLinks(this.grid), stations = this.shops.filter(s => s.kind === 'station');
+    const crossings: number[] = [];
+    let key = stations.map(s => `${s.x},${s.y}`).join(';') + '|';
+    for (let i = 0; i < links.length; i++) {
+      if (!links[i]) continue;
+      key += `${i}.${links[i]},`;
+      if (this.grid.terrain[i] === CROSSING) crossings.push(i);
+    }
+    if (key === this.railsKey) return;
+    this.railsKey = key;
+    this.crossings = crossings;
+    for (const tile of this.crossShut) if (!crossings.includes(tile)) this.crossShut.delete(tile);
+    // een hek dwars over het spoor laat het anders aansluiten: het beeld tekent het opnieuw
+    this.view.paintTerrain(this.grid);
+    const plan = planRails(this.grid, links, stations.map(s => ({ x: s.x, y: s.y, w: shopTiles(s)[0], h: shopTiles(s)[1] })));
+    this.guests.layRails(plan.routes, stations, n => this.view.makeTrain(n));
+    stations.forEach((s, k) => {
+      s.noRails = plan.served[k] < 0;
+    });
+    // de eerste trein die rijdt: tjoeke tjoek!
+    if (plan.routes.length && !this.told.has('train.go')) {
+      this.told.add('train.go');
+      this.lines.push(say.trainGo());
+    }
+  }
+
+  /** Elk beeldje: de routes bijhouden, de spoorbomen, de bel bij een overweg die dichtgaat, en de fluit en het geratel van de treinen. */
+  private updateRails(dt: number): void {
+    this.railsIn -= dt;
+    this.syncRails();
+    const shut = this.guests.shut;
+    this.view.stepCrossings(shut, dt);
+    for (const tile of this.crossings) {
+      if (!!shut[tile] === this.crossShut.has(tile)) continue;
+      if (shut[tile]) this.crossShut.add(tile);
+      else this.crossShut.delete(tile);
+    }
+    // ting-ting: zolang er een overweg dicht is, rinkelt daar de bel
+    for (const tile of this.crossShut) sfx('road.bell', { volume: 0.22, rate: 0.85, every: 1.2, at: [tileXY(tile)[0] + 0.5, tileXY(tile)[1] + 0.5] });
+    for (const train of this.guests.trains) {
+      if (train.arrived) sfx('train.toot', { volume: 0.3, every: 4, at: [train.headX, train.headY] });
+      if (train.departed) sfx('road.car', { volume: 0.18, rate: 0.7, every: 6, at: [train.gx, train.gy] });
+    }
+  }
+
+  /** Komt er op deze tegel een trein aan, of staat er een? Dan steekt niemand het spoor over. */
+  railShut(tile: number): boolean {
+    return this.guests.shut[tile] === 1;
   }
 
   /**
@@ -3801,10 +3968,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.sweepProps();
     sfx('place');
     this.floatAt(icon('sparkle'), cx, cy, 0.8);
-    // één halte: de trein wacht nog; bij de tweede gaat hij rijden
+    // een halte zonder spoor: de bouwer legt één keer uit dat het treintje rails nodig heeft
     if (kind === 'station') {
-      const n = this.shops.filter(sh => sh.kind === 'station').length;
-      if (n <= 2) this.sayNow(n === 1 ? say.trainOne() : say.trainGo());
+      this.syncRails(true);
+      if (made.noRails && !this.told.has('rails')) {
+        this.told.add('rails');
+        this.sayNow(say.trainOne());
+      }
     }
     this.backToHand();
   }
@@ -4516,7 +4686,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     switch (this.mode()) {
       case 'terrain': {
         const terrain = this.option.terrain as Terrain;
-        if (inside) this.view.ghostTile(x, y, TERRAIN_INFO[terrain].colors[0]);
+        // (rood waar het niet kan: rails in een verblijf, in het water of onder een gebouw)
+        if (inside) this.view.ghostTile(x, y, this.groundFor(x, y, terrain) ? TERRAIN_INFO[terrain].colors[0] : 0xe0584f);
         return this.hud.setCursor(CUR[terrain]);
       }
       case 'fence': {
@@ -4557,7 +4728,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       }
       case 'staff': {
         const role = this.option.staff as WorkerRole;
-        const ok = inside && !this.grid.enclosureAt(x, y) && !this.taken(x, y);
+        const ok = inside && !this.grid.enclosureAt(x, y) && !this.taken(x, y) && !isRail(this.grid.terrain[tileIndex(x, y)]);
         if (inside) this.view.ghostTile(x, y, ok ? 0x8fd16a : 0xe0584f);
         // een doorzichtige werker hangt spartelend boven de plek tot je hem neerzet
         if (this.staffGhost && this.staffGhost.role !== role) {
@@ -4613,6 +4784,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         else {
           const p = this.propUnder(g.gx, g.gy);
           if (p) this.view.ghostProp(p.kind, ...this.propCenter(p), p.rot, false);
+          // anders het spoor op deze tegel
+          else if (inside && isRail(this.grid.terrain[tileIndex(x, y)])) this.view.ghostTile(x, y, 0xe0584f);
         }
         return this.hud.setCursor(CUR.erase);
       }
@@ -4687,11 +4860,14 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const terrain = this.option.terrain as Terrain;
       // geen pad door een kraam heen
       if (PATH_KINDS.includes(terrain) && this.grid.inBounds(x, y) && this.shopAt(x, y)) return;
-      if (!this.grid.setTerrain(x, y, TERRAINS.indexOf(terrain))) return;
-      sfx('paint', { volume: 0.5, every: 0.09 });
-      this.view.paintTerrain(this.grid);
-      this.faceEdgeItems();
-      this.sweepProps();
+      // rails over een pad (of een pad over rails) wordt een overweg; rails mogen niet overal liggen
+      const lay = this.groundFor(x, y, terrain);
+      if (!lay) {
+        if (first) this.nope(x + 0.5, y + 0.5);
+        return;
+      }
+      if (!this.layGround(x, y, lay[0], lay[1])) return;
+      sfx(terrain === 'rails' ? 'fence' : 'paint', { volume: 0.5, every: 0.09 });
       const region = this.grid.enclosureAt(x, y);
       if (region)
         for (const a of this.animalsIn(region.id)) {
@@ -4737,6 +4913,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         if (p) {
           sfx('erase');
           this.removeProp(p);
+        } else if (isRail(this.grid.terrain[tileIndex(x, y)])) {
+          // en anders het spoor: er blijft gras liggen, of op een overweg het pad dat eronder lag
+          sfx('erase');
+          this.layGround(x, y, this.grid.terrain[tileIndex(x, y)] === CROSSING ? this.crossLook.get(tileIndex(x, y)) ?? PATH : TERRAINS.indexOf('grass'));
         }
         return;
       }
@@ -4765,11 +4945,14 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       } else if (shop) {
         this.view.scene.remove(shop.mesh);
         shop.warn?.remove();
+        shop.railWarn?.remove();
         shop.show?.badge?.remove();
         this.shops = this.shops.filter(k => k !== shop);
         this.earn(refund(SHOP_PRICE[shop.kind]), ...shopCenter(shop));
         // een huisje van de kabelbaan weg: de kabel gaat ook weg, en wie erin zat, stapt uit
         if (shop.kind === 'cablecar') this.syncLifts();
+        // een treinhalte weg: de trein zoekt een nieuwe route, of rijdt niet meer
+        if (shop.kind === 'station') this.syncRails(true);
       }
     }
   }
@@ -5817,7 +6000,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private updateParade(dt: number): void {
     const p = this.parade;
     if (!p) return;
-    p.clown.update(dt);
+    p.clown.update(dt, this.guests.shut);
     if (p.clown.gone) {
       this.view.scene.remove(p.clown.mesh);
       this.parade = null;
@@ -5931,7 +6114,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const { x0, y0, x1, y1 } = this.grid.land;
     for (let tries = 0; tries < 40 && spots.length < 12; tries++) {
       const x = x0 + Math.floor(Math.random() * (x1 - x0)), y = y0 + Math.floor(Math.random() * (y1 - y0));
-      if (!this.taken(x, y) && this.grid.terrain[tileIndex(x, y)] !== WATER) spots.push([x, y]);
+      if (!this.taken(x, y) && this.grid.terrain[tileIndex(x, y)] !== WATER && !isRail(this.grid.terrain[tileIndex(x, y)])) spots.push([x, y]);
     }
     for (const [x, y] of spots) {
       const gx = x + 0.3 + Math.random() * 0.4, gy = y + 0.3 + Math.random() * 0.4;
@@ -6441,8 +6624,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return Math.min(0.3, seen.size * 0.05);
   }
 
-  trainRuns(): boolean {
-    return !!this.guests.train?.running;
+  trainRuns(shop: ShopSpot): boolean {
+    return this.guests.trains.some(train => train.serves(shop));
   }
 
   // ------------------------------------------------------------ de dierenshow
@@ -7249,7 +7432,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const atPath = s.edge ? edgeSides(s).some(i => isPath(this.grid.terrain[i])) : this.touchesPath(s.x, s.y, ...shopTiles(s));
       // werkt het ook echt? Alleen als gasten erbij kunnen: het pad ernaast moet aan de ingang vastzitten
       const around = s.edge ? edgeSides(s) : this.around(s.x, s.y, ...shopTiles(s));
-      s.off = this.has('paths') && this.guests.open && !around.some(i => this.guests.reaches(i));
+      // (een overweg telt niet: daar kun je niet blijven staan)
+      s.off = this.has('paths') && this.guests.open && !around.some(i => this.guests.reaches(i) && !isRail(this.grid.terrain[i]));
       if (atPath) stats.shops[s.kind] = (stats.shops[s.kind] ?? 0) + 1;
       // een kraam verkoopt altijd iets: staat er niets aan, dan het eerste wat kan
       if (!s.sells.length) s.sells = this.products(s.kind).slice(0, slotsOf(s.kind));
@@ -7417,7 +7601,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const done = this.praise();
       // wat er naast het dier nog vrijkomt: iets voor het park of een nieuw speeltoestel
       const soon: string[] = [...TROUGHS.filter(k => TROUGH[k].from === this.level + 1), ...DECORS.filter(k => DECOR[k].from === this.level + 1), ...SHOPS.filter(k => FEATURE[k] === this.level + 1),
-        ...TOYS.filter(k => TOY_FROM[k] === this.level + 1 && TOY_FROM[k] > FEATURE.fun), ...PATH_KINDS.filter(k => k !== 'path' && PATH_FROM[k] === this.level + 1),
+        ...TOYS.filter(k => TOY_FROM[k] === this.level + 1 && TOY_FROM[k] > FEATURE.fun), ...PATH_KINDS.filter(k => k !== 'path' && PATH_FROM[k] === this.level + 1), ...(FEATURE.station === this.level + 1 ? ['rails'] : []),
         ...PARK_PROPS.filter(k => PROP[k].from === this.level + 1), ...CARE_ACTIONS.filter(k => FEATURE[k] === this.level + 1)];
       sfx('fanfare');
       this.hud.showLevelDone(this.level + 1, speciesIcon(level.reward), t(`species.${level.reward}`), textOf(t, done), () => {
@@ -7599,7 +7783,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       this.hour = hour;
       this.payWages();
     }
-    if (this.guests.train?.arrived) sfx('train.toot', { volume: 0.3, every: 4 });
+    this.updateRails(dt);
     const vendorsHome = this.vendorsHome();
     for (const shop of this.shops) {
       shop.vendor?.update(dt, (shop.busyNow ?? 0) > 0, vendorsHome);
@@ -7706,6 +7890,24 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // vlak boven het ding zelf: een bankje of bak is laag, een gebouw hoog
       const s = this.view.toScreen(cx, cy, shop.edge ? 0.62 : 1.9);
       shop.warn.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%)`;
+    }
+    // en boven een treinhalte waar geen trein komt (terwijl het pad er wel ligt): een bordje met rails en een kruisje
+    for (const shop of this.shops) {
+      if (shop.kind !== 'station') continue;
+      const lone = !!shop.noRails && !shop.off;
+      if (!lone) {
+        if (shop.railWarn) shop.railWarn.hidden = true;
+        continue;
+      }
+      if (!shop.railWarn) {
+        shop.railWarn = this.hud.makeBubble();
+        shop.railWarn.classList.add('nopath');
+        shop.railWarn.innerHTML = icon('rails') + icon('cross', 'badge');
+      }
+      shop.railWarn.hidden = false;
+      const [cx, cy] = shopCenter(shop);
+      const s = this.view.toScreen(cx, cy, 1.9);
+      shop.railWarn.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%)`;
     }
     for (const pen of this.pens) {
       if (pen.closedUntil && pen.closedUntil <= this.clock) {
