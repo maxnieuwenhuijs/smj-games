@@ -16,7 +16,7 @@ import { CLIMB_SECONDS, PUSH, SWING, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt,
 import { WAYFIND, canStray, wayfound, type WaySign } from './data';
 import { scares } from './data';
 import { MURK, murkAfter, murkLoad, murkyWater } from './data';
-import { SHOW_FENCES, SHOW_ROUTINE, SHOW_STARS, SHOW_TIME, newShow, showFinale, showMoves, showReady, showSoon, showTick, type ShowClock } from './data';
+import { SHOW_FENCES, SHOW_ROUTINE, SHOW_ROWS, SHOW_STARS, SHOW_TIME, newShow, showFinale, showMoves, showReady, showSoon, showTick, type ShowClock } from './data';
 import { TOSS_AFTER, TRAINER_AT, TRAINER_HAND, Trainer } from './showtime';
 import { ESCAPE_WAY, escapeChance, escapeWay, pickEscaper, type EscapeWay } from './data';
 import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, nearestSpot, spotEdges, spotPos, spotTiles, tileIndex, tileXY, type Edge, type EdgeKind, type Region, type Side, type Spot } from './grid';
@@ -426,6 +426,8 @@ const BALL = { gravity: 9, brake: 0.9, drag: 0.7, wall: 0.65, bounce: 0.5, home:
  * (`near`) en met een vrije tegel ernaast (`far`). Met `kick` keer die ruimte als snelheid rolt hij er net niet tegenaan.
  */
 const LOG = { pull: 4, damp: 2.4, near: 0.3, far: 0.8, kick: 3.8 };
+/** Zo hoog zitten je ogen boven een bankje of stoel als je in de loopstand ergens in zit (tegels). */
+const SIT_EYE = 0.38;
 /** Zoveel tellen is een dier extra blij na een hapje van de trainer in de show. */
 const SHOW_GLEE = 20;
 interface ShopObj extends ShopSpot {
@@ -6472,6 +6474,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       changed: (on: boolean) => this.walkChanged(on),
       use: () => void this.hand.use(),
       key: (code: string) => this.hand.key(code),
+      outIcon: () => icon('stepout'),
     };
   }
 
@@ -6578,14 +6581,15 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     // een kraam: je ziet wat hij verkoopt, en een tik koopt het (de wc: even plassen)
     for (const shop of this.shops) {
       if (shop.edge) continue;
-      const offer = walkOffer(shop.kind, shop.sells, this.level);
-      if (!shop.sells.length && !offer.length && shop.kind !== 'toilet') continue;
+      const offer = walkOffer(shop.kind, shop.sells, this.level), ride = this.walkRide(shop);
+      if (!shop.sells.length && !offer.length && shop.kind !== 'toilet' && !ride) continue;
       const [cx, cy] = blockCenter(shop);
       if (!near(cx, cy)) continue;
       const pics = (offer.length ? offer : shop.sells).slice(0, 5);
       out.push({
         gx: cx, gy: cy, h: 0.7, r: Math.max(shop.w ?? shop.size, shop.h ?? shop.size) * 0.45, top: 1.7, id: shop,
-        tag: () => tagHtml(t(`shop.${shop.kind}`), pics.map(id => this.productIcon(id, 'tiny')).join(''), ''),
+        // iets waar je in kunt: het plaatje van het ding zelf; een kraam: wat hij verkoopt
+        tag: () => tagHtml(t(`shop.${shop.kind}`), ride ? icon(shop.kind as IconId, 'tiny') : pics.map(id => this.productIcon(id, 'tiny')).join(''), ''),
         poke: () => this.walkShop(shop),
       });
     }
@@ -6619,6 +6623,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
    */
   private walkShop(shop: ShopObj): void {
     const [cx, cy] = blockCenter(shop);
+    const ride = this.walkRide(shop);
+    if (ride) return ride();
     if (shop.kind === 'toilet') {
       if (this.clock - this.walkBoughtAt < 2) return;
       this.walkBoughtAt = this.clock;
@@ -6635,6 +6641,33 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       return face ? t(`paint.${face}`) : this.productName(id);
     };
     this.hand.ask(offer.map(id => ({ id, label: label(id) })), [cx, cy], id => this.walkBuy(shop, id));
+  }
+
+  /**
+   * Kun je hier in de loopstand in of op gaan zitten? Dan geeft dit terug wat een tik doet (instappen); anders null.
+   * De tribune: je gaat op het bovenste bankje zitten en kijkt naar de show.
+   */
+  private walkRide(shop: ShopObj): (() => void) | null {
+    if (shop.kind === 'show') return () => this.walkWatch(shop);
+    return null;
+  }
+
+  /**
+   * Op de tribune gaan zitten, met je gezicht naar het verblijf. Is er geen show bezig, dan begint er zo een (als de
+   * dieren kunnen). Uitstappen: je staat weer waar je vandaan kwam.
+   */
+  private walkWatch(shop: ShopObj): void {
+    if (this.walk.seated) return;
+    const from = this.walk.at, row = SHOW_ROWS[SHOW_ROWS.length - 1], [cx, cy] = blockCenter(shop);
+    const sat = this.walk.sit({
+      pose: () => {
+        if (!this.shops.includes(shop)) return null;
+        const turn = ((shop.rot ?? 0) * Math.PI) / 2, cos = Math.cos(turn), sin = Math.sin(turn), x = 0.26, z = row.z;
+        return [cx + x * cos + z * sin, cy - x * sin + z * cos, row.h + SIT_EYE, turn + Math.PI];
+      },
+      exit: () => [from[0], from[1]],
+    });
+    if (sat && this.showState(shop).clock.phase === 'wait') this.showNow(shop);
   }
 
   /**

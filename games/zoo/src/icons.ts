@@ -335,6 +335,11 @@ const ICONS = {
     `<path d="M27 18 L17 23 M27 18 L36 13" stroke="${SKIN}" stroke-width="4.5" stroke-linecap="round"/>` +
     `<path d="M27.5 16 L25.5 29" stroke="#4a90e2" stroke-width="10" stroke-linecap="round"/>` +
     `<circle cx="28" cy="8.5" r="6.5" fill="${SKIN}" stroke="${INK}" stroke-width="1.5"/><path d="M21.5 7.5 Q28 -1 34.5 7.5 Q28 4.5 21.5 7.5Z" fill="#7a4a22"/><circle cx="30.5" cy="8.5" r="1.3" fill="${INK}"/>`,
+  // uitstappen (je zit ergens in, in de loopstand): een open deur met een dikke oranje pijl naar buiten
+  stepout:
+    '<rect x="4" y="5" width="24" height="39" rx="3" fill="#8a5a2e"/><rect x="8" y="9" width="16" height="35" fill="#fff3d1"/><circle cx="21" cy="27" r="1.8" fill="#8a5a2e"/>' +
+    '<path d="M17 26 H36" stroke="#fff" stroke-width="11" stroke-linecap="round"/><path d="M17 26 H36" stroke="#f08a24" stroke-width="7" stroke-linecap="round"/>' +
+    '<path d="M46 26 L33 14 V38Z" fill="#f08a24" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>',
   flyup:
     '<g transform="translate(2 17) scale(0.72)"><circle cx="13" cy="20" r="5" fill="#3d4f5a"/><circle cx="13" cy="20" r="1.8" fill="#b9c2c9"/><circle cx="24.5" cy="19" r="6" fill="#3d4f5a"/><circle cx="24.5" cy="19" r="2.1" fill="#b9c2c9"/>' +
     '<rect x="5" y="24" width="27" height="19" rx="4" fill="#6f7c87"/><rect x="5" y="24" width="27" height="6" rx="3" fill="#8b98a3"/><path d="M32 30 L44 24 V43 L32 37Z" fill="#5a6670"/><circle cx="11" cy="36" r="2.4" fill="#e0584f"/><rect x="17" y="34" width="10" height="4" rx="1.5" fill="#d6ecfb"/></g>' +

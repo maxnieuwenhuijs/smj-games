@@ -172,6 +172,10 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 /* op een tablet: een knop om te happen of te drinken, rechts boven de knop om terug te gaan */
 #walkuse { position: absolute; right: 20px; bottom: calc(44px + min(84px, 20vw)); width: min(84px, 18vw); height: min(84px, 18vw); border-radius: 50%; }
 #walkuse .ic { font-size: min(52px, 11vw); }
+/* je zit ergens in (de tribune, een attractie): een knop onderin om weer uit te stappen */
+#walkout { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); width: min(84px, 18vw); height: min(84px, 18vw); border-radius: 50%; pointer-events: auto; }
+#walkout .ic { font-size: min(52px, 11vw); }
+#walkout[hidden] { display: none; }
 /* de rand van je hoed, bovenin beeld */
 #walkbrim { position: absolute; left: -12%; right: -12%; top: -10vh; height: 17vh; border-radius: 0 0 50% 50%; pointer-events: none;
   background: var(--brim, #e0584f); box-shadow: inset 0 -8px 0 rgba(0, 0, 0, 0.16), 0 6px 14px rgba(0, 0, 0, 0.12); }

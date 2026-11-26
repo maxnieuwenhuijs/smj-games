@@ -18,6 +18,19 @@ export interface WalkTarget extends LookTarget {
   poke?(): void;
 }
 
+/**
+ * Ergens in of op zitten terwijl je rondloopt: een bankje van de tribune, een bakje van het reuzenrad, een paard van
+ * de draaimolen, een wagon van de trein. Je ogen volgen de stoel; rondkijken (slepen of de pijltjes) kan nog steeds.
+ */
+export interface WalkSeat {
+  /** Waar je ogen nu zijn en waar de stoel naartoe wijst: [gx, gy, hoogte, richting]. Null: de rit is voorbij en je stapt uit. */
+  pose(): [gx: number, gy: number, h: number, yaw: number] | null;
+  /** Waar je staat als je uitstapt, en waar je dan naar kijkt (als dat ertoe doet). */
+  exit(): [gx: number, gy: number, yaw?: number];
+  /** Je bent uitgestapt: zelf, of omdat de rit voorbij was. */
+  left?(): void;
+}
+
 /** Wat de loopstand van het spel nodig heeft. */
 export interface WalkHost {
   view: View;
@@ -34,6 +47,8 @@ export interface WalkHost {
   use?(): void;
   /** Een toets die het spel zelf wil hebben (een plaatje kiezen bij een kraam). Geeft terug of hij gebruikt is. */
   key?(code: string): boolean;
+  /** Het plaatje op de knop om uit te stappen. */
+  outIcon?(): string;
 }
 
 /** Toetsen om te lopen. Spatie, Enter en E zijn om iets aan te tikken, Escape om weer omhoog te gaan. */
@@ -41,6 +56,8 @@ const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown
 const POKE_KEYS = new Set(['Space', 'Enter', 'KeyE', 'NumpadEnter']);
 /** Zoveel pixels mag je vinger bewegen en is het nog een tik. */
 const TAP_SLOP = 9;
+/** Zit je ergens in, dan stap je uit door zo lang (tellen) vooruit of achteruit te duwen: niet per ongeluk. */
+const OFF_HOLD = 0.4;
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 const div = (id: string, html = ''): HTMLDivElement => {
@@ -74,16 +91,32 @@ export class WalkMode {
   /** Waar je nu naar kijkt. */
   private seen: WalkTarget | null = null;
   private tagFor: object | null = null;
+  /** De stoel waar je in zit (zie WalkSeat), waar die het laatst naartoe wees, en hoe lang je al duwt om uit te stappen. */
+  private seat: WalkSeat | null = null;
+  private seatYaw = 0;
+  private offT = 0;
 
   private dot = div('walkdot');
   private tag = div('walktag');
   private pad = div('walkpad', '<i class="knob"></i>');
   private knob: HTMLElement;
+  /** De knop om uit te stappen: alleen te zien als je ergens in zit. */
+  private out = document.createElement('button');
 
   constructor(private host: WalkHost) {
     const ui = document.getElementById('ui') ?? document.body;
     this.pad.setAttribute('aria-label', t('walk.stick'));
-    ui.append(this.dot, this.tag, this.pad);
+    this.out.id = 'walkout';
+    this.out.className = 'tool';
+    this.out.hidden = true;
+    this.out.innerHTML = host.outIcon?.() ?? '';
+    this.out.setAttribute('aria-label', t('walk.out'));
+    this.out.title = t('walk.out');
+    this.out.addEventListener('click', () => {
+      this.out.blur();
+      this.stand();
+    });
+    ui.append(this.dot, this.tag, this.pad, this.out);
     this.knob = this.pad.querySelector('.knob')!;
     this.listen();
   }
@@ -110,6 +143,8 @@ export class WalkMode {
       this.drag = null;
       this.release();
       this.seen = null;
+      // weer omhoog: je stapt eerst uit
+      this.stand();
     }
     v.setWalk(on);
     this.dot.hidden = !on;
@@ -122,6 +157,40 @@ export class WalkMode {
 
   toggle(): void {
     this.set(!this.on);
+  }
+
+  /** Zit je ergens in of op? */
+  get seated(): boolean {
+    return !!this.seat;
+  }
+
+  /** Ga hier zitten: je ogen volgen de stoel tot je uitstapt of de rit voorbij is. Lukt dat? */
+  sit(seat: WalkSeat): boolean {
+    const p = this.on ? seat.pose() : null;
+    if (!p) return false;
+    this.stand();
+    this.seat = seat;
+    this.seatYaw = this.yaw = p[3];
+    this.pitch = WALK.pitch;
+    this.offT = 0;
+    Object.assign(this, { gx: p[0], gy: p[1], vx: 0, vy: 0, spin: 0, moving: 0 });
+    this.out.hidden = false;
+    sfx('tap', { volume: 0.5 });
+    return true;
+  }
+
+  /** Uitstappen: je staat weer op de grond. */
+  stand(): void {
+    const seat = this.seat;
+    if (!seat) return;
+    this.seat = null;
+    this.out.hidden = true;
+    const [gx, gy, yaw] = seat.exit();
+    Object.assign(this, { gx, gy, vx: 0, vy: 0, spin: 0, moving: 0 });
+    if (yaw !== undefined) this.yaw = yaw;
+    // even opnieuw kijken wat er in de weg staat op de plek waar je uitstapt
+    this.groundAge = 99;
+    seat.left?.();
   }
 
   /** Waar de loper nu staat, op het raster. */
@@ -150,9 +219,40 @@ export class WalkMode {
       this.ground = this.host.ground();
       this.groundAge = 0;
     }
+    if (this.seat && this.ride(dt)) return;
     if (v.walkDown) this.walk(dt);
     v.setEye(this.gx, this.gy, bobHeight(this.phase, this.moving), this.yaw, this.pitch);
     this.lookAround();
+  }
+
+  /**
+   * Je zit ergens in: je ogen volgen de stoel. Draait de stoel (de draaimolen), dan draai je mee; met de pijltjes of
+   * de ronde knop kijk je opzij, en wie even vooruit of achteruit duwt, stapt uit. Geeft false als de rit voorbij is.
+   */
+  private ride(dt: number): boolean {
+    const p = this.seat!.pose();
+    if (!p) {
+      this.stand();
+      return false;
+    }
+    const k = this.keys;
+    const turn = clamp((k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0) - (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - this.stick.turn, -1, 1);
+    const push = k.has('KeyW') || k.has('ArrowUp') || k.has('KeyS') || k.has('ArrowDown') || Math.abs(this.stick.forward) > 0.6;
+    this.offT = push ? this.offT + dt : 0;
+    if (this.offT > OFF_HOLD) {
+      this.stand();
+      return false;
+    }
+    this.yaw += p[3] - this.seatYaw + turn * WALK.turn * dt;
+    this.seatYaw = p[3];
+    this.gx = p[0];
+    this.gy = p[1];
+    this.moving = 0;
+    // zolang er een rijtje plaatjes openstaat (iets kopen), zit de knop om uit te stappen niet in de weg
+    this.out.hidden = !!document.querySelector('#walkpick:not([hidden])');
+    this.host.view.setEye(p[0], p[1], p[2], this.yaw, this.pitch);
+    this.lookAround();
+    return true;
   }
 
   /** Lopen en draaien met de pijltjes, WASD of de grote ronde knop. */
