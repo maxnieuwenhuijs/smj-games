@@ -5465,7 +5465,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Voor elk verblijf met dieren: de padtegel waar je het best kijkt (het dichtst bij het midden van het verblijf). */
   private partyFronts(): Map<Pen, { tile: number; x: number; y: number }> {
-    const out = new Map<Pen, { tile: number; x: number; y: number }>(), paths = [...this.pathTiles()];
+    // (niet op een overweg: daar vier je geen feest)
+    const out = new Map<Pen, { tile: number; x: number; y: number }>(), paths = [...this.pathTiles()].filter(tile => !isRail(this.grid.terrain[tile]));
     if (!paths.length) return out;
     for (const pen of this.pens) {
       if (!this.animalsIn(pen.region.id).length) continue;
@@ -5898,7 +5899,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       }
       tile = nearestTile(front, g.gx, g.gy, Infinity, tileXY);
     } else tile = nearestTile(paths, g.gx, g.gy, WAY.near, tileXY);
-    if (tile === null) return null;
+    // (niet naar een overweg: daar blijft niemand staan)
+    if (tile === null || isRail(this.grid.terrain[tile])) return null;
     const view = this.viewScore(tile);
     const here = region ? this.animalsIn(region.id).map(a => a.species as string) : view?.species ?? [];
     return { tile, view, fav: !!guest.fav && here.includes(guest.fav) };
@@ -6766,7 +6768,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.sightsAt = this.clock;
     for (const s of this.sightList) s.gone = true;
     const list: Sight[] = [];
-    const add = (ref: object, kind: string, x: number, y: number, tiles: number[], rot: number): void => {
+    const add = (ref: object, kind: string, x: number, y: number, around: number[], rot: number): void => {
+      // (niet vanaf een overweg: daar blijft niemand staan)
+      const tiles = around.filter(i => !isRail(this.grid.terrain[i]));
       let s = this.sightOf.get(ref);
       if (!s) this.sightOf.set(ref, (s = { ref, kind, x, y, tiles, rot, n: 0, used: 0, gone: false }));
       s.x = x;
@@ -6869,7 +6873,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         const sides: [number, number][] = e.o === 'h' ? [[e.x, e.y - 1], [e.x, e.y]] : [[e.x - 1, e.y], [e.x, e.y]];
         const [a, b] = sides.map(([x, y]) => (this.grid.inBounds(x, y) ? tileIndex(x, y) : -1));
         const inn = inside.has(a) ? a : b, out = inn === a ? b : a;
-        if (out < 0 || !isPath(this.grid.terrain[out]) || !free.length) continue;
+        // (een poortje dat op een overweg uitkomt telt niet: daar kun je niet staan wachten)
+        if (out < 0 || !isPath(this.grid.terrain[out]) || isRail(this.grid.terrain[out]) || !free.length) continue;
         const old = this.petSpots.find(sp => sp.inn === inn && sp.out === out);
         if (old) {
           old.region = pen.region.id;

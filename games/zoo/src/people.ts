@@ -3960,6 +3960,8 @@ export class Guest implements Leader {
       at = pick(next);
       this.route.push(at);
     }
+    // (niet op een overweg blijven staan kijken: dan een stap minder)
+    while (this.route.length && isRail(w.grid.terrain[this.route[this.route.length - 1]])) this.route.pop();
     if (this.route.length) this.state = 'walk';
     else this.timer = 1;
   }
