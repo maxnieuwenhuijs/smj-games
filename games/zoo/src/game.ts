@@ -7689,7 +7689,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         this.view.setShopDirt(shop.mesh, dirty);
       }
       if (shop.ride) {
-        // een attractie of speeltoestel: het beeld volgt de stand die het spel bijhoudt (zie stepRides en rides.ts)
+        // een attractie of speeltoestel: het beeld volgt de stand die het spel hierboven al een stukje verder zette (zie rides.ts)
         this.view.animateRide(shop.mesh, shop.kind, shop.ride);
         continue;
       }
@@ -7718,10 +7718,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         continue;
       }
       if (!moving) continue;
-      if (shop.kind === 'carousel') {
-        shop.spin = ((shop.spin ?? 0) + dt * 1.1) % (Math.PI * 2);
-        moving.rotation.y = shop.spin;
-      } else moving.scale.y = 1 + 0.25 * Math.sin(this.clock * 5 + shop.x);
+      moving.scale.y = 1 + 0.25 * Math.sin(this.clock * 5 + shop.x);
     }
     this.events(dt);
     this.updateShows(dt);

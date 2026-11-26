@@ -394,7 +394,7 @@ export const FENCE_COLORS: Record<1 | 3 | 4 | 5 | 7, number[]> = {
  * hij daar niet, dan is hij vierkant. Wat op een rand staat (zie EDGE_SHOPS) neemt geen tegel in.
  */
 export const SHOP_SIZE: Record<ShopKind, number> = {
-  foodstall: 2, drinkstall: 2, toilet: 2, playground: 2, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2, icecream: 2, balloon: 2, hats: 2, souvenir: 2, bench: 1, flowers: 1, bin: 1, fountain: 2, carousel: 2,
+  foodstall: 2, drinkstall: 2, toilet: 2, playground: 2, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2, icecream: 2, balloon: 2, hats: 2, souvenir: 2, bench: 1, flowers: 1, bin: 1, fountain: 2, carousel: 3,
   tower: 2, restaurant: 2, ferris: 8, bumper: 2, shelter: 2, station: 2, umbrellas: 1, show: 2, cablecar: 2, facepaint: 2,
 };
 /**

@@ -5,7 +5,7 @@ import {
   FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, SHOP_DEEP, onEdge, shopSpan, TERRAINS, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
   BUMPER_CARS, RESTAURANT_TABLES, SHOW_ROWS, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, bumperCar, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
 } from './data';
-import { FERRIS, ferrisAngle, ferrisSway, newRide, type RideState } from './rides';
+import { CAROUSEL, CAROUSEL_SEATS, FERRIS, carouselAt, carouselLift, ferrisAngle, ferrisSway, newRide, type RideState } from './rides';
 import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type Land, type Side } from './grid';
 import { roadside } from './road';
 import { CABLE, cableHeight } from './cable';
@@ -728,14 +728,6 @@ const SPRAY_MAT = std(0xd6f1ff, 0.3);
 const GOLD_MAT = std(0xffd23f, 0.5);
 const around = <T>(n: number, r: number, make: (x: number, z: number, i: number) => T): T[] =>
   Array.from({ length: n }, (_, i) => make(Math.sin((i / n) * Math.PI * 2) * r, Math.cos((i / n) * Math.PI * 2) * r, i));
-// een paard van de draaimolen: met manen, een staart en een zadel in een eigen kleur
-const horse = (x: number, z: number, coat: number, mane: number, saddle: number): THREE.BufferGeometry[] => [
-  paint(blob(0.16, 1, 0.5, 0.44, 0, 0.47, 0), coat), paint(rod(0.05, [0.09, 0.5, 0], [0.19, 0.66, 0], 6, 0.04), coat), paint(blob(0.07, 1.25, 0.75, 0.75, 0.25, 0.69, 0), coat),
-  ...[[-0.1, -0.035], [-0.1, 0.035], [0.09, -0.035], [0.09, 0.035]].map(([lx, lz]) => paint(boxAt(0.04, 0.2, 0.04, lx, 0.31, lz), coat)),
-  paint(boxAt(0.02, 0.05, 0.02, 0.2, 0.76, -0.03), coat), paint(boxAt(0.02, 0.05, 0.02, 0.2, 0.76, 0.03), coat),
-  paint(new THREE.BoxGeometry(0.035, 0.17, 0.03).rotateZ(-0.52).translate(0.12, 0.61, 0), mane), paint(blob(0.04, 0.7, 1.7, 0.7, -0.17, 0.44, 0), mane),
-  paint(boxAt(0.13, 0.03, 0.15, -0.01, 0.555, 0), saddle),
-].map(g => g.scale(1.3, 1.3, 1.3).rotateY(Math.atan2(-z, x) + Math.PI / 2).translate(x, -0.08, z));
 SHOP_PARTS.fountain = [
   [boxAt(1.84, 0.05, 1.84, 0, 0.025, 0), std(0xd8c7ab, 1), false],
   // het bassin, met een lichte rand bovenop
@@ -747,31 +739,12 @@ SHOP_PARTS.fountain = [
   // vier straaltjes die van de bovenste schaal in het bassin vallen
   [mergeGeometries(around(4, 0.4, (x, z) => boxAt(0.06, 0.62, 0.06, x, 0.62, z)))!, SPRAY_MAT, false],
 ];
-SHOP_PARTS.carousel = [
-  [boxAt(1.84, 0.05, 1.84, 0, 0.025, 0), std(0xd8c7ab, 1), false],
-  [painted([0xe0584f, tube(0.9, 0.92, 0.12, 0, 0.11, 0)], [0xffd23f, tube(0.925, 0.925, 0.03, 0, 0.155, 0)]), PAINT_MAT],
-  // de paal in het midden: rood-wit gestreept
-  [striped(new THREE.CylinderGeometry(0.09, 0.09, 1.9, 8), [0xf7f4ec, 0xe0584f], 8).translate(0, 1.1, 0), PAINT_MAT],
-];
 const SHOP_MOVING: Partial<Record<ShopKind, { y: number; parts: Part[] }>> = {
   fountain: {
     y: 0.97,
     parts: [
       [tube(0.05, 0.08, 0.6, 0, 0.3, 0), SPRAY_MAT, false],
       [mergeGeometries([ball(0.07, 0, 0.64, 0), ball(0.05, 0.12, 0.5, 0.04), ball(0.05, -0.1, 0.46, -0.08), ball(0.04, 0.03, 0.42, 0.13)])!, SPRAY_MAT, false],
-    ],
-  },
-  carousel: {
-    y: 0,
-    parts: [
-      [tube(0.84, 0.84, 0.06, 0, 0.2, 0), GOLD_MAT],
-      [mergeGeometries(around(4, 0.56, (x, z) => tube(0.022, 0.022, 1.75, x, 1.08, z)))!, GOLD_MAT],
-      // de rand van het dak en het dak zelf: om en om rood en wit
-      [striped(new THREE.CylinderGeometry(0.92, 0.92, 0.16, 20), [0xf7f4ec, 0xffd23f], 20).translate(0, 1.98, 0), PAINT_MAT],
-      [striped(new THREE.ConeGeometry(0.95, 0.46, 10), [0xe0584f, 0xf7f4ec], 10).translate(0, 2.28, 0), PAINT_MAT],
-      [ball(0.1, 0, 2.55, 0), GOLD_MAT],
-      [merge([...horse(0, 0.56, 0xb07a4a, 0x5a3d22, 0xe0584f), ...horse(0, -0.56, 0xb07a4a, 0x5a3d22, 0x4a90e2)]), PAINT_MAT],
-      [merge([...horse(0.56, 0, 0xf7f4ec, 0xe9d05a, 0x6cc04a), ...horse(-0.56, 0, 0xf7f4ec, 0xe9d05a, 0xb06ad9)]), PAINT_MAT],
     ],
   },
 };
@@ -1183,6 +1156,83 @@ RIDE_BUILD.ferris = (group, mat) => {
     return cabin;
   });
 };
+// Draaimolen (3 bij 3 tegels): een vaste voet met een trommel in het midden. De vloer, de stangen, het dak en de
+// paarden draaien samen rond; de negen paarden staan in twee ringen en gaan elk aan hun eigen stang op en neer.
+const C = CAROUSEL;
+/**
+ * Een paard in galop, met het zadel op (0, 0, 0) en de neus naar +z: zo zit een gast er precies op. Manen, staart en
+ * hoeven in een eigen kleur, een wit dekje onder het zadel en een hoofdstel.
+ */
+const carouselHorse = (coat: number, mane: number, saddle: number): THREE.BufferGeometry => painted(
+  [coat,
+    blob(0.11, 0.8, 0.85, 2, 0, -0.11, 0), rod(0.06, [0, -0.08, 0.15], [0, 0.13, 0.27], 6, 0.045), blob(0.06, 0.85, 0.9, 1.5, 0, 0.17, 0.33),
+    cone(0.018, 0.05, -0.03, 0.235, 0.29, 4), cone(0.018, 0.05, 0.03, 0.235, 0.29, 4),
+    // de voorbenen naar voren gestrekt, de achterbenen naar achteren
+    ...[-1, 1].flatMap(x => [beam(0.042, [x * 0.055, -0.16, 0.15], [x * 0.055, -0.36, 0.24]), beam(0.042, [x * 0.055, -0.16, -0.15], [x * 0.055, -0.36, -0.25])])],
+  [mane,
+    new THREE.BoxGeometry(0.03, 0.2, 0.05).rotateX(0.5).translate(0, 0.07, 0.17), blob(0.035, 0.8, 2.2, 0.9, 0, -0.14, -0.25), dot(0.03, 0, 0.225, 0.3),
+    ...[-1, 1].flatMap(x => [boxAt(0.048, 0.035, 0.05, x * 0.055, -0.375, 0.25), boxAt(0.048, 0.035, 0.05, x * 0.055, -0.375, -0.26)])],
+  [saddle, boxAt(0.15, 0.03, 0.17, 0, -0.015, -0.01), boxAt(0.15, 0.06, 0.025, 0, 0.012, -0.095), boxAt(0.1, 0.014, 0.014, 0, 0.155, 0.345)],
+  [0xf7f4ec, boxAt(0.2, 0.012, 0.24, 0, -0.03, -0.01)],
+  [0x22201c, dot(0.012, -0.05, 0.19, 0.35), dot(0.012, 0.05, 0.19, 0.35)],
+);
+/** De vacht, de manen en het zadel van elk paard: wit, bruin, zwart, vos en grijs door elkaar, elk met een ander zadel. */
+const HORSE_LOOKS: [number, number, number][] = [
+  [0xf7f4ec, 0xe9d05a, 0xe0584f], [0xb07a4a, 0x5a3d22, 0x4a90e2], [0x4a4640, 0x22201c, 0xffd23f], [0xd9a05b, 0xf7f4ec, 0x6cc04a], [0xf7f4ec, 0x8a8f98, 0xb06ad9],
+  [0x9aa0a6, 0x4a4640, 0xf08a24], [0xb07a4a, 0x22201c, 0xf48fb1], [0xf3e2c0, 0xb07a4a, 0x2bb5a8], [0x7a5234, 0xf7f4ec, 0xe0584f],
+];
+const HORSE_GEOS = HORSE_LOOKS.map(look => carouselHorse(...look));
+/** Waar de stang van paard `i` staat: door zijn schoft, een stukje voor het zadel. Geeft (x, z). */
+const horsePole = (i: number): [number, number] => {
+  const [a, r] = carouselAt(i, 0);
+  return [Math.sin(a) * r + Math.cos(a) * 0.13, Math.cos(a) * r - Math.sin(a) * 0.13];
+};
+const CANOPY = 2.3;
+SHOP_PARTS.carousel = [
+  floorOf(0xd8c7ab, 3, 3),
+  // de voet: een lage rode rand met een gouden bies; de vloer draait erbovenop
+  [painted(
+    [0xc9453c, new THREE.CylinderGeometry(C.r + 0.07, C.r + 0.1, C.deck - 0.07, 24).translate(0, (C.deck - 0.07) / 2, 0)],
+    [0xffd23f, new THREE.CylinderGeometry(C.r + 0.085, C.r + 0.085, 0.03, 24).translate(0, C.deck - 0.09, 0)],
+  ), PAINT_MAT],
+  // de trommel in het midden: om en om roze en roomwit, met gouden randen en spiegeltjes
+  [merge([
+    striped(new THREE.CylinderGeometry(0.27, 0.27, CANOPY - C.deck, 12), [0xf48fb1, 0xf7f4ec], 12).translate(0, (CANOPY + C.deck) / 2, 0),
+    paint(tube(0.31, 0.31, 0.07, 0, C.deck + 0.035, 0), 0xffd23f), paint(tube(0.31, 0.31, 0.07, 0, CANOPY - 0.06, 0), 0xffd23f), paint(tube(0.29, 0.29, 0.04, 0, 1.15, 0), 0xffd23f),
+    ...around(6, 0.275, (x, z, i) => paint(new THREE.BoxGeometry(0.13, 0.34, 0.02).rotateY((i / 6) * Math.PI * 2).translate(x, 1.62, z), 0x9fd8f5)),
+    ...around(6, 0.275, (x, z, i) => paint(new THREE.BoxGeometry(0.13, 0.34, 0.02).rotateY((i / 6) * Math.PI * 2).translate(x, 0.72, z), 0xffe9a8)),
+  ]), PAINT_MAT],
+];
+/** Wat ronddraait: de vloer in taartpunten, de stangen, het plafond, de gestreepte rand en het puntdak met een gouden bol. */
+const CAROUSEL_SPIN: Part[] = [
+  [merge([
+    striped(new THREE.CylinderGeometry(C.r, C.r, 0.07, 24), [0xffd23f, 0xf7b733], 12).translate(0, C.deck - 0.035, 0),
+    paint(new THREE.TorusGeometry(C.r, 0.03, 5, 28).rotateX(Math.PI / 2).translate(0, C.deck - 0.02, 0), 0xe0584f),
+    ...Array.from({ length: CAROUSEL_SEATS }, (_, i) => paint(tube(0.02, 0.02, CANOPY - C.deck, horsePole(i)[0], (CANOPY + C.deck) / 2, horsePole(i)[1]), 0xf2c94c)),
+    paint(new THREE.CylinderGeometry(C.r + 0.08, C.r + 0.08, 0.04, 24).translate(0, CANOPY, 0), 0xfff4d6),
+    striped(new THREE.CylinderGeometry(C.r + 0.12, C.r + 0.1, 0.24, 24), [0xe0584f, 0xf7f4ec], 24).translate(0, CANOPY + 0.1, 0),
+    striped(new THREE.ConeGeometry(C.r + 0.14, 0.66, 12), [0xe0584f, 0xf7f4ec], 12).translate(0, CANOPY + 0.55, 0),
+    paint(tube(0.16, 0.26, 0.12, 0, CANOPY + 0.86, 0), 0xffd23f), paint(ball(0.11, 0, CANOPY + 1.0, 0), 0xffd23f),
+  ]), PAINT_MAT],
+  // lampjes rond het dak: het licht loopt rond
+  ...CHASE_MATS.map((m, k): Part => [merge(Array.from({ length: 8 }, (_, i) => {
+    const a = ((i * 3 + k) * Math.PI * 2) / 24;
+    return dot(0.06, Math.sin(a) * (C.r + 0.13), CANOPY + 0.1, Math.cos(a) * (C.r + 0.13));
+  })), m, false]),
+];
+RIDE_BUILD.carousel = (group, mat) => {
+  const spinner = build(CAROUSEL_SPIN, mat);
+  group.add(spinner);
+  group.userData.spinner = spinner;
+  group.userData.horses = Array.from({ length: CAROUSEL_SEATS }, (_, i) => {
+    const [a, r] = carouselAt(i, 0), horse = piece(HORSE_GEOS[i % HORSE_GEOS.length], PAINT_MAT, mat);
+    horse.position.set(Math.sin(a) * r, carouselLift(i, 0), Math.cos(a) * r);
+    horse.rotation.y = a + Math.PI / 2;
+    spinner.add(horse);
+    return horse;
+  });
+};
+
 // Botsauto's: een gladde vloer met een rubberen rand en een licht dak op vier palen. De auto's zelf zijn los
 // (zie buildShop): het spel laat ze rijden.
 SHOP_PARTS.bumper = [
@@ -2466,6 +2516,10 @@ function poseRide(group: THREE.Object3D, kind: ShopKind, s: RideState): void {
       cabins[i].position.set(Math.cos(a) * FERRIS.radius, FERRIS.hub + Math.sin(a) * FERRIS.radius, 0);
       cabins[i].rotation.z = ferrisSway(i, s);
     }
+  } else if (kind === 'carousel') {
+    (u.spinner as THREE.Object3D).rotation.y = s.spin;
+    const horses = u.horses as THREE.Object3D[];
+    for (let i = 0; i < horses.length; i++) horses[i].position.y = carouselLift(i, s.spin);
   }
 }
 

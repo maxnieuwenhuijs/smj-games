@@ -2107,18 +2107,6 @@ export class Guest implements Leader {
         } else if (k > 0.9) arms(-0.4);
         return;
       }
-      if (kind === 'carousel') {
-        // in de draaimolen: rustig opstappen, op een paardje meedraaien en aan het eind weer afstappen
-        const a = spin + (this.seat * Math.PI) / 2;
-        put(mix(here, [cx + Math.sin(a) * 0.56, 0.3, cy + Math.cos(a) * 0.56], k), k > 0.5 ? a + Math.PI / 2 : this.heading);
-        legs(-1.1 * k);
-        // wie aan de voorkant langskomt, zwaait met zijn buitenste arm naar de mensen langs de kant
-        if (k > 0.9 && Math.cos(a - turn) > 0.5) {
-          this.limbs[3].rotation.x = -2.6;
-          this.limbs[3].rotation.z = -0.3 + Math.sin(this.phase * 0.9) * 0.4;
-        }
-        return;
-      }
       if (kind === 'bumper') {
         // in een botsauto: de auto rijdt, de gast zit erin en stuurt
         const [x, z, h] = bumperCar(this.seat % BUMPER_CARS, spin);
@@ -2273,7 +2261,21 @@ export class Guest implements Leader {
           }
         } else arms(-0.7 * k); // onderin: de handen op de rand
         break;
+      case 'carousel':
+        // schrijlings op het paard, de handen aan de stang
+        this.straddle(k);
+        legs(-0.9 * k);
+        arms(-1.25 * k);
+        // wie vooraan langskomt, zwaait met zijn buitenste arm naar de mensen langs de kant
+        if (p.on && p.u > 0.72 && (ride.amp > 0.5 || this.child)) wave(limbs[3]);
+        break;
     }
+  }
+
+  /** Schrijlings zitten (op een paard, op de wipkip): de benen een stukje uit elkaar, aan weerszijden van het dier. */
+  private straddle(k: number): void {
+    this.limbs[0].rotation.z = 0.55 * k;
+    this.limbs[1].rotation.z = -0.55 * k;
   }
 
   private turnTo(dx: number, dy: number, dt: number): void {
