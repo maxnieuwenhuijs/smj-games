@@ -7359,6 +7359,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!this.told.has('walk')) {
       this.told.add('walk');
       this.lines.push(say.walkNew());
+    } else if (!this.told.has('walkride') && this.shops.some(shop => !shop.edge && this.walkRide(shop))) {
+      // de eerste keer dat er iets staat waar je in kunt (en je het lopen al kent): je mag zelf instappen
+      this.told.add('walkride');
+      this.lines.push(say.walkRide());
     }
   }
 
