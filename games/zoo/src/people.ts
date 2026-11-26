@@ -5344,6 +5344,11 @@ export class Train {
   walkerSeat = -1;
   /** 's Nachts, als het park dicht is, slaapt de trein bij een halte: geen stoom, de lamp uit, en de overwegen blijven open. */
   asleep = false;
+  /**
+   * Is hij rijdend bij deze halte aangekomen? Alleen dan gaat hij er slapen. Een trein die 's nachts zijn spoor
+   * krijgt, rijdt dus eerst naar de volgende halte: zo zie je meteen dat hij het doet.
+   */
+  private drove = false;
   /** Het midden van de wagons, en waar de locomotief rijdt die voorop gaat (in tegels). */
   gx = 0;
   gy = 0;
@@ -5437,7 +5442,11 @@ export class Train {
         this.face = -this.face;
         this.dir = -this.dir;
       }
-      if (route.loop) this.dir = this.face;
+      // op een rondje rijdt de locomotief voorop: reed hij net achteruit, dan staat hij eerst stil
+      if (route.loop && this.dir !== this.face) {
+        this.dir = this.face;
+        this.v = 0;
+      }
       const [lo, hi] = this.limits(route);
       this.c = route.loop ? near : Math.max(lo, Math.min(hi, near));
       // wie in een wagon zat die er nu niet meer is, stapt uit
@@ -5452,6 +5461,7 @@ export class Train {
       this.at = 0;
       this.wait = TRAIN.stop * 0.5;
       this.turned = 0;
+      this.drove = false;
     }
     this.aim();
     this.place();
@@ -5497,7 +5507,7 @@ export class Train {
       this.c = stop.at;
       this.at = this.goal;
       this.wait = TRAIN.stop;
-      this.arrived = true;
+      this.arrived = this.drove = true;
       this.alight(stop, w, reach);
       this.board(stop, guests);
       this.boardIn = TRAIN_BOARD;
@@ -5602,10 +5612,14 @@ export class Train {
     this.arrived = this.departed = false;
     const route = this.route;
     if (!route) return;
-    // is het park dicht, dan blijft hij bij de halte waar hij staat tot het weer opengaat (net als de kabelbaan)
-    this.asleep = this.wait > 0 && this.at >= 0 && w.closed();
-    if (this.asleep) this.wait = Math.max(this.wait, TRAIN.stop / 2);
-    else if (this.wait > 0) {
+    // is het park dicht, dan blijft hij bij de halte waar hij aankomt tot het weer opengaat (net als de kabelbaan)
+    const slept = this.asleep;
+    this.asleep = this.drove && this.wait > 0 && this.at >= 0 && w.closed();
+    if (this.asleep) {
+      this.wait = Math.max(this.wait, TRAIN.stop / 2);
+      // wie er hier niet uit kon (er ligt geen pad), blijft niet de hele nacht zitten
+      if (!slept) this.drop(w, reach);
+    } else if (this.wait > 0) {
       this.wait -= dt;
       // wie tijdens het wachten het perron op komt, kan nog mee
       if (this.at >= 0 && (this.boardIn -= dt) <= 0) {
