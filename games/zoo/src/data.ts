@@ -12,9 +12,9 @@ export type ShopKind = 'foodstall' | 'drinkstall' | 'bench' | 'toilet' | 'icecre
   | 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline'
   // uitkijktoren, restaurant, reuzenrad, botsauto's, schuilhut, treinhalte en een bak met paraplu's
   | 'tower' | 'restaurant' | 'ferris' | 'bumper' | 'shelter' | 'station' | 'umbrellas'
-  // de tribune bij de dolfijnen: daar is af en toe een dierenshow
+  // de tribune bij dieren die kunstjes kennen (dolfijnen, zeehonden, olifanten, ...): daar is af en toe een dierenshow
   | 'show'
-  // een huisje van de kabelbaan: twee in een rechte lijn, met stoeltjes hoog boven de dieren
+  // een huisje van de kabelbaan: de kabel loopt naar een ander huisje, rechtstreeks of langs tussenpalen, met stoeltjes hoog boven de dieren
   | 'cablecar'
   // de schminktent: een kind krijgt een dierengezicht geschilderd
   | 'facepaint';

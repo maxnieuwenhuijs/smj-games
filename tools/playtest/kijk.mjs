@@ -27,16 +27,18 @@ function playwright() {
 export const emptyPark = (level = 0, coins = 99, extra = {}) => ({
   v: 4, level, fed: 0, cleaned: 0, terrain: [], h: [], vv: [], troughs: [], animals: [], poops: [], coins, gw: 44, gh: 36,
   // alle uitleg is al gegeven: dan praat er niemand door je foto heen
-  told: ['guests', 'vet', 'walk', 'walkbuy', 'cable.first', 'stars', 'event', 'staff', 'petting', 'night', 'hose', 'treat', 'keys'],
+  told: ['guests', 'vet', 'walk', 'walkbuy', 'cable.first', 'cable.pole', 'rails', 'train.go', 'crossing', 'stars', 'event', 'staff', 'petting', 'night', 'hose', 'treat', 'keys'],
   ...extra,
 });
 
 /**
  * Opent het spel en begint op opslagplek 1.
  * `level` of `save`: begin in een leeg park in dat level, of met dit opgeslagen spel (zie SaveData in game.ts).
- * Zonder allebei begint er een nieuw spel. `lang`: 'nl' of 'en'.
+ * Zonder allebei begint er een nieuw spel. `lang`: 'nl' of 'en'. `draw: false`: het spel tekent niets (voor de
+ * proefspeler en ander rekenwerk: zonder beeldkaart kost elk beeldje bijna een tel, en dan lopen ook de klokjes
+ * in de pagina traag).
  */
-export async function boot({ port = 5173, path = '', width = 1280, height = 800, lang = 'nl', level, coins = 99, save, scale = 1 } = {}) {
+export async function boot({ port = 5173, path = '', width = 1280, height = 800, lang = 'nl', level, coins = 99, save, scale = 1, draw = true } = {}) {
   const { chromium } = playwright();
   const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: scale });
@@ -84,6 +86,7 @@ export async function boot({ port = 5173, path = '', width = 1280, height = 800,
     if (buttons.length) await buttons[buttons.length - 1].click();
   }
   await page.waitForFunction(() => !!window.__zoo, null, { timeout: 90000 });
+  if (!draw) await page.evaluate(() => void (window.__zoo.view.renderer.render = () => {}));
   // het laadscherm met het logo
   await page.waitForTimeout(3500);
   return { browser, page, errors };
