@@ -7078,7 +7078,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       return !ground.boxes(x, y).length;
     };
     const paths: number[] = [];
-    for (let i = 0; i < this.grid.terrain.length; i++) if (isPath(this.grid.terrain[i]) && this.grid.inBounds(...tileXY(i)) && free(i)) paths.push(i);
+    // (niet op een overweg: daar rijdt het treintje)
+    for (let i = 0; i < this.grid.terrain.length; i++) if (isPath(this.grid.terrain[i]) && !isRail(this.grid.terrain[i]) && this.grid.inBounds(...tileXY(i)) && free(i)) paths.push(i);
     const [cx, cy] = this.view.center();
     const mid = nearestTile(paths, cx, cy, 6, tileXY);
     if (mid !== null) return [tileXY(mid)[0] + 0.5, tileXY(mid)[1] + 0.5, this.view.viewYaw];
@@ -7302,7 +7303,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     for (const i of this.around(shop.x, shop.y, w, h)) {
       const [x, y] = tileXY(i);
       if (ground.boxes(x, y).length) continue;
-      // liever op het pad dan in het gras
+      // niet op de rails of een overweg; en liever op het pad dan in het gras
+      if (isRail(this.grid.terrain[i])) continue;
       const d = Math.hypot(x + 0.5 - nx, y + 0.5 - ny) + (isPath(this.grid.terrain[i]) ? 0 : 50);
       if (d < score) [best, score] = [[x + 0.5, y + 0.5], d];
     }
