@@ -3761,7 +3761,8 @@ export class Guest implements Leader {
           delete this.wanted[this.errand];
           this.settled.delete(this.errand);
         }
-        if (kind === 'foodstall' || kind === 'drinkstall' || kind === 'icecream') {
+        // van eten en drinken blijft een papiertje over; vraagt het level om afval, dan ook van een ballon, hoedje of knuffel (het zakje)
+        if (kind === 'foodstall' || kind === 'drinkstall' || kind === 'icecream' || (w.messy() && STALLS.includes(kind))) {
           this.trash = 10 + Math.random() * 10;
           // vraagt het level om afval, dan laten de meeste gasten het vallen: zo hoef je er niet lang op te wachten,
           // ook niet op een trage tablet waar minder gasten rondlopen

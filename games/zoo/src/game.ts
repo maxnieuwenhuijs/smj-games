@@ -1391,11 +1391,16 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return this.goalOpen('fed') ? 2.5 : 1;
   }
 
-  /** Vraagt het level om iets te verkopen, dan krijgen gasten daar drie keer zo snel zin in: zo wacht je niet eindeloos. */
+  /**
+   * Vraagt het level om iets te verkopen, dan krijgen gasten daar drie keer zo snel zin in: zo wacht je niet eindeloos.
+   * Hetzelfde als het level om afval vraagt: afval komt van wie iets gegeten of gedronken heeft, dus dan krijgen de
+   * gasten sneller trek.
+   */
   craving(kind: ShopKind): number {
     const asked = this.levelDef()?.goals.some(g =>
       g.type === 'sold' && goalProgress(g, this.stats) < g.n && (g.product ? PRODUCTS.find(p => p.id === g.product)?.shop === kind : !g.shop || g.shop === kind));
-    return asked ? 3 : 1;
+    const snack = kind === 'foodstall' || kind === 'drinkstall' || kind === 'icecream';
+    return asked || (snack && this.messy()) ? 3 : 1;
   }
 
   /** Hoeveel van dit soort kraam het park nodig heeft voor zoveel gasten als er kunnen komen. */
