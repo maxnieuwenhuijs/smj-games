@@ -414,6 +414,12 @@ export function carouselSeat(out: RidePose, seat: number, s: RideState): RidePos
 
 /** Wie ver moet lopen naar een ritje dat zo begint, zet er de pas in: hooguit zoveel keer zo snel als gewoon. */
 const HURRY = 2;
+/**
+ * Na een ritje stappen de gasten niet allemaal tegelijk af: elk zitje wacht zoveel tellen langer dan het vorige (in
+ * groepjes van `OFF_TURNS`). Zo lopen ze achter elkaar aan naar het pad en niet als één kluitje.
+ */
+const OFF_GAP = 0.28, OFF_TURNS = 5;
+const offDelay = (seat: number): number => OFF_GAP * (seat % OFF_TURNS);
 
 /**
  * Hoe lang een gast doet over `len` tegels lopen en gaan zitten als het ritje over `room` tellen begint: gewoon
@@ -466,7 +472,7 @@ function carouselPlan(v: Visit, s: RideState, used: number): boolean {
   v.walk = walkInTime(least, CAROUSEL.stop - c - 0.2);
   if (v.walk < 0) return false;
   v.wait = CAROUSEL.stop - c - v.walk;
-  v.ride = CAROUSEL.up + CAROUSEL.run + CAROUSEL.down;
+  v.ride = CAROUSEL.up + CAROUSEL.run + CAROUSEL.down + offDelay(best);
   // (de molen staat straks ergens anders stil: reken op het langste eind lopen)
   v.back = SIT_TIME + (Math.hypot(v.fx, v.fz) + 0.6 + Math.PI * CAROUSEL.aisle) / RIDE_WALK;
   return true;
@@ -629,7 +635,7 @@ function bumperPlan(v: Visit, s: RideState, used: number): boolean {
   v.walk = walkInTime(least, BUMPER.stop - c - 0.2);
   if (v.walk < 0) return false;
   v.wait = BUMPER.stop - c - v.walk;
-  v.ride = BUMPER.run + BUMPER.down;
+  v.ride = BUMPER.run + BUMPER.down + offDelay(best);
   v.back = SIT_TIME + (Math.hypot(v.fx, v.fz - BUMPER.gate) + 0.6 + Math.hypot(BUMPER.ax * 2, BUMPER.z1 - BUMPER.z0)) / RIDE_WALK;
   return true;
 }

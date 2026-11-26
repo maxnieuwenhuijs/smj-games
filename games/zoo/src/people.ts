@@ -777,6 +777,12 @@ const AT_ONCE: Partial<Record<ShopKind, number>> = {
 for (const kind of RIDE_KINDS) AT_ONCE[kind] = RIDE_SEATS[kind];
 /** Zoveel tellen zit er tussen twee gasten uit de rij die bij een attractie instappen: ze lopen dan netjes achter elkaar aan. */
 const RIDE_GAP = 0.25;
+/**
+ * Waar een gast na een ritje weer op het pad komt te staan: op zijn padtegel, een stukje uit het midden, voor elk
+ * zitje een andere kant op (`turn` radialen verder per zitje, tussen `near` en `near` plus drie keer `step` van het
+ * midden). `ease`: zo snel schuift die plek op terwijl hij op het toestel zit (deel per beeldje).
+ */
+const RIDE_SPREAD = { turn: 2.4, near: 0.12, step: 0.07, ease: 0.05 };
 /** De houding van een gast op een toestel: één keer gemaakt en bij elke gast opnieuw ingevuld (zie Guest.ridePlace). */
 const RIDE_POSE = newPose();
 /** Eerst de kant waar de gast heen kijkt, dan voorover hellen en dan opzij: zo helt hij altijd vanuit zichzelf gezien. */
@@ -2090,6 +2096,14 @@ export class Guest implements Leader {
     visit.fx = from[0];
     visit.fz = from[1];
     const p = visitPose(RIDE_POSE, visit, ride), k = p.sit;
+    // Terwijl hij op het toestel zit, schuift de plek waar hij straks weer op het pad staat een klein stukje op, voor
+    // elk zitje anders: zo staan de gasten na een ritje niet allemaal op precies dezelfde plek. (Niet bij de
+    // fontein: daar hangt zijn plek aan de rand af van waar hij vandaan kwam.)
+    if (p.on && visit.kind !== 'fountain') {
+      const a = visit.seat * RIDE_SPREAD.turn, r = RIDE_SPREAD.near + RIDE_SPREAD.step * (visit.seat % 4);
+      this.gx += ((this.tile % W) + 0.5 + Math.cos(a) * r - this.gx) * RIDE_SPREAD.ease;
+      this.gy += (Math.floor(this.tile / W) + 0.5 + Math.sin(a) * r - this.gy) * RIDE_SPREAD.ease;
+    }
     // in een botsauto: bij een botsing wordt de gast door elkaar geschud
     const jolt = visit.kind === 'bumper' && p.on ? p.u : 0;
     // wie zit, zit met zijn billen op de zitting: de voeten hangen eronder
