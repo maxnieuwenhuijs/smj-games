@@ -99,7 +99,6 @@ const shop = (kind: ShopKind): Item => ({
         return;
       }
       // wat het spel zelf laat bewegen: hier net genoeg om te zien dat het goede deel beweegt
-      if (kind === 'fountain' && moving) moving.position.y = 0.97 + Math.sin(t * 3) * 0.08;
       if (kind === 'swing' && moving) moving.rotation.x = Math.sin(t * 2) * 0.5;
       if (kind === 'seesaw' && moving) moving.rotation.z = Math.sin(t * 2) * 0.3;
       if (kind === 'springer' && moving) moving.rotation.x = Math.sin(t * 2) * 0.3;

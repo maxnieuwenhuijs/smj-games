@@ -38,7 +38,7 @@ export type RideKind = 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline' 
 export const RIDE_SPAN: Record<RideKind, [number, number]> = {
   slide: [2, 3], swing: [2, 1], seesaw: [2, 1], springer: [1, 1], trampoline: [2, 2], fountain: [3, 3], tower: [2, 2], carousel: [3, 3], bumper: [4, 3], ferris: [8, 2], restaurant: [3, 2],
 };
-export const RIDE_KINDS: RideKind[] = ['carousel', 'bumper', 'ferris'];
+export const RIDE_KINDS: RideKind[] = ['fountain', 'carousel', 'bumper', 'ferris'];
 export const isRide = (kind: ShopKind): kind is RideKind => (RIDE_KINDS as ShopKind[]).includes(kind);
 
 /** Zo snel loopt een gast over een toestel, in tegels per tel: iets vlotter dan op het pad, want hij heeft er zin in. */
@@ -1135,6 +1135,9 @@ export function rideStep(kind: ShopKind, s: RideState, dt: number, aboard: numbe
   } else if (kind === 'bumper') {
     const c = s.clock % BUMPER_CYCLE;
     stepCars(s.cars, dt, s.clock, c >= BUMPER.stop && c < BUMPER.stop + BUMPER.run ? 1 : 0, aboard);
+  } else if (kind === 'fountain') {
+    // met kijkers aan de rand spuit het water wat hoger
+    s.amp += ((busy ? 1 : 0) - s.amp) * Math.min(1, dt);
   } else if (PLAY_SPEED[kind]) {
     // speeltoestellen wiegen zachtjes als er niemand op zit en gaan flink heen en weer met een kind erop
     // (de hoek loopt door tot dertig rondjes: dan passen ook de halve en de driedubbele slagen precies)

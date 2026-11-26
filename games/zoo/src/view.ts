@@ -5,7 +5,7 @@ import {
   FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, SHOP_DEEP, onEdge, shopSpan, TERRAINS, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
   RESTAURANT_TABLES, SHOW_ROWS, STALLS, STRING_HEIGHT, STRING_REACH, TOWER_TOP, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
 } from './data';
-import { BUMPER, CAROUSEL, CAROUSEL_SEATS, FERRIS, carouselAt, carouselLift, ferrisAngle, ferrisSway, newRide, type RideState } from './rides';
+import { BUMPER, CAROUSEL, CAROUSEL_SEATS, FERRIS, FOUNTAIN, carouselAt, carouselLift, ferrisAngle, ferrisSway, fountainJet, newRide, type RideState } from './rides';
 import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type Land, type Side } from './grid';
 import { roadside } from './road';
 import { CABLE, cableHeight } from './cable';
@@ -728,25 +728,7 @@ const SPRAY_MAT = std(0xd6f1ff, 0.3);
 const GOLD_MAT = std(0xffd23f, 0.5);
 const around = <T>(n: number, r: number, make: (x: number, z: number, i: number) => T): T[] =>
   Array.from({ length: n }, (_, i) => make(Math.sin((i / n) * Math.PI * 2) * r, Math.cos((i / n) * Math.PI * 2) * r, i));
-SHOP_PARTS.fountain = [
-  [boxAt(1.84, 0.05, 1.84, 0, 0.025, 0), std(0xd8c7ab, 1), false],
-  // het bassin, met een lichte rand bovenop
-  [painted([0xb9c2c9, tube(0.86, 0.9, 0.24, 0, 0.17, 0)], [0xd6dde2, new THREE.TorusGeometry(0.82, 0.05, 5, 20).rotateX(Math.PI / 2).translate(0, 0.29, 0)], [0xa3adb5, tube(0.92, 0.94, 0.06, 0, 0.08, 0)]), MATTE_MAT],
-  [tube(0.74, 0.74, 0.05, 0, 0.28, 0), WATER_MAT, false],
-  [mergeGeometries([tube(0.11, 0.15, 0.56, 0, 0.56, 0), tube(0.17, 0.2, 0.07, 0, 0.32, 0), tube(0.13, 0.13, 0.04, 0, 0.6, 0)])!, STONE],
-  [merge([tube(0.42, 0.16, 0.14, 0, 0.9, 0), new THREE.TorusGeometry(0.41, 0.03, 5, 16).rotateX(Math.PI / 2).translate(0, 0.97, 0)]), STONE],
-  [tube(0.36, 0.36, 0.04, 0, 0.97, 0), WATER_MAT, false],
-  // vier straaltjes die van de bovenste schaal in het bassin vallen
-  [mergeGeometries(around(4, 0.4, (x, z) => boxAt(0.06, 0.62, 0.06, x, 0.62, z)))!, SPRAY_MAT, false],
-];
 const SHOP_MOVING: Partial<Record<ShopKind, { y: number; parts: Part[] }>> = {
-  fountain: {
-    y: 0.97,
-    parts: [
-      [tube(0.05, 0.08, 0.6, 0, 0.3, 0), SPRAY_MAT, false],
-      [mergeGeometries([ball(0.07, 0, 0.64, 0), ball(0.05, 0.12, 0.5, 0.04), ball(0.05, -0.1, 0.46, -0.08), ball(0.04, 0.03, 0.42, 0.13)])!, SPRAY_MAT, false],
-    ],
-  },
 };
 // De voersilo: een ronde toren met banden, een ladder en een rood dak, een schuif naar voren en een bakje ervoor
 // waar de dieren uit eten.
@@ -1316,6 +1298,66 @@ RIDE_BUILD.bumper = (group, mat) => {
     return car;
   });
   group.userData.sparks = sparks;
+};
+
+// Fontein (3 bij 3 tegels): een groot rond bassin met in het midden een zuil met twee schalen boven elkaar. Acht
+// stralen staan in een kring en spuiten in een boog naar de onderste schaal; boven uit de bovenste schaal komt de
+// grote straal. Ze gaan om de beurt op en neer in een waterballet (zie fountainJet in rides.ts). Onder elke straal
+// zit een lampje dat gloeit in het donker.
+const FN = FOUNTAIN;
+/** Het water van de stralen: bijna wit en een klein beetje doorzichtig; het licht zelf wat op, zodat het ook in het donker te zien is. */
+const JET_MAT = new THREE.MeshStandardMaterial({ color: 0xeaf8ff, roughness: 0.2, transparent: true, opacity: 0.82, emissive: 0x8fd0f2, emissiveIntensity: 0.35 });
+/** Hoe hoog het water staat: in het bassin, in de onderste schaal en in de bovenste. */
+const FOUNTAIN_AT = { water: 0.36, bowl: 1.03, top: 1.53 };
+const round = (rTop: number, rBottom: number, h: number, y: number, sides = 24): THREE.BufferGeometry => new THREE.CylinderGeometry(rTop, rBottom, h, sides).translate(0, y, 0);
+SHOP_PARTS.fountain = [
+  floorOf(0xd8c7ab, 3, 3),
+  // het bassin: een brede voet, de wand en een lichte rand bovenop; de zuil met de twee schalen
+  [painted(
+    [0xa3adb5, round(FN.wall + 0.07, FN.wall + 0.1, 0.07, 0.085)],
+    [0xb9c2c9, round(FN.wall - 0.03, FN.wall, 0.26, 0.21), round(0.17, 0.24, 0.72, 0.64, 12), round(0.12, 0.15, 0.44, FOUNTAIN_AT.bowl + 0.2, 12),
+      round(0.56, 0.2, 0.17, FOUNTAIN_AT.bowl - 0.105), round(0.3, 0.12, 0.13, FOUNTAIN_AT.top - 0.085, 16)],
+    [0xd6dde2, new THREE.TorusGeometry(FN.wall - 0.07, 0.07, 6, 28).rotateX(Math.PI / 2).translate(0, 0.35, 0),
+      new THREE.TorusGeometry(0.54, 0.035, 5, 20).rotateX(Math.PI / 2).translate(0, FOUNTAIN_AT.bowl, 0), new THREE.TorusGeometry(0.29, 0.03, 5, 16).rotateX(Math.PI / 2).translate(0, FOUNTAIN_AT.top, 0),
+      round(0.27, 0.3, 0.07, 0.33, 12)],
+    // de spuitmonden in de kring
+    [0x8a8f98, ...around(FN.jets, FN.ring, (x, z) => tube(0.05, 0.065, 0.1, x, FOUNTAIN_AT.water + 0.02, z))],
+  ), MATTE_MAT],
+  // het water: net boven de bodem van het bassin en van elke schaal
+  [merge([round(FN.water, FN.water, 0.02, FOUNTAIN_AT.water - 0.01), round(0.5, 0.5, 0.02, FOUNTAIN_AT.bowl - 0.01, 20), round(0.26, 0.26, 0.02, FOUNTAIN_AT.top - 0.01, 16)]), WATER_MAT, false],
+  // dunne gordijntjes water die van de rand van de schalen naar beneden vallen
+  [merge([
+    ...around(6, 0.56, (x, z, i) => new THREE.BoxGeometry(0.13, FOUNTAIN_AT.bowl - FOUNTAIN_AT.water, 0.014).rotateY((i / 6) * Math.PI * 2).translate(x, (FOUNTAIN_AT.bowl + FOUNTAIN_AT.water) / 2, z)),
+    ...around(4, 0.3, (x, z, i) => new THREE.BoxGeometry(0.09, FOUNTAIN_AT.top - FOUNTAIN_AT.bowl, 0.012).rotateY((i / 4) * Math.PI * 2).translate(x, (FOUNTAIN_AT.top + FOUNTAIN_AT.bowl) / 2, z)),
+  ]), JET_MAT, false],
+  // een lampje onder elke straal en vier op de rand van het bassin
+  [merge([...around(FN.jets, FN.ring - 0.13, (x, z) => dot(0.05, x, FOUNTAIN_AT.water + 0.02, z)), ...around(4, FN.wall - 0.07, (x, z) => dot(0.06, x, 0.43, z)).map(g => g.rotateY(Math.PI / 4))]), LAMP_MAT, false],
+];
+/**
+ * Een straal uit de kring, op zijn hoogst: van de spuitmond op (0, 0, 0) in een boog naar het midden (-z), tot in de
+ * onderste schaal, met druppels aan het eind. Het beeld maakt hem groter en kleiner vanuit de spuitmond.
+ */
+const JET_GEO = ((): THREE.BufferGeometry => {
+  const reach = FN.ring - 0.3, at = (t: number): P3 => [0, 3.1 * t * (1 - t) + (FOUNTAIN_AT.bowl - FOUNTAIN_AT.water) * t, -reach * t];
+  return merge([
+    ...Array.from({ length: 7 }, (_, i) => rod(0.046 - i * 0.002, at(i / 7), at((i + 1) / 7), 6, 0.044 - i * 0.002)),
+    ball(0.07, ...at(1)), ball(0.05, 0.07, at(0.93)[1], at(0.93)[2] + 0.03), ball(0.045, -0.06, at(0.86)[1] - 0.02, at(0.86)[2]),
+  ]);
+})();
+/** De grote straal in het midden, op zijn hoogst: recht omhoog uit de bovenste schaal, met een pluim van druppels. */
+const GEYSER_GEO = merge([tube(0.05, 0.1, 1.05, 0, 0.525, 0), ball(0.1, 0, 1.08, 0), ball(0.06, 0.12, 0.93, 0.04), ball(0.06, -0.1, 0.88, -0.08), ball(0.05, 0.03, 0.82, 0.13), ball(0.045, -0.06, 0.98, 0.1)]);
+RIDE_BUILD.fountain = (group, mat) => {
+  const jets = Array.from({ length: FN.jets }, (_, i) => {
+    const a = (i / FN.jets) * Math.PI * 2, jet = piece(JET_GEO, JET_MAT, mat, false);
+    jet.position.set(Math.sin(a) * FN.ring, FOUNTAIN_AT.water + 0.05, Math.cos(a) * FN.ring);
+    jet.rotation.y = a;
+    group.add(jet);
+    return jet;
+  });
+  const geyser = piece(GEYSER_GEO, JET_MAT, mat, false);
+  geyser.position.y = FOUNTAIN_AT.top;
+  group.add(geyser);
+  group.userData.jets = [...jets, geyser];
 };
 
 // Schuilhut: vier palen, een schuin dak, wanden links en achter en een bank langs de achterwand.
@@ -2570,6 +2612,14 @@ function poseRide(group: THREE.Object3D, kind: ShopKind, s: RideState): void {
         sparks[i].scale.setScalar(0.5 + c.bump);
         sparks[i].rotation.y = s.clock * 20 + i;
       }
+    }
+  } else if (kind === 'fountain') {
+    // het waterballet: elke straal groeit en krimpt vanuit zijn spuitmond, en trilt een beetje; met gasten erbij spuit het wat hoger
+    const jets = u.jets as THREE.Object3D[], lively = 0.86 + 0.14 * s.amp;
+    for (let i = 0; i < jets.length; i++) {
+      const level = fountainJet(i, s.clock) * lively * (1 + 0.035 * Math.sin(s.clock * 21 + i * 1.7));
+      if (i < FOUNTAIN.jets) jets[i].scale.setScalar(level);
+      else jets[i].scale.set(0.8 + 0.3 * level, level, 0.8 + 0.3 * level);
     }
   }
 }

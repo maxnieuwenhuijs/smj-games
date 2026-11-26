@@ -5,7 +5,7 @@ import { PLUSH, PRODUCTS, SEEK_REACH, STALLS, type FoodId, type ShopKind } from 
 import { Grid, H, W, tileIndex, tileXY } from './grid';
 import { DARK_FUN, LOOKS, PETTING_GUESTS, PLAY, RESTAURANT_TABLES, RIDES, SUIT_COLORS, TOWER_TOP, TRAIN, isPath } from './data';
 import { SHOW_ROWS, SHOW_TIME } from './data';
-import { RIDE_KINDS, RIDE_SEATS, isRide, newPose, planVisit, rideLocal, visitAge, visitOff, visitPose, visitTime, type RideState, type Visit } from './rides';
+import { FOUNTAIN, RIDE_KINDS, RIDE_SEATS, isRide, newPose, planVisit, rideLocal, visitAge, visitOff, visitPose, visitTime, type RideState, type Visit } from './rides';
 import { CABLE, cableAt, cableLength, cableLoop, cablePassed, cableStop } from './cable';
 import { toWorldX, toWorldZ } from './view';
 import { arrivalPath, busPath, exitPath, pavementY } from './road';
@@ -325,8 +325,6 @@ export const SIGHT: Record<string, { off: number; most: number; time: number; fu
 const SIGHT_CHANCE = 0.4, SIGHT_NEAR = 5;
 /** Meer gasten bij hetzelfde ding gaan er in een boogje omheen staan: zoveel draait elke plek (in radialen). */
 const SIGHT_SPREAD = [0, 0.7, -0.7, 1.4];
-/** Bij de fontein: zo ver van het midden staat een gast aan de rand, en hoe de plekken langs de rand verdeeld zijn. */
-const RIM = 1.04, RIM_SPREAD = [0, 0.42, -0.42, 0.84, -0.84, 1.26];
 /** Wat een gast bij een ding in het park doet. */
 type Use = 'picnic' | 'crouch' | 'feed' | 'show' | 'well' | 'pump' | 'bird' | 'warm' | 'lookup' | 'mimic' | 'snap' | 'giggle' | 'write' | 'sign' | 'sniff' | 'arch' | 'toss'
   // in de hoop blaadjes springen, en een sneeuwballetje naar de sneeuwpop gooien
@@ -1308,6 +1306,9 @@ export class Guest implements Leader {
   aboard = false;
   /** Is hij al van zijn zitje af en op de terugweg naar het pad? Dan is zijn plek weer vrij voor de volgende. */
   offRide = false;
+  /** Waar hij op het toestel is, op het raster (zie ridePlace). */
+  private rideX = 0;
+  private rideY = 0;
   /** Het bezoek is voorbij: de gast staat weer op het pad. */
   private rideOver = false;
   private useHeard = false;
@@ -1970,7 +1971,6 @@ export class Guest implements Leader {
     if (kind && this.onRide && this.shop?.ride && this.onRide.kind === kind) return this.ridePlace(this.shop, this.onRide, this.shop.ride);
     // bij een ding in het park of aan de rand van de fontein: een paar passen van het pad af
     if (this.state === 'use' && this.sight) return this.usePlace();
-    if (kind === 'fountain' && this.shop) return this.fountainPlace();
     if (kind === 'bench' && this.shop?.edge) {
       // op het bankje: naast elkaar, met het gezicht dezelfde kant op als het bankje
       const [bx, by, rot] = edgePose(this.shop);
@@ -2201,11 +2201,14 @@ export class Guest implements Leader {
     // in een botsauto: bij een botsing wordt de gast door elkaar geschud
     const jolt = visit.kind === 'bumper' && p.on ? p.u : 0;
     // wie zit, zit met zijn billen op de zitting: de voeten hangen eronder
-    m.position.set(toWorldX(cx + p.x * cos + p.z * sin), p.h - k * 0.2 * m.scale.y, toWorldZ(cy - p.x * sin + p.z * cos));
-    m.quaternion.setFromEuler(RIDE_TURN.set(p.pitch - 0.14 * jolt, turn + p.face, p.roll + Math.sin(this.phase * 2.6) * 0.16 * jolt));
+    // (wat de gebaren met het lijf doen, zoals hurken aan de rand van de fontein, telt er gewoon bij op)
+    m.position.set(toWorldX(cx + p.x * cos + p.z * sin), p.h - k * 0.2 * m.scale.y + this.hop, toWorldZ(cy - p.x * sin + p.z * cos));
+    m.quaternion.setFromEuler(RIDE_TURN.set(p.pitch + this.lean - 0.14 * jolt, turn + p.face + this.twist, p.roll + this.tilt + Math.sin(this.phase * 2.6) * 0.16 * jolt));
     this.heading = turn + p.face;
     this.aboard = p.on;
     this.offRide = visitOff(visit, ride);
+    this.rideX = cx + p.x * cos + p.z * sin;
+    this.rideY = cy - p.x * sin + p.z * cos;
     this.rideOver = p.done;
     this.stepping = p.act === 'walk' || p.act === 'climb';
     const legs = (a: number): void => {
@@ -2677,14 +2680,12 @@ export class Guest implements Leader {
    */
   private useStep(w: GuestWorld): void {
     if (this.state === 'sit') {
-      // aan de fontein: het muntje plonst in het water, of de hand spettert
-      const shop = this.shop!, t = (SERVE_TIME.fountain ?? 4) - this.timer - 0.45, coin = this.tossesCoin;
-      this.stepping = t < 0 || this.timer < 0.35;
-      if (this.useMark < (coin ? 1 : 2) && t > (coin ? 0.95 : this.useMark ? 2.1 : 1) && this.timer > 0.4) {
+      // aan de fontein: het muntje plonst in het water, of de hand spettert (recht voor de gast, een stuk van de rand af)
+      const [t, left] = this.atRim(), coin = this.tossesCoin;
+      if (this.useMark < (coin ? 1 : 2) && t > (coin ? 0.95 : this.useMark ? 2.1 : 1) && left > 0.4) {
         this.useMark++;
-        const [cx, cy] = shopCenter(shop);
-        const a = Math.atan2(this.gx - cx, this.gy - cy) + RIM_SPREAD[this.seat % RIM_SPREAD.length], r = coin ? 0.45 : 0.72;
-        w.plons(cx + Math.sin(a) * r, cy + Math.cos(a) * r, 0.3, coin);
+        const [cx, cy] = shopCenter(this.shop!), k = (coin ? 0.6 : 0.92) * (FOUNTAIN.water / FOUNTAIN.rim);
+        w.plons(cx + (this.rideX - cx) * k, cy + (this.rideY - cy) * k, 0.3, coin);
       }
       return;
     }
@@ -2768,14 +2769,15 @@ export class Guest implements Leader {
     m.rotation.set(this.wheels ? 0 : this.lean, this.heading + Math.atan2(Math.sin(this.uturn - this.heading), Math.cos(this.uturn - this.heading)) * k + this.twist, this.tilt);
   }
 
-  /** Aan de fontein: van het pad naar de rand van het bassin, elk op zijn eigen plekje, met het gezicht naar het water. */
-  private fountainPlace(): void {
-    const m = this.mesh, shop = this.shop!, [cx, cy] = shopCenter(shop);
-    const k = this.settle(SERVE_TIME.fountain ?? 4);
-    const a = Math.atan2(this.gx - cx, this.gy - cy) + RIM_SPREAD[this.seat % RIM_SPREAD.length];
-    const x = this.gx + (cx + Math.sin(a) * RIM - this.gx) * k, y = this.gy + (cy + Math.cos(a) * RIM - this.gy) * k;
-    m.position.set(toWorldX(x), this.hop * k, toWorldZ(y));
-    m.rotation.set(this.wheels ? 0 : this.lean * k, this.heading + Math.atan2(Math.sin(a + Math.PI - this.heading), Math.cos(a + Math.PI - this.heading)) * k + this.twist, this.tilt);
+  /**
+   * Aan de fontein: hoe lang de gast al aan de rand van het bassin staat (onder nul: hij loopt er nog naartoe), en
+   * hoe lang hij er nog blijft staan.
+   */
+  private atRim(): [number, number] {
+    const v = this.onRide, ride = this.shop?.ride;
+    if (!v || !ride) return [-1, 0];
+    const e = visitAge(v, ride);
+    return [e - v.walk, v.walk + v.ride - e];
   }
 
   /** Gooit deze gast een muntje in de fontein? (Anders steekt hij een hand in het water, of spettert hij.) */
@@ -3157,8 +3159,8 @@ export class Guest implements Leader {
 
   /** Aan de rand van de fontein: een muntje gooien en een wens doen, een hand door het water halen, of spetteren (kinderen). */
   private fountainPose(): void {
-    const t = (SERVE_TIME.fountain ?? 4) - this.timer - 0.45;
-    if (t < 0 || this.timer < 0.35) return;
+    const [t, stay] = this.atRim();
+    if (t < 0 || stay < 0.35) return;
     const right = this.limbs[2], left = this.limbs[3], head = this.head;
     if (this.tossesCoin) {
       if (t < 0.5) {
