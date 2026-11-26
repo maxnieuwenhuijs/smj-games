@@ -814,6 +814,12 @@ const ICONS = {
     '<path d="M2 6 L46 17" stroke="#3d4f5a" stroke-width="2.5" stroke-linecap="round"/><path d="M14 9 V20 M34 14 V25" stroke="#3d4f5a" stroke-width="2"/>' +
     `<rect x="7" y="13" width="4" height="10" rx="2" fill="${RED}"/><rect x="7" y="19" width="14" height="4" rx="2" fill="${RED}"/>` +
     `<rect x="27" y="18" width="4" height="10" rx="2" fill="${SUN}"/><rect x="27" y="24" width="14" height="4" rx="2" fill="${SUN}"/>`,
+  // de tussenpaal van de kabelbaan: een blauwe paal op een stenen voet, met bovenop een rood wiel waar de kabel een bocht omheen maakt
+  cablepole:
+    '<rect x="13" y="40" width="22" height="6" rx="2" fill="#b9b2a6"/><path d="M21.5 14 H26.5 L28.5 41 H19.5Z" fill="#5b7c99"/>' +
+    '<path d="M2 21 L18 11.5 M30 11.5 L46 21" stroke="#3d4f5a" stroke-width="2.5" stroke-linecap="round"/>' +
+    `<ellipse cx="24" cy="11" rx="12" ry="5.5" fill="${RED}"/><ellipse cx="24" cy="11" rx="7.5" ry="3" fill="#f7f4ec"/><ellipse cx="24" cy="11" rx="3.4" ry="1.6" fill="${SUN}"/>` +
+    `<circle cx="24" cy="4.5" r="2.6" fill="${SUN}"/>`,
   umbrellas:
     `<g fill="none" stroke="${WOOD_D}" stroke-width="2.5" stroke-linecap="round"><path d="M13.5 11 L11.5 5 Q10.5 1.5 7.5 3.5"/><path d="M34.5 11 L36.5 5 Q37.5 1.5 40.5 3.5"/><path d="M24 9 V5 Q24 2 27 2 Q30 2 30 5"/></g>` +
     `<path d="M10.5 10.5 L16.5 9 L20 30 L16 30Z" fill="${RED}"/><path d="M31.5 9 L37.5 10.5 L32 30 L28 30Z" fill="${SUN}"/><path d="M21 8 H27 L26 30 H22Z" fill="#4a90e2"/>` +

@@ -5,7 +5,7 @@ import { PLUSH, PRODUCTS, SEEK_REACH, STALLS, type FoodId, type ShopKind } from 
 import { Grid, H, W, tileIndex, tileXY } from './grid';
 import { BUMPER_CARS, DARK_FUN, FERRIS, LOOKS, PETTING_GUESTS, PLAY, RESTAURANT_TABLES, RIDES, SUIT_COLORS, TOWER_TOP, TRAIN, bumperCar, isPath } from './data';
 import { SHOW_ROWS, SHOW_TIME } from './data';
-import { CABLE, cableAt, cableLength, cableLoop, cablePassed, cableStop } from './cable';
+import { CABLE, cableAt, cablePassed, cableStop, type CablePath, type CableSeat } from './cable';
 import { toWorldX, toWorldZ } from './view';
 import { arrivalPath, busPath, exitPath, pavementY } from './road';
 import { FaceCrowd, beardColor, faceFor, giveFace, setFace } from './faces';
@@ -54,6 +54,11 @@ export interface ShopSpot {
   /** Hoeveel gasten er nu geholpen worden en hoeveel er in de rij staan (het spel houdt dit elk beeldje bij). */
   busyNow?: number;
   line?: number;
+  /**
+   * Een huisje van de kabelbaan met een kabel eraan: waar de vier wachtende gasten op het perron staan, in tegels
+   * vanaf het midden van het huisje (zie cableWait). Zonder kabel staan ze gewoon in de vier hoeken.
+   */
+  spots?: [number, number][];
   /**
    * Het gebouw in het beeld, als het er is. Bij de wc zetten de gasten in `userData.ajar` welke deur open
    * moet (een bit per deur); het beeld laat de deuren daarop open- en dichtzwaaien (zie animateShop).
@@ -2176,8 +2181,10 @@ export class Guest implements Leader {
       }
       if (kind === 'cablecar') {
         // op het perron van de kabelbaan: in een hoekje wachten (daar zwaaien de stoeltjes niet langs), met het
-        // gezicht naar het grote wiel. Af en toe zwaaien naar wie er al in zit.
-        const p = at((this.seat & 1 ? 1 : -1) * 0.6, 0.12, (this.seat & 2 ? 1 : -1) * 0.6);
+        // gezicht naar het grote wiel. Af en toe zwaaien naar wie er al in zit. Gaat de kabel schuin weg, dan
+        // heeft het spel uitgerekend welke plekken vrij zijn (`spots`).
+        const spot = shop.spots?.[this.seat & 3];
+        const p = spot ? [cx + spot[0], 0.12, cy + spot[1]] : at((this.seat & 1 ? 1 : -1) * 0.6, 0.12, (this.seat & 2 ? 1 : -1) * 0.6);
         put(mix(here, p, k), k > 0.5 ? Math.atan2(cx - p[0], cy - p[2]) : this.heading);
         if (k > 0.9 && Math.sin(this.phase * 0.05 + this.seat * 1.7) > 0.6) {
           this.limbs[2].rotation.x = -2.7;
@@ -5272,7 +5279,10 @@ export class Train {
 }
 
 // ------------------------------------------------------------ de kabelbaan
-/** Het beeld van één kabelbaan (zie View.makeCable): de groep, de stoeltjes en de twee grote wielen. */
+/**
+ * Het beeld van één kabelbaan (zie View.makeCable): de groep, de stoeltjes en de grote wielen (in de huisjes en op
+ * de tussenpalen; `userData.dir` van een wiel is de kant waar het heen draait: 1 of -1).
+ */
 export interface CableModel {
   group: THREE.Object3D;
   chairs: THREE.Object3D[];
@@ -5287,17 +5297,13 @@ interface CableRider {
 const CABLE_V = new THREE.Vector3();
 
 /**
- * Eén kabelbaan tussen twee huisjes. De stoeltjes gaan steeds rond: heen aan de ene kant van de kabel en terug aan
- * de andere. Bij elk huisje stapt eruit wie daar moet zijn en stapt in wie op het perron stond te wachten. Elk
- * stoeltje heeft twee plekken. 's Nachts, als het park dicht is, staan de stoeltjes stil.
+ * Eén kabelbaan tussen twee huisjes, rechtstreeks of langs tussenpalen (`path`, zie cablePath). De stoeltjes gaan
+ * steeds rond: heen aan de ene kant van de kabel en terug aan de andere. Bij elk huisje stapt eruit wie daar moet
+ * zijn en stapt in wie op het perron stond te wachten. Elk stoeltje heeft twee plekken. 's Nachts, als het park
+ * dicht is, staan de stoeltjes stil.
  */
 export class CableCar {
   readonly len: number;
-  /** Het midden van het eerste huisje en de richting naar het tweede (een van de vier windrichtingen). */
-  private ax: number;
-  private ay: number;
-  private ux: number;
-  private uy: number;
   private loop: number;
   /** Hoe ver het eerste stoeltje langs de lus is, en hoe hard het nu gaat (0 = stil, 1 = gewoon). */
   private s = 0;
@@ -5309,14 +5315,16 @@ export class CableCar {
   private clock = Math.random() * 10;
   /** Kunnen gasten nu instappen? Beide huisjes staan aan het pad en het park is open. */
   boarding = false;
+  /** Waar een stoeltje is (zie seatSpot en update): steeds hetzelfde ding, zodat er niets nieuws gemaakt wordt. */
+  private at: CableSeat = { gx: 0, gy: 0, h: 0, mx: 0, my: 0, turn: 0 };
+  /** Per stoeltje hoe scheef het hangt in een bocht: dat loopt rustig op en weer af. */
+  private lean: number[];
 
-  constructor(readonly a: ShopSpot, readonly b: ShopSpot, readonly model: CableModel) {
-    this.len = cableLength(a, b);
-    this.ux = Math.sign(b.x - a.x);
-    this.uy = Math.sign(b.y - a.y);
-    [this.ax, this.ay] = shopCenter(a);
-    this.loop = cableLoop(this.len);
+  constructor(readonly a: ShopSpot, readonly b: ShopSpot, readonly model: CableModel, readonly path: CablePath) {
+    this.len = path.len;
+    this.loop = path.loop;
     this.riders = new Array(model.chairs.length * 2).fill(null);
+    this.lean = new Array(model.chairs.length).fill(0);
   }
 
   /** Hoort dit huisje bij deze kabelbaan, en kun je er nu instappen? */
@@ -5332,11 +5340,6 @@ export class CableCar {
     });
   }
 
-  /** Een punt langs de lus in rastercoördinaten: `a` tegels langs de lijn en `side` opzij. */
-  private grid(a: number, side: number): [number, number] {
-    return [this.ax + this.ux * a - this.uy * side, this.ay + this.uy * a + this.ux * side];
-  }
-
   /** Waar plek `seat` nu is: de gast zit erin, met het gezicht in de rijrichting en hij schommelt mee. */
   seatPose(seat: number, m: THREE.Object3D): void {
     const chair = this.model.chairs[seat >> 1];
@@ -5346,11 +5349,13 @@ export class CableCar {
     chair.getWorldQuaternion(m.quaternion);
   }
 
-  /** Waar het stoeltje van plek `seat` is en hoe hoog de kabel daar hangt: voor het wolkje en voor wat de gast onder zich ziet. */
-  private seatSpot(seat: number): { gx: number; gy: number; h: number } {
-    const c = cableAt(this.len, this.s + ((seat >> 1) * this.loop) / this.model.chairs.length);
-    const [gx, gy] = this.grid(c.a, c.side);
-    return { gx, gy, h: c.h };
+  /**
+   * Waar het stoeltje van plek `seat` is: de plek in het park, hoe hoog de kabel daar hangt en de richting waarin het
+   * rijdt. Voor het wolkje, voor wat de gast onder zich ziet, en voor wie zelf wil meerijden. Het antwoord is steeds
+   * hetzelfde ding: gebruik het meteen.
+   */
+  seatSpot(seat: number): CableSeat {
+    return cableAt(this.path, this.s + ((seat >> 1) * this.loop) / this.model.chairs.length, this.at);
   }
 
   update(dt: number, w: GuestWorld, reach: Set<number>, guests: Guest[], lifts: CableCar[] = []): void {
@@ -5373,7 +5378,7 @@ export class CableCar {
     for (let i = 0; i < n; i++) {
       const off = (i * this.loop) / n;
       for (const end of [0, 1] as const) {
-        if (!cablePassed(before + off, this.s + off, cableStop(this.len, end), this.loop)) continue;
+        if (!cablePassed(before + off, this.s + off, cableStop(this.path, end), this.loop)) continue;
         const here = end ? this.b : this.a, there = end ? this.a : this.b, door = this.doors[end];
         // bij het wiel: eerst uitstappen, dan instappen
         for (const k of [i * 2, i * 2 + 1]) {
@@ -5399,17 +5404,19 @@ export class CableCar {
         }
       }
     }
-    // de stoeltjes, met een beetje schommelen; de grote wielen draaien mee
-    const { chairs, wheels, group } = this.model;
+    // de stoeltjes, met een beetje schommelen (om een wiel hangen ze even scheef); de grote wielen draaien mee
+    const { chairs, wheels, group } = this.model, lean = this.lean, ease = Math.min(1, dt * 7);
     for (let i = 0; i < n; i++) {
-      const c = cableAt(this.len, this.s + (i * this.loop) / n);
+      const c = cableAt(this.path, this.s + (i * this.loop) / n, this.at);
       const chair = chairs[i];
-      chair.position.set(c.a, c.h, c.side);
+      chair.position.set(toWorldX(c.gx), c.h, toWorldZ(c.gy));
       chair.rotation.order = 'YXZ';
-      const t = this.clock * 1.6 + i * 1.7, turning = Math.abs(c.mz) > 0.05 ? 1 : 0;
-      chair.rotation.set(Math.sin(t * 0.7) * 0.05 * this.go, Math.atan2(c.mx, c.mz), (Math.sin(t) * 0.05 + turning * 0.1) * this.go);
+      lean[i] += (-c.turn - lean[i]) * ease;
+      const t = this.clock * 1.6 + i * 1.7;
+      chair.rotation.set(Math.sin(t * 0.7) * 0.05 * this.go, Math.atan2(c.mx, c.my), (Math.sin(t) * 0.05 + lean[i] * 0.1) * this.go);
     }
-    for (const wheel of wheels) wheel.rotation.y += (CABLE.speed * this.go * dt) / CABLE.r;
+    const turn = (CABLE.speed * this.go * dt) / CABLE.r;
+    for (const wheel of wheels) wheel.rotation.y += turn * (wheel.userData.dir as number);
     group.updateMatrixWorld(true);
     // wie erin zit, kijkt naar beneden: welke dieren zijn daar?
     this.lookIn -= dt;

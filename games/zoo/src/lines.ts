@@ -204,9 +204,13 @@ export const say = {
   /** De tribune past hier niet: die moet tegen de bak van de dolfijnen staan. En de eerste show begint. */
   showWhere: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.show.where' }),
   showFirst: (): Line => ({ who: 'host', mood: 'happy', key: 'say.show.first' }),
-  /** De kabelbaan: het eerste huisje staat, het tweede past daar niet, en hij gaat voor het eerst open. */
+  /**
+   * De kabelbaan: het eerste huisje staat, het volgende huisje of de tussenpaal past daar niet, de tussenpaal staat
+   * voor het eerst in de rij, en hij gaat voor het eerst open.
+   */
   cableOne: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.cable.one' }),
   cableWhere: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.cable.where' }),
+  cablePole: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.cable.pole' }),
   cableFirst: (): Line => ({ who: 'host', mood: 'happy', key: 'say.cable.first' }),
   /** Het avondfeest: de directeur vertelt het 's ochtends, wijst om acht uur op de gong, en zegt iets bij het begin en het eind. */
   partyToday: (): Line => ({ who: 'director', mood: 'happy', key: 'say.party.today' }),
@@ -363,7 +367,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   for (const ask of ['green.more', 'green.less', 'stone.more', 'stone.less']) add(wishLine(tr, 'wild', 'pig', null, false, ask));
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
     say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.dusty(), say.filterTip(), say.showWhere(), say.showFirst(),
-    say.cableOne(), say.cableWhere(), say.cableFirst(), say.partyToday(), say.partyGong(), say.partyStart(), say.partyEnd(), say.treatNew(), say.treatFull(), say.treatSick(), say.hoseNew(), say.hoseMud(), say.leavesNew(), say.leavesJump(), say.snowNew(), say.snowman(), say.lampsNew(), say.lampsWave()]) add(line);
+    say.cableOne(), say.cableWhere(), say.cablePole(), say.cableFirst(), say.partyToday(), say.partyGong(), say.partyStart(), say.partyEnd(), say.treatNew(), say.treatFull(), say.treatSick(), say.hoseNew(), say.hoseMud(), say.leavesNew(), say.leavesJump(), say.snowNew(), say.snowman(), say.lampsNew(), say.lampsWave()]) add(line);
   for (const key of ['balloon', 'icecream', 'coin', 'thanks'] as const) add(say.kid(key));
   add(say.eventNew());
   add(say.starsNew());
