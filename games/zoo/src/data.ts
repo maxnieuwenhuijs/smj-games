@@ -1138,17 +1138,51 @@ export function migrateLevel(level: number, version: number): number {
 }
 
 // ------------------------------------------------------------ de dierenshow
-/** Deze dieren doen de show bij de tribune: de dolfijn, de orka en de zeehond. */
-export const SHOW_STARS: SpeciesId[] = ['dolphin', 'orca', 'seal'];
+/**
+ * Deze dieren kunnen een show geven bij de tribune: de dolfijn en de orka in hun bak van glas, en de zeehond, de
+ * olifant, de aap, de papegaai, de pinguïn en de otter achter een gewoon hek.
+ */
+export const SHOW_STARS: SpeciesId[] = ['dolphin', 'orca', 'seal', 'elephant', 'monkey', 'parrot', 'penguin', 'otter'];
 /** Een zeehond woont achter een gewoon hek (geen glas): de tribune mag dan tegen elk soort hek staan, niet tegen een poort. */
 export const SHOW_FENCES = [1, 3, 4, 5, 6, 7];
+/** Wat een dier in de show kan doen: springen, een rondje draaien, zijn speelgoed (de hoepel, de bal), klappen of zijn eigen kunstje, buigen, en een hapje vangen dat de trainer gooit. */
+export type ShowMove = 'jump' | 'spin' | 'toy' | 'clap' | 'bow' | 'fish';
+/** Het sein van de trainer bij een kunstje: armen omhoog, wijzen, een hapje gooien of buigen. */
+export type ShowCue = 'up' | 'point' | 'throw' | 'bow';
+/**
+ * Het programma van de show, kunstje voor kunstje. `all`: alle dieren doen het tegelijk; anders is er één aan de
+ * beurt (steeds een ander) en kijken de anderen toe. De trainer geeft bij elk kunstje een sein (`cue`). `secs`: zo
+ * lang duurt het kunstje (een hapje vangen en opeten duurt het langst). Het laatste kunstje is de finale: allemaal
+ * tegelijk springen, met confetti.
+ */
+export const SHOW_ROUTINE: { move: ShowMove; all: boolean; cue: ShowCue; secs: number }[] = [
+  { move: 'jump', all: true, cue: 'up', secs: 2.6 },
+  { move: 'spin', all: false, cue: 'point', secs: 2.4 },
+  { move: 'toy', all: false, cue: 'point', secs: 3.4 },
+  { move: 'clap', all: true, cue: 'up', secs: 2.6 },
+  { move: 'fish', all: true, cue: 'throw', secs: 3.4 },
+  { move: 'spin', all: true, cue: 'point', secs: 2.4 },
+  { move: 'jump', all: false, cue: 'up', secs: 2.6 },
+  { move: 'fish', all: true, cue: 'throw', secs: 3.4 },
+  { move: 'bow', all: true, cue: 'bow', secs: 2.2 },
+  { move: 'jump', all: true, cue: 'up', secs: 3 },
+];
 /**
  * De dierenshow (vanaf FEATURE.show), in tellen: `first` tot de eerste show, `every` tussen twee shows, `retry` tot
  * een nieuwe poging als de dieren niet konden, `call` om naar de tribune te lopen, `tricks` zo lang doen de dieren
- * kunstjes, `soon` zo snel begint de show na een tik, `trick` om de zoveel tellen een nieuw kunstje. `reach`: gasten
- * tot zoveel tegels ver komen kijken; `seats`: zoveel plekken heeft de tribune.
+ * kunstjes (het hele programma, één keer), `soon` zo snel begint de show na een tik. `reach`: gasten tot zoveel tegels
+ * ver komen kijken; `seats`: zoveel plekken heeft de tribune.
  */
-export const SHOW_TIME = { first: 45, every: 150, retry: 30, call: 10, tricks: 18, soon: 3, trick: 2.6, reach: 10, seats: 9 };
+export const SHOW_TIME = { first: 45, every: 150, retry: 30, call: 10, tricks: Math.round(SHOW_ROUTINE.reduce((sum, act) => sum + act.secs, 0)), soon: 3, reach: 10, seats: 9 };
+/** Wat elk van de `stars` dieren doet bij kunstje nummer `step` (vanaf 0): een beweging, of null als het toekijkt. */
+export function showMoves(step: number, stars: number): (ShowMove | null)[] {
+  const act = SHOW_ROUTINE[step % SHOW_ROUTINE.length];
+  // wie er alleen aan de beurt is, schuift bij elk kunstje een dier op
+  const solo = stars ? step % stars : 0;
+  return Array.from({ length: stars }, (_, i) => (act.all || i === solo ? act.move : null));
+}
+/** Is dit het laatste kunstje van het programma: de finale? */
+export const showFinale = (step: number): boolean => step % SHOW_ROUTINE.length === SHOW_ROUTINE.length - 1;
 /** De drie bankjes van de tribune, van voor (bij het water) naar achter: waar ze staan (z) en hoe hoog je zit (h). */
 export const SHOW_ROWS = [{ z: -0.5, h: 0.24 }, { z: 0.05, h: 0.46 }, { z: 0.6, h: 0.68 }];
 export type ShowPhase = 'wait' | 'call' | 'tricks';

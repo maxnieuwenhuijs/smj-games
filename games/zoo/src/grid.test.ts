@@ -12,7 +12,7 @@ import { BONUS, TOY_FROM, TOY_OF, likesToy, type ToyKind } from './data';
 import { PETTABLE, PREY_OF, WISH_ORDER, huntersOf, scares } from './data';
 import { MURK, murkAfter, murkLoad, murkRate, murkyWater } from './data';
 import { guestCard, guestFacts, guestNames } from './traits';
-import { ATTRACTIONS, SHOW_STARS, SHOW_TIME, newShow, showReady, showSoon, showTick } from './data';
+import { ATTRACTIONS, SHOW_ROUTINE, SHOW_STARS, SHOW_TIME, newShow, showFinale, showMoves, showReady, showSoon, showTick } from './data';
 import { glassSides } from './grid';
 import { LOOKS, RIDES } from './data';
 import { STALLS } from './data';
@@ -527,9 +527,15 @@ describe('wensen per level: alles wat iemand vraagt, kun je in dat level ook nee
 
   it('de tribune voor de dierenshow komt pas als er dolfijnen zijn', () => {
     expect(FEATURE.show).toBeGreaterThanOrEqual(BONUS.dolphin!);
-    // de showdieren wonen allemaal in het water: dolfijn en orka in een bak van glas, de zeehond achter een hek
-    for (const sp of SHOW_STARS) expect(SPECIES[sp].terrain).toBe('water');
-    for (const sp of SHOW_STARS.filter(s => s !== 'seal')) expect(AQUATIC).toContain(sp);
+    // de dolfijn en de orka wonen in een bak van glas; de andere sterren van de show achter een gewoon hek
+    for (const sp of ['dolphin', 'orca'] as const) {
+      expect(SHOW_STARS).toContain(sp);
+      expect(AQUATIC).toContain(sp);
+    }
+    for (const sp of SHOW_STARS) expect(SPECIES[sp], sp).toBeTruthy();
+    expect(new Set(SHOW_STARS).size).toBe(SHOW_STARS.length);
+    // er doen ook dieren van het land mee (de olifant, de aap, de papegaai)
+    expect(SHOW_STARS.filter(sp => SPECIES[sp].terrain !== 'water').length).toBeGreaterThanOrEqual(3);
     expect(ATTRACTIONS).toContain('show');
     expect(SHOPS).toContain('show');
   });
@@ -709,6 +715,28 @@ describe('de dierenshow', () => {
     expect(glassSides(g, 11, 13, 2, 2)).toHaveLength(0);
     g.setEdge({ o: 'h', x: 12, y: 13 }, 6);
     expect(glassSides(g, 11, 13, 2, 2).map(s => s.side)).toEqual([2]);
+  });
+
+  it('het programma van de show: samen en om de beurt, met een hapje, speelgoed en een finale', () => {
+    // het hele programma past precies in de tijd van de kunstjes
+    expect(SHOW_ROUTINE.reduce((sum, act) => sum + act.secs, 0)).toBeCloseTo(SHOW_TIME.tricks);
+    const last = SHOW_ROUTINE.length - 1;
+    expect(showFinale(last)).toBe(true);
+    expect(showFinale(0)).toBe(false);
+    // de finale: allemaal tegelijk springen
+    expect(showMoves(last, 3)).toEqual(['jump', 'jump', 'jump']);
+    SHOW_ROUTINE.forEach((act, i) => {
+      const moves = showMoves(i, 3);
+      expect(moves.filter(m => m !== null).length, `kunstje ${i}`).toBe(act.all ? 3 : 1);
+      for (const m of moves) if (m !== null) expect(m).toBe(act.move);
+    });
+    // om de beurt: niet steeds hetzelfde dier
+    const solos = SHOW_ROUTINE.flatMap((act, i) => (act.all ? [] : [showMoves(i, 3).findIndex(m => m !== null)]));
+    expect(new Set(solos).size).toBeGreaterThan(1);
+    for (const move of ['jump', 'spin', 'toy', 'clap', 'fish', 'bow'] as const) expect(SHOW_ROUTINE.some(act => act.move === move), move).toBe(true);
+    // met één dier doet dat dier alles; zonder dieren gebeurt er niets
+    expect(showMoves(1, 1)).toEqual(['spin']);
+    expect(showMoves(0, 0)).toEqual([]);
   });
 
   it('de show komt op tijd: eerst de bel, dan de kunstjes, dan weer wachten', () => {

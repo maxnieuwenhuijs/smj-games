@@ -5,7 +5,7 @@ import {
   ALSO, AQUATIC, CLIMATE, MIX_TILES, MUD_LOVERS, PETTABLE, TANK_WATER, TOY_DRINK, TOY_LIFT, type Nature, type Rare, type Terrain, type ToyKind,
   MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, WISH_ORDER, herdOf, palsOf, scares, wildRange, WILD_KINDS, type PropGroup, type WildKind, type FenceNeed, type SpeciesId, type Variant, type WishId, type EscapeWay,
 } from './data';
-import { CLIMB_SECONDS, PUSH, ROCK_SECONDS, SWING, SWING_SECONDS, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, swingAt, toyGap, wishOrder, type Beat } from './data';
+import { CLIMB_SECONDS, PUSH, ROCK_SECONDS, SWING, SWING_SECONDS, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, swingAt, toyGap, wishOrder, type Beat, type ShowMove } from './data';
 import { MURK, murkyWater } from './data';
 import { CATCH } from './care';
 import { Grid, tileIndex, tileXY } from './grid';
@@ -1038,51 +1038,56 @@ export class Animal {
   }
 
   /**
-   * De dierenshow bij de tribune op (gx, gy): kunstje nummer `n`. Om de beurt uit het water springen, een rondje
-   * draaien, door de hoepel (als die er is), met de vinnen klappen en nog een sprong. Geeft terug of het lukte
-   * (niet als het dier slaapt, ziek is of nog midden in een sprong zit).
+   * De show bij de tribune: het dier doet het kunstje dat nu aan de beurt is (zie SHOW_ROUTINE in data.ts). `move`
+   * null: het is niet aan de beurt en kijkt naar het publiek. `toy`: de hoepel, de bal of ander speelgoed in het
+   * verblijf, voor het kunstje met speelgoed. (gx, gy): waar het publiek zit. Het hapje van de trainer ('fish')
+   * gooit het spel zelf. Geeft terug of het dier meedeed.
    */
-  showTrick(w: AnimalWorld, n: number, hoop: Toy | null, gx: number, gy: number): boolean {
+  showTrick(w: AnimalWorld, move: ShowMove | null, toy: Toy | null, gx: number, gy: number): boolean {
     // lag het dier nog te rusten, dan staat het nu op; bij het volgende kunstje doet het mee
     if (this.sleeping && !this.sick) {
       this.dawn(0.1);
       return false;
     }
-    if (this.sick || this.escaped || this.sleeping || this.drugged || this.trick?.kind === 'leap' || this.trick?.kind === 'breach') return false;
+    const busy = this.trick?.kind === 'leap' || this.trick?.kind === 'breach' || this.trick?.kind === 'treat';
+    if (this.sick || this.escaped || this.sleeping || this.drugged || busy || move === 'fish') return false;
     // nog op weg naar de hoepel: eerst daar doorheen
     if (this.playAt && this.state === 'walk') return false;
-    const step = n % 5;
     this.stop();
     this.state = 'idle';
-    if (this.species === 'seal') return this.sealTrick(w, step, hoop, gx, gy);
-    if (step === 2 && hoop && this.comePlay(w, hoop)) return true;
-    if (!this.sink) this.show('hop');
-    else if (step === 1) this.show('spin');
-    else if (step === 3) {
-      this.show('clap');
-      w.splash(this.gx, this.gy);
-      w.trickSound(this, 'clap');
-    } else this.breach(w);
-    if (step === 1 || step === 3) this.face(gx, gy);
-    this.acting = true;
-    w.showOff(this);
-    return true;
-  }
-
-  /**
-   * De zeehond in de show: met zijn vinnen klappen (met een plons in het water), een koprol, de bal op zijn neus
-   * (als die er is), buigen voor het publiek en een sprongetje.
-   */
-  private sealTrick(w: AnimalWorld, step: number, ball: Toy | null, gx: number, gy: number): boolean {
-    if (step === 2 && ball && ball.kind === 'ball' && this.comePlay(w, ball)) return true;
-    if (step === 0 || step === 3) {
+    if (!move) {
+      // niet aan de beurt: naar het publiek kijken
+      this.doTrick('look', 2.2, 'Idle');
+      this.face(gx, gy);
+      return true;
+    }
+    if (move === 'toy' && toy && this.comePlay(w, toy)) return true;
+    let turn = true;
+    if (move === 'jump') {
+      // uit het water springen; op het land een hoge sprong met een draai erachteraan
+      if (this.sink) {
+        this.breach(w);
+        turn = false;
+      } else {
+        this.show('hop');
+        this.encore = 'jumpturn';
+      }
+    } else if (move === 'spin' || move === 'toy') {
+      // een rondje om de eigen as; de zeehond maakt een koprol
+      this.show(this.species === 'seal' ? 'roll' : 'spin');
+      turn = false;
+    } else if (move === 'bow') this.show('bow');
+    else if (SHOW_OF[this.species] === 'clap' || this.aquatic) {
+      // met de vinnen klappen, met een plons als het in het water is
       this.show('clap');
       if (this.sink) w.splash(this.gx, this.gy);
       w.trickSound(this, 'clap');
-    } else if (step === 1) this.show('roll');
-    else if (step === 4) this.show('bow');
-    else this.show('hop');
-    this.face(gx, gy);
+    } else {
+      // het eigen kunstje van deze soort: de olifant spuit, de aap springt en zwaait, de papegaai knikt
+      this.perform(w, gx, gy);
+      return true;
+    }
+    if (turn) this.face(gx, gy);
     this.acting = true;
     w.showOff(this);
     return true;

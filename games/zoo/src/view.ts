@@ -1175,7 +1175,7 @@ SHOP_PARTS.umbrellas = [
 
 // Tribune voor de dierenshow: drie treden met elk een bankje in rood, geel en blauw. De gasten zitten met hun rug
 // naar het pad (de voorkant) en kijken naar het water erachter. Aan het pad staat een rond bord met een dolfijn
-// die een bal op zijn neus houdt, en bij het water wapperen twee vlaggetjes.
+// die een bal op zijn neus houdt; bij het water wapperen twee vlaggetjes en staat het podium van de trainer.
 const SHOW_SIGN: P3 = [0.64, 1.3, 0.86];
 const SHOW_BENCH = [0xe0584f, 0xffd23f, 0x4a90e2];
 const showDolphin = (): THREE.BufferGeometry =>
@@ -1203,6 +1203,11 @@ SHOP_PARTS.show = [
     [0xffd23f, new THREE.TorusGeometry(0.26, 0.025, 6, 20).translate(...SHOW_SIGN)],
   ), PAINT_MAT],
   [showDolphin(), PAINT_MAT],
+  // het podium van de trainer, aan de kant van het water: een rond trapje in rood met een witte rand (zie showtime.ts)
+  [painted(
+    [0xe0584f, new THREE.CylinderGeometry(0.2, 0.22, 0.1, 16).translate(0, 0.07, -0.87)],
+    [0xf7f4ec, new THREE.CylinderGeometry(0.21, 0.21, 0.025, 16).translate(0, 0.118, -0.87)],
+  ), PAINT_MAT],
   // twee vlaggetjes aan de kant van het water
   [merge([-0.84, 0.84].map(x => tube(0.016, 0.02, 1.1, x, 0.55, -0.84))), METAL],
   [painted(

@@ -6664,6 +6664,17 @@ export class Vendor {
   }
 }
 
+/**
+ * Een los poppetje voor wie het zelf wil laten bewegen (de trainer van de dierenshow, zie showtime.ts): de groep, de
+ * vier ledematen (benen, dan armen) en het hoofd. Het draagt de kleren van een werker (een pet), maar geen schort.
+ */
+export function makeFigure(outfit: { shirt: number; hat: number }): { group: THREE.Group; limbs: THREE.Mesh[]; head: THREE.Mesh } {
+  const person = makePerson(false, outfit);
+  // het schort van een verkoper is het laatste onderdeel
+  person.group.remove(person.group.children[person.group.children.length - 1]);
+  return { group: person.group, limbs: person.limbs, head: person.head };
+}
+
 // ------------------------------------------------------------ voor de modellenpagina
 /** De poppetjes van de modellenpagina (modellen.html, groep 'poppetjes'): [naam, hoe het eruitziet, is het een kind, welk hoedje]. */
 const SAMPLES: [string, PersonLook, boolean?, string?][] = [
