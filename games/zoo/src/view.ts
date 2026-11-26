@@ -11,6 +11,23 @@ import { CABLE, cableHeight } from './cable';
 import { Ground, aroundTexture } from './ground';
 import { partyHue } from './party';
 import { WALK } from './walk';
+import { SkyDome, useHaze } from './sky';
+import { dayLook, newLook } from './daylight';
+
+/**
+ * Het licht: tone mapping laat felle plekken zacht aflopen in plaats van hard wit af te kappen. Neutral houdt de
+ * gewone kleuren zoals ze zijn (ACES en AgX maken ze bleker en bruiner); de belichting houdt de helderheid gelijk.
+ */
+const TONE = { mapping: THREE.NeutralToneMapping, exposure: 1.1 };
+/** De lucht bovenin bij regen en 's nachts (de horizon gebruikt RAIN_SKY en NIGHT_SKY), en de wolken 's nachts. */
+const RAIN_TOP = new THREE.Color(0x8494a6);
+const NIGHT_TOP = new THREE.Color(0x0a1233);
+const NIGHT_CLOUD = new THREE.Color(0x34406e);
+const WHITE = new THREE.Color(0xffffff);
+/** Zoveel van de kleur van de horizon krijgen de wolken mee (roze 's ochtends, goud 's avonds). */
+const CLOUD_TINT = 0.3;
+/** Voor de nacht in het spel is het altijd dag: dan is het dit uur (mooi middaglicht). */
+export const DAY_HOUR = 13;
 
 const SQRT2 = Math.SQRT2;
 const SQRT3 = Math.sqrt(3);
@@ -2635,6 +2652,14 @@ export class View {
   private hemi = new THREE.HemisphereLight(0xffffff, 0x9ad07a, 1.6);
   private nightCanvas = document.createElement('canvas');
   private skyDay = new THREE.Color(0xbfe6ff);
+  /** De lucht met verloop en wolken, het uur van de dag, en wat dat uur met licht en lucht doet (zie daylight.ts). */
+  private skyDome: SkyDome;
+  private hour = DAY_HOUR;
+  private look = newLook();
+  private skyTop = new THREE.Color();
+  private skyCloud = new THREE.Color();
+  /** Het nieuwe licht en de nieuwe lucht (false = het oude platte beeld, om te vergelijken: `__zoo.view.setLook(false)`). */
+  private fancy = true;
   private dark = 0;
   /** Hoe nat het is (0 = droog, 1 = volop regen): dan is het licht wat zwakker en de lucht grijzer. */
   private wet = 0;
@@ -2679,10 +2704,15 @@ export class View {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = TONE.mapping;
+    this.renderer.toneMappingExposure = TONE.exposure;
     parent.prepend(this.renderer.domElement);
     this.scene.background = new THREE.Color(0xbfe6ff);
     // mist, alleen in de loopstand dichtbij genoeg om te zien: van boven ligt hij ver achter het park
+    // (van boven is er wel het waas buiten het park, zie sky.ts)
     this.scene.fog = new THREE.Fog(0xbfe6ff, 900, 1000);
+    this.skyDome = new SkyDome(this.scene);
 
     this.scene.add(this.hemi);
     // de nacht: een donker vlak over het beeld, met gaten waar licht is
@@ -2724,6 +2754,7 @@ export class View {
 
     addEventListener('resize', () => this.resize());
     this.resize();
+    this.relight();
   }
 
   /** De ingang van het park: hier komen de gasten binnen. */
@@ -2977,13 +3008,49 @@ export class View {
     this.relight();
   }
 
-  /** Het licht van nu: de nacht en de regen samen. Bij regen is de zon wat zwakker en de lucht grijzer. */
+  /**
+   * Het uur van de dag (0 tot 24, zoals de klok): kleurt de zon, het licht van de lucht en de lucht zelf. Elk beeldje
+   * aanroepen mag: pas als het uur echt verschoven is, wordt er iets gerekend.
+   */
+  setDayTime(hour: number): void {
+    if (Math.abs(hour - this.hour) < 0.02) return;
+    this.hour = hour;
+    this.relight();
+  }
+
+  /** Het nieuwe licht en de lucht aan of uit, om te vergelijken in de browser: `__zoo.view.setLook(false)`. */
+  setLook(on: boolean): void {
+    this.fancy = on;
+    useHaze(on);
+    // een andere tone mapping laat Three.js alle shaders opnieuw maken, nu met (of zonder) het waas;
+    // Linear met 1 is precies het oude beeld (alleen afkappen boven wit)
+    this.renderer.toneMapping = on ? TONE.mapping : THREE.LinearToneMapping;
+    this.renderer.toneMappingExposure = on ? TONE.exposure : 1;
+    this.skyDome.visible = on;
+    this.relight();
+  }
+
+  /** Het licht van nu: het uur, de nacht en de regen samen. Bij regen is de zon wat zwakker en de lucht grijzer. */
   private relight(): void {
     const dark = this.dark, wet = this.wet;
+    const look = this.fancy ? dayLook(this.hour, this.skyDay.getHex(), seasonNow, this.look) : null;
+    const horizon = this.scene.background as THREE.Color;
     // 's nachts blijft er maar weinig licht over: wat niet bij een lamp staat, is echt donker
-    this.sun.intensity = 2.2 * (1 - 0.8 * dark) * (1 - 0.3 * wet);
-    this.hemi.intensity = 1.6 * (1 - 0.6 * dark) * (1 - 0.12 * wet);
-    (this.scene.background as THREE.Color).copy(this.skyDay).lerp(RAIN_SKY, 0.65 * wet).lerp(NIGHT_SKY, dark);
+    this.sun.intensity = 2.2 * (look ? look.sunK : 1) * (1 - 0.8 * dark) * (1 - 0.3 * wet);
+    this.hemi.intensity = 1.6 * (look ? look.hemiK : 1) * (1 - 0.6 * dark) * (1 - 0.12 * wet);
+    if (look) {
+      this.sun.color.setRGB(look.sun[0], look.sun[1], look.sun[2], THREE.SRGBColorSpace);
+      this.hemi.color.setRGB(look.hemi[0], look.hemi[1], look.hemi[2], THREE.SRGBColorSpace);
+      horizon.setRGB(look.horizon[0], look.horizon[1], look.horizon[2], THREE.SRGBColorSpace);
+      this.skyTop.setRGB(look.top[0], look.top[1], look.top[2], THREE.SRGBColorSpace).lerp(RAIN_TOP, 0.65 * wet).lerp(NIGHT_TOP, dark);
+    } else {
+      this.sun.color.setHex(0xfff4dd);
+      this.hemi.color.setHex(0xffffff);
+      horizon.copy(this.skyDay);
+    }
+    horizon.lerp(RAIN_SKY, 0.65 * wet).lerp(NIGHT_SKY, dark);
+    this.skyCloud.copy(WHITE).lerp(horizon, CLOUD_TINT).lerp(NIGHT_CLOUD, dark);
+    this.skyDome.setColors(this.skyTop, horizon, this.skyCloud);
     LAMP_MAT.emissiveIntensity = 0.6 + 1.8 * dark;
   }
 
@@ -2995,6 +3062,8 @@ export class View {
     if (season === seasonNow) return;
     seasonNow = season;
     this.applySeason(true);
+    // het licht kleurt een heel klein beetje mee (zie SEASON_TINT in daylight.ts)
+    this.relight();
   }
 
   /** Kleurt alles wat met het seizoen meegaat: het blad van bomen en struiken, de grond rond het park en de tegels. */
@@ -4568,6 +4637,7 @@ export class View {
       this.resize();
     }
     this.placeEye(dt);
+    this.skyDome.step(dt, this.eye.position);
     for (const f of this.flashes) {
       f.life -= dt / 1.1;
       f.mat.opacity = Math.max(0, f.life) * 0.85;

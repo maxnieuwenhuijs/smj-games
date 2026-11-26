@@ -42,7 +42,7 @@ import { isLamp } from './parkfun';
 import { STAR_EVERY, STAR_FACTORS, STAR_GOOD, STAR_TIP_GAP, nextStars, parkScore, scoreOf, smoothScore, starFactors, starGuests, weakest, type StarFactor, type StarInput } from './stars';
 import { guestCard } from './traits';
 import { BOOK_HEART, KID_MOMENT, KID_MOMENTS, SPLAT_MELT, momentReady, type KidMoment } from './kids';
-import { EDGE_SHIFT, View, toWorldX, toWorldZ, type TroughMesh } from './view';
+import { DAY_HOUR, EDGE_SHIFT, View, toWorldX, toWorldZ, type TroughMesh } from './view';
 import { CARE_ACTIONS, CATCH, DUST, HOSE, TREAT, dustAfter, dustSpecks, flightTime, isCare, treatFor, treatReady, type CareAction, dusty } from './care';
 import { CareFx } from './carefx';
 import { WALK, type Box, type WalkGround } from './walk';
@@ -3334,6 +3334,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // (niet meteen bij het openen van het spel)
       if (this.clock > 3) this.mention({ who: 'director', mood: 'happy', key: shut ? 'say.park.closed' : 'say.park.open' }, 30);
     }
+    // het licht en de lucht kleuren mee met de klok; voor de nacht in het spel is het altijd middag
+    this.view.setDayTime(this.has('night') ? this.hourNow() : DAY_HOUR);
     const night = this.darkness();
     if (night !== this.night) {
       this.night = night;
