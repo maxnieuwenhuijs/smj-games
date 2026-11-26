@@ -62,10 +62,11 @@ export async function boot({ port = 5173, path = '', width = 1280, height = 800,
         req.onerror = () => reject(req.error);
       });
       await new Promise((resolve, reject) => {
-        const store = db.transaction('saves', 'readwrite').objectStore('saves');
-        const req = data ? store.put(data, 'zoo-slot-1') : store.delete('zoo-slot-1');
-        req.onsuccess = () => resolve(null);
-        req.onerror = () => reject(req.error);
+        // wachten tot het echt is weggeschreven: anders kan het herladen hierna het opslaan nog afbreken
+        const tx = db.transaction('saves', 'readwrite');
+        const req = data ? tx.objectStore('saves').put(data, 'zoo-slot-1') : tx.objectStore('saves').delete('zoo-slot-1');
+        tx.oncomplete = () => resolve(null);
+        tx.onabort = tx.onerror = () => reject(tx.error ?? req.error);
       });
       db.close();
     },
