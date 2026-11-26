@@ -11,6 +11,7 @@ import { CABLE, cableHeight } from './cable';
 import { Ground, aroundTexture } from './ground';
 import { partyHue } from './party';
 import { WALK } from './walk';
+import { THING_SHADE, shadeGroup, shadeGrey } from './shade';
 
 const SQRT2 = Math.SQRT2;
 const SQRT3 = Math.sqrt(3);
@@ -2095,7 +2096,11 @@ const PROP_PARTS: Record<PropKind, Part[]> = {
 function buildDecor(kind: DecorKind, mat?: THREE.Material): THREE.Group {
   const group = build(DECOR_PARTS[kind], mat);
   const kids = group.children;
-  if (kind === 'windmill') kids[3].position.set(0, 0.92, 0.2);
+  if (kind === 'windmill') {
+    kids[3].position.set(0, 0.92, 0.2);
+    // de wieken draaien rond: geen schaduw in hun kleuren (zie shadeGroup)
+    kids[3].userData.noShade = true;
+  }
   if (kind === 'campfire') kids[2].position.y = kids[3].position.y = 0.1;
   if (kind === 'lantern') kids[1].position.y = 1.15;
   if (kind === 'gardenlight') kids[1].position.y = 0.3;
@@ -2118,6 +2123,8 @@ function buildDecor(kind: DecorKind, mat?: THREE.Material): THREE.Group {
     pendulum.castShadow = !mat;
     group.add(pendulum);
   }
+  // een beetje schaduw onderaan en onder daken en planken (zie shade.ts); niet voor het doorzichtige voorbeeld
+  if (!mat) shadeGroup(group);
   return group;
 }
 
@@ -2258,6 +2265,8 @@ function buildShop(kind: ShopKind, mat?: THREE.Material): THREE.Group {
   if (extra) {
     const moving = build(extra.parts, mat);
     moving.position.y = extra.y;
+    // wat kantelt of rondgaat, krijgt geen schaduw in de kleuren (die zou mee omhoog draaien); de draaimolen draait alleen rond
+    moving.userData.noShade = kind !== 'carousel';
     group.add(moving);
     group.userData.moving = moving;
   }
@@ -2301,6 +2310,7 @@ function buildShop(kind: ShopKind, mat?: THREE.Material): THREE.Group {
       group.add(pivot);
       return pivot;
     });
+  if (!mat) shadeGroup(group);
   return group;
 }
 
@@ -2459,11 +2469,13 @@ function buildToy(kind: ToyKind, mat?: THREE.Material): THREE.Group {
     // eerst rollen om de eigen lengte, dan pas draaien: zo rolt een stam altijd dwars op hoe hij ligt
     piece.rotation.order = 'YXZ';
     piece.rotation.y = turn ?? 0;
-    piece.userData = { x, z, r, turn, wheel };
+    // (een los stuk rolt rond: geen schaduw in zijn kleuren, zie shadeGroup)
+    piece.userData = { x, z, r, turn, wheel, noShade: true };
     group.add(piece);
     loose.push(piece);
   }
   if (loose.length) group.userData.loose = loose;
+  if (!mat) shadeGroup(group);
   return group;
 }
 /** De as waar een los stuk omheen rolt: één keer gemaakt, elke keer opnieuw gebruikt. */
@@ -2672,7 +2684,8 @@ export class View {
   private stringKey = '';
   /** Per strook die te koop is: een licht vlak over de grond en een bordje. */
   private plots = new Map<Side, { plane: THREE.Mesh; sign: THREE.Group }>();
-  private leafMats = [0x4f9e45, 0x5bab4c, 0x468f3e].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 1 }));
+  /** Alleen voor de bomen rond het park: die hebben grijze kleuren per hoekpunt voor de schaduw (zie addTrees). */
+  private leafMats = [0x4f9e45, 0x5bab4c, 0x468f3e].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 1, vertexColors: true }));
 
   constructor(parent: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -2876,14 +2889,17 @@ export class View {
       this.treeSpots.push({ gx, gy, s, rot, tall: 0.82 + hash(gx, gy, 2) * 0.5, wide: 0.85 + hash(gx, gy, 3) * 0.35, fir, bloom: !fir && hash(gx, gy, 4) < 0.3 });
     }
     const n = this.treeSpots.length;
-    const trunk = new THREE.MeshStandardMaterial({ color: 0x8a5a33, roughness: 1 });
+    const trunk = new THREE.MeshStandardMaterial({ color: 0x8a5a33, roughness: 1, vertexColors: true });
+    // een beetje schaduw in de boom (zie shade.ts): de voet van de stam en de onderkant van het blad iets donkerder;
+    // de bladkleur zelf komt uit het materiaal (die verandert met de seizoenen), de schaduw uit de grijze hoekpunten
+    const tree = (geo: THREE.BufferGeometry, top: number): THREE.BufferGeometry => shadeGrey(geo, 0, top, THING_SHADE);
     this.treeParts = [
-      new THREE.InstancedMesh(new THREE.CylinderGeometry(0.09, 0.14, 0.66, 6).translate(0, 0.33, 0), trunk, n),
+      new THREE.InstancedMesh(tree(new THREE.CylinderGeometry(0.09, 0.14, 0.66, 6).translate(0, 0.33, 0), 1.9), trunk, n),
       // de loofboom: een brede bol blad met een kleinere erbovenop
-      new THREE.InstancedMesh(blob(0.5, 1.1, 0.84, 1.1, 0, 0.97, 0), this.leafMats[0], n),
-      new THREE.InstancedMesh(blob(0.34, 1.05, 0.85, 1.05, 0.04, 1.52, 0.03), this.leafMats[1], n),
+      new THREE.InstancedMesh(tree(blob(0.5, 1.1, 0.84, 1.1, 0, 0.97, 0), 1.9), this.leafMats[0], n),
+      new THREE.InstancedMesh(tree(blob(0.34, 1.05, 0.85, 1.05, 0.04, 1.52, 0.03), 1.9), this.leafMats[1], n),
       // de spar: drie kegels op elkaar
-      new THREE.InstancedMesh(mergeGeometries([cone(0.62, 0.9, 0, 0.85, 0, 6), cone(0.48, 0.8, 0, 1.4, 0, 6), cone(0.32, 0.7, 0, 1.92, 0, 6)])!, this.leafMats[2], n),
+      new THREE.InstancedMesh(tree(mergeGeometries([cone(0.62, 0.9, 0, 0.85, 0, 6), cone(0.48, 0.8, 0, 1.4, 0, 6), cone(0.32, 0.7, 0, 1.92, 0, 6)])!, 2.27), this.leafMats[2], n),
       // bloesem: roze bolletjes op het blad, alleen in de lente te zien
       new THREE.InstancedMesh(merge([
         ...[0, 1, 2, 3, 4].map(k => blob(0.085, 1, 1, 1, Math.cos(0.35 + 0.3 * (k % 2)) * Math.cos(k * 1.26) * 0.55, 0.97 + Math.sin(0.35 + 0.3 * (k % 2)) * 0.42, Math.cos(0.35 + 0.3 * (k % 2)) * Math.sin(k * 1.26) * 0.55, 0)),
@@ -3679,6 +3695,7 @@ export class View {
     if (kind === 'silo') {
       const parts = [new THREE.Mesh(SILO_GEO, SILO_MAT), new THREE.Mesh(SILO_ROOF_GEO, ROOF_MAT), new THREE.Mesh(SILO_TRAY_GEO, WOOD_MAT)];
       for (const m of parts) m.castShadow = true;
+      shadeGroup(new THREE.Group().add(...parts));
       // het voer ligt in het bakje voor de toren
       food.position.set(0, -0.02, 0.26);
       food.scale.setScalar(0.75);
@@ -3738,6 +3755,7 @@ export class View {
 
   makeBed(x: number, y: number, kind: BedKind, rot = 0): THREE.Group {
     const group = this.at(build(BED_PARTS[kind]), x, y, rot);
+    shadeGroup(group);
     this.scene.add(group);
     return group;
   }
@@ -3905,6 +3923,8 @@ export class View {
           old.dispose();
         }
         const room = Math.max(32, Math.ceil(items.length * 1.5));
+        // de schaduw in de kleuren: één keer, met alle onderdelen op hun plek
+        shadeGroup(build(PROP_PARTS[kind]));
         meshes = PROP_PARTS[kind].map(([geo, mat, shadow = true]) => {
           const mesh = new THREE.InstancedMesh(geo, mat, room);
           mesh.castShadow = shadow;
