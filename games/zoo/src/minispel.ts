@@ -3,11 +3,12 @@
 //
 // In de adresbalk: ?taal=en voor de Engelse teksten en woorden.
 import { setStrings } from '@smj/shared';
-import { loadAudio, unlockAudio } from './audio';
+import { animalSound, loadAudio, unlockAudio } from './audio';
 import { SPECIES } from './data';
 import en from './en.json';
+import { CLUES, guessChoices } from './guestfun';
 import { icon } from './icons';
-import { closeMini, miniOpen, playMini, type MiniKind, type MiniResult } from './minigame';
+import { closeMini, miniOpen, playMini, type MiniKind, type MiniOptions, type MiniResult } from './minigame';
 import { probeIcons } from './models';
 import nl from './nl.json';
 import './style.css';
@@ -17,7 +18,9 @@ setStrings(lang === 'en' ? { ...nl, ...en } : nl);
 document.documentElement.lang = lang;
 
 const $ = (id: string): HTMLElement => document.getElementById(id)!;
-const KINDS: [MiniKind, string][] = [['sum', 'Som'], ['spell', 'Woord'], ['order', 'Volgorde']];
+const KINDS: [MiniKind, string][] = [['sum', 'Som'], ['spell', 'Woord'], ['order', 'Volgorde'], ['guess', 'Raden']];
+/** Raden: een gok uit een paar dieren, net als een park met deze dieren erin. */
+const PARK = ['pig', 'cow', 'chicken', 'lion', 'giraffe', 'penguin', 'dolphin', 'parrot'] as const;
 const lines: string[] = [];
 
 function report(kind: MiniKind, r: MiniResult): void {
@@ -29,9 +32,14 @@ function start(kind: MiniKind): void {
   playMini({
     kind,
     rounds: Number(($('rondes') as HTMLSelectElement).value),
-    picture: ($('plaatje') as HTMLInputElement).checked ? icon('schoolclass') : undefined,
+    picture: ($('plaatje') as HTMLInputElement).checked ? icon(kind === 'guess' ? 'guess' : 'schoolclass') : undefined,
+    guess: kind === 'guess' ? guessFor(PARK[Math.floor(Math.random() * PARK.length)]) : undefined,
     onDone: r => report(kind, r),
   });
+}
+
+function guessFor(answer: (typeof PARK)[number]): MiniOptions['guess'] {
+  return { answer, options: guessChoices(answer, [...PARK]) ?? [answer], ...CLUES[answer], sound: () => animalSound(answer, false) };
 }
 
 for (const [kind, label] of KINDS) {

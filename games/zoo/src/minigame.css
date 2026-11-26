@@ -96,6 +96,21 @@
 .mg-ask.ok > b { background: var(--mg-ok); color: #fff; box-shadow: 0 4px 0 var(--mg-ok-shade); animation: mg-pop 0.25s ease-out; }
 .mg-answer { --size: clamp(84px, 26vw, 112px); height: 88px; }
 
+/* ---------- raden ---------- */
+.mg-clues { gap: 10px; }
+.mg-clue {
+  min-width: 84px; height: 84px; padding: 6px 10px; border: 0; border-radius: 22px; background: var(--mg-soft); box-shadow: 0 5px 0 var(--shade, #c9d6c0);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: inherit;
+}
+.mg-swatch { flex-direction: row; gap: 4px; }
+.mg-swatch i { width: 30px; height: 56px; border-radius: 15px; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.18); }
+.mg-legs b { font: 800 34px/1 system-ui, sans-serif; }
+.mg-feet { display: flex; gap: 2px; font-size: 22px; }
+.mg-paw { width: 18px; height: 18px; display: block; }
+.mg-sound { cursor: pointer; font-size: 52px; }
+.mg-sound:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--shade, #c9d6c0); }
+.mg-animal { --size: clamp(84px, 24vw, 108px); font-size: clamp(64px, 18vw, 84px); }
+
 /* ---------- woord ---------- */
 .mg-word { font-size: clamp(84px, 24vw, 120px); display: flex; }
 .mg-slot {

@@ -640,6 +640,36 @@ const ICONS = {
     `<path d="M24 5 L39 42 H9Z" fill="#f06aa6"/><path d="M17 22 L31 22 M13 32 L35 32" stroke="#fff" stroke-width="3"/><circle cx="24" cy="6" r="5" fill="${SUN}"/><path d="M9 42 H39" stroke="${SUN}" stroke-width="5" stroke-linecap="round"/>`,
   hat_crown:
     `<path d="M6 38 L8 14 L17 25 L24 9 L31 25 L40 14 L42 38Z" fill="${SUN}" stroke="${SUN_D}" stroke-width="2" stroke-linejoin="round"/><circle cx="24" cy="30" r="3.5" fill="${RED}"/><circle cx="13" cy="31" r="2.5" fill="#4a90e2"/><circle cx="35" cy="31" r="2.5" fill="#4a90e2"/>`,
+  // de schminktent en de gezichten die je daar kunt kiezen
+  facepaint:
+    `<circle cx="22" cy="26" r="17" fill="${SKIN}"/><path d="M9 19 l7 3 M8 28 h7 M35 19 l-7 3 M36 28 h-7 M22 10 v6" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>` +
+    `<circle cx="16" cy="24" r="2.4" fill="${INK}"/><circle cx="28" cy="24" r="2.4" fill="${INK}"/><path d="M16 32 Q22 37 28 32" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>` +
+    `<path d="M45 3 L34 15" stroke="${WOOD}" stroke-width="4" stroke-linecap="round"/><path d="M34 13 L29 21 L36 17Z" fill="#a06ad9"/>`,
+  paint_tiger:
+    '<circle cx="11" cy="11" r="6" fill="#f3a23c"/><circle cx="37" cy="11" r="6" fill="#f3a23c"/><circle cx="24" cy="26" r="18" fill="#f3a23c"/><ellipse cx="24" cy="34" rx="9" ry="7" fill="#fff7e0"/>' +
+    `<path d="M24 9 v7 M17 10 l2 6 M31 10 l-2 6 M6 24 h7 M7 31 l6 -2 M42 24 h-7 M41 31 l-6 -2" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>` +
+    `<circle cx="17" cy="23" r="2.6" fill="${INK}"/><circle cx="31" cy="23" r="2.6" fill="${INK}"/><path d="M21 29 h6 l-3 3Z" fill="${PINK_D}"/>`,
+  paint_cat:
+    `<path d="M8 22 L10 5 L21 13Z M40 22 L38 5 L27 13Z" fill="#8a8f98"/><path d="M11 16 L12 9 L17 13Z M37 16 L36 9 L31 13Z" fill="${PINK}"/><circle cx="24" cy="27" r="17" fill="#b4b8be"/>` +
+    `<ellipse cx="17" cy="24" rx="2.6" ry="3.4" fill="${INK}"/><ellipse cx="31" cy="24" rx="2.6" ry="3.4" fill="${INK}"/><path d="M21 30 h6 l-3 3Z" fill="${PINK_D}"/>` +
+    `<path d="M2 29 h13 M3 36 l12 -3 M46 29 h-13 M45 36 l-12 -3" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/>`,
+  paint_butterfly:
+    '<path d="M24 24 C14 4 2 8 6 20 C8 26 16 26 24 24Z M24 24 C34 4 46 8 42 20 C40 26 32 26 24 24Z" fill="#a06ad9"/>' +
+    '<path d="M24 25 C14 28 8 40 16 42 C21 43 23 34 24 25Z M24 25 C34 28 40 40 32 42 C27 43 25 34 24 25Z" fill="#f06aa6"/>' +
+    `<circle cx="13" cy="16" r="3" fill="${SUN}"/><circle cx="35" cy="16" r="3" fill="${SUN}"/><rect x="22" y="14" width="4" height="24" rx="2" fill="${INK}"/>` +
+    `<path d="M23 15 Q19 7 16 6 M25 15 Q29 7 32 6" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>`,
+  paint_panda:
+    `<circle cx="10" cy="11" r="7" fill="${INK}"/><circle cx="38" cy="11" r="7" fill="${INK}"/><circle cx="24" cy="26" r="18" fill="#fff" stroke="#d8dce0" stroke-width="2"/>` +
+    `<ellipse cx="16" cy="24" rx="5" ry="6.5" fill="${INK}" transform="rotate(25 16 24)"/><ellipse cx="32" cy="24" rx="5" ry="6.5" fill="${INK}" transform="rotate(-25 32 24)"/>` +
+    `<circle cx="16.5" cy="23.5" r="1.8" fill="#fff"/><circle cx="31.5" cy="23.5" r="1.8" fill="#fff"/><ellipse cx="24" cy="31" rx="3.5" ry="2.5" fill="${INK}"/>` +
+    `<path d="M20 36 Q24 39 28 36" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>`,
+  // de trommel voor de optocht, en het kaartje van raad het lievelingsdier
+  drum:
+    `<path d="M6 4 L20 18 M42 4 L28 18" stroke="${WOOD}" stroke-width="3.5" stroke-linecap="round"/><circle cx="6" cy="4" r="3.5" fill="#fff"/><circle cx="42" cy="4" r="3.5" fill="#fff"/>` +
+    `<path d="M7 22 V38 Q24 47 41 38 V22Z" fill="${RED}"/><path d="M7 27 L13 38 L19 29 L25 40 L31 29 L37 38 L41 31" fill="none" stroke="${SUN}" stroke-width="2.6" stroke-linejoin="round"/>` +
+    `<ellipse cx="24" cy="22" rx="17" ry="6" fill="#fff7e0" stroke="${SUN_D}" stroke-width="2"/>`,
+  guess:
+    `<path d="${HEART_PATH}" fill="${PINK_D}"/><path d="M19 20 Q19 13 24 13 Q29 13 29 18 Q29 22 24 24 V28" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="24" cy="34" r="2.6" fill="#fff"/>`,
   cap_red: capIcon('#e0584f', '#b8433b'),
   cap_blue: capIcon('#4a90e2', '#3572b8'),
   balloon_red: balloonIcon('#e0584f', '#b8433b'),

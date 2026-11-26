@@ -15,6 +15,7 @@ import { guestCard, guestFacts, guestNames } from './traits';
 import { ATTRACTIONS, SHOW_STARS, SHOW_TIME, newShow, showReady, showSoon, showTick } from './data';
 import { glassSides } from './grid';
 import { LOOKS, RIDES } from './data';
+import { STALLS } from './data';
 
 /** Zet een hek om het blok tegels van (x0,y0) tot en met (x1,y1). */
 function fenceBox(g: Grid, x0: number, y0: number, x1: number, y1: number): Edge[] {
@@ -465,7 +466,7 @@ describe('wensen per level: alles wat iemand vraagt, kun je in dat level ook nee
     // wat een gast kan vragen, en bij welke kraam dat hoort (zie NEED_SHOP in people.ts)
     const needs: Record<string, string> = {
       food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', hat: 'hats', souvenir: 'souvenir',
-      play: 'playground', sit: 'bench', look: 'fountain', ride: 'carousel', umbrella: 'umbrellas', shelter: 'shelter',
+      play: 'playground', sit: 'bench', look: 'fountain', ride: 'carousel', umbrella: 'umbrellas', shelter: 'shelter', paint: 'facepaint',
     };
     for (const [need, shop] of Object.entries(needs)) {
       expect(feature(shop), `${need}: ${shop} heeft geen level in FEATURE`).toBeGreaterThan(0);
@@ -477,6 +478,20 @@ describe('wensen per level: alles wat iemand vraagt, kun je in dat level ook nee
     // de weg kwijt kan pas als er wegwijzers zijn, en het donker pas als er lantaarns zijn
     expect(canStray(DECOR.signpost.from - 1, WAYFIND_PATHS + 100)).toBe(false);
     expect(DECOR.lantern.from).toBeLessThanOrEqual(feature('night'));
+    // de schminktent is een marktkraam onder Winkels; kinderen vragen er pas om als hij er is, en de optocht en het
+    // raden komen ook pas in hun eigen level
+    expect(SHOPS).toContain('facepaint');
+    expect(SHOP_SIZE.facepaint).toBe(2);
+    expect(STALLS).toContain('facepaint');
+    expect(PRODUCTS.filter(p => p.shop === 'facepaint')).toHaveLength(0);
+    // een level vraagt nooit om de schminktent voordat hij er is
+    LEVELS.forEach((level, i) => {
+      for (const g of level.goals) if (g.shop === 'facepaint') expect(feature('facepaint'), `level ${i + 1}`).toBeLessThanOrEqual(i);
+    });
+    expect(feature('facepaint')).toBeGreaterThan(feature('paths'));
+    expect(feature('parade')).toBeGreaterThan(feature('paths'));
+    for (const key of ['shop.facepaint', 'say.paint.new', 'say.parade.new', 'say.way.tip', 'mini.guess', 'mini.guess.no', 'event.guess'])
+      for (const table of [nl, en] as Record<string, string>[]) expect(table[key], key).toBeTruthy();
   });
 
   it('de tribune voor de dierenshow komt pas als er dolfijnen zijn', () => {

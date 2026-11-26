@@ -120,6 +120,7 @@ export const EVENT_SAYS: Record<string, { who?: FigureId; ask: number; good: num
   crates: { who: 'keeper', ask: 2, good: 2, bad: 2 },
   till: { who: 'cashier', ask: 2, good: 2, bad: 2 },
   mayor: { who: 'director', ask: 2, good: 2, bad: 2 },
+  guess: { who: 'host', ask: 2, good: 2, bad: 1 },
 };
 
 export const say = {
@@ -219,6 +220,13 @@ export const say = {
   snowman: (): Line => ({ who: 'director', mood: 'happy', key: 'say.snowman' }),
   lampsNew: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.lamps.new' }),
   lampsWave: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.lamps.wave' }),
+  /** De optocht: nieuw in dit level, hij begint, of de clown moet nog even uitrusten. */
+  paradeNew: (): Line => ({ who: 'director', mood: 'happy', key: 'say.parade.new' }),
+  paradeGo: (): Line => ({ who: 'host', mood: 'happy', key: 'say.parade.go' }),
+  paradeRest: (): Line => ({ who: 'host', mood: 'happy', key: 'say.parade.rest' }),
+  /** De schminktent is nieuw; en de eerste gast die de weg kwijt is: je kunt de weg wijzen met je vinger. */
+  paintNew: (): Line => ({ who: 'host', mood: 'happy', key: 'say.paint.new' }),
+  wayTip: (): Line => ({ who: 'host', mood: 'happy', key: 'say.way.tip' }),
   dirty: (): Line => ({ who: 'host', mood: 'worried', key: 'say.dirty' }),
   vetHow: (): Line => ({ who: 'keeper', mood: 'worried', key: 'say.vet.how' }),
   pettingNew: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.petting.new' }),
@@ -363,6 +371,9 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   // de uitleg bij een puzzeltje, in de stem van wie om hulp vroeg
   for (const who of ['host', 'keeper', 'builder', 'cashier', 'director', 'teacher', 'master'] as const)
     for (const key of ['mini.sum.plus', 'mini.sum.minus', 'mini.spell', 'mini.order.size', 'mini.order.count', 'mini.done.good', 'mini.done.try']) add({ who, mood: 'happy', key });
+  // de optocht, de schminktent, de weg wijzen, en de uitleg bij raden (in de stem van de gastvrouw)
+  for (const line of [say.paradeNew(), say.paradeGo(), say.paradeRest(), say.paintNew(), say.wayTip(), say.busy('facepaint')]) add(line);
+  for (const key of ['mini.guess', 'mini.guess.no']) add({ who: 'host', mood: 'happy', key });
   // het park gaat om middernacht dicht en om zeven uur weer open
   add({ who: 'director', mood: 'happy', key: 'say.park.closed' });
   add({ who: 'director', mood: 'happy', key: 'say.park.open' });
