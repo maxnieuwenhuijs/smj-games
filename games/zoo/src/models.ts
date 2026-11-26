@@ -5,6 +5,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { ICON_IDS, icon, type IconId } from './icons';
+import { modelFoot, shadeModel } from './shade';
 
 /** Maten van een model in model-eenheden (zie tools/animals). */
 export interface ModelInfo {
@@ -52,6 +53,10 @@ export function loadModel(key: string): Promise<void> {
           o.frustumCulled = false;
         }
       });
+      // een beetje schaduw in de kleuren (buik en poten donkerder), één keer per model: alle kopieën delen de vorm
+      shadeModel(gltf.scene);
+      // hoe het dier op de grond staat, voor het schaduwvlekje eronder (een kopie neemt userData mee)
+      gltf.scene.userData.foot = modelFoot(gltf.scene);
       cache.set(key, { scene: gltf.scene, clips: gltf.animations });
     });
     pending.set(key, p);

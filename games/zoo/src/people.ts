@@ -11,6 +11,7 @@ import { arrivalPath, busPath, exitPath, pavementY } from './road';
 import { FaceCrowd, beardColor, faceFor, giveFace, setFace } from './faces';
 import { BALLOON_FLY, KID_CHANCE, KID_WAIT, WAVE, balloonCatchable, balloonDrift, balloonHome, waveFresh, type KidMoment } from './kids';
 import { PAINT, PARADE, WAY, paintNext, type FacePaint } from './guestfun';
+import { PERSON_SHADE, shadeAttribute } from './shade';
 
 /** De tegel waar gasten binnenkomen en weer weggaan: midden aan de voorkant. */
 export const ENTRANCE = tileIndex(Math.floor(W / 2), H - 1);
@@ -439,6 +440,9 @@ const LEG_GEO = loft([[0, 0.0365, 0.04, 0, 0], [-0.15, 0.033, 0.036, 0, 1], [-0.
  * hand (tweede kleur: de huid).
  */
 const ARM_GEO = loft([[0.008, 0.02, 0.026, 0, 0], [-0.015, 0.029, 0.036, 0, 0], [-0.075, 0.027, 0.033, 0, 2], [-0.14, 0.026, 0.032, 0, 1], [-0.185, 0.023, 0.029, 0]]);
+// een beetje schaduw onderaan het poppetje (zie shade.ts en ToneMaterial): de benen hangen aan de heup op 0,2, de
+// romp zit op 0,31 en de armen op 0,41; het hele poppetje is 0,66 hoog. Alle vormen met kleurvakken hebben hem.
+for (const [geo, lift] of [[LEG_GEO, 0.2], [BODY_GEO, 0.31], [ARM_GEO, 0.41]] as const) shadeAttribute(geo, lift, 0, 0.66, PERSON_SHADE);
 const mats = new Map<number, THREE.MeshStandardMaterial>();
 const mat = (color: number): THREE.MeshStandardMaterial => {
   let m = mats.get(color);
@@ -475,11 +479,12 @@ class ToneMaterial extends THREE.MeshStandardMaterial {
   override onBeforeCompile(shader: THREE.WebGLProgramParametersWithUniforms): void {
     shader.uniforms.tint2 = this.tint;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float tone;\n#ifdef USE_INSTANCING\nattribute vec4 tint2;\n#else\nuniform vec4 tint2;\n#endif\nvarying vec4 vTint2;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTint2 = vec4( tint2.rgb, tone > 1.5 ? tint2.a : tone );');
+      .replace('#include <common>', '#include <common>\nattribute float tone;\nattribute float shade;\n#ifdef USE_INSTANCING\nattribute vec4 tint2;\n#else\nuniform vec4 tint2;\n#endif\nvarying vec4 vTint2;\nvarying float vShade;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTint2 = vec4( tint2.rgb, tone > 1.5 ? tint2.a : tone );\nvShade = shade;');
+    // `shade`: de schaduw onderaan het poppetje (zie shadeAttribute in shade.ts)
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec4 vTint2;')
-      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix( diffuseColor.rgb, vTint2.rgb, vTint2.a );');
+      .replace('#include <common>', '#include <common>\nvarying vec4 vTint2;\nvarying float vShade;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix( diffuseColor.rgb, vTint2.rgb, vTint2.a ) * ( 1.0 - vShade );');
   }
 }
 const mats2 = new Map<number, ToneMaterial>();
@@ -688,7 +693,7 @@ class Crowd {
     if (geo.hasAttribute('tone')) {
       // een vorm met kleurvakken: dezelfde hoekpunten, met de tweede kleur per poppetje erbij (de vorm zelf blijft zoals hij is)
       shape = new THREE.BufferGeometry();
-      for (const name of ['position', 'normal', 'tone']) shape.setAttribute(name, geo.getAttribute(name));
+      for (const name of ['position', 'normal', 'tone', 'shade']) if (geo.hasAttribute(name)) shape.setAttribute(name, geo.getAttribute(name));
       shape.setIndex(geo.getIndex());
       tint = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4);
       shape.setAttribute('tint2', tint);

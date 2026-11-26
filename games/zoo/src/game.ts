@@ -49,6 +49,7 @@ import { WALK, type Box, type WalkGround } from './walk';
 import { WalkMode, tagHtml, type WalkTarget } from './walkmode';
 import { WalkHand } from './walkhand';
 import { paintOf, walkOffer, walkPrice } from './held';
+import { BlobShadows } from './blobs';
 
 /** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken; een dier een snoepje geven of wassen (care.ts); in de herfst harken, in de winter sneeuw rollen. */
 export type ActionId = 'broom' | 'hammer' | 'picker' | CareAction | 'rake' | 'snowball';
@@ -499,6 +500,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private guests: GuestManager;
   /** De weg voor de poort, met het verkeer: alleen om naar te kijken. */
   private road: Road;
+  /** De zachte schaduwvlekjes onder de dieren en de mensen (zie blobs.ts). Uitzetten om te vergelijken: `__zoo.blobs.on = false`. */
+  readonly blobs: BlobShadows;
   private clock = 0;
   private tick = 0;
   private saveIn = 5;
@@ -658,6 +661,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.hud.onStars = () => this.showStars();
     this.guests = new GuestManager(this.view.scene, this);
     this.road = new Road(this.view.scene);
+    this.blobs = new BlobShadows(this.view.scene);
     const train = this.view.makeTrain();
     this.guests.train = new Train([train.loco, ...train.wagons]);
     if (data) this.load(data);
@@ -7525,6 +7529,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.staffGhost?.worker.mesh.visible) this.staffGhost.worker.dangle(this.staffGhost.gx, this.staffGhost.gy, this.clock, this.staffGhost.ok);
     this.animateProps();
     for (const worker of this.workers) worker.update(dt, this, this.claimed);
+    // de schaduwvlekjes: nu staat iedereen op zijn plek voor dit beeldje
+    this.blobs.update(this.animals, this.guests.guests, this.workers, this.night);
     const hour = Math.floor(this.clock / HOUR_SECONDS);
     if (hour !== this.hour) {
       this.hour = hour;

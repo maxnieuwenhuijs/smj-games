@@ -137,6 +137,8 @@ const HUNGER_PER_SEC = 1 / 1200;
 const NEED_KIND: Record<FenceNeed, number> = { wall: 3, net: 4, glass: 5 };
 /** Zo hoog ligt een dier dat op zijn slaapplek slaapt: boven op de rots of het stro, niet erin. */
 const BED_LIFT: Record<string, number> = { straw: 0.1, shed: 0.1, rock: 0.22, nest: 0.07, cave: 0.03 };
+/** Tot deze hoogte ligt het schaduwvlekje op de slaapplek; wie hoger zit (een schommel, een paal), heeft het op de grond. */
+const BLOB_PERCH = 0.25;
 const WATER_TILE = TERRAINS.indexOf('water');
 /** Kunstjes die een dier zomaar kan doen: hoe lang ze duren en welke animatie uit het model erbij hoort. */
 type Solo = 'hop' | 'spin' | 'roll' | 'shake' | 'wiggle' | 'stretch' | 'sniff' | 'dig' | 'bow' | 'jumpturn' | 'sway' | 'peek' | 'survey'
@@ -1168,6 +1170,15 @@ export class Animal {
   /** Zwemt het dier (of ligt het in het water)? Dan spoelt het stof eraf. */
   get swimming(): boolean {
     return this.sink > 0;
+  }
+
+  /**
+   * Voor het schaduwvlekje (zie blobs.ts): de hoogte van de grond onder het dier. Op een slaapplek is dat de
+   * bovenkant ervan; op een speeltoestel (hoger dan BLOB_PERCH) de grond zelf. Null in het water: geen vlekje.
+   */
+  get groundLevel(): number | null {
+    if (this.sink > 0 || this.y < -0.03) return null;
+    return this.lift <= BLOB_PERCH ? this.lift : 0;
   }
 
   /** Rolt het dier over de grond (een varken in de modder)? */
