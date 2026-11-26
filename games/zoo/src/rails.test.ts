@@ -27,10 +27,12 @@ function park(rows: string[], fences: string[] = []): RailGround & { terrain: Ui
 const at = (x: number, y: number): number => tileIndex(10 + x, 10 + y);
 /** Een halte van 2 bij 2 met zijn linkerbovenhoek op plek (x, y) van de tekening. */
 const station = (x: number, y: number): RailStation => ({ x: 10 + x, y: 10 + y, w: 2, h: 2 });
+/** De routes van de treinen in deze tekening, met deze haltes (en hekken). */
 const plan = (rows: string[], stations: RailStation[], fences: string[] = []) => {
   const grid = park(rows, fences);
   return planRails(grid, railLinks(grid), stations);
 };
+/** Het punt op de route op afstand `d`: [x, y, richting x, richting y]. */
 const point = (route: RailRoute, d: number): number[] => {
   const p = [0, 0, 0, 0];
   railAt(route, d, p);
