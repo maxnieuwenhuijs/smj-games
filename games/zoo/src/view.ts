@@ -2487,7 +2487,8 @@ const FOOD_GEOS: Record<FoodId, THREE.BufferGeometry> = {
   ),
 };
 
-function foodPiece(food: FoodId): THREE.Object3D {
+/** Eén stukje voer, zoals in de voerbak (ook voor een snoepje dat je gooit). */
+export function foodPiece(food: FoodId): THREE.Object3D {
   return new THREE.Mesh(FOOD_GEOS[food], PAINT_MAT);
 }
 

@@ -865,6 +865,9 @@ export const FEATURE = {
   murk: 20,
   /** Een level later: de bewaker, die ontsnapte dieren weer naar huis brengt. */
   guard: 31,
+  /** Bij de actieknop: een snoepje gooien naar een dier (level 2), en dieren wassen met de tuinslang (level 6). Zie care.ts. */
+  treat: 1,
+  hose: 5,
 };
 
 /**

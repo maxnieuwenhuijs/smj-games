@@ -215,6 +215,12 @@ export const say = {
   starsNew: (): Line => ({ who: 'director', mood: 'happy', key: 'say.stars.new' }),
   stars: (n: number): Line => ({ who: 'director', mood: 'happy', key: `say.stars.${n}` }),
   starsTip: (about: StarFactor): Line => ({ who: 'host', mood: 'happy', key: `say.stars.tip.${about}`, id: 'say.stars.tip' }),
+  /** Snoepjes en de tuinslang bij de actieknop (care.ts): de uitleg als ze nieuw zijn, en waarom het even niet kan. */
+  treatNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.treat.new' }),
+  treatFull: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.treat.full' }),
+  treatSick: (): Line => ({ who: 'keeper', mood: 'worried', key: 'say.treat.sick' }),
+  hoseNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.hose.new' }),
+  hoseMud: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.hose.mud' }),
   /** Het water in een bak van glas is vies, en de tip daarna: een waterfilter. */
   murky: (): Line => ({ who: 'keeper', mood: 'worried', key: 'alert.murky' }),
   filterTip: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.filter.tip' }),
@@ -329,7 +335,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   for (const ask of ['green.more', 'green.less', 'stone.more', 'stone.less']) add(wishLine(tr, 'wild', 'pig', null, false, ask));
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
     say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.filterTip(), say.showWhere(), say.showFirst(),
-    say.cableOne(), say.cableWhere(), say.cableFirst()]) add(line);
+    say.cableOne(), say.cableWhere(), say.cableFirst(), say.treatNew(), say.treatFull(), say.treatSick(), say.hoseNew(), say.hoseMud()]) add(line);
   add(say.eventNew());
   add(say.starsNew());
   for (let n = 2; n <= 5; n++) add(say.stars(n));

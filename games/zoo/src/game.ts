@@ -35,9 +35,11 @@ import { Road } from './road';
 import { STAR_EVERY, STAR_FACTORS, STAR_GOOD, STAR_TIP_GAP, nextStars, parkScore, scoreOf, smoothScore, starFactors, starGuests, weakest, type StarFactor, type StarInput } from './stars';
 import { guestCard } from './traits';
 import { EDGE_SHIFT, View, toWorldX, toWorldZ, type TroughMesh } from './view';
+import { CARE_ACTIONS, CATCH, DUST, HOSE, TREAT, dustAfter, dustSpecks, flightTime, isCare, treatFor, treatReady, type CareAction } from './care';
+import { CareFx } from './carefx';
 
-/** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken. */
-export type ActionId = 'broom' | 'hammer' | 'picker';
+/** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken; en een dier een snoepje geven of wassen (care.ts). */
+export type ActionId = 'broom' | 'hammer' | 'picker' | CareAction;
 export type ToolId = 'hand' | 'action' | 'terrain' | 'fence' | 'trough' | 'bed' | 'toy' | 'prop' | 'shop' | 'rides' | 'decor' | 'animal' | 'staff' | 'erase';
 type Verdict = 'good' | 'ok' | 'bad';
 type Sex = 'male' | 'female';
@@ -112,6 +114,7 @@ const FENCE_SOUND = ['', 'fence', 'fence', 'stone', 'net', 'stone', 'stone', 'fe
 const NEED_ICON: Record<FenceNeed, IconId> = { wall: 'wall', net: 'net', glass: 'glass' };
 const PATH = TERRAINS.indexOf('path');
 const WATER = TERRAINS.indexOf('water');
+const MUD = TERRAINS.indexOf('mud');
 /** In welke wereld hoort een soort thuis? Dat volgt uit het level waarin je hem krijgt. */
 /** Wat er bij de gasten kan gebeuren. Bij alles behalve het verdwaalde kind hoort een kaartje met een puzzeltje. */
 type EventKind = 'schoolclass' | 'party' | 'celeb' | 'lost' | 'delivery' | 'photo' | 'build' | 'bedtime' | 'crates' | 'till' | 'mayor';
@@ -191,6 +194,8 @@ const CUR: Record<string, string> = {
   catch: cursor('catch', 20, 12),
   hammer: cursor('hammer', 8, 26),
   picker: cursor('picker', 5, 30),
+  treat: cursor('treat', 24, 24),
+  hose: cursor('hose', 40, 12),
   staff: cursor('keeper'),
 };
 for (const id of [...TERRAINS, ...BEDS, ...SHOPS, ...TOYS, ...DECORS]) CUR[id] = cursor(id);
@@ -1214,6 +1219,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       score += 0.05 * Math.min(2, here.filter(a => a.rare).length);
       // een dier dat net zijn kunstje laat zien aan de gasten: dat is extra leuk om te zien
       if (here.some(a => a.showing)) score += 0.04;
+      // een dier dat net een snoepje kreeg of gewassen is, is extra vrolijk om naar te kijken
+      score += 0.03 * Math.min(2, here.filter(a => a.glee > 0).length);
       if (!best || score > best.score) best = { score, x: x + dx + 0.5, y: y + dy + 0.5, species };
     }
     return best;
@@ -1402,7 +1409,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       ...(this.level >= 1
         ? [{
             ...opt('action', acts.length > 1 ? 'action' : 'broom', acts.length > 1 ? t('tool.action') : t('action.broom')),
-            rows: acts.length > 1 ? [{ key: 'action', active: this.option.action, options: acts.map(k => opt(k, k, t(`action.${k}`))) }] : [],
+            fresh: acts.some(k => this.fresh.has(k)),
+            rows: acts.length > 1 ? [{ key: 'action', active: this.option.action, options: acts.map(k => ({ ...opt(k, k, t(`action.${k}`)), fresh: this.fresh.has(k) })) }] : [],
           }]
         : []),
       {
@@ -1527,7 +1535,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Wat er onder de actieknop zit: de veger altijd, de prikker zodra er afval komt, de hamer zodra hekken slijten. */
   private actionOptions(): ActionId[] {
-    return ['broom', ...(this.has('wear') ? (['hammer'] as const) : []), ...(this.has('bin') ? (['picker'] as const) : [])];
+    return ['broom', ...(this.has('wear') ? (['hammer'] as const) : []), ...(this.has('bin') ? (['picker'] as const) : []), ...CARE_ACTIONS.filter(k => this.has(k))];
   }
 
   /** Een tik met het verkeerde gereedschap: het goede wordt alvast gekozen en de actieknop licht op. */
@@ -1708,6 +1716,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.level === FEATURE.safe) once(say.safeNew());
     if (this.level === FEATURE.night) once(say.nightNew());
     if (this.level === FEATURE.guard) once(say.guardNew());
+    if (this.level === FEATURE.treat) once(say.treatNew());
+    if (this.level === FEATURE.hose) once(say.hoseNew());
     if (this.level === BONUS.dolphin && hasSpecies('dolphin')) once(say.aquaNew());
     // vanaf nu kun je hulp aannemen: de verzorger vertelt hoe
     if (this.level === FEATURE.keeper) this.showStaffGuide();
@@ -3296,6 +3306,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.unmet.delete(a);
     this.frightAt.delete(a);
     this.reacted.delete(a);
+    this.careFx?.forget(a);
     if (this.moving === a) this.moving = null;
     this.animals = this.animals.filter(x => x !== a);
   }
@@ -4882,6 +4893,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       }
       if (this.pointers.size > 2 || this.celebrating) return;
       const pan = e.button !== 0;
+      // het snoepje en de tuinslang: je mikt met je vinger, het veld schuift dan niet mee
+      if (!pan && !this.moving && this.tool === 'action' && isCare(this.option.action)) {
+        this.drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false, pan: false, paint: false };
+        this.careDown(e.clientX, e.clientY);
+        return this.hover(e.clientX, e.clientY, true);
+      }
       // met de actieknop sleep je het veld net als met het handje; alleen als je op een poepje, afval of een
       // versleten hek begint (wat bij het gekozen gereedschap hoort), ga je aan het werk
       const sweeping = this.tool !== 'action' || this.actionTarget(e.clientX, e.clientY);
@@ -4910,6 +4927,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const d = this.drag;
       if (!d || d.id !== e.pointerId) return;
       if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) > 8) d.moved = true;
+      if (this.careAim) {
+        this.careAim.cx = e.clientX;
+        this.careAim.cy = e.clientY;
+        return this.hover(e.clientX, e.clientY, true);
+      }
       // een hek: een heel hok slepen, of (stand Los hek) hekken langs de rand waar je overheen veegt; een poort of
       // kijkruit zet je altijd los neer met een tik
       if (d.paint && this.tool === 'fence' && !this.looseFence()) this.fenceDrag(e.clientX, e.clientY);
@@ -4930,7 +4952,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const flick = d.paint && this.tool === 'fence' && d.moved && !!this.line && !box && !this.looseFence();
       this.line = null;
       this.clearRect();
-      if (box) this.buildRect(box);
+      if (this.careAim) this.careUp(e.clientX, e.clientY, e.type === 'pointerup', d.moved);
+      else if (box) this.buildRect(box);
       else if (e.type === 'pointerup' && (!d.moved || flick) && !d.pan) {
         if (!d.paint) this.tap(e.clientX, e.clientY);
         else if (this.tool !== 'terrain') this.paint(flick ? d.sx : e.clientX, flick ? d.sy : e.clientY);
@@ -4948,6 +4971,225 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private pinchState(): { dist: number; cx: number; cy: number } {
     const [a, b] = [...this.pointers.values()];
     return { dist: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
+  }
+
+  // ------------------------------------------------------------ zorgen met de hand: snoepjes en de tuinslang (care.ts)
+  /** Het snoepje dat vliegt, de straal van de slang en de stofjes op de dieren. Pas gemaakt als het nodig is. */
+  private careFx: CareFx | null = null;
+  /** Waar je vinger is terwijl je mikt (met het snoepje) of spuit (met de slang); `start` is waar je begon. */
+  private careAim: { cx: number; cy: number; start: { gx: number; gy: number } | null } | null = null;
+  /** Het dier waar je nu op mikt: dat krijgt een ring. */
+  private careHot: Animal | null = null;
+  /** Wanneer elk dier zijn laatste snoepje kreeg (op de klok van het spel). */
+  private treatAt = new Map<Animal, number>();
+  /** Hoe lang elk dier al onder de straal stond, en wanneer voor het laatst. */
+  private soaked = new Map<Animal, { s: number; at: number }>();
+  /** Net gewassen: tot wanneer het dier spat bij het droogschudden. */
+  private shaking = new Map<Animal, number>();
+  /** Een modderliefhebber die net gewassen is: wanneer hij weer in de modder gaat rollen. */
+  private mudBack = new Map<Animal, number>();
+  private careTidy = 0;
+  /** Met een muis (niet op een tablet) licht het dier onder de muis al op. */
+  private careMouse = typeof matchMedia === 'function' && matchMedia('(hover: hover)').matches;
+
+  private get fx(): CareFx {
+    return (this.careFx ??= new CareFx(this.view.scene));
+  }
+
+  /** Het dier op dit punt van het scherm waar je een snoepje naar kunt gooien of dat je kunt wassen. */
+  private careTarget(cx: number, cy: number): Animal | undefined {
+    const a = this.pickAnimal(cx, cy, 0.8);
+    return a && !a.escaped ? a : undefined;
+  }
+
+  /** Met het snoepje mik je ook als je net naast een dier loslaat: dan het dier dat het dichtst bij is (hooguit anderhalve tegel). */
+  private treatTarget(cx: number, cy: number): Animal | undefined {
+    const hit = this.careTarget(cx, cy);
+    const g = hit ? null : this.view.groundPoint(cx, cy);
+    if (!g) return hit;
+    let best: Animal | undefined, bestD = 1.5;
+    for (const a of this.animals) {
+      const d = Math.hypot(a.px - g.gx, a.py - g.gy);
+      if (!a.escaped && d < bestD) [best, bestD] = [a, d];
+    }
+    return best;
+  }
+
+  private careDown(cx: number, cy: number): void {
+    this.careAim = { cx, cy, start: this.view.groundPoint(cx, cy) };
+  }
+
+  /** Je laat los: met het snoepje gooi je het naar het dier waar je nu bent; een tik ergens anders werkt zoals altijd. */
+  private careUp(cx: number, cy: number, up: boolean, moved: boolean): void {
+    const aim = this.careAim;
+    this.careAim = null;
+    this.careHot = null;
+    this.fx.hold(null);
+    this.fx.stopSpray();
+    if (!up || !aim) return;
+    const a = this.option.action === 'treat' && moved ? this.treatTarget(cx, cy) : this.careTarget(cx, cy);
+    if (this.option.action === 'treat' && a) return this.throwTreat(a, moved ? aim.start : null);
+    // een tik op een ontsnapt dier, op poep of op grond die te koop is: net als met de andere gereedschappen
+    if (!moved && !a) this.tap(cx, cy);
+  }
+
+  /** Een plek een eindje voor het dier, naar je toe (onder op het scherm): daar komt het snoepje vandaan als je tikt. */
+  private tossFrom(a: Animal): { gx: number; gy: number } {
+    const s = this.view.toScreen(a.px, a.py, 0);
+    const g = this.view.groundPoint(s.x, s.y + 160);
+    return g && Math.hypot(g.gx - a.px, g.gy - a.py) < 5 ? g : { gx: a.px, gy: a.py + 2.5 };
+  }
+
+  /** Een snoepje gooien naar dit dier, vanaf `start` (waar je begon te slepen) of anders van voor het dier. */
+  private throwTreat(a: Animal, start: { gx: number; gy: number } | null): void {
+    if (!a.careable && !a.sick) return this.nope(a.px, a.py, a.top);
+    if (!a.sick && !treatReady(this.treatAt.get(a), this.clock)) {
+      // net al een snoepje gehad: even wachten
+      this.floatAt(icon('clock'), a.px, a.py, a.top + 0.2);
+      sfx('nope', { every: 0.3 });
+      if (!this.told.has('treat.full')) {
+        this.told.add('treat.full');
+        this.lines.push(say.treatFull());
+      }
+      return;
+    }
+    const from = start ?? this.tossFrom(a);
+    const seconds = flightTime(Math.hypot(a.px - from.gx, a.py - from.gy));
+    const food = treatFor(a.species);
+    sfx('tap', { rate: 1.3 });
+    if (a.sick) {
+      // een ziek dier eet het niet: het snoepje valt naast hem op de grond
+      const gx = a.px + 0.4, gy = a.py + 0.3;
+      this.fx.throwTreat(food, [from.gx, from.gy, 0.5], () => [gx, gy, 0.05], seconds, () => {
+        this.react(a, 'bad', true);
+        if (!this.told.has('treat.sick')) {
+          this.told.add('treat.sick');
+          this.lines.push(say.treatSick());
+        }
+      }, true);
+      return;
+    }
+    this.treatAt.set(a, this.clock);
+    const height = a.awaitTreat(from.gx, from.gy, seconds - CATCH.up / 2);
+    this.fx.throwTreat(food, [from.gx, from.gy, 0.5], () => [a.px, a.py, height], seconds, () => this.treated(a));
+  }
+
+  /** Gevangen! Minder honger, extra blij, en een hartje (dat komt van het dier zelf). */
+  private treated(a: Animal): void {
+    if (!this.animals.includes(a)) return;
+    a.hunger = Math.max(0, a.hunger - TREAT.hunger);
+    a.glee = TREAT.glee;
+    a.neglect = Math.max(0, a.neglect - TREAT.neglect);
+    sfx('guest.bite', { volume: 0.5, every: 0.3, at: [a.gx, a.gy] });
+    sfx('heart', { volume: 0.5, every: 0.5 });
+    animalSound(a.species, a.young, 0.6, [a.gx, a.gy]);
+  }
+
+  /** De straal van de tuinslang raakt dit dier: het staat stil, en na een poosje is het schoon. */
+  private soak(a: Animal, dt: number, from: { gx: number; gy: number }): void {
+    if (this.shaking.has(a) || !a.holdStill(0.5)) return;
+    const s = this.soaked.get(a) ?? { s: 0, at: 0 };
+    s.s += dt;
+    s.at = this.clock;
+    this.soaked.set(a, s);
+    if (s.s < HOSE.soak) return;
+    this.soaked.delete(a);
+    this.washed(a, from);
+  }
+
+  /** Schoon! Het dier schudt zich droog, met spetters en sterretjes, en is een poosje extra blij. */
+  private washed(a: Animal, from: { gx: number; gy: number }): void {
+    const dirty = a.dust >= DUST.shows;
+    a.shakeDry(this, from.gx, from.gy);
+    a.glee = HOSE.glee;
+    if (dirty) a.neglect = Math.max(0, a.neglect - HOSE.neglect);
+    this.fx.setDust(a, 0);
+    this.shaking.set(a, this.clock + 1.3);
+    this.view.burst(a.px, a.py, a.top * 0.6, 0xd6f1ff, 8);
+    for (let k = 0; k < 3; k++) this.floatAt(icon('sparkle'), a.px + (Math.random() - 0.5) * 0.6, a.py, a.top * (0.5 + Math.random() * 0.5));
+    this.floatAt(icon('heart'), a.px, a.py, a.top + 0.2);
+    sfx('animal.splash', { volume: 0.45, every: 0.3, at: [a.gx, a.gy] });
+    sfx('heart', { volume: 0.5, every: 0.5 });
+    if (MUD_LOVERS.includes(a.species)) {
+      // een modderliefhebber vindt schoon niet erg, maar gaat straks wel weer lekker rollen
+      this.mudBack.set(a, this.clock + between(HOSE.mudBack));
+      if (dirty && !this.told.has('hose.mud')) {
+        this.told.add('hose.mud');
+        this.lines.push(say.hoseMud());
+      }
+    }
+  }
+
+  /** Het dier waar je op mikt licht op met een ring. */
+  private careSpots(spots: { gx: number; gy: number; r?: number; hot?: boolean }[]): void {
+    if (this.careHot && this.animals.includes(this.careHot)) spots.push({ gx: this.careHot.px, gy: this.careHot.py, hot: true, r: 1.8 });
+  }
+
+  private updateCare(dt: number): void {
+    const fx = this.careFx;
+    // twee vingers (inzoomen) of een ander gereedschap: dan mik je niet meer
+    if (this.careAim && (!this.drag || this.tool !== 'action' || !isCare(this.option.action))) this.careUp(0, 0, false, false);
+    const aim = this.careAim;
+    // met de muis licht het dier onder de muis al op voor je klikt
+    const over = aim ?? (this.tool === 'action' && isCare(this.option.action) && this.careMouse && this.lastHover ? { cx: this.lastHover[0], cy: this.lastHover[1] } : null);
+    const aiming = aim && this.option.action === 'treat' && this.drag?.moved;
+    this.careHot = over ? (aiming ? this.treatTarget(over.cx, over.cy) : this.careTarget(over.cx, over.cy)) ?? null : null;
+    if (aim && this.option.action === 'treat') {
+      // het snoepje in je hand, waar je begon te slepen, zodra je op een dier mikt
+      const a = this.careHot, d = this.drag;
+      if (a && aim.start && d?.moved) this.fx.hold(treatFor(a.species), [aim.start.gx, aim.start.gy, 0.5]);
+      else this.fx.hold(null);
+    }
+    if (aim && this.option.action === 'hose') {
+      // de straal: van de slang (onder je vinger, naar je toe) naar het dier of de grond waar je vinger is
+      const g = this.view.groundPoint(aim.cx, aim.cy);
+      if (g) {
+        const a = this.careHot;
+        const to: [number, number, number] = a ? [a.px, a.py, a.top * 0.55] : [g.gx, g.gy, 0.02];
+        const below = this.view.groundPoint(aim.cx, aim.cy + 130);
+        const from = below && Math.hypot(below.gx - to[0], below.gy - to[1]) < 5 ? below : { gx: to[0], gy: to[1] + 2 };
+        this.fx.spray([from.gx, from.gy, 0.9], to, dt);
+        sfx('pour', { volume: 0.3, every: 0.7, at: [to[0], to[1]] });
+        if (Math.random() < dt * 8) {
+          if (a) this.view.burst(to[0], to[1], to[2], 0xd6f1ff, 2);
+          else this.view.splash(to[0], to[1]);
+        }
+        if (a) this.soak(a, dt, from);
+      }
+    }
+    for (const [a, s] of this.soaked) if (this.clock - s.at > HOSE.keep) this.soaked.delete(a);
+    // droogschudden: de druppels vliegen van het lijf af
+    for (const [a, until] of this.shaking) {
+      if (this.clock > until) this.shaking.delete(a);
+      else if (Math.random() < dt * 12) this.view.burst(a.px, a.py, a.top * 0.6, 0xd6f1ff, 2);
+    }
+    // weer de modder in: naar een stuk modder in het eigen verblijf, en daar rollen
+    for (const [a, when] of this.mudBack) {
+      if (this.clock < when) continue;
+      const region = this.grid.enclosureAt(...tileXY(a.tile));
+      const mud = region?.tiles.filter(i => this.grid.terrain[i] === MUD && !this.taken(...tileXY(i))) ?? [];
+      const spot = mud[Math.floor(Math.random() * mud.length)];
+      if (!this.animals.includes(a) || spot === undefined || this.clock - when > 60) this.mudBack.delete(a);
+      else if (a.rollAt(this, tileXY(spot)[0] + 0.5, tileXY(spot)[1] + 0.5)) this.mudBack.delete(a);
+      else this.mudBack.set(a, this.clock + 5);
+    }
+    // stof (vanaf FEATURE.hose): langzaam vies, een modderliefhebber sneller en vooral als hij in de modder rolt
+    if (this.has('hose'))
+      for (const a of this.animals) {
+        a.dust = dustAfter(a.dust, dt, { species: a.species, aquatic: a.aquatic, swimming: a.swimming, rolling: a.rolling });
+        const n = dustSpecks(a.dust);
+        if (n || fx) this.fx.setDust(a, n);
+        if (a.dust >= DUST.puffs && !a.sleeping && Math.random() < dt * 0.25) this.view.burst(a.px, a.py, a.top * 0.5, 0xb8ab94, 3);
+      }
+    this.careFx?.update(dt);
+    // dieren die weg zijn: niets meer van bewaren
+    this.careTidy -= dt;
+    if (this.careTidy <= 0) {
+      this.careTidy = 5;
+      for (const a of this.treatAt.keys()) if (!this.animals.includes(a)) this.treatAt.delete(a);
+      for (const a of this.mudBack.keys()) if (!this.animals.includes(a)) this.mudBack.delete(a);
+      for (const a of fx?.dusted() ?? []) if (!this.animals.includes(a)) fx!.forget(a);
+    }
   }
 
   // ------------------------------------------------------------ tijd, seizoenen en weer
@@ -6129,7 +6371,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // wat er naast het dier nog vrijkomt: iets voor het park of een nieuw speeltoestel
       const soon: string[] = [...TROUGHS.filter(k => TROUGH[k].from === this.level + 1), ...DECORS.filter(k => DECOR[k].from === this.level + 1), ...SHOPS.filter(k => FEATURE[k] === this.level + 1),
         ...TOYS.filter(k => TOY_FROM[k] === this.level + 1 && TOY_FROM[k] > FEATURE.fun), ...PATH_KINDS.filter(k => k !== 'path' && PATH_FROM[k] === this.level + 1),
-        ...PARK_PROPS.filter(k => PROP[k].from === this.level + 1)];
+        ...PARK_PROPS.filter(k => PROP[k].from === this.level + 1), ...CARE_ACTIONS.filter(k => FEATURE[k] === this.level + 1)];
       sfx('fanfare');
       this.hud.showLevelDone(this.level + 1, speciesIcon(level.reward), t(`species.${level.reward}`), textOf(t, done), () => {
         void ready.then(() => {
@@ -6251,7 +6493,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         const key = edgeKey(e.e);
         if (this.wear.has(key)) spots.push({ gx: e.e.x + (e.e.o === 'h' ? 0.5 : 0), gy: e.e.y + (e.e.o === 'h' ? 0 : 0.5), hot: key === at, r: key === at ? 1.8 : 1.3 });
       }
-    } else if (this.tool === 'action') {
+    } else if (this.tool === 'action' && !isCare(this.option.action)) {
       // de veger: alle poepjes; de prikker: al het afval, en de afvalbakken zodra je iets bij je hebt
       for (const p of this.option.action === 'broom' ? this.poops : this.litter) spots.push({ gx: p.gx, gy: p.gy, hot: p === hot, r: p === hot ? 1.5 : 1 });
       if (this.option.action === 'broom') for (const sh of this.shops) if ((sh.dirt ?? 0) >= 1) spots.push({ gx: blockCenter(sh)[0], gy: blockCenter(sh)[1], hot: true, r: 3 });
@@ -6270,6 +6512,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const pointed = this.pointed && this.clock < this.pointed.until ? this.pointed.at() : null;
     if (pointed) spots.push({ gx: pointed[0], gy: pointed[1], hot: true, r: 2.6 });
     else this.pointed = null;
+    this.careSpots(spots);
     this.view.showMarks(spots, this.clock * 5);
     // het gekozen verblijf (menu open) licht iets duidelijker op dan het verblijf dat je alleen aanwijst
     if (this.menuPen && (!this.hud.menuOpen || !this.pens.includes(this.menuPen))) this.menuPen = null;
@@ -6283,6 +6526,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       this.view.highlight(glow.tiles, glow.edges, 0.9, this.clock);
     } else this.view.highlight(lit ? lit.region.tiles : null, lit ? this.grid.borderEdges(lit.region) : [], this.menuPen ? 1 : 0.6, this.clock);
     for (const a of this.animals) a.update(dt, this);
+    this.updateCare(dt);
     this.guests.update(dt);
     this.road.update(dt, this.night);
     this.animateToys(dt);

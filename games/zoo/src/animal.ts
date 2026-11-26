@@ -6,6 +6,7 @@ import {
 } from './data';
 import { CLIMB_SECONDS, PUSH, ROCK_SECONDS, SWING, SWING_SECONDS, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, swingAt, type Beat } from './data';
 import { MURK, murkyWater } from './data';
+import { CATCH } from './care';
 import { Grid, tileIndex, tileXY } from './grid';
 import { MODEL_SCALE, modelInfo, spawnModel, type ModelInfo, type Spawned } from './models';
 import { toWorldX, toWorldZ } from './view';
@@ -149,7 +150,10 @@ type Trick = Solo | 'nuzzle' | 'greet' | 'dance' | 'leap' | 'look' | 'tunnel' | 
   // bang in een hoekje: klein maken en trillen
   | 'tremble'
   // ontsnappen: over, door of tegen het hek (zie `escape`)
-  | 'bolt';
+  | 'bolt'
+  // een snoepje vangen en opeten, en stil staan onder de tuinslang (zie care.ts)
+  | 'treat' | 'wash';
+const { up: CATCH_UP, munch: MUNCH } = CATCH;
 /** Hoe lang het ontsnappen zelf duurt (na het rennen naar het hek), en welke animatie uit het model erbij hoort. */
 const BOLT: Record<EscapeWay, [number, string]> = { jump: [1.1, 'Run'], climb: [1.9, 'Walk'], fly: [1.5, 'Run'], push: [1.7, 'Walk'], slip: [1.4, 'Walk'] };
 /** Op dit stukje van het omduwen valt het hek om. */
@@ -374,6 +378,14 @@ export class Animal {
   private tinted: { mesh: THREE.Mesh; base: THREE.BufferGeometry; own: THREE.BufferGeometry }[] = [];
   private painted: { color: THREE.Color; base: THREE.Color }[] = [];
   private tintReady = false;
+  /** Hoe stoffig het dier is: 0 schoon, 1 heel stoffig (vanaf FEATURE.hose; zie care.ts). */
+  dust = 0;
+  /** Zo lang (in tellen) is het dier nog extra blij: na een snoepje of een wasbeurt. */
+  glee = 0;
+  /** Het snoepje: zo lang kijkt het dier omhoog voor het springt, en zo hoog springt het. */
+  private treatWait = 0;
+  private treatHop = 0;
+  private treatStage = 0;
 
   constructor(readonly species: SpeciesId, readonly variant: Variant, gx: number, gy: number) {
     this.aquatic = AQUATIC.includes(species);
@@ -700,7 +712,29 @@ export class Animal {
         pitch = -s * 0.12;
         yaw += Math.sin(u * 3.4) * 0.75 * s;
       } else if (k.kind === 'survey') yaw += Math.sin(u * 1.2) * 1.1; // rondkijken: langzaam heen en weer draaien
-      else if (k.kind === 'tremble') {
+      else if (k.kind === 'treat') {
+        // eerst omhoog kijken naar het snoepje, dan springen om het te vangen (een zeedier uit het water), dan smullen
+        const jump = (u - this.treatWait) / CATCH_UP;
+        if (jump < 0) {
+          const s = swell(u, this.treatWait + 0.3, 0.2);
+          pitch = -0.35 * s;
+          sy = 1 + 0.05 * s;
+        } else if (jump < 1) {
+          const h = Math.sin(jump * Math.PI);
+          y += h * this.treatHop;
+          pitch = this.sink ? -Math.cos(jump * Math.PI) * 0.9 : -0.3 * h;
+          sy = 1 + (h - 0.5) * 0.12;
+        } else {
+          const m = Math.sin((u - this.treatWait - CATCH_UP) * 14);
+          pitch = this.sink ? 0 : 0.06 + 0.05 * m;
+          sy = 1 + 0.03 * m;
+        }
+      } else if (k.kind === 'wash') {
+        // onder de tuinslang: stil staan en genieten, een beetje heen en weer wiegen
+        roll = Math.sin(u * 5) * 0.05;
+        sy = 1 - 0.03 * Math.abs(Math.sin(u * 7));
+        pitch = -0.08;
+      } else if (k.kind === 'tremble') {
         // bang: een beetje ineengedoken, en snel en klein trillen (af en toe wat harder)
         const s = swell(u, Math.max(u, this.timeLeft + u), 0.3), hard = 0.6 + 0.4 * Math.max(0, Math.sin(u * 2.3));
         sy = 1 - 0.07 * s;
@@ -994,6 +1028,8 @@ export class Animal {
       if (k === 'fan') return 'watch';
       if (k === 'roll') return 'roll';
       if (k === 'shake') return 'shake';
+      if (k === 'treat') return 'eat';
+      if (k === 'wash') return 'stand';
       if (k === 'stretch' || k === 'bow') return 'stretch';
       if (k === 'nuzzle') return 'cuddle';
       if (k === 'greet' || k === 'look') return 'greet';
@@ -1081,6 +1117,74 @@ export class Animal {
     this.state = 'eat';
     this.timeLeft = 2.2;
     this.play('Eat');
+  }
+
+  /** Zwemt het dier (of ligt het in het water)? Dan spoelt het stof eraf. */
+  get swimming(): boolean {
+    return this.sink > 0;
+  }
+
+  /** Rolt het dier over de grond (een varken in de modder)? */
+  get rolling(): boolean {
+    return this.trick?.kind === 'roll';
+  }
+
+  /** Kan het dier nu een snoepje vangen of gewassen worden? Niet als het ziek of verdoofd is, ontsnapt of aan de lijn loopt. */
+  get careable(): boolean {
+    return !this.sick && !this.escaped && !this.drugged && !this.leash && !this.bolt;
+  }
+
+  /**
+   * Er komt een snoepje aan vanaf (fx, fy): het dier stopt met wat het deed (een slapend dier wordt wakker), kijkt
+   * `wait` tellen omhoog en springt dan om het in de lucht te vangen; een zeedier springt uit het water. Daarna
+   * smult het en maakt het een blij sprongetje. Geeft terug op welke hoogte het het snoepje vangt.
+   */
+  awaitTreat(fx: number, fy: number, wait: number): number {
+    this.stop();
+    this.faceTo = null;
+    this.face(fx, fy);
+    this.state = 'emote';
+    this.route = [];
+    this.eatAt = null;
+    this.trick = { kind: 'treat', t: 0 };
+    this.treatWait = Math.max(0.1, wait);
+    this.treatStage = 0;
+    this.timeLeft = this.treatWait + CATCH_UP + MUNCH;
+    this.play('Idle');
+    const tall = this.info.height * MODEL_SCALE;
+    this.treatHop = this.sink ? this.sink + Math.max(0.5, tall * 0.9) : tall * 0.45;
+    this.encore = 'hop';
+    return this.sink ? this.treatHop - this.sink + tall * 0.5 : tall * 0.8 + this.treatHop;
+  }
+
+  /** Onder de straal van de tuinslang: het dier staat nog zoveel tellen stil en geniet. Lukt dat? */
+  holdStill(seconds: number): boolean {
+    if (!this.careable) return false;
+    if (this.trick?.kind !== 'wash') {
+      this.stop();
+      this.state = 'emote';
+      this.route = [];
+      this.eatAt = null;
+      this.faceTo = null;
+      this.trick = { kind: 'wash', t: 0 };
+      this.timeLeft = seconds;
+      this.play('Idle');
+    }
+    this.timeLeft = Math.max(this.timeLeft, seconds);
+    return true;
+  }
+
+  /** Schoon! Het dier schudt zich droog en maakt een sprongetje; een olifant draait zich naar (fx, fy) en spuit terug. */
+  shakeDry(w: AnimalWorld, fx: number, fy: number): void {
+    this.stop();
+    this.dust = 0;
+    this.wet = false;
+    w.splash(this.gx, this.gy);
+    this.doTrick('shake', 1.3, 'Idle');
+    if (this.species === 'elephant') {
+      this.face(fx, fy);
+      this.encore = 'spray';
+    } else this.encore = 'hop';
   }
 
   /** Wordt ziek en gaat liggen. */
@@ -2284,6 +2388,24 @@ export class Animal {
     this.ny += (ty - this.ny) * f;
   }
 
+  /** Het snoepje: de animatie en de plons bij elk stuk (omhoog kijken, springen, smullen). */
+  private treatStep(w: AnimalWorld): void {
+    const u = this.trick!.t, stage = u < this.treatWait ? 0 : u < this.treatWait + CATCH_UP ? 1 : 2;
+    if (stage === this.treatStage) return;
+    this.treatStage = stage;
+    if (stage === 1) {
+      this.play(this.sink ? 'Play' : 'Happy');
+      if (this.sink) w.splash(this.gx, this.gy);
+    } else if (stage === 2) {
+      this.play(this.sink ? 'Idle' : 'Eat');
+      if (this.sink) {
+        w.splash(this.gx, this.gy);
+        w.trickSound(this, 'splash');
+      }
+      w.heart(this.px, this.py, this.top);
+    }
+  }
+
   update(dt: number, w: AnimalWorld): void {
     this.model.mixer.update(dt);
     this.bob += dt;
@@ -2311,6 +2433,9 @@ export class Animal {
       const front = (this.info.length - this.info.back) * MODEL_SCALE * 0.9;
       w.spray(this.px + Math.sin(this.heading) * front, this.py + Math.cos(this.heading) * front, this.top * 0.9);
     }
+    if (this.trick?.kind === 'treat') this.treatStep(w);
+    if (this.trick?.kind === 'shake' && Math.random() < dt * 6) w.splash(this.gx, this.gy);
+    if (this.glee > 0) this.glee = Math.max(0, this.glee - dt);
     if (this.tailRest > 0) this.tailRest -= dt;
     if (this.tail) this.trail(dt, w);
     else if ((this.young || this.nature === 'playful') && this.tailRest <= 0 && Math.random() < dt * 0.8) this.spotPasser(w);
