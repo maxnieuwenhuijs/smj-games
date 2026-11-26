@@ -4059,7 +4059,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
    * halverwege op, en dan ligt het punt op de grond daaronder een paar tegels verder).
    */
   private pylonUnder(cx: number, cy: number): Pylon | undefined {
-    let best: Pylon | undefined, bestD = Math.max(14, 0.22 * this.pxPerTile());
+    let best: Pylon | undefined, bestD = Math.max(16, 0.26 * this.pxPerTile());
     for (const p of this.pylons) {
       const a = this.view.toScreen(p.x + 0.5, p.y + 0.5, 0), b = this.view.toScreen(p.x + 0.5, p.y + 0.5, CABLE.high + 0.3);
       const ux = b.x - a.x, uy = b.y - a.y, t = Math.max(0, Math.min(1, ((cx - a.x) * ux + (cy - a.y) * uy) / (ux * ux + uy * uy || 1)));
@@ -4076,6 +4076,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private pylonFits(x: number, y: number): boolean {
     if (!this.grid.inBounds(x, y) || this.taken(x, y)) return false;
     const tile = tileIndex(x, y);
+    // (ook niet op de plek van een paal die vanzelf onder een kabel staat: dan stonden er twee palen in elkaar)
+    if (this.guests.lifts.some(l => (l.model.group.userData.poles as number[]).includes(tile))) return false;
     return this.grid.terrain[tile] !== WATER && !this.tankTiles.has(tile) && !this.solid.has(tile) && tile !== ENTRANCE;
   }
 
@@ -4176,7 +4178,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const path = cablePath(routes[i]);
       // een paal staat niet midden in een gebouw of op de tussenpaal van een andere kabel: daar hangt de kabel gewoon wat verder door
       const poles = cablePoles(path).filter(pole => !this.shopAt(Math.floor(pole.gx), Math.floor(pole.gy)) && !this.pylonAt(Math.floor(pole.gx), Math.floor(pole.gy)));
-      keep.push(new CableCar(p, q, this.view.makeCable(path, poles, cableChairs(path.len)), path));
+      const model = this.view.makeCable(path, poles, cableChairs(path.len));
+      // de tegels van die palen: daar komt geen tussenpaal meer bij (zie pylonFits)
+      model.group.userData.poles = poles.map(pole => tileIndex(Math.floor(pole.gx), Math.floor(pole.gy)));
+      keep.push(new CableCar(p, q, model, path));
     });
     this.guests.lifts = keep;
     if (this.cableDraft) {
