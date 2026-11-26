@@ -84,7 +84,7 @@ export class Hud {
   /** Wat er gebeurt als je naast de kaart tikt (alleen bij de dierenarts). */
   private overlayTap: (() => void) | null = null;
 
-  constructor(private on: { tool(id: string, row?: string, option?: string): void; home(): void; goal(index: number): void; need(index: number): void; turn(dir: 1 | -1): void; spin(): void }) {
+  constructor(private on: { tool(id: string, row?: string, option?: string): void; home(): void; goal(index: number): void; need(index: number): void; turn(dir: 1 | -1): void; spin(): void; walk(): void }) {
     this.need.id = 'needs';
     this.need.hidden = true;
     this.need.setAttribute('aria-label', t('need'));
@@ -119,6 +119,11 @@ export class Hud {
       b.addEventListener('click', () => this.on.turn(dir));
       document.getElementById('ui')!.append(b);
     }
+    // de loopstand: onder de draaipijlen een knop met een lopend kindje (zie walkmode.ts)
+    this.walkBtn.id = 'walk';
+    this.walkBtn.hidden = true;
+    this.walkBtn.addEventListener('click', () => this.on.walk());
+    document.getElementById('ui')!.append(this.walkBtn);
     // de draaiknop: staat er alleen als je iets gaat neerzetten wat je kunt draaien
     this.spinBtn.id = 'spin';
     this.spinBtn.hidden = true;
@@ -215,6 +220,24 @@ export class Hud {
   }
 
   private spinBtn = el('button', 'tool small', `${icon('turn')}<b>${t('spin')}</b>`);
+  private walkBtn = el('button', 'tool small');
+  private walkKey = '';
+
+  /**
+   * De knop van de loopstand: `show` of hij er staat, `on` of je nu rondloopt. Rondlopen laat het lopende kindje zien,
+   * en terwijl je loopt staat er de camera met een pijl omhoog: terug naar boven.
+   */
+  setWalk(show: boolean, on: boolean): void {
+    const key = `${show}/${on}`;
+    if (key === this.walkKey) return;
+    this.walkKey = key;
+    this.walkBtn.hidden = !show;
+    this.walkBtn.innerHTML = icon(on ? 'flyup' : 'walk');
+    this.walkBtn.classList.toggle('on', on);
+    this.walkBtn.setAttribute('aria-label', t(on ? 'walk.back' : 'walk'));
+    // tijdens het lopen verstopt style.css de knoppenbalk, de menu's en de draaipijlen
+    document.getElementById('ui')!.classList.toggle('walking', on);
+  }
   /** Een paar keuzeknoppen die boven het gekozen ding hangen, net als de draaiknop (bij een hek: hok slepen of los). */
   private pick = el('div', '');
   private pickAt = '';

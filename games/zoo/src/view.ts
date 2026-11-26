@@ -10,6 +10,7 @@ import { roadside } from './road';
 import { CABLE, cableHeight } from './cable';
 import { Ground, aroundTexture } from './ground';
 import { partyHue } from './party';
+import { WALK } from './walk';
 
 const SQRT2 = Math.SQRT2;
 const SQRT3 = Math.sqrt(3);
@@ -2557,6 +2558,17 @@ export class View {
   readonly target = new THREE.Vector3(0, 0, H / 2 - 9);
   /** Hoeveel tegels er verticaal in beeld passen. */
   zoom = 11;
+  /**
+   * De loopstand (zie walk.ts): een tweede camera op ooghoogte van een kind. `walkK` loopt van 0 (het gewone beeld
+   * van boven) naar 1 (beneden, tussen de dieren); daartussen vliegt de camera rustig omlaag of weer omhoog.
+   */
+  readonly eyeCam = new THREE.PerspectiveCamera(WALK.fov, 1, 0.05, 160);
+  private walkK = 0;
+  private walkWant = 0;
+  /** Waar je ogen zijn in de loopstand: op het raster, de hoogte, en de kant waar je naar kijkt. */
+  private eyeAt = { gx: 0, gy: 0, h: WALK.eye, yaw: 0, pitch: 0 };
+  private eyeLook = new THREE.Vector3();
+  private eyeFrom = new THREE.Vector3();
 
   /** De tegels van het park, elk met het plaatje van zijn ondergrond (zie ground.ts). */
   private ground: Ground;
@@ -2669,6 +2681,8 @@ export class View {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     parent.prepend(this.renderer.domElement);
     this.scene.background = new THREE.Color(0xbfe6ff);
+    // mist, alleen in de loopstand dichtbij genoeg om te zien: van boven ligt hij ver achter het park
+    this.scene.fog = new THREE.Fog(0xbfe6ff, 900, 1000);
 
     this.scene.add(this.hemi);
     // de nacht: een donker vlak over het beeld, met gaten waar licht is
@@ -3016,17 +3030,18 @@ export class View {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalCompositeOperation = 'copy';
     // zonder lampen is het bijna zwart: alleen bij een lantaarn, een kampvuur, een winkel of de ingang zie je iets
-    ctx.fillStyle = `rgba(6, 9, 30, ${0.95 * dark})`;
+    // van dichtbij (de loopstand) is de nacht iets minder donker: dan zie je nog waar je loopt
+    ctx.fillStyle = `rgba(6, 9, 30, ${0.95 * dark * (1 - (1 - WALK.night) * this.walkK)})`;
     ctx.fillRect(0, 0, w, h);
-    const perTile = (innerHeight / this.zoom) * k;
     const spots = lights
-      .map(l => ({ s: this.toScreen(l.gx, l.gy, 0.3), r: l.r * perTile * 1.25 }))
+      .map(l => ({ s: this.project(l.gx, l.gy, 0.3, false), r: l.r * this.pxPerTile(l.gx, l.gy, 0.3) * k * 1.25 }))
       .filter(p => p.s.x > -p.r / k && p.s.x < innerWidth + p.r / k && p.s.y > -p.r / k && p.s.y < innerHeight + p.r / k);
-    // een cirkel op de grond is op het scherm een platte ovaal
+    // een cirkel op de grond is op het scherm een platte ovaal; van dichtbij is het licht meer een bol om de lamp
+    const flat = 0.62 + (0.8 - 0.62) * this.walkK;
     for (const pass of ['destination-out', 'source-over'] as const) {
       ctx.globalCompositeOperation = pass;
       for (const [i, { s, r }] of spots.entries()) {
-        ctx.setTransform(1, 0, 0, 0.62, s.x * k, s.y * k);
+        ctx.setTransform(1, 0, 0, flat, s.x * k, s.y * k);
         const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
         if (pass === 'destination-out') {
           g.addColorStop(0, 'rgba(0,0,0,1)');
@@ -3061,7 +3076,89 @@ export class View {
     this.camera.position.copy(this.target).add(this.tmp.set(Math.sin(phi) * far, 30, Math.cos(phi) * far));
     this.camera.lookAt(this.target);
     this.camera.updateProjectionMatrix();
+    this.eyeCam.aspect = a;
+    this.eyeCam.updateProjectionMatrix();
     this.renderer.setSize(w, h);
+  }
+
+  // ------------------------------------------------------------ de loopstand
+  /** Naar beneden vliegen en rondlopen (true), of weer omhoog naar het gewone beeld (false). */
+  setWalk(on: boolean): void {
+    this.walkWant = on ? 1 : 0;
+    this.fly = null;
+  }
+
+  /** Is de camera (een beetje) beneden? Dan kijk je door de ogen van de loper. */
+  get walking(): boolean {
+    return this.walkK > 0;
+  }
+
+  /** Helemaal beneden aangekomen. */
+  get walkDown(): boolean {
+    return this.walkK >= 1;
+  }
+
+  /** Waar de loper is en waar hij naar kijkt (rastercoördinaten, hoogte in tegels, richting in radialen). */
+  setEye(gx: number, gy: number, h: number, yaw: number, pitch: number): void {
+    Object.assign(this.eyeAt, { gx, gy, h, yaw, pitch });
+  }
+
+  /** Het midden van het beeld van boven, op het raster. */
+  center(): [number, number] {
+    return [this.target.x + W / 2, this.target.z + H / 2];
+  }
+
+  /** De kant waar je van boven naar kijkt, als richting op het raster (zoals in walk.ts: 0 is naar het zuiden). */
+  get viewYaw(): number {
+    return this.angle + Math.PI / 4 + Math.PI;
+  }
+
+  /** De camera die nu tekent. */
+  private get eye(): THREE.Camera {
+    return this.walkK > 0 ? this.eyeCam : this.camera;
+  }
+
+  /**
+   * Zet de loopcamera neer. Van boven begint hij precies waar het gewone beeld is (zo ver weg dat er net zoveel in
+   * beeld past), beneden staat hij op de ogen van de loper; daartussen gaat hij er zacht naartoe.
+   */
+  private placeEye(dt: number): void {
+    const was = this.walkK;
+    if (this.walkK !== this.walkWant) {
+      const step = dt / WALK.fly;
+      this.walkK = this.walkWant > this.walkK ? Math.min(1, this.walkK + step) : Math.max(0, this.walkK - step);
+    }
+    const fog = this.scene.fog as THREE.Fog;
+    fog.color.copy(this.scene.background as THREE.Color);
+    if (this.walkK <= 0) {
+      if (was > 0) {
+        fog.near = 900;
+        fog.far = 1000;
+        this.resize();
+      }
+      return;
+    }
+    const k = this.walkK, e = k * k * (3 - 2 * k);
+    // van boven: dezelfde kant op als het gewone beeld
+    const phi = this.angle + Math.PI / 4, far = 30 * SQRT2;
+    const back = this.zoom / (2 * Math.tan(THREE.MathUtils.degToRad(WALK.fov) / 2));
+    this.eyeFrom.set(Math.sin(phi) * far, 30, Math.cos(phi) * far).normalize().multiplyScalar(back).add(this.target);
+    // beneden: op de ogen van de loper
+    const { gx, gy, h, yaw, pitch } = this.eyeAt;
+    const ex = toWorldX(gx), ez = toWorldZ(gy), cp = Math.cos(pitch);
+    const cam = this.eyeCam;
+    cam.position.lerpVectors(this.eyeFrom, this.tmp.set(ex, h, ez), e);
+    this.eyeLook.copy(this.target).lerp(this.tmp.set(ex + Math.sin(yaw) * cp * 3, h + Math.sin(pitch) * 3, ez + Math.cos(yaw) * cp * 3), e);
+    cam.lookAt(this.eyeLook);
+    cam.updateMatrixWorld();
+    // hoog boven het park mag het voorste vlak verder weg liggen: dan flikkert de grond niet
+    const near = 0.05 + (1 - e) * 0.5;
+    if (Math.abs(cam.near - near) > 1e-4) {
+      cam.near = near;
+      cam.updateProjectionMatrix();
+    }
+    fog.near = 900 + (WALK.fogNear - 900) * e;
+    fog.far = 1000 + (WALK.fogFar - 1000) * e;
   }
 
   /** Laat ringen zien op deze plekken; `hot` is feller en `r` maakt de ring groter. `pulse` laat ze ademen. */
@@ -3194,8 +3291,11 @@ export class View {
     this.weatherClock += dt;
     const f = this.flakes, sky = this.sky, t = this.weatherClock;
     // de doos is zo groot als wat er in beeld is
-    const size = Math.max(20, Math.min(52, this.zoom * 2.6));
-    const x0 = this.target.x - size / 2, z0 = this.target.z - size / 2;
+    // in de loopstand valt het om de loper heen
+    const walk = this.walkK >= 0.5;
+    const size = walk ? 22 : Math.max(20, Math.min(52, this.zoom * 2.6));
+    const cx = walk ? toWorldX(this.eyeAt.gx) : this.target.x, cz = walk ? toWorldZ(this.eyeAt.gy) : this.target.z;
+    const x0 = cx - size / 2, z0 = cz - size / 2;
     const m = this.wm, q = this.wq, p = this.wp, s = this.ws;
     if (sky === 'rain') {
       q.setFromEuler(this.we.set(0.07, 0, 0.16));
@@ -3262,6 +3362,14 @@ export class View {
   private placeRainbow(): void {
     const bow = this.rainbow;
     if (!bow || !bow.visible) return;
+    if (this.walkK >= 0.5) {
+      // in de loopstand: ver voor je, boven de bomen uit
+      const { gx, gy, yaw } = this.eyeAt;
+      bow.scale.setScalar(2.6);
+      bow.rotation.y = yaw;
+      bow.position.set(toWorldX(gx) + Math.sin(yaw) * 34, -2, toWorldZ(gy) + Math.cos(yaw) * 34);
+      return;
+    }
     // de boog is 10,4 breed; het beeld is zoom keer de verhouding breed
     const wide = (this.zoom * (innerWidth / innerHeight) * 1.04) / 10.4, tall = Math.min(wide, (this.zoom * 0.62) / (5.2 * 0.816));
     bow.scale.set(wide, tall, wide);
@@ -3276,6 +3384,8 @@ export class View {
    * beeld zijn, en welke kant op het raster op het scherm naar rechts wijst.
    */
   hearing(): [x: number, y: number, zoom: number, rx: number, ry: number] {
+    // in de loopstand: je hoort wat om je heen is, en rechts is rechts van waar je naar kijkt
+    if (this.walkK >= 0.5) return [this.eyeAt.gx, this.eyeAt.gy, WALK.hear, -Math.cos(this.eyeAt.yaw), Math.sin(this.eyeAt.yaw)];
     const phi = this.angle + Math.PI / 4;
     return [this.target.x + W / 2, this.target.z + H / 2, this.zoom, Math.cos(phi), -Math.sin(phi)];
   }
@@ -3312,15 +3422,36 @@ export class View {
   /** Schermpunt naar rastercoördinaten op de grond. */
   groundPoint(clientX: number, clientY: number): { gx: number; gy: number } | null {
     const ndc = new THREE.Vector2((clientX / innerWidth) * 2 - 1, -(clientY / innerHeight) * 2 + 1);
-    this.raycaster.setFromCamera(ndc, this.camera);
+    this.raycaster.setFromCamera(ndc, this.eye);
     const hit = this.raycaster.ray.intersectPlane(this.plane, this.tmp);
     return hit ? { gx: hit.x + W / 2, gy: hit.z + H / 2 } : null;
   }
 
   /** Rasterpunt (met hoogte) naar schermpixels. */
   toScreen(gx: number, gy: number, height = 0): { x: number; y: number } {
-    this.tmp.set(toWorldX(gx), height, toWorldZ(gy)).project(this.camera);
+    return this.project(gx, gy, height, true);
+  }
+
+  /**
+   * Rasterpunt naar schermpixels. In de loopstand ligt wat achter je ver buiten beeld, en met `near` ook wat heel
+   * ver weg is: dan staat de horizon niet vol wolkjes.
+   */
+  private project(gx: number, gy: number, height: number, near: boolean): { x: number; y: number } {
+    if (this.walkK > 0) {
+      const cam = this.eyeCam;
+      this.tmp.set(toWorldX(gx), height, toWorldZ(gy)).applyMatrix4(cam.matrixWorldInverse);
+      const tooFar = near && this.walkK > 0.5 && Math.hypot(gx - this.eyeAt.gx, gy - this.eyeAt.gy) > WALK.tagRange;
+      if (this.tmp.z > -cam.near || tooFar) return { x: -9999, y: -9999 };
+      this.tmp.applyMatrix4(cam.projectionMatrix);
+    } else this.tmp.set(toWorldX(gx), height, toWorldZ(gy)).project(this.camera);
     return { x: ((this.tmp.x + 1) / 2) * innerWidth, y: ((1 - this.tmp.y) / 2) * innerHeight };
+  }
+
+  /** Hoeveel pixels een tegel op deze plek groot is op het scherm (van dichtbij groter dan ver weg). */
+  private pxPerTile(gx: number, gy: number, height: number): number {
+    if (this.walkK <= 0) return innerHeight / this.zoom;
+    const d = Math.max(0.4, this.eyeCam.position.distanceTo(this.tmp.set(toWorldX(gx), height, toWorldZ(gy))));
+    return innerHeight / (2 * Math.tan(THREE.MathUtils.degToRad(this.eyeCam.fov) / 2) * d);
   }
 
   /**
@@ -4436,6 +4567,7 @@ export class View {
       if (Math.hypot(this.fly.x - this.target.x, this.fly.z - this.target.z) < 0.03) this.fly = null;
       this.resize();
     }
+    this.placeEye(dt);
     for (const f of this.flashes) {
       f.life -= dt / 1.1;
       f.mat.opacity = Math.max(0, f.life) * 0.85;
@@ -4470,7 +4602,7 @@ export class View {
   }
 
   render(): void {
-    this.renderer.render(this.scene, this.camera);
+    this.renderer.render(this.scene, this.eye);
   }
 
   private shot: { target: THREE.WebGLRenderTarget; cam: THREE.OrthographicCamera; px: Uint8Array; lut: Uint8ClampedArray; img: ImageData } | null = null;

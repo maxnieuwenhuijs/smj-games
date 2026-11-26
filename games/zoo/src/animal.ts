@@ -977,6 +977,27 @@ export class Animal {
   }
 
   /**
+   * De loopstand: de speler loopt als bezoeker door het park en tikt het dier aan vanaf (gx, gy). Het kijkt hem aan,
+   * komt naar het hek als dat kan en laat daar het kunstje van zijn soort zien (zie SHOW_OF). Staat het al vlakbij,
+   * dan doet het dat meteen. Geeft terug of het meedoet (niet als het slaapt, ziek of bang is, of net al bezig is).
+   */
+  visitor(w: AnimalWorld, gx: number, gy: number): boolean {
+    if (this.sick || this.escaped || this.sleeping || this.drugged || this.leash || this.scaredOf || this.goal === 'show') return false;
+    const k = this.trick?.kind;
+    if (this.state === 'poop' || this.state === 'pee' || k === 'leap' || k === 'breach' || k === 'treat' || k === 'wash' || k === 'bolt') return false;
+    const [x, y] = tileXY(this.tile);
+    const region = w.grid.enclosureAt(x, y);
+    this.stop();
+    this.state = 'idle';
+    if (region && Math.hypot(gx - this.gx, gy - this.gy) > 1.8 && this.goNear(w, region.tiles, gx, gy, i => isTroughTile(w, i), 'show', 7)) {
+      this.acting = true;
+      return true;
+    }
+    this.perform(w, gx, gy);
+    return true;
+  }
+
+  /**
    * De dierenshow bij de tribune op (gx, gy): kunstje nummer `n`. Om de beurt uit het water springen, een rondje
    * draaien, door de hoepel (als die er is), met de vinnen klappen en nog een sprong. Geeft terug of het lukte
    * (niet als het dier slaapt, ziek is of nog midden in een sprong zit).
