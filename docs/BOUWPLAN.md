@@ -732,6 +732,22 @@ Op verzoek van Max, als inspiratie uit het genre (niets overgenomen: geen namen,
 - **Ontsnappen op vijf manieren** (vanaf level 31, `ESCAPE_WAY`): springers springen over het hek, klimmers klimmen eroverheen, vogels vliegen eroverheen, sterke dieren duwen een houten hek om (dat stuk is dan kapot en moet gerepareerd worden) en de rest glipt erdoor. Achter het verkeerde hek ontsnapt een dier veel vaker en altijd op zijn eigen manier; met het goede hek en blij gebeurt het bijna nooit. De melding noemt het hek dat helpt.
 - **Bewaker** (vanaf level 32, bij Personeel): loopt naar een ontsnapt dier, fluit, en het dier loopt achter hem aan door de poort naar zijn eigen verblijf. Zonder poort zegt de bouwer dat er een poort moet komen.
 
+### 26 november: zelf iets doen met dieren, bezoekers en het park
+
+Veertien ideeën uit `docs/IDEEEN-INTERACTIEF.md`, gekozen door Max en gebouwd door vijf agents tegelijk.
+
+- **Snoepje** (vanaf level 2, bij Actie): tik op een dier of sleep naar een dier. Een stukje van zijn eigen voer vliegt in een boogje naartoe; het dier springt en vangt het (zeedieren springen uit het water), smult en krijgt een hartje. Minder honger en een poosje extra blij. Gratis, maar per dier één keer per minuut. Een ziek dier eet het niet (`care.ts`).
+- **Tuinslang** (vanaf level 6, bij Actie): houd je vinger op een dier. Het staat stil onder de straal en schudt zich daarna droog met spetters en sterretjes. Dieren worden langzaam stoffig (je ziet stofjes op hun rug, modderliefhebbers sneller en bruin); wassen maakt ze schoon en blij. Een modderliefhebber rolt daarna gewoon weer in de modder, en de olifant spuit terug.
+- **Kinderen helpen** (`kids.ts`): zwaaien in het menu van een gast (de gast zwaait terug en een kind springt); een gevallen ijsje (vanaf level 13, tik op het bordje boven het huilende kind en het krijgt een nieuw); een muntje geven aan een kind zonder geld (vanaf level 14, het tekent bij het weggaan een hartje in het gastenboek); een wegvliegende ballon terugvangen (vanaf level 23, tik hem binnen zes tellen aan). Elk hooguit eens per paar minuten.
+- **De weg wijzen**: sleep met het handje vanaf een gast die de weg kwijt is. Een stippellijn volgt je vinger; een roze ring met hartje boven het verblijf met zijn lievelingsdier. Laat je los, dan loopt hij erheen.
+- **Raad het lievelingsdier** (vanaf level 7): een kaartje met drie hints (een kleur, het aantal poten en het geluid) en drie dieren uit het park om uit te kiezen. Goed: een munt en de gast loopt meteen naar zijn dier.
+- **Optocht** (vanaf level 14): de trommelknop bovenaan laat een clown een rondje over de paden lopen; kinderen in de buurt lopen springend en zwaaiend mee, grote mensen klappen. Daarna rust de clown tweeënhalve minuut uit.
+- **Schminktent** (vanaf level 18, bij Winkels, 12 munten): kinderen krijgen er zin in en dragen daarna een tijger-, poezen-, vlinder- of pandagezicht. Tik op de tent om het volgende gezicht te kiezen.
+- **Bladeren harken** (in de herfst, vanaf level 17): onder bomen vallen blaadjes. Met de hark (bij Actie) veeg je ze op een hoop; is die groot, dan springt er een kind in. Harken geeft een munt; blaadjes op het pad tellen als rommel voor de sterren (`parkplay.ts`).
+- **Sneeuwpop bouwen** (in de winter): met Sneeuw (bij Actie) rol je een sneeuwbal over het besneeuwde gras; drie tikken en het is een sneeuwpop met een sjaal. Kinderen komen kijken en gooien een sneeuwballetje. Na de winter smelt hij.
+- **Lampjes aan en uit** (vanaf level 15, 's nachts): tik op een lamp en hij gaat uit of aan, met een plopje. Zet je er snel een paar weer aan, of tik op de grote lamp boven de ingang, dan gaat er een golfje kleuren langs alle lampen. Elke avond gaan alle lampen vanzelf aan.
+- **Avondfeest** (`party.ts`): na 20, 30, 40 en 50 gehaalde levels is de eerstvolgende avond een feestavond (niet elke avond). 's Ochtends zegt de directeur het; om acht uur staat er een gong bij de ingang. Tik erop (of wacht tot negen uur): alle lampen gloeien in kleuren, er klinkt muziek, gasten lopen een rondje en dansen, de dieren komen naar het hek en doen hun kunstje, en aan het eind komen er zachte plopjes confetti. De klok loopt dan half zo snel, zodat iedereen blijft tot het feest voorbij is. Daarna 10 munten en iedereen gaat naar huis.
+
 ## Bekende zwakke punten van de modellen
 
 De modellen zijn op stilstaande beelden bekeken en doorgemeten (niets zakt meer dan een centimeter door de grond), maar geen enkele animatie is in beweging beoordeeld. Wat de modelbouwers zelf als zwak aanmerkten:
