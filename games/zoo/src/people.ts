@@ -9,6 +9,7 @@ import { CABLE, cableAt, cableLength, cableLoop, cablePassed, cableStop } from '
 import { toWorldX, toWorldZ } from './view';
 import { arrivalPath, busPath, exitPath, pavementY } from './road';
 import { FaceCrowd, beardColor, faceFor, giveFace, setFace } from './faces';
+import { PAINT, PARADE, WAY, paintNext, type FacePaint } from './guestfun';
 
 /** De tegel waar gasten binnenkomen en weer weggaan: midden aan de voorkant. */
 export const ENTRANCE = tileIndex(Math.floor(W / 2), H - 1);
@@ -80,7 +81,9 @@ export function edgeSides(shop: { x: number; y: number; edge?: 'h' | 'v' }): num
 }
 
 /** Waar een gast voor naar een winkel gaat. */
-export type Need = 'food' | 'drink' | 'toilet' | 'icecream' | 'balloon' | 'hat' | 'souvenir' | 'play' | 'sit' | 'look' | 'ride' | 'umbrella' | 'shelter' | 'pet';
+export type Need = 'food' | 'drink' | 'toilet' | 'icecream' | 'balloon' | 'hat' | 'souvenir' | 'play' | 'sit' | 'look' | 'ride' | 'umbrella' | 'shelter' | 'pet'
+  // schmink: alleen kinderen, bij de schminktent
+  | 'paint';
 
 /** Een kinderboerderij waar gasten naar binnen mogen: het pad voor het poortje, de tegel erachter en alle tegels binnen. */
 export interface PetSpot {
@@ -119,6 +122,8 @@ export interface GuestSave {
   hat?: string;
   /** De ballon die hij vasthoudt ('' als de kleur niet vastligt). */
   balloon?: string;
+  /** Het dierengezicht dat een kind in de schminktent kreeg. */
+  paint?: FacePaint;
 }
 
 /** `busy`: het is er wel, maar te druk: er zijn te weinig van voor zoveel gasten. */
@@ -753,7 +758,7 @@ const AT_ONCE: Partial<Record<ShopKind, number>> = {
 /** Zo lang duurt het voor een gast geholpen is. Op de tribune blijft hij zitten tot de show voorbij is. */
 const SERVE_TIME: Partial<Record<ShopKind, number>> = {
   foodstall: 6, drinkstall: 6, icecream: 6, balloon: 4, hats: 4, souvenir: 4, toilet: 9, bench: 8, playground: 6, carousel: 8, fountain: 4, slide: 6, swing: 7, seesaw: 7, springer: 6, trampoline: 6,
-  tower: 9, restaurant: 11, ferris: 14, bumper: 10, shelter: 4, station: 4, umbrellas: 2, show: 4, cablecar: 4,
+  tower: 9, restaurant: 11, ferris: 14, bumper: 10, shelter: 4, station: 4, umbrellas: 2, show: 4, cablecar: 4, facepaint: 7,
 };
 const WC_TIME = SERVE_TIME.toilet ?? 9, BENCH_TIME = SERVE_TIME.bench ?? 8;
 /**
@@ -792,7 +797,7 @@ const PATIENCE = 32;
 const MAX_PURCHASES = 4;
 const NEED_SHOP: Record<Need, ShopKind> = {
   food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', hat: 'hats', souvenir: 'souvenir', play: 'playground', sit: 'bench', look: 'fountain', ride: 'carousel',
-  umbrella: 'umbrellas', shelter: 'shelter', pet: 'bench',
+  umbrella: 'umbrellas', shelter: 'shelter', pet: 'bench', paint: 'facepaint',
 };
 // rolstoel, kinderwagen, paraplu en zonnebril: van blokjes, net als de gasten zelf
 const WHEEL_GEO = new THREE.CylinderGeometry(0.15, 0.15, 0.03, 12).rotateZ(Math.PI / 2);
@@ -927,6 +932,52 @@ function makeHat(product: string): THREE.Group {
   return hat;
 }
 
+// ------------------------------------------------------------ schmink uit de schminktent
+/**
+ * Eén stukje schmink op het hoofd: [kleur, x, y, z, breed, hoog, diep, draaiing, vorm]. Het voorvlak van het hoofd
+ * ligt op z = 0,085 en loopt van -0,085 tot 0,085; de ogen zitten net boven het midden, de mond eronder. De stukjes
+ * zitten daar waar geen ogen of mond zijn: op het voorhoofd, de wangen, opzij en bovenop.
+ */
+type PaintBit = [color: number, x: number, y: number, z: number, w: number, h: number, d: number, turn?: number, shape?: 'box' | 'cone' | 'ball'];
+const PAINT_INK = 0x2a1c16, PAINT_Z = 0.0878, PAINT_THIN = 0.003;
+const onFace = (color: number, x: number, y: number, w: number, h: number, turn = 0): PaintBit => [color, x, y, PAINT_Z, w, h, PAINT_THIN, turn];
+/** Hetzelfde stukje links en rechts, gespiegeld. */
+const twice = (color: number, x: number, y: number, w: number, h: number, turn = 0): PaintBit[] => [onFace(color, x, y, w, h, turn), onFace(color, -x, y, w, h, -turn)];
+/** De kleur van het hele gezicht (de tijger oranje, de panda wit). Zonder kleur blijft de huid. */
+const PAINT_BASE: Partial<Record<FacePaint, number>> = { tiger: 0xf3a23c, panda: 0xf7f4ef };
+const PAINT_BITS: Record<FacePaint, PaintBit[]> = {
+  // tijger: strepen op het voorhoofd, de wangen en opzij
+  tiger: [
+    onFace(PAINT_INK, -0.03, 0.068, 0.009, 0.028), onFace(PAINT_INK, 0, 0.071, 0.01, 0.024), onFace(PAINT_INK, 0.03, 0.068, 0.009, 0.028),
+    ...twice(PAINT_INK, 0.072, -0.014, 0.028, 0.007, 0.15), ...twice(PAINT_INK, 0.072, -0.036, 0.028, 0.007, -0.1),
+    ...[0.03, -0.02].flatMap((y): PaintBit[] => [[PAINT_INK, 0.0995, y, 0.01, PAINT_THIN, 0.009, 0.05], [PAINT_INK, -0.0995, y, 0.01, PAINT_THIN, 0.009, 0.05]]),
+  ],
+  // poes: een roze neusje, snorharen en twee puntoortjes bovenop
+  cat: [
+    onFace(0xf06aa6, 0, -0.014, 0.017, 0.012),
+    ...twice(PAINT_INK, 0.084, -0.02, 0.064, 0.0045, 0.14), ...twice(PAINT_INK, 0.084, -0.031, 0.064, 0.0045, -0.05),
+    [0x5a5560, 0.058, 0.14, 0.005, 0.05, 0.06, 0.05, -0.35, 'cone'], [0x5a5560, -0.058, 0.14, 0.005, 0.05, 0.06, 0.05, 0.35, 'cone'],
+  ],
+  // vlinder: een vlinder op het voorhoofd en stippen op de wangen
+  butterfly: [
+    ...twice(0xa06ad9, 0.026, 0.066, 0.03, 0.026, 0.45), ...twice(0xf06aa6, 0.019, 0.047, 0.02, 0.016, -0.4),
+    onFace(PAINT_INK, 0, 0.058, 0.006, 0.034), ...twice(PAINT_INK, 0.009, 0.08, 0.003, 0.014, 0.5),
+    ...twice(0x4a90e2, 0.07, -0.03, 0.014, 0.014, 0.78), ...twice(0xffd23f, 0.062, -0.052, 0.01, 0.01, 0.78),
+  ],
+  // panda: zwarte oren, zwarte vlekken naast de ogen en een zwart neusje
+  panda: [
+    [PAINT_INK, 0.076, 0.11, -0.01, 0.075, 0.075, 0.06, 0, 'ball'], [PAINT_INK, -0.076, 0.11, -0.01, 0.075, 0.075, 0.06, 0, 'ball'],
+    ...twice(PAINT_INK, 0.067, 0.004, 0.022, 0.036, 0.25), onFace(PAINT_INK, 0, -0.016, 0.018, 0.012),
+  ],
+};
+/** Maak één stukje schmink. De vormen zijn die van de rest van de poppetjes: zo kost het geen extra tekenwerk. */
+function paintBit([color, x, y, z, w, h, d, turn = 0, shape = 'box']: PaintBit): THREE.Mesh {
+  const [geo, bw, bh, bd]: [THREE.BufferGeometry, number, number, number] = shape === 'cone' ? [PARTY_GEO, 0.15, 0.2, 0.15] : shape === 'ball' ? [POM_GEO, 0.06, 0.06, 0.06] : [SPIKE_GEO, 0.035, 0.05, 0.035];
+  const mesh = bit(geo, color, x, y, z, w / bw, h / bh, d / bd);
+  mesh.rotation.z = turn;
+  return mesh;
+}
+
 /** De verrekijker: twee kokertjes voor de ogen. Hij zit aan het hoofd en is alleen te zien als de gast erdoor kijkt. */
 function makeScope(): THREE.Group {
   const g = new THREE.Group();
@@ -1011,6 +1062,9 @@ export class Guest implements Leader {
   rideWish = Math.random() * 0.5;
   /** Zin om dieren te aaien in de kinderboerderij (kinderen het meest). */
   petWish = Math.random() * 0.5;
+  /** Zin in schmink uit de schminktent (alleen kinderen), en het dierengezicht dat het kind al kreeg. */
+  paintWish = Math.random() * 0.4;
+  painted: FacePaint | null = null;
   /** Op welk paardje, zitje of plekje de gast zit. */
   seat = Math.floor(Math.random() * 4);
   /** Plezier van 0 tot 1. Een gast koopt alleen iets als hij het naar zijn zin heeft. */
@@ -1455,7 +1509,7 @@ export class Guest implements Leader {
     return {
       gx: this.gx, gy: this.gy, child: this.child, fun: this.fun, age: this.age, stay: this.stay,
       hunger: this.hunger, thirst: this.thirst, bladder: this.bladder,
-      hat: this.wornHat ?? undefined, balloon: this.wornBalloon ?? undefined,
+      hat: this.wornHat ?? undefined, balloon: this.wornBalloon ?? undefined, paint: this.painted ?? undefined,
     };
   }
 
@@ -1479,6 +1533,7 @@ export class Guest implements Leader {
       this.bought.balloon = 1;
       this.balloon = 0;
     }
+    if (s.paint && this.child) this.paintFace(s.paint);
     this.place();
   }
 
@@ -2125,6 +2180,8 @@ export class Guest implements Leader {
     // alleen wat er in dit level al te koop is: een hoedje of ballon vragen voordat die kraam bestaat, kan niet
     const treats = ([['icecream', this.treat, 'icecream'], ['balloon', this.balloon, 'balloon'], ['hat', this.hat, 'hats'], ['souvenir', this.gift, 'souvenir']] as [Need, number, ShopKind][])
       .filter(t => w.sells(t[2]));
+    // een kind wil misschien een dierengezicht uit de schminktent
+    if (this.child && !this.painted && w.sells('facepaint')) treats.push(['paint', this.paintWish, 'facepaint']);
     if (!treats.length) return null;
     const [need, zin] = treats.sort((a, b) => b[1] - a[1])[0];
     return zin > 0.7 ? need : null;
@@ -2141,6 +2198,7 @@ export class Guest implements Leader {
     if (want === 'look') this.curious = 0.3;
     if (want === 'ride') this.rideWish = 0.3;
     if (want === 'pet') this.petWish = 0.4;
+    if (want === 'paint') this.paintWish = 0.3;
     if (want === 'umbrella' || want === 'shelter') {
       // even later nog eens proberen, en dan het andere
       this.rainAsk = this.age + 12;
@@ -3344,13 +3402,13 @@ export class Guest implements Leader {
         } else if (kind === 'souvenir') {
           this.gift = 0;
           this.takePlush(got);
-        }
+        } else if (kind === 'facepaint') this.getPainted(this.shop);
         else if (kind === 'umbrellas') this.takeUmbrella();
         // precies wat de gast vroeg maakt hem blijer dan iets anders
         const joy = kind === 'foodstall' || kind === 'drinkstall' ? 0.1 : 0.2;
         this.fun = Math.min(1, this.fun + (exact ? joy : joy * 0.3));
         // een kind dat net iets leuks kreeg, springt even
-        if (this.child && (kind === 'icecream' || kind === 'balloon' || kind === 'souvenir')) this.joy = 0.9;
+        if (this.child && (kind === 'icecream' || kind === 'balloon' || kind === 'souvenir' || kind === 'facepaint')) this.joy = 0.9;
         if (this.errand) {
           delete this.wanted[this.errand];
           this.settled.delete(this.errand);
@@ -3393,6 +3451,73 @@ export class Guest implements Leader {
     const hat = makeHat(product);
     this.headwear = hat;
     this.mesh.add(hat);
+  }
+
+  /** In de schminktent: het gezicht dat bij de tent gekozen is (of een gok); daarna mag de volgende weer kiezen. */
+  private getPainted(shop: ShopSpot): void {
+    this.paintWish = 0;
+    this.paintFace(paintNext(shop.sells));
+    shop.sells = [];
+    this.fun = Math.min(1, this.fun + PAINT.fun);
+  }
+
+  /** Een dierengezicht: het hele gezicht in een kleur (zie faces.ts: het gezicht krijgt de kleur van het hoofd) en de stukjes erop. */
+  paintFace(face: FacePaint): void {
+    if (this.painted) return;
+    this.painted = face;
+    const base = PAINT_BASE[face];
+    if (base !== undefined) this.head.material = mat(base);
+    for (const b of PAINT_BITS[face]) this.head.add(paintBit(b));
+  }
+
+  /** Kan deze gast nu ergens naartoe gestuurd worden (geen rij, geen attractie, niet bezig met iets anders)? */
+  private get loose(): boolean {
+    return !this.special && !this.leaving && !this.inside && !this.riding && !this.walkway && !this.sight && !this.pen && (this.state === 'idle' || this.state === 'walk' || this.state === 'watch');
+  }
+
+  /**
+   * Over het pad naar `to` lopen en daar kijken naar wat er te zien is (`view`): staat zijn lievelingsdier erbij, dan
+   * juicht hij. Geeft false als de gast nu niet kan (hij is met iets anders bezig) of er niet kan komen.
+   */
+  headTo(w: GuestWorld, reach: Set<number>, to: number, view: { x: number; y: number; species: string[]; score: number } | null): boolean {
+    if (!this.loose || this.astray > 0 || !this.go(w, reach, to)) return false;
+    this.shop = null;
+    this.errand = null;
+    this.act = null;
+    this.gate = -1;
+    this.gain = view?.score ?? 0;
+    this.sees = view?.species ?? [];
+    this.face = view ? [view.x, view.y] : null;
+    this.seen = [...this.seen.slice(-4), to];
+    return true;
+  }
+
+  /** De speler wijst de weg met zijn vinger: de gast weet het weer, is blij en loopt erheen (zie headTo). */
+  showWay(w: GuestWorld, reach: Set<number>, to: number, view: { x: number; y: number; species: string[]; score: number } | null): boolean {
+    if (this.astray <= 0) return false;
+    this.findWay(true);
+    this.fun = Math.min(1, this.fun + WAY.fun);
+    this.joy = 1.2;
+    this.headTo(w, reach, to, view);
+    return true;
+  }
+
+  /** Kan dit kind meelopen in de optocht? Ook als het net onderweg was naar een kraam: dat komt straks wel. */
+  get paradeReady(): boolean {
+    return this.child && this.loose && !this.wheels && this.astray <= 0;
+  }
+
+  /** Een groot mens ziet de optocht langskomen: even stilstaan, ernaar kijken en klappen. */
+  clapFor(gx: number, gy: number): void {
+    if (this.child || !this.loose || this.astray > 0 || this.errand || this.state === 'watch') return;
+    this.route = [];
+    this.state = 'watch';
+    this.face = [gx, gy];
+    this.act = 'clap';
+    this.actT = 0;
+    this.timer = 3.5 + Math.random() * 1.5;
+    this.sees = [];
+    this.gain = 0.04;
   }
 
   /** Een paraplu uit de bak: die gaat open zodra het regent. */
@@ -3583,6 +3708,7 @@ export class Guest implements Leader {
     if (w.sells('fountain')) this.curious = Math.min(1, this.curious + (dt / 120) * ease);
     if (w.sells('carousel')) this.rideWish = Math.min(1, this.rideWish + (dt / (this.child ? 70 : 170)) * ease);
     if (w.feature('petting')) this.petWish = Math.min(1, this.petWish + dt / (this.child ? 60 : 170));
+    if (w.sells('facepaint') && this.child && !this.painted) this.paintWish = Math.min(1, this.paintWish + (dt / PAINT.want) * demand * w.craving('facepaint'));
     // in een vol park koopt een gast minder vaak iets leuks; zijn plezier zakt dan ook wat langzamer
     this.fun = Math.max(0, this.fun - (dt / 240) * (0.5 + 0.5 * ease));
     // in de regen zonder paraplu is het minder leuk, en wie nat wordt gaat eerder naar huis
@@ -5917,6 +6043,123 @@ export class Worker implements Leader {
   }
 }
 
+// ------------------------------------------------------------ de clown van de optocht
+const DRUM_GEO = new THREE.CylinderGeometry(0.075, 0.075, 0.08, 12);
+const DRUM_RIM_GEO = new THREE.CylinderGeometry(0.079, 0.079, 0.014, 12);
+const NOSE_GEO = new THREE.IcosahedronGeometry(0.02, 1);
+
+/**
+ * De clown: een roze pak met een gele kraag, een rode neus, een feestmuts en een trommel op zijn buik. Hij loopt de
+ * optocht voor over het pad (`route`, een rij tegels) en laat een spoor achter waar de kinderen overheen lopen.
+ */
+export class Clown implements Leader {
+  readonly mesh: THREE.Group;
+  gx: number;
+  gy: number;
+  trail: [number, number][] = [];
+  gone = false;
+  watching = false;
+  face: [number, number] | null = null;
+  private limbs: THREE.Mesh[];
+  private head: THREE.Mesh;
+  private heading = 0;
+  private phase = 0;
+  private t = 0;
+  /** Hoe ver hij tevoorschijn is gekomen (0 tot 1); aan het eind krimpt hij weer weg. */
+  private grow = 0;
+  private leaving = false;
+
+  constructor(private route: number[]) {
+    const person = makePerson(false, undefined, { child: false, shirt: 0xf06aa6, solo: true, look: { skirt: 0, short: false, stripe: true, pack: false, hair: 'curls' } });
+    this.mesh = person.group;
+    this.limbs = person.limbs;
+    this.head = person.head;
+    this.mesh.rotation.order = 'YXZ';
+    // de kraag, de neus en de muts
+    this.mesh.add(bit(BRIM_GEO, 0xffd23f, 0, 0.445, 0, 0.62, 1.2, 0.62), makeHat('hat_party'));
+    const nose = new THREE.Mesh(NOSE_GEO, mat(0xe0453a));
+    nose.position.set(0, -0.012, 0.1);
+    this.head.add(nose);
+    // de trommel op de buik, en een stokje in elke hand
+    const drum = new THREE.Mesh(DRUM_GEO, mat(0xe0584f));
+    drum.position.set(0, 0.25, 0.12);
+    const rimA = new THREE.Mesh(DRUM_RIM_GEO, mat(0xf7f4ec)), rimB = new THREE.Mesh(DRUM_RIM_GEO, mat(0xffd23f));
+    rimA.position.y = 0.04;
+    rimB.position.y = -0.04;
+    drum.add(rimA, rimB);
+    this.mesh.add(drum);
+    for (const arm of [this.limbs[2], this.limbs[3]]) {
+      const stick = bit(STRING_GEO, 0xf7f4ec, 0, -0.2, 0.06, 1.2, 0.45, 1.2);
+      stick.rotation.x = 1.2;
+      arm.add(stick);
+    }
+    const [x, y] = tileXY(route[0]);
+    this.gx = x + 0.5;
+    this.gy = y + 0.5;
+    this.trail.push([this.gx, this.gy]);
+    this.mesh.scale.setScalar(0.05);
+    this.place();
+  }
+
+  /** Is hij aan het eind van zijn rondje? */
+  get done(): boolean {
+    return this.route.length <= 1;
+  }
+
+  /** Klaar: hij zwaait nog even en krimpt dan weg (daarna is `gone` waar). */
+  leave(): void {
+    this.leaving = true;
+  }
+
+  update(dt: number): void {
+    this.t += dt;
+    if (this.leaving) {
+      this.grow = Math.max(0, this.grow - dt * 1.5);
+      if (this.grow <= 0) this.gone = true;
+    } else this.grow = Math.min(1, this.grow + dt * 2.5);
+    this.mesh.scale.setScalar(1.12 * Math.max(0.05, this.grow));
+    const next = this.route[1];
+    let walking = false;
+    if (next !== undefined && !this.leaving && this.grow >= 1) {
+      const [tx, ty] = tileXY(next);
+      const dx = tx + 0.5 - this.gx, dy = ty + 0.5 - this.gy, dist = Math.hypot(dx, dy), step = PARADE.speed * dt;
+      if (dist <= step) {
+        this.gx += dx;
+        this.gy += dy;
+        this.route.shift();
+      } else {
+        this.gx += (dx / dist) * step;
+        this.gy += (dy / dist) * step;
+        let turn = Math.atan2(dx, dy) - this.heading;
+        turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+        this.heading += turn * Math.min(1, dt * 8);
+      }
+      walking = true;
+      const last = this.trail[this.trail.length - 1];
+      if (!last || Math.hypot(last[0] - this.gx, last[1] - this.gy) >= 0.15) this.trail.push([this.gx, this.gy]);
+      if (this.trail.length > 90) this.trail.shift();
+    }
+    this.phase += dt * 11;
+    swing(this.limbs, walking ? Math.sin(this.phase) * 0.6 : 0);
+    if (this.leaving) {
+      // tot ziens: zwaaien
+      this.limbs[2].rotation.x = -2.7;
+      this.limbs[2].rotation.z = Math.sin(this.t * 9) * 0.5;
+    } else {
+      // trommelen: om en om een stokje omhoog en omlaag
+      this.limbs[2].rotation.x = -1.05 + Math.sin(this.t * 12) * 0.35;
+      this.limbs[3].rotation.x = -1.05 - Math.sin(this.t * 12) * 0.35;
+    }
+    setFace(this.head, faceFor('joy', 'fine', this.t, 0.4));
+    this.place(walking ? Math.abs(Math.sin(this.phase * 0.5)) * 0.06 : 0);
+  }
+
+  private place(hop = 0): void {
+    this.mesh.position.set(toWorldX(this.gx), hop, toWorldZ(this.gy));
+    this.mesh.rotation.y = this.heading;
+  }
+}
+
 // ------------------------------------------------------------ verkoper
 /** Wat de verkoper draagt. Hij staat in het gebouw achter de toonbank, schuin naar voren gekeerd. */
 const VENDORS: Partial<Record<ShopKind, { shirt: number; hat: number }>> = {
@@ -5926,9 +6169,10 @@ const VENDORS: Partial<Record<ShopKind, { shirt: number; hat: number }>> = {
   balloon: { shirt: 0xb06ad9, hat: 0xffd23f },
   hats: { shirt: 0x6cc04a, hat: 0xe0584f },
   souvenir: { shirt: 0x7a5cc9, hat: 0xffe08a },
+  facepaint: { shirt: 0x2bb5a8, hat: 0xf06aa6 },
 };
 /** De kleur van wat de verkoper aangeeft: een zak friet, een beker, een ijsje, een ballon, een petje of een knuffel. */
-const VENDOR_ITEM: Partial<Record<ShopKind, number>> = { foodstall: 0xffd23f, drinkstall: 0x9fd8f5, icecream: 0xffc1d6, balloon: 0xe0584f, hats: 0x4a90e2, souvenir: 0xc98d5e };
+const VENDOR_ITEM: Partial<Record<ShopKind, number>> = { foodstall: 0xffd23f, drinkstall: 0x9fd8f5, icecream: 0xffc1d6, balloon: 0xe0584f, hats: 0x4a90e2, souvenir: 0xc98d5e, facepaint: 0xa06ad9 };
 
 /** Het poppetje dat in een kraam werkt. Het wiegt een beetje en zwaait als het iets verkoopt. */
 export class Vendor {

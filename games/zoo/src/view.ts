@@ -495,6 +495,36 @@ const SHOP_PARTS: Record<ShopKind, Part[]> = {
       [0xf06aa6, cone(0.09, 0.22, 0.56, 0.52, 0.3)],
     ), PAINT_MAT],
   ],
+  // schminktent: een groen-blauw zeil met een groot tijgergezicht op het dak, en potjes schmink en een spiegel op de tafel
+  facepaint: [
+    ...booth(0xd9f3ef, 0x2bb5a8, 0xf7f4ec, 0x2bb5a8),
+    ...onRoof([
+      [merge([
+        new THREE.CylinderGeometry(0.34, 0.34, 0.07, 18).rotateX(Math.PI / 2).translate(0, 1.76, -0.4),
+        ball(0.1, -0.25, 2.03, -0.4), ball(0.1, 0.25, 2.03, -0.4),
+      ]), std(0xf3a23c)],
+      [painted(
+        [0xfff7e0, blob(0.15, 1.2, 0.85, 0.3, 0, 1.64, -0.36)],
+        [0x2a1c16,
+          boxAt(0.035, 0.11, 0.02, 0, 2.02, -0.36), boxAt(0.03, 0.09, 0.02, -0.12, 1.99, -0.36), boxAt(0.03, 0.09, 0.02, 0.12, 1.99, -0.36),
+          ...[-1, 1].flatMap(side => [boxAt(0.11, 0.028, 0.02, side * 0.26, 1.78, -0.36), boxAt(0.1, 0.028, 0.02, side * 0.26, 1.68, -0.36)]),
+          dot(0.04, -0.12, 1.84, -0.35), dot(0.04, 0.12, 1.84, -0.35)],
+        [0xf06aa6, cone(0.04, 0.04, 0, 1.69, -0.33, 3, true)],
+      ), PAINT_MAT],
+    ], 1.39, 0.9),
+    // op de tafel: vijf potjes schmink, een kwast en een spiegeltje
+    [painted(
+      [0xe0584f, tube(0.05, 0.05, 0.06, -0.68, 0.44, 0.3)],
+      [0x4a90e2, tube(0.05, 0.05, 0.06, -0.54, 0.44, 0.3)],
+      [0xffd23f, tube(0.05, 0.05, 0.06, -0.4, 0.44, 0.3)],
+      [0x6cc04a, tube(0.05, 0.05, 0.06, -0.26, 0.44, 0.3)],
+      [0xa06ad9, tube(0.05, 0.05, 0.06, -0.12, 0.44, 0.3)],
+      [0xc58a4b, boxAt(0.02, 0.2, 0.02, 0.12, 0.5, 0.3), boxAt(0.02, 0.1, 0.02, 0.55, 0.47, 0.3)],
+      [0xf06aa6, boxAt(0.03, 0.04, 0.03, 0.12, 0.62, 0.3)],
+      [0xd8e6ee, new THREE.CylinderGeometry(0.11, 0.11, 0.02, 14).rotateX(Math.PI / 2).translate(0.55, 0.64, 0.3)],
+      [0xffd23f, new THREE.TorusGeometry(0.115, 0.016, 5, 16).translate(0.55, 0.64, 0.3)],
+    ), PAINT_MAT],
+  ],
   // knuffelkraam: een paars zeil met een grote beer erop, met een strikje
   souvenir: [
     ...booth(0xffe08a, 0x7a5cc9, 0xb99be8, 0x7a5cc9),
@@ -1213,6 +1243,7 @@ const SHOP_BOB: Partial<Record<ShopKind, Bob[]>> = {
   balloon: [8, 9, 10, 11].map((i): Bob => ({ parts: [i], at: STALL_TIE, amp: 0.03, sway: 0.09 })),
   hats: [{ parts: [7, 8, 9], at: [0, 1.55, -0.05] }],
   souvenir: [{ parts: [7, 8], at: [0, 1.55, -0.05] }],
+  facepaint: [{ parts: [7, 8], at: [0, 1.55, -0.05] }],
   flowers: [0, 1, 2].map((i): Bob => ({ parts: [2 + i * 2, 3 + i * 2], at: [-0.22 + i * 0.22, 0.22, 0], amp: 0, sway: 0.1 })),
   tower: [{ parts: [6], at: [0, TOWER_ROOF + 0.72, 0], amp: 0, sway: 0, yaw: 0.5 }],
   restaurant: RESTAURANT_TABLES.map(([x, z], i): Bob => ({ parts: [10 + i], at: [x, 1.32, z], amp: 0.012, sway: 0.05 })),

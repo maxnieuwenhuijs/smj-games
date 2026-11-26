@@ -261,6 +261,23 @@ export function animalSound(species: string, young: boolean, volume = 1, at?: [n
   else sfx(`animal.${species}`, { volume: volume * 0.7, rate: young ? 1.4 : 1, every: 0.4, at });
 }
 
+/**
+ * Een trommelslag voor de optocht, zonder bestand: een korte lage bom (`strong`) of een licht tikje. Met het geluid
+ * uit blijft het stil, net als alles. `volume`: 0 tot 1 (bijvoorbeeld hoe goed je de optocht hoort, zie `heard`).
+ */
+export function drum(strong: boolean, volume = 1): void {
+  if (!ctx || !master || muted || ctx.state !== 'running' || volume < 0.04) return;
+  const now = ctx.currentTime, gain = ctx.createGain(), osc = ctx.createOscillator();
+  gain.gain.setValueAtTime(GAIN.sfx * volume * (strong ? 0.9 : 0.4), now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + (strong ? 0.28 : 0.1));
+  osc.type = strong ? 'sine' : 'triangle';
+  osc.frequency.setValueAtTime(strong ? 150 : 460, now);
+  osc.frequency.exponentialRampToValueAtTime(strong ? 52 : 220, now + 0.2);
+  osc.connect(gain).connect(master);
+  osc.start(now);
+  osc.stop(now + 0.3);
+}
+
 // ------------------------------------------------------------ achtergrond
 let ambient: { id: string; source: AudioBufferSourceNode; gain: GainNode } | null = null;
 let wantedAmbience = '';

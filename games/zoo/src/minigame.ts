@@ -1,5 +1,6 @@
 // Puzzeltjes die over het park heen komen als een schoolklas of een gast om hulp vraagt:
-// een som onder de tien, een woord van drie letters leggen, of dingen op volgorde zetten.
+// een som onder de tien, een woord van drie letters leggen, dingen op volgorde zetten, of het lievelingsdier van
+// een gast raden aan de hand van een paar hints.
 // Het spel roept playMini aan en hoort via onDone hoe het ging. Wegklikken met het kruisje mag altijd.
 import './minigame.css';
 import { t } from '@smj/shared';
@@ -7,11 +8,11 @@ import { sfx } from './audio';
 import { ICON_IDS, icon, type IconId } from './icons';
 import { speciesIcon } from './models';
 
-export type MiniKind = 'sum' | 'spell' | 'order';
+export type MiniKind = 'sum' | 'spell' | 'order' | 'guess';
 export interface MiniResult { won: boolean; right: number; rounds: number; skipped: boolean }
 export interface MiniOptions {
   kind: MiniKind;
-  /** Hoeveel vragen achter elkaar; gewoon drie. */
+  /** Hoeveel vragen achter elkaar; gewoon drie (bij raden één). */
   rounds?: number;
   /** Klein plaatje bovenaan (al HTML, bijvoorbeeld een svg van icon()); mag ontbreken. */
   picture?: string;
@@ -21,6 +22,11 @@ export interface MiniOptions {
   first?: 'size' | 'count';
   /** Volgorde: deze plaatjes van klein naar groot, in plaats van de gewone. */
   sizeIcons?: IconId[];
+  /**
+   * Raden: het goede dier, de plaatjes om uit te kiezen (soorten) en de hints: de kleuren van het dier en hoeveel
+   * poten het heeft. `sound`: speelt het geluid van het dier (de knop met de luidspreker).
+   */
+  guess?: { answer: string; options: string[]; colors: string[]; legs: number; sound?: () => void };
   /** De uitleg boven de vraag wordt hiermee voorgelezen (de tekst zelf staat er ook); mag ontbreken. */
   say?: (text: string) => void;
   /** Eén keer aangeroepen: als het puzzeltje klaar is of met het kruisje is weggeklikt. */
@@ -241,6 +247,7 @@ function startRound(s: Session): void {
   drawPips(s);
   if (s.opts.kind === 'sum') sumRound(s);
   else if (s.opts.kind === 'spell') spellRound(s);
+  else if (s.opts.kind === 'guess') guessRound(s);
   else orderRound(s);
 }
 
@@ -412,6 +419,49 @@ function orderRound(s: Session): void {
     });
 }
 
+// ------------------------------------------------------------ raden
+/** Een pootafdruk, om de poten te tellen. */
+const PAW =
+  '<svg class="mg-paw" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="16" rx="6.5" ry="5.5" fill="#8a5a3c"/>' +
+  '<g fill="#8a5a3c"><circle cx="4.5" cy="9" r="2.6"/><circle cx="9.5" cy="5" r="2.6"/><circle cx="14.5" cy="5" r="2.6"/><circle cx="19.5" cy="9" r="2.6"/></g></svg>';
+
+/**
+ * Welk dier vindt deze gast het leukst? Bovenaan drie hints: de kleuren van het dier, hoeveel poten het heeft en een
+ * knop met zijn geluid. Daaronder drie dieren uit het park. Fout: de tegel schudt en je hoort 'nee, probeer nog eens'.
+ * Wie het goede dier vindt, heeft het geraden, ook na een fout.
+ */
+function guessRound(s: Session): void {
+  const g = s.opts.guess;
+  if (!g) return sumRound(s);
+  const colors = `<span class="mg-clue mg-swatch">${g.colors.map(c => `<i style="background:${c}"></i>`).join('')}</span>`;
+  const legs = `<span class="mg-clue mg-legs"><b>${g.legs}</b><span class="mg-feet">${g.legs ? PAW.repeat(g.legs) : icon('fish')}</span></span>`;
+  const sound = g.sound ? `<button class="mg-clue mg-sound" type="button" aria-label="${t('mini.guess.sound')}">${icon('sound_on')}</button>` : '';
+  show(
+    t('mini.guess'),
+    `<div class="mg-row mg-clues">${colors}${legs}${sound}</div>` +
+      `<div class="mg-row">${g.options.map(sp => `<button class="mg-btn mg-animal" type="button" data-v="${sp}">${speciesIcon(sp)}</button>`).join('')}</div>`,
+  );
+  root!.querySelector('.mg-sound')?.addEventListener('click', () => g.sound?.());
+  // het geluid klinkt meteen één keer, na de uitleg
+  later(s, 1600, () => g.sound?.());
+  for (const btn of buttons())
+    btn.addEventListener('click', () => {
+      if (s.busy) return;
+      if (btn.dataset.v === g.answer) {
+        btn.classList.add('ok');
+        s.clean = true;
+        roundDone(s);
+      } else {
+        btn.disabled = true;
+        miss(s, btn, 'no');
+        // een zachte 'nee': elke keer opnieuw te horen
+        part('mg-title').textContent = t('mini.guess.no');
+        spoken = '';
+        tell(t('mini.guess.no'));
+      }
+    });
+}
+
 // ------------------------------------------------------------ voor het spel
 /** Opent het puzzeltje over het spel heen. Staat er al een open, dan gaat die eerst dicht (zijn onDone krijgt skipped: true). */
 export function playMini(opts: MiniOptions): void {
@@ -421,7 +471,8 @@ export function playMini(opts: MiniOptions): void {
   const el = ensureRoot();
   const s: Session = {
     opts,
-    rounds: Math.max(1, Math.round(opts.rounds ?? 3)),
+    // raden is één vraag: het lievelingsdier van één gast
+    rounds: Math.max(1, Math.round(opts.rounds ?? (opts.kind === 'guess' ? 1 : 3))),
     round: 0,
     marks: [],
     clean: true,

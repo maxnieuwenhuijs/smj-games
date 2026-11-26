@@ -30,6 +30,10 @@ import { ENTRANCE, GuestManager, Train, Vendor, Worker, edgePose, edgeSides, sho
 import { SIGHT, type GuestCue, type Sight } from './people';
 import { PEN } from './people';
 import { CableCar } from './people';
+import { Clown } from './people';
+import { CLUES, FACE_PAINTS, PARADE, WAY, guessChoices, nearestTile, paintId, paradeLoop, paradeWait } from './guestfun';
+import { DrumButton, WayLine } from './guestui';
+import { drum } from './audio';
 import { CABLE, cableChairs, cableFit, cableLength, cableOpen, cablePairs, cablePoles, cableSlot } from './cable';
 import { Road } from './road';
 import { STAR_EVERY, STAR_FACTORS, STAR_GOOD, STAR_TIP_GAP, nextStars, parkScore, scoreOf, smoothScore, starFactors, starGuests, weakest, type StarFactor, type StarInput } from './stars';
@@ -114,11 +118,11 @@ const PATH = TERRAINS.indexOf('path');
 const WATER = TERRAINS.indexOf('water');
 /** In welke wereld hoort een soort thuis? Dat volgt uit het level waarin je hem krijgt. */
 /** Wat er bij de gasten kan gebeuren. Bij alles behalve het verdwaalde kind hoort een kaartje met een puzzeltje. */
-type EventKind = 'schoolclass' | 'party' | 'celeb' | 'lost' | 'delivery' | 'photo' | 'build' | 'bedtime' | 'crates' | 'till' | 'mayor';
+type EventKind = 'schoolclass' | 'party' | 'celeb' | 'lost' | 'delivery' | 'photo' | 'build' | 'bedtime' | 'crates' | 'till' | 'mayor' | 'guess';
 type CardEvent = Exclude<EventKind, 'lost'>;
-const EVENT_KINDS: EventKind[] = ['schoolclass', 'party', 'celeb', 'lost', 'delivery', 'photo', 'build', 'bedtime', 'crates', 'till', 'mayor'];
+const EVENT_KINDS: EventKind[] = ['schoolclass', 'party', 'celeb', 'lost', 'delivery', 'photo', 'build', 'bedtime', 'crates', 'till', 'mayor', 'guess'];
 /** Welk puzzeltje er bij een kaartje hoort, en hoe het eruitziet (zie MiniOptions). */
-type MiniSetup = Pick<MiniOptions, 'kind' | 'animals' | 'first' | 'sizeIcons'>;
+type MiniSetup = Pick<MiniOptions, 'kind' | 'animals' | 'first' | 'sizeIcons' | 'guess'>;
 /**
  * Elk evenement met een kaartje. `from`: vanaf welk level (een sleutel van FEATURE). `sound`: het geluid waarmee het
  * zich aankondigt. `mini`: het puzzeltje. `coins`: de munten als het lukt. `boost`: zoveel tellen meer gasten als het
@@ -145,6 +149,8 @@ const EVENTS: Record<CardEvent, { from: keyof typeof FEATURE; icon: IconId; soun
   till: { from: 'upkeep', icon: 'coin', sound: 'coin', mini: { kind: 'sum' }, coins: 5 },
   // de burgemeester wil weten hoe een dier heet; daarna vertelt hij iedereen over het park
   mayor: { from: 'tower', icon: 'mayor', sound: 'fanfare', mini: { kind: 'spell', animals: true }, coins: 0, boost: 120 },
+  // een gast laat je raden wat zijn lievelingsdier is (de hints komen uit guessMini); goed: hij loopt er meteen heen
+  guess: { from: 'guess', icon: 'guess', sound: 'guest.kid', mini: { kind: 'guess' }, coins: 1 },
 };
 /** Wat een klas kan vragen. `guide`: de weg wijzen in het park zelf; de rest is een puzzeltje met een eigen kaartje. */
 type ClassTask = 'sum' | 'count' | 'draw' | 'line' | 'guide';
@@ -168,7 +174,7 @@ const NEEDS_SHOWN = 20;
 /** Bij welke winkel hoort een wens van een gast? */
 const NEED_KIND: Record<string, ShopKind> = {
   food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', hat: 'hats', souvenir: 'souvenir', play: 'playground', sit: 'bench', look: 'fountain', ride: 'carousel',
-  umbrella: 'umbrellas', shelter: 'shelter',
+  umbrella: 'umbrellas', shelter: 'shelter', paint: 'facepaint',
 };
 
 /** Elke handeling heeft een eigen cursor, zodat je ziet wat een tik gaat doen. */
@@ -1708,6 +1714,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.level === FEATURE.safe) once(say.safeNew());
     if (this.level === FEATURE.night) once(say.nightNew());
     if (this.level === FEATURE.guard) once(say.guardNew());
+    if (this.level === FEATURE.parade) once(say.paradeNew());
+    if (this.level === FEATURE.facepaint) once(say.paintNew());
     if (this.level === BONUS.dolphin && hasSpecies('dolphin')) once(say.aquaNew());
     // vanaf nu kun je hulp aannemen: de verzorger vertelt hoe
     if (this.level === FEATURE.keeper) this.showStaffGuide();
@@ -3680,6 +3688,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /** Tik op een kraam: kies wat hij verkoopt. Er passen maar een paar dingen tegelijk in; een keuze te veel vervangt de oudste. */
   private shopMenu(shop: ShopObj): void {
+    if (shop.kind === 'facepaint') return this.paintMenu(shop);
     const options = [...new Set([...this.products(shop.kind), ...shop.sells])];
     const s = this.view.toScreen(...blockCenter(shop), 1.5);
     const items: ToolOption[] = [
@@ -4290,7 +4299,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       (guest.fav ? `<span class="wish ${guest.favSeen ? 'ok' : 'no'}">${speciesIcon(guest.fav)}${icon('heart', 'badge')}</span>` : '') +
       need(guest.hunger, 'foodstall') + need(guest.thirst, 'drinkstall') + need(guest.bladder, 'toilet') + need(guest.tired, 'bench') +
       want(guest.treat, 'icecream') + want(guest.balloon, 'balloon') + want(guest.gift, 'souvenir') + want(guest.playful, 'slide') + want(guest.hat, 'hats') +
-      want(guest.curious, 'fountain') + want(guest.rideWish, 'carousel') +
+      want(guest.curious, 'fountain') + want(guest.rideWish, 'carousel') + (guest.child && !guest.painted ? want(guest.paintWish, 'facepaint') : '') +
       '</span>' + facts;
     this.hud.showMenu(s.x, s.y, card.name || t('guest.title'), [{ id: 'wave', icon: icon('hand'), label: t('guest.wave') }], () => {
       if (!guest.waved) guest.fun = Math.min(1, guest.fun + 0.1);
@@ -4877,6 +4886,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       this.hideHand();
       if (this.pointers.size === 2) {
         this.drag = null;
+        this.wayEnd(false, false, 0, 0);
         this.pinch = this.pinchState();
         return;
       }
@@ -4887,6 +4897,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const sweeping = this.tool !== 'action' || this.actionTarget(e.clientX, e.clientY);
       const paint = !pan && !this.moving && PAINT_TOOLS.has(this.tool) && sweeping;
       this.drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false, pan, paint };
+      // begin je op een gast die de weg kwijt is, dan wijs je met deze veeg de weg (zie wayStart)
+      if (!pan) this.wayStart(e.clientX, e.clientY);
       this.stroke.clear();
       const start = paint && this.tool === 'fence' ? this.view.groundPoint(e.clientX, e.clientY) : null;
       this.line = start ? { gx0: start.gx, gy0: start.gy, e0: nearestEdge(start.gx, start.gy), axis: null, fixed: 0, from: 0 } : null;
@@ -4914,7 +4926,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       // kijkruit zet je altijd los neer met een tik
       if (d.paint && this.tool === 'fence' && !this.looseFence()) this.fenceDrag(e.clientX, e.clientY);
       else if (d.paint) this.paintStroke(prev.x, prev.y, e.clientX, e.clientY);
-      else if (d.pan || d.moved) this.view.pan(dx, dy);
+      else if (this.wayDrag && !d.pan) {
+        if (d.moved) this.wayMove(e.clientX, e.clientY);
+      } else if (d.pan || d.moved) this.view.pan(dx, dy);
       this.hover(e.clientX, e.clientY, d.moved);
     });
 
@@ -4924,6 +4938,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const d = this.drag;
       if (!d || d.id !== e.pointerId) return;
       this.drag = null;
+      // de weg gewezen: dan was het geen tik
+      if (this.wayEnd(d.moved, e.type === 'pointerup', e.clientX, e.clientY)) return;
       // een heel kort veegje met het hek telt als een tik op die rand
       // een hok gesleept: nu pas komen de hekken. Een heel kort veegje met het hek telt als een tik op die rand
       const box = d.paint && this.tool === 'fence' && e.type === 'pointerup' ? this.rect : null;
@@ -4948,6 +4964,266 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private pinchState(): { dist: number; cx: number; cy: number } {
     const [a, b] = [...this.pointers.values()];
     return { dist: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
+  }
+
+  // ------------------------------------------------------------ de weg wijzen, schmink, raden en de optocht
+  /** De weg wijzen: de gast die je met je vinger vastpakte. De stippellijn loopt van hem naar je vinger. */
+  private wayDrag: { guest: Guest } | null = null;
+  private wayLine: WayLine | null = null;
+  /** De optocht van nu: de clown, de kinderen die meelopen, tot wanneer hij duurt, de maat van de trommel. */
+  private parade: { clown: Clown; kids: Guest[]; until: number; beat: number; beatIn: number; callIn: number; over: boolean } | null = null;
+  private paradeEnded = -1e9;
+  private paradeSaid = -1e9;
+  private drumButton: DrumButton | null = null;
+  private wayTipIn = 1;
+
+  /** Elk beeldje: de optocht, de trommelknop, de stippellijn en de tip over de weg wijzen. */
+  private updateGuestFun(dt: number): void {
+    this.updateParade(dt);
+    const way = this.wayDrag;
+    if (way && this.wayLine?.active) {
+      const s = this.view.toScreen(way.guest.gx, way.guest.gy, way.guest.height * 0.6);
+      this.wayLine.from(s.x, s.y);
+    }
+    // de eerste keer dat er een gast de weg kwijt is, vertelt de gastvrouw dat je de weg kunt wijzen
+    this.wayTipIn -= dt;
+    if (this.wayTipIn <= 0) {
+      this.wayTipIn = 1;
+      if (!this.told.has('way') && this.guests.guests.some(g => g.astray > 0)) {
+        this.told.add('way');
+        this.lines.push(say.wayTip());
+      }
+    }
+  }
+
+  /** Begint een veeg op een gast die de weg kwijt is (met het handje)? Dan wijst deze veeg de weg en schuift het beeld niet. */
+  private wayStart(cx: number, cy: number): void {
+    this.wayDrag = null;
+    if (this.tool !== 'hand' || this.moving || this.celebrating) return;
+    const guest = this.pick(this.guests.guests.filter(g => g.astray > 0), cx, cy, g => g.height * 0.6, WAY.grab);
+    if (guest) this.wayDrag = { guest };
+  }
+
+  /** De vinger beweegt: de stippellijn gaat mee, en het ringetje laat zien of de gast daar kan komen. */
+  private wayMove(cx: number, cy: number): void {
+    const way = this.wayDrag;
+    if (!way) return;
+    const line = (this.wayLine ??= new WayLine());
+    if (!line.active) {
+      const s = this.view.toScreen(way.guest.gx, way.guest.gy, way.guest.height * 0.6);
+      line.start(s.x, s.y);
+    }
+    const goal = this.wayGoal(way.guest, cx, cy);
+    line.to(cx, cy, !goal ? 'no' : goal.fav ? 'fav' : 'ok');
+  }
+
+  /**
+   * De vinger gaat los. `moved`: het was een veeg (anders was het een tik en opent gewoon het menu van de gast);
+   * `drop`: echt losgelaten (niet afgebroken). Geeft true als het een veeg was die de weg wees.
+   */
+  private wayEnd(moved: boolean, drop: boolean, cx: number, cy: number): boolean {
+    const way = this.wayDrag;
+    this.wayDrag = null;
+    if (!way) return false;
+    if (!moved || !this.wayLine?.active) {
+      this.wayLine?.hide();
+      return false;
+    }
+    const goal = drop ? this.wayGoal(way.guest, cx, cy) : null;
+    const guest = way.guest;
+    if (!goal || !this.guests.guests.includes(guest) || !guest.showWay(this, this.guests.paths, goal.tile, goal.view)) {
+      this.wayLine.hide();
+      if (drop) sfx('nope', { volume: 0.6 });
+      return true;
+    }
+    this.wayLine.hide(WAY.line);
+    sfx('chime');
+    this.floatAt(icon('heart'), guest.gx, guest.gy, guest.height + 0.3);
+    if (goal.fav && guest.fav) this.floatAt(speciesIcon(guest.fav), guest.gx, guest.gy, guest.height + 0.7);
+    return true;
+  }
+
+  /**
+   * Waar een gast heen loopt als je hier loslaat: bij een verblijf naar het pad ervoor (het dichtst bij je vinger),
+   * anders naar het pad onder of vlak bij je vinger. `fav`: daar woont zijn lievelingsdier. Null: daar kan hij niet komen.
+   */
+  private wayGoal(guest: Guest, cx: number, cy: number): { tile: number; view: ReturnType<Game['viewScore']>; fav: boolean } | null {
+    const g = this.view.groundPoint(cx, cy);
+    if (!g) return null;
+    const paths = this.guests.paths;
+    const region = this.grid.enclosureAt(Math.floor(g.gx), Math.floor(g.gy));
+    let tile: number | null;
+    if (region) {
+      // de padtegels langs het verblijf (door het hek heen kijken mag)
+      const front = new Set<number>();
+      for (const at of region.tiles) {
+        const [x, y] = tileXY(at);
+        for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+          const n = tileIndex(x + dx, y + dy);
+          if (x + dx >= 0 && y + dy >= 0 && x + dx < W && y + dy < H && paths.has(n)) front.add(n);
+        }
+      }
+      tile = nearestTile(front, g.gx, g.gy, Infinity, tileXY);
+    } else tile = nearestTile(paths, g.gx, g.gy, WAY.near, tileXY);
+    if (tile === null) return null;
+    const view = this.viewScore(tile);
+    const here = region ? this.animalsIn(region.id).map(a => a.species as string) : view?.species ?? [];
+    return { tile, view, fav: !!guest.fav && here.includes(guest.fav) };
+  }
+
+  /** De schminktent: kies welk dierengezicht het volgende kind krijgt. Nog een tik op hetzelfde gezicht: weer een verrassing. */
+  private paintMenu(shop: ShopObj): void {
+    const s = this.view.toScreen(...blockCenter(shop), 1.5);
+    const items: ToolOption[] = [
+      { id: '__turn', icon: icon('turn'), label: t('shop.turn') },
+      ...FACE_PAINTS.map(f => ({ id: paintId(f), icon: icon(paintId(f)), label: t(`paint.${f}`), on: shop.sells.includes(paintId(f)) })),
+    ];
+    this.hud.showMenu(s.x, s.y, t('shop.facepaint'), items, id => {
+      if (id === '__turn') {
+        // een marktkraam draait een halve slag (zie shopMenu)
+        shop.rot = ((shop.rot ?? 0) + 2) % 4;
+        shop.manual = true;
+        this.view.poseShop(shop.mesh, shop.x, shop.y, shop.kind, undefined, shop.rot);
+        sfx('place');
+        return this.paintMenu(shop);
+      }
+      shop.sells = shop.sells.includes(id) ? [] : [id];
+      shop.vendor?.sold();
+      sfx('place');
+      this.paintMenu(shop);
+    }, `<b class="ask">${t('paint.ask')}</b>`, 'paint');
+  }
+
+  /**
+   * Wie je zijn lievelingsdier laat raden: een gast die niets bijzonders aan het doen is, het dichtst bij het midden
+   * van je beeld, en wiens lievelingsdier vanaf het pad te zien is. Er moeten minstens drie soorten in het park wonen.
+   */
+  private guessGuest(): Guest | null {
+    const park = this.parkSpecies();
+    if (park.length < 3) return null;
+    const seen = new Set(this.tourSpots().flatMap(tile => this.viewScore(tile)?.species ?? []));
+    let best: Guest | null = null, bestD = Infinity;
+    for (const g of this.guests.guests) {
+      if (!g.free || !g.fav || !seen.has(g.fav) || !guessChoices(g.fav, park)) continue;
+      const s = this.view.toScreen(g.gx, g.gy, g.height);
+      const d = Math.hypot(s.x - innerWidth / 2, s.y - innerHeight / 2);
+      if (d < bestD) [best, bestD] = [g, d];
+    }
+    return best;
+  }
+
+  /** Het puzzeltje bij raden: de hints over het lievelingsdier van deze gast en drie dieren om uit te kiezen. */
+  private guessMini(who: Guest): MiniSetup | null {
+    const fav = who.fav as SpeciesId | null;
+    const options = fav ? guessChoices(fav, this.parkSpecies()) : null;
+    if (!fav || !options) return null;
+    who.greet();
+    return { kind: 'guess', guess: { answer: fav, options, colors: CLUES[fav].colors, legs: CLUES[fav].legs, sound: () => animalSound(fav, false, 1) } };
+  }
+
+  /** Goed geraden: de gast juicht en loopt meteen naar zijn lievelingsdier (de munt geeft endEvent). */
+  private guessWon(guest: Guest): void {
+    guest.joy = 2;
+    const fav = guest.fav;
+    if (!fav) return;
+    const spots = this.tourSpots().filter(tile => this.viewScore(tile)?.species.includes(fav));
+    const tile = nearestTile(spots, guest.gx, guest.gy, Infinity, tileXY);
+    if (tile !== null) guest.headTo(this, this.guests.paths, tile, this.viewScore(tile));
+  }
+
+  /**
+   * De trommel: de clown komt op het pad midden in je beeld en loopt een rondje, en de kinderen in de buurt lopen
+   * achter hem aan. Daarna moet de clown even uitrusten (PARADE.rest). Geeft true als de optocht begint.
+   */
+  private startParade(): boolean {
+    if (!this.has('parade') || this.parade || !this.guests.open || this.celebrating) return false;
+    if (paradeWait(this.clock, this.paradeEnded) > 0) {
+      sfx('nope', { volume: 0.6 });
+      if (this.clock - this.paradeSaid > 12) {
+        this.paradeSaid = this.clock;
+        this.sayNow(say.paradeRest());
+      }
+      return false;
+    }
+    const paths = this.guests.paths;
+    const mid = this.view.groundPoint(innerWidth / 2, innerHeight / 2);
+    const start = (mid ? nearestTile(paths, mid.gx, mid.gy, Infinity, tileXY) : null) ?? ENTRANCE;
+    const out = paradeLoop(start, tile => this.grid.neighbors(tile).filter(n => paths.has(n)), PARADE.steps);
+    const back = this.grid.path(out[out.length - 1], start, i => !paths.has(i)) ?? [];
+    const clown = new Clown([...out, ...back.slice(1)]);
+    this.view.scene.add(clown.mesh);
+    this.parade = { clown, kids: [], until: this.clock + PARADE.seconds, beat: 0, beatIn: 0.9, callIn: 0.5, over: false };
+    sfx('fanfare', { volume: 0.5 });
+    const { gx, gy } = clown;
+    for (let k = 0; k < 4; k++) setTimeout(() => this.view.burst(gx + (Math.random() - 0.5) * 1.4, gy + (Math.random() - 0.5) * 1.4, 1.2, [0xe0584f, 0xffd23f, 0x4a90e2, 0xf06aa6][k], 6), k * 220);
+    if (!this.told.has('parade')) {
+      this.told.add('parade');
+      this.sayNow(say.paradeGo());
+    }
+    return true;
+  }
+
+  /** De optocht: de clown loopt en trommelt, kinderen in de buurt sluiten aan, springen en zwaaien, en grote mensen klappen. */
+  private updateParade(dt: number): void {
+    if (this.has('parade') && !this.drumButton) this.drumButton = new DrumButton(() => void this.startParade());
+    this.drumButton?.set(this.has('parade') && this.guests.open, this.parade ? 0 : paradeWait(this.clock, this.paradeEnded) / PARADE.rest, !!this.parade && !this.parade.over);
+    const p = this.parade;
+    if (!p) return;
+    p.clown.update(dt);
+    if (p.clown.gone) {
+      this.view.scene.remove(p.clown.mesh);
+      this.parade = null;
+      return;
+    }
+    if (p.over) return;
+    if (p.clown.done || this.clock > p.until || !this.guests.open) return this.endParade();
+    const { gx, gy } = p.clown;
+    // de trommel: bom, tik, bom, tik, en af en toe een feestgeluid
+    p.beatIn -= dt;
+    if (p.beatIn <= 0) {
+      p.beatIn += PARADE.beat;
+      p.beat++;
+      drum(p.beat % 2 === 1, heard(gx, gy));
+      if (p.beat % 8 === 0) sfx('party', { volume: 0.3, every: 3, at: [gx, gy] });
+      else if (p.beat % 8 === 5 && p.kids.length) sfx('guest.whee', { volume: 0.3, every: 3, at: [gx, gy] });
+    }
+    p.callIn -= dt;
+    if (p.callIn <= 0) {
+      p.callIn = 0.6;
+      p.kids = p.kids.filter(k => !k.gone && k.leader === p.clown);
+      const far = (g: Guest): number => Math.hypot(g.gx - gx, g.gy - gy);
+      const join = this.guests.guests.filter(g => g.paradeReady && far(g) <= PARADE.reach).sort((a, b) => far(a) - far(b));
+      for (const kid of join.slice(0, Math.max(0, PARADE.kids - p.kids.length))) {
+        kid.join(p.clown, p.kids.length + 1);
+        kid.joy = 1;
+        p.kids.push(kid);
+      }
+      // papa's en mama's kijken en klappen
+      for (const g of this.guests.guests) if (!g.child && far(g) <= PARADE.clap) g.clapFor(gx, gy);
+    }
+    // de kinderen in de rij springen en zwaaien om de beurt
+    for (const kid of p.kids) {
+      if (kid.joy > 0 || kid.hello > 0 || Math.random() > dt * 0.9) continue;
+      if (Math.random() < 0.5) kid.joy = 0.7;
+      else kid.hello = 1.2;
+    }
+  }
+
+  /** De optocht is klaar: de kinderen gaan weer hun eigen gang (blij), de clown zwaait en verdwijnt. */
+  private endParade(): void {
+    const p = this.parade;
+    if (!p || p.over) return;
+    p.over = true;
+    for (const kid of p.kids)
+      if (kid.leader === p.clown) {
+        kid.release();
+        kid.fun = Math.min(1, kid.fun + 0.2);
+        kid.joy = 1.4;
+      }
+    p.kids = [];
+    p.clown.leave();
+    this.paradeEnded = this.clock;
+    sfx('cheer', { volume: 0.4, at: [p.clown.gx, p.clown.gy] });
   }
 
   // ------------------------------------------------------------ tijd, seizoenen en weer
@@ -5490,7 +5766,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const kinds = EVENT_KINDS.filter(k =>
       this.has(k === 'lost' ? k : EVENTS[k].from) && k !== this.lastEvent
       && (k !== 'party' || this.shops.some(sh => PLAY.includes(sh.kind))) && (k !== 'schoolclass' || busyPens >= 2)
-      && (k !== 'bedtime' || this.night > 0.3));
+      && (k !== 'bedtime' || this.night > 0.3) && (k !== 'guess' || !!this.guessGuest()));
     // een klas die het leuk had, vertelt het door op school: dan komt er vaker een klas
     if (kinds.includes('schoolclass')) for (let i = 0; i < this.classFans; i++) kinds.push('schoolclass');
     const kind = kinds[Math.floor(Math.random() * kinds.length)];
@@ -5512,9 +5788,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       this.classDue = { n: 5 + this.classFans + Math.floor(Math.random() * 3), teacher, until: this.clock + 45 };
       return;
     }
-    const group = kind === 'party' ? this.guests.spawnParty() : kind === 'celeb' ? this.guests.spawnStar() : null;
+    const group = kind === 'party' ? this.guests.spawnParty() : kind === 'celeb' ? this.guests.spawnStar() : kind === 'guess' ? this.guessGuest() : null;
     // een feestje of een beroemde gast komt niet als het park dicht is
-    if (!group && (kind === 'party' || kind === 'celeb')) return;
+    if (!group && (kind === 'party' || kind === 'celeb' || kind === 'guess')) return;
     // de vrachtwagen met voer staat een poosje voor de poort
     if (kind === 'delivery') this.road.callTruck();
     this.offerEvent(kind, group);
@@ -5553,7 +5829,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     // een klas komt elke keer met iets anders
     const { task, species } = kind === 'schoolclass' ? this.classTask() : { task: null, species: null };
     const plan = task && task !== 'guide' ? CLASS_TASKS[task] : null;
-    const mini = plan?.mini ?? def.mini;
+    const mini = (kind === 'guess' && who ? this.guessMini(who) : null) ?? plan?.mini ?? def.mini;
     const picture = icon(def.icon);
     const line = this.eventLine(task ? `class.${task}` : kind, 'ask', who ? this.classTeacher.get(who) : undefined);
     // gaat het over gasten in het park, dan brengt een tik op de vraag je naar ze toe
@@ -5659,6 +5935,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
     // de beroemde gast gaat straks blij naar huis: dan komen er meer gasten
     if (kind === 'celeb' && here) here.fun = 1;
+    if (kind === 'guess' && here) this.guessWon(here);
     if (kind === 'photo') sfx('camera');
     // de beloning: munten, of een tijdje meer gasten (een foto in de krant, een trotse burgemeester)
     if (def.coins) this.earn(def.coins, gx, gy);
@@ -6350,6 +6627,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.events(dt);
     this.updateShows(dt);
     this.updateLifts(dt);
+    this.updateGuestFun(dt);
 
     for (const p of this.puddles) {
       p.life -= dt;

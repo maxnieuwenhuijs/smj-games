@@ -196,7 +196,7 @@ const DECOR_SETS: Record<string, DecorKind[]> = {
   beelden: ['scarecrow', 'totem', 'snowman', 'campfire', 'windmill', 'statue', 'clocktower'],
 };
 const SHOP_SETS: Record<string, ShopKind[]> = {
-  kramen: ['foodstall', 'drinkstall', 'icecream', 'balloon', 'hats', 'souvenir'],
+  kramen: ['foodstall', 'drinkstall', 'icecream', 'balloon', 'hats', 'souvenir', 'facepaint'],
   gebouwen: ['toilet', 'restaurant', 'shelter', 'station'],
   klein: ['bench', 'flowers', 'bin', 'umbrellas'],
   speeltuin: ['slide', 'swing', 'seesaw', 'springer', 'trampoline'],
