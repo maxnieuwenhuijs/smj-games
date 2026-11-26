@@ -4646,11 +4646,13 @@ export class View {
       group.add(pole, new THREE.Mesh(merge(parts.snow), CABLE_SNOW_MAT));
     }
     // de grote wielen: in de huisjes laag aan hun as, op de tussenpalen hoog om de paal
-    const wheelGeo = cableWheelGeo(0.07), mastWheelGeo = turning.length ? cableWheelGeo(0.11) : wheelGeo;
+    const wheelGeo = cableWheelGeo(0.07), mastWheelGeo = cableWheelGeo(0.11);
     const wheel = (geo: THREE.BufferGeometry, x: number, y: number, z: number, dir: number): THREE.Mesh => {
       const mesh = new THREE.Mesh(geo, PAINT_MAT);
       mesh.position.set(x, y, z);
       mesh.userData.dir = dir;
+      // (in het huisje hangt het wiel onder het dak; op een paal geeft het een schaduw op het gras)
+      mesh.castShadow = geo === mastWheelGeo;
       group.add(mesh);
       return mesh;
     };

@@ -3711,7 +3711,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
    * halverwege op, en dan ligt het punt op de grond daaronder een paar tegels verder).
    */
   private pylonUnder(cx: number, cy: number): Pylon | undefined {
-    let best: Pylon | undefined, bestD = Math.max(14, 0.22 * this.pxPerTile());
+    let best: Pylon | undefined, bestD = Math.max(16, 0.26 * this.pxPerTile());
     for (const p of this.pylons) {
       const a = this.view.toScreen(p.x + 0.5, p.y + 0.5, 0), b = this.view.toScreen(p.x + 0.5, p.y + 0.5, CABLE.high + 0.3);
       const ux = b.x - a.x, uy = b.y - a.y, t = Math.max(0, Math.min(1, ((cx - a.x) * ux + (cy - a.y) * uy) / (ux * ux + uy * uy || 1)));
