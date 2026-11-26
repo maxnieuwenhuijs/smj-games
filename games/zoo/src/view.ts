@@ -188,6 +188,25 @@ const GLASS_FRAME_GEO = mergeGeometries([
   boxAt(1, 0.06, 0.07, 0.5, 0.71, 0),
 ])!;
 const GLASS_PANE_GEO = boxAt(0.92, 0.62, 0.025, 0.5, 0.38, 0);
+// De poort van een bak van glas: het glas blijft dicht (anders loopt het water eruit), en aan de buitenkant staat een
+// houten trapje naar de rand, met gele leuningen. Aan de binnenkant gaat een laddertje het water in. Getekend met de
+// buitenkant naar +z; STAIR_BACK_GEO is hetzelfde trapje aan de andere kant van het glas.
+const STAIR = { top: 0.74, steps: 4, wide: 0.5, deep: 0.1 };
+const stairStep = (i: number): THREE.BufferGeometry => {
+  const h = STAIR.top * (1 - i / STAIR.steps);
+  return boxAt(STAIR.wide, h, STAIR.deep, 0.5, h / 2, 0.09 + i * STAIR.deep);
+};
+const STAIR_GEO = painted(
+  [0xc58a4b, ...[0, 2].map(stairStep)],
+  [0xb07a3f, ...[1, 3].map(stairStep)],
+  // de leuningen: aan elke kant twee paaltjes en een schuine stang
+  [0x8a8f98, ...[0.27, 0.73].flatMap(x => [boxAt(0.035, 0.32, 0.035, x, STAIR.top + 0.16, 0.07), boxAt(0.035, 0.32, 0.035, x, STAIR.top / STAIR.steps + 0.16, 0.41)])],
+  [0xffd23f, ...[0.27, 0.73].map(x => beam(0.04, [x, STAIR.top + 0.32, 0.05], [x, STAIR.top / STAIR.steps + 0.32, 0.43]))],
+  // het laddertje aan de binnenkant: over de rand heen en het water in
+  [0xd0d6dc, ...[0.38, 0.62].flatMap(x => [beam(0.03, [x, STAIR.top + 0.2, 0.04], [x, STAIR.top + 0.2, -0.1]), boxAt(0.03, STAIR.top + 0.08, 0.03, x, (STAIR.top + 0.32) / 2 - 0.04, -0.1)]),
+    ...[0.2, 0.4, 0.6].map(y => boxAt(0.24, 0.03, 0.03, 0.5, y, -0.1))],
+);
+const STAIR_BACK_GEO = STAIR_GEO.clone().rotateY(Math.PI).translate(1, 0, 0);
 // Hoog net voor klimmers, vliegers en springers: hoge palen met gaas ertussen.
 const NET_GEO = mergeGeometries([
   boxAt(0.1, 0.92, 0.1, 0, 0.46, 0),
@@ -1918,6 +1937,11 @@ const DECOR_PARTS: Record<DecorKind, Part[]> = {
 
 /** Zo ver schuift een versiering op als er een hek op zijn rand staat: net naast het hek. */
 export const EDGE_SHIFT = 0.22;
+/**
+ * Hoe hoog elk soort hek is (zie EdgeKind): [bovenop de paal, bovenop de bovenste lat]. Een lage lamp die op het
+ * hek staat, komt daar bovenop.
+ */
+export const FENCE_TOP: Record<number, [number, number]> = { 1: [0.5, 0.41], 2: [0.85, 0.8], 3: [0.39, 0.39], 4: [0.92, 0.92], 5: [0.74, 0.74], 6: [0.64, 0.64], 7: [0.4, 0.36], 8: [0.9, 0.9] };
 /** Hoe iets op een rand staat: langs welke rand, en aan welke kant het pad ligt (1, -1 of 0 = geen van beide). */
 export interface EdgePose {
   o: 'h' | 'v';
@@ -3624,14 +3648,47 @@ export class View {
     mesh.rotation.y = e.o === 'v' ? -Math.PI / 2 : 0;
   }
 
-  /** Een poort heeft de kleur van het hek waar hij in zit: hout, steen of net. */
+  /**
+   * Een poort hoort bij het hek waar hij in zit: hout, steen, net, glas of het witte hekje. Dat is het soort hek dat
+   * er het meest tegenaan staat; de stukken in dezelfde lijn tellen dubbel. Zo blijft een poort in een bak van glas
+   * van glas, ook als er om de hoek een stenen muur staat. Staat er niets naast, dan telt het verblijf erachter.
+   */
   private gateStyle(grid: Grid, e: Edge): number {
     const beside: Edge[] = e.o === 'h' ? [{ o: 'h', x: e.x - 1, y: e.y }, { o: 'h', x: e.x + 1, y: e.y }] : [{ o: 'v', x: e.x, y: e.y - 1 }, { o: 'v', x: e.x, y: e.y + 1 }];
     const around: Edge[] = e.o === 'h'
       ? [{ o: 'v', x: e.x, y: e.y - 1 }, { o: 'v', x: e.x, y: e.y }, { o: 'v', x: e.x + 1, y: e.y - 1 }, { o: 'v', x: e.x + 1, y: e.y }]
       : [{ o: 'h', x: e.x - 1, y: e.y }, { o: 'h', x: e.x, y: e.y }, { o: 'h', x: e.x - 1, y: e.y + 1 }, { o: 'h', x: e.x, y: e.y + 1 }];
-    const kinds = [...beside, ...around].map(n => grid.getEdge(n));
-    return kinds.includes(3) ? 3 : kinds.includes(4) ? 4 : kinds.includes(5) ? 5 : kinds.includes(7) ? 7 : 1;
+    const score = new Map<number, number>();
+    const count = (list: Edge[], weight: number): void => {
+      for (const n of list) {
+        const kind = grid.getEdge(n);
+        if (kind === 1 || kind === 3 || kind === 4 || kind === 5 || kind === 7) score.set(kind, (score.get(kind) ?? 0) + weight);
+      }
+    };
+    count(beside, 2);
+    count(around, 1);
+    let best = 0, top = 0;
+    for (const [kind, n] of score) if (n > top) [best, top] = [kind, n];
+    if (best) return best;
+    // een poort tussen twee andere poorten of ruiten: het hek van het verblijf waar hij in zit
+    for (const [tx, ty] of e.o === 'h' ? [[e.x, e.y], [e.x, e.y - 1]] : [[e.x, e.y], [e.x - 1, e.y]]) {
+      const region = grid.enclosureAt(tx, ty);
+      if (region) return grid.penKind(region);
+    }
+    return 1;
+  }
+
+  /**
+   * Aan welke kant van een poort in een bak van glas het trapje staat: buiten de bak. 1 = de kant waar het hek in
+   * het beeld zijn +z heeft (bij een rand 'h' de tegel ten zuiden, bij 'v' de tegel ten westen), -1 = de andere kant.
+   */
+  private stairSide(grid: Grid, e: Edge): 1 | -1 {
+    const tank = ([x, y]: number[]): boolean => {
+      const region = grid.enclosureAt(x, y);
+      return !!region && grid.penKind(region) === 5;
+    };
+    const [plus, minus] = e.o === 'h' ? [[e.x, e.y], [e.x, e.y - 1]] : [[e.x - 1, e.y], [e.x, e.y]];
+    return tank(plus) && !tank(minus) ? -1 : 1;
   }
 
   /** Een hek in een eigen kleur; versleten hout wordt per fase donkerder. */
@@ -3649,30 +3706,38 @@ export class View {
 
   /** `wear`: per rand hoe versleten het houten hek is (1, 2 of 3). `tints`: per rand de gekozen kleur (zie FENCE_COLORS). */
   syncFences(grid: Grid, wear?: Map<string, number>, tints?: Map<string, number>): void {
-    const wanted = new Map<string, { e: Edge; kind: number; style: number; worn: number; tint: number }>();
+    const wanted = new Map<string, { e: Edge; kind: number; style: number; worn: number; tint: number; stair: number }>();
     for (const item of grid.edges()) {
       // een kijkvenster is van steen, het poortje van de kinderboerderij hoort bij het witte hekje
       const style = item.kind === 2 ? this.gateStyle(grid, item.e) : item.kind === 6 ? 3 : item.kind === 8 ? 7 : item.kind;
       const worn = item.kind === 1 ? wear?.get(edgeKey(item.e)) ?? 0 : 0;
       const tint = tints?.get(edgeKey(item.e)) ?? 0;
-      wanted.set(`${edgeKey(item.e)}:${item.kind}:${style}:${worn}:${tint}`, { ...item, style, worn, tint });
+      // een poort in een bak van glas is een trapje aan de buitenkant: aan welke kant dat is
+      const stair = item.kind === 2 && style === 5 ? this.stairSide(grid, item.e) : 0;
+      wanted.set(`${edgeKey(item.e)}:${item.kind}:${style}:${worn}:${tint}:${stair}`, { ...item, style, worn, tint, stair });
     }
     for (const [key, mesh] of this.fences)
       if (!wanted.has(key)) {
         this.scene.remove(mesh);
         this.fences.delete(key);
       }
-    for (const [key, { e, kind, style, worn, tint }] of wanted) {
+    for (const [key, { e, kind, style, worn, tint, stair }] of wanted) {
       if (this.fences.has(key)) continue;
-      const geo = kind === 8 ? PETGATE_GEO : kind === 7 ? PICKET_GEO : kind === 6 ? WINDOW_GEO : kind === 5 ? GLASS_FRAME_GEO : kind === 4 ? NET_GEO : kind === 3 ? WALL_GEO : kind === 2 ? GATE_GEO : WORN_GEOS[worn];
+      const geo = kind === 8 ? PETGATE_GEO : kind === 7 ? PICKET_GEO : kind === 6 ? WINDOW_GEO : kind === 5 || stair ? GLASS_FRAME_GEO : kind === 4 ? NET_GEO : kind === 3 ? WALL_GEO : kind === 2 ? GATE_GEO : WORN_GEOS[worn];
       const frame = new THREE.Mesh(geo, tint ? this.tintMat(style, tint, worn) : style === 5 ? GLASS_FRAME_MAT : style === 3 ? STONE_MAT : style === 4 ? NET_MAT : style === 7 ? WHITE_MAT : WORN_MATS[worn]);
       frame.castShadow = true;
       let mesh: THREE.Object3D = frame;
-      if (kind === 5 || kind === 6) {
+      if (kind === 5 || kind === 6 || stair) {
         // glas en kijkvenster: de lijst met een doorzichtige ruit erin
-        const pane = new THREE.Mesh(kind === 5 ? GLASS_PANE_GEO : WINDOW_PANE_GEO, GLASS_MAT);
+        const pane = new THREE.Mesh(kind === 6 ? WINDOW_PANE_GEO : GLASS_PANE_GEO, GLASS_MAT);
         pane.renderOrder = 3;
         mesh = new THREE.Group().add(frame, pane);
+        if (stair) {
+          // de poort van een bak van glas: het trapje aan de buitenkant en het laddertje het water in
+          const steps = new THREE.Mesh(stair > 0 ? STAIR_GEO : STAIR_BACK_GEO, PAINT_MAT);
+          steps.castShadow = true;
+          mesh.add(steps);
+        }
       } else if (kind === 8) {
         // het poortje van de kinderboerderij: het bord met het hart houdt zijn eigen kleuren
         const sign = new THREE.Mesh(PETSIGN_GEO, PAINT_MAT);
@@ -3835,20 +3900,25 @@ export class View {
   }
 
   /** Op een rand ('h' = de noordrand van tegel (x, y), 'v' = de westrand) staat het ding midden op die rand. */
-  private atSpot<T extends THREE.Object3D>(obj: T, x: number, y: number, edge?: 'h' | 'v', rot = 0, shift = 0): T {
-    // `shift`: staat er een hek op die rand, dan schuift het ding een stukje op naar die kant (1 = zuid of oost,
-    // -1 = noord of west), zodat het naast het hek staat en nog binnen de tegel valt
-    obj.position.set(toWorldX(x + (edge === 'v' ? shift * EDGE_SHIFT : 0.5)), 0, toWorldZ(y + (edge === 'h' ? shift * EDGE_SHIFT : 0.5)));
+  private atSpot<T extends THREE.Object3D>(obj: T, x: number, y: number, edge?: 'h' | 'v' | 'c', rot = 0, shift = 0, lift = 0): T {
+    this.poseDecor(obj, x, y, edge, shift, lift);
     return this.turned(obj, rot);
   }
 
   /** Zet een versiering die er al staat op een andere plek (er is een hek bij gekomen of weggehaald). */
-  poseDecor(group: THREE.Object3D, x: number, y: number, edge: 'h' | 'v' | undefined, shift: number): void {
-    group.position.set(toWorldX(x + (edge === 'v' ? shift * EDGE_SHIFT : 0.5)), 0, toWorldZ(y + (edge === 'h' ? shift * EDGE_SHIFT : 0.5)));
+  /**
+   * Zet een versiering op zijn plek: midden op tegel (x, y), op een rand van die tegel ('h' de noordrand, 'v' de
+   * westrand) of op zijn noordwesthoek ('c'). `shift`: staat er een hek op die rand, dan schuift het ding een stukje
+   * op naar die kant (1 = zuid of oost, -1 = noord of west), zodat het naast het hek staat en nog binnen de tegel
+   * valt. `lift`: zo hoog staat het boven de grond (een lage lamp bovenop een hek).
+   */
+  poseDecor(group: THREE.Object3D, x: number, y: number, edge: 'h' | 'v' | 'c' | undefined, shift: number, lift = 0): void {
+    const gx = edge === 'c' ? x : x + (edge === 'v' ? shift * EDGE_SHIFT : 0.5), gy = edge === 'c' ? y : y + (edge === 'h' ? shift * EDGE_SHIFT : 0.5);
+    group.position.set(toWorldX(gx), lift, toWorldZ(gy));
   }
 
-  makeDecor(x: number, y: number, kind: DecorKind, edge?: 'h' | 'v', rot = 0, shift = 0): THREE.Group {
-    const group = this.atSpot(buildDecor(kind), x, y, edge, rot, shift);
+  makeDecor(x: number, y: number, kind: DecorKind, edge?: 'h' | 'v' | 'c', rot = 0, shift = 0, lift = 0): THREE.Group {
+    const group = this.atSpot(buildDecor(kind), x, y, edge, rot, shift, lift);
     this.varyTree(group, x, y, kind);
     this.scene.add(group);
     return group;
@@ -3943,9 +4013,9 @@ export class View {
     }
   }
 
-  ghostDecor(x: number, y: number, kind: DecorKind, ok: boolean, edge?: 'h' | 'v', rot = 0, shift = 0): void {
+  ghostDecor(x: number, y: number, kind: DecorKind, ok: boolean, edge?: 'h' | 'v' | 'c', rot = 0, shift = 0, lift = 0): void {
     this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
-    this.atSpot(this.ghostDecors[kind], x, y, edge, rot, shift).visible = true;
+    this.atSpot(this.ghostDecors[kind], x, y, edge, rot, shift, lift).visible = true;
   }
 
   private runPool: THREE.Object3D[] = [];
@@ -4598,9 +4668,10 @@ export class View {
     const rope: THREE.BufferGeometry[] = [], flags: THREE.BufferGeometry[] = [], bulbs: THREE.BufferGeometry[] = [], dim: THREE.BufferGeometry[] = [];
     const top = (x: number, y: number): THREE.Vector3 => new THREE.Vector3(toWorldX(x + 0.5), STRING_HEIGHT, toWorldZ(y + 0.5));
     // de slinger hoort bij de paal waar hij begint: is die lamp uitgetikt, dan zijn de lampjes erin ook uit
+    // palen staan op hoeken en midden op randen: tussen twee palen in één lijn zit dus een heel of een half aantal tegels
     for (const p of poles)
       for (const [dx, dy] of [[1, 0], [0, 1]])
-        for (let d = 1; d <= STRING_REACH; d++) {
+        for (let d = 0.5; d <= STRING_REACH; d += 0.5) {
           if (at.get(`${p.x + dx * d},${p.y + dy * d}`) !== p.kind) continue;
           garland(top(p.x, p.y), top(p.x + dx * d, p.y + dy * d), p.kind, rope, p.kind === 'bunting' ? flags : p.off ? dim : bulbs);
           break;

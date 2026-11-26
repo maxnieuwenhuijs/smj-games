@@ -41,6 +41,16 @@ export interface Region {
   enclosed: boolean;
 }
 
+/**
+ * Een plek op de lijnen van het raster waar een paal (lamp, vlag) kan staan: midden op een rand ('h' of 'v', net als
+ * bij Edge) of op een hoek van een tegel ('c': de noordwesthoek van tegel (x, y)).
+ */
+export interface Spot {
+  o: 'h' | 'v' | 'c';
+  x: number;
+  y: number;
+}
+
 export const tileIndex = (x: number, y: number): number => x + y * W;
 export const tileXY = (i: number): [number, number] => [i % W, Math.floor(i / W)];
 export const edgeKey = (e: Edge): string => `${e.o}${e.x},${e.y}`;
@@ -90,6 +100,13 @@ export class Grid {
   validEdge(e: Edge): boolean {
     const { x0, y0, x1, y1 } = this.land;
     return e.o === 'h' ? e.x >= x0 && e.x < x1 && e.y >= y0 && e.y <= y1 : e.x >= x0 && e.x <= x1 && e.y >= y0 && e.y < y1;
+  }
+
+  /** Ligt deze plek (een hoek of het midden van een rand) op de grond van het park? */
+  validSpot(s: Spot): boolean {
+    if (s.o !== 'c') return this.validEdge({ o: s.o, x: s.x, y: s.y });
+    const { x0, y0, x1, y1 } = this.land;
+    return s.x >= x0 && s.x <= x1 && s.y >= y0 && s.y <= y1;
   }
 
   getEdge(e: Edge): EdgeKind {
@@ -305,3 +322,39 @@ export function nearestEdge(gx: number, gy: number, maxDist = 1): Edge | null {
   options.sort((a, b) => a[0] - b[0]);
   return options[0][0] <= maxDist ? options[0][1] : null;
 }
+
+/** Waar een plek precies ligt, in rastercoördinaten. */
+export const spotPos = (s: Spot): [number, number] => (s.o === 'h' ? [s.x + 0.5, s.y] : s.o === 'v' ? [s.x, s.y + 0.5] : [s.x, s.y]);
+export const spotKey = (s: Spot): string => `${s.o}${s.x},${s.y}`;
+
+/**
+ * De plek voor een paal die het dichtst bij een punt ligt: een van de vier hoeken of het midden van een van de vier
+ * randen van de tegel onder dat punt. Null als het punt buiten het raster ligt.
+ */
+export function nearestSpot(gx: number, gy: number): Spot | null {
+  if (gx < -0.4 || gy < -0.4 || gx > W + 0.4 || gy > H + 0.4) return null;
+  const tx = Math.max(0, Math.min(W - 1, Math.floor(gx))), ty = Math.max(0, Math.min(H - 1, Math.floor(gy)));
+  const options: Spot[] = [
+    { o: 'c', x: tx, y: ty }, { o: 'c', x: tx + 1, y: ty }, { o: 'c', x: tx, y: ty + 1 }, { o: 'c', x: tx + 1, y: ty + 1 },
+    { o: 'h', x: tx, y: ty }, { o: 'h', x: tx, y: ty + 1 }, { o: 'v', x: tx, y: ty }, { o: 'v', x: tx + 1, y: ty },
+  ];
+  let best = options[0], bestD = Infinity;
+  for (const s of options) {
+    const [sx, sy] = spotPos(s), d = Math.hypot(sx - gx, sy - gy);
+    if (d < bestD) [best, bestD] = [s, d];
+  }
+  return best;
+}
+
+/** De randen die in een hoek samenkomen: naar het noorden, oosten, zuiden en westen van het hoekpunt (x, y). */
+export const cornerEdges = (x: number, y: number): Edge[] => [{ o: 'v', x, y: y - 1 }, { o: 'h', x, y }, { o: 'v', x, y }, { o: 'h', x: x - 1, y }];
+
+/** De vier tegels rond een hoekpunt (ze kunnen buiten het park liggen). */
+export const cornerTiles = (x: number, y: number): [number, number][] => [[x - 1, y - 1], [x, y - 1], [x - 1, y], [x, y]];
+
+/** De tegels die aan een plek grenzen: twee bij een rand, vier bij een hoek. */
+export const spotTiles = (s: Spot): [number, number][] =>
+  s.o === 'c' ? cornerTiles(s.x, s.y) : s.o === 'h' ? [[s.x, s.y - 1], [s.x, s.y]] : [[s.x - 1, s.y], [s.x, s.y]];
+
+/** De randen waar een plek op ligt: de rand zelf, of de vier randen die in de hoek samenkomen. */
+export const spotEdges = (s: Spot): Edge[] => (s.o === 'c' ? cornerEdges(s.x, s.y) : [{ o: s.o, x: s.x, y: s.y }]);

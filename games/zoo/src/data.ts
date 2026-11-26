@@ -275,8 +275,7 @@ export const DECOR: Record<DecorKind, { group: DecorGroup; price: number; from: 
  * Kleine versieringen: die zet je niet midden op een tegel maar in een van de vier kwarten, net als de natuur. Zo
  * passen er meer op een tegel en kun je ze preciezer neerzetten (naast een bankje, in een hoekje).
  */
-export const SMALL_DECOR: DecorKind[] = ['mushrooms', 'cactus', 'pumpkins', 'birdbath', 'pump', 'boulder', 'guestbook', 'scarecrow', 'topiary', 'totem', 'snowman', 'campfire', 'statue',
-  'gardenlight', 'lampion', 'torch', 'streetlamp'];
+export const SMALL_DECOR: DecorKind[] = ['mushrooms', 'cactus', 'pumpkins', 'birdbath', 'pump', 'boulder', 'guestbook', 'scarecrow', 'topiary', 'totem', 'snowman', 'campfire', 'statue'];
 /**
  * De groepen onder de knop Park, van links naar rechts. In een groep staan versieringen, klein spul en gebouwtjes
  * door elkaar: de bloembak staat bij Groen, wc en bankje bij Handig.
@@ -297,7 +296,16 @@ export const DECORS = Object.keys(DECOR) as DecorKind[];
  * Palen, borden en alles wat langwerpig is (heg, rozen, tulpen, zonnebloemen, de bloemenboog) zet je op de rand
  * van een tegel, net als een hek of een bankje: ze nemen geen tegel in en liggen langs die rand.
  */
-export const EDGE_DECOR: DecorKind[] = ['lantern', 'lightstring', 'flag', 'bunting', 'signpost', 'mapboard', 'hedge', 'roses', 'tulips', 'sunflowers', 'arch'];
+export const EDGE_DECOR: DecorKind[] = ['lantern', 'lightstring', 'flag', 'bunting', 'signpost', 'mapboard', 'hedge', 'roses', 'tulips', 'sunflowers', 'arch',
+  'gardenlight', 'lampion', 'torch', 'streetlamp'];
+/**
+ * Palen (alle lampen, de vlag en de slingerpalen) staan op een hoek van een tegel of midden op een rand, en dan ook
+ * precies óp het hek als daar een hek staat: zo staan ze nooit in de weg op het pad. Een bord, een heg en een bankje
+ * staan alleen midden op een rand.
+ */
+export const POLE_DECOR: DecorKind[] = ['lantern', 'streetlamp', 'gardenlight', 'lampion', 'torch', 'lightstring', 'flag', 'bunting'];
+/** Een lage lamp staat bovenop het hek (op de paal of op de bovenste lat), anders zie je hem niet. */
+export const LOW_POLES: DecorKind[] = ['gardenlight'];
 /**
  * De meeste dieren hebben een eigen lievelingsding: daar spelen ze mee, en zonder vervelen ze zich (vanaf level 10).
  * Kippen, eenden en een paar andere rustige dieren hebben niets nodig.
