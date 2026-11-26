@@ -20,8 +20,8 @@ import { SHOW_FENCES, SHOW_STARS, SHOW_TIME, newShow, showReady, showSoon, showT
 import { ESCAPE_WAY, escapeChance, escapeWay, pickEscaper, type EscapeWay } from './data';
 import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, tileIndex, tileXY, type Edge, type EdgeKind, type Region, type Side } from './grid';
 import { glassSides } from './grid';
-import { Hud, type GoalView, type ToolDef, type ToolOption } from './hud';
-import { cursor, icon, type IconId } from './icons';
+import { Hud, type GoalView, type ParkPanel, type ToolDef, type ToolOption } from './hud';
+import { ICON_IDS, cursor, icon, type IconId } from './icons';
 import { emptyStats, goalProgress, levelDone, type Stats } from './levels';
 import { CHEERS, EVENT_SAYS, NAMED, PRAISE, callText, goalLine, say, textOf, voiceId, wishLine, type EventPart, type Line } from './lines';
 import { TEACHERS, type TeacherId } from './figures';
@@ -32,7 +32,8 @@ import { PEN } from './people';
 import { CableCar } from './people';
 import { Clown } from './people';
 import { CLUES, FACE_PAINTS, PARADE, WAY, guessChoices, nearestTile, paintId, paradeLoop, paradeWait } from './guestfun';
-import { DrumButton, WayLine } from './guestui';
+import { WayLine } from './guestui';
+import { HISTORY, addSample, funBands, newHistory, tally, topCounts } from './parkstats';
 import { drum } from './audio';
 import { CABLE, cableChairs, cableFit, cableLength, cableOpen, cablePairs, cablePoles, cableSlot } from './cable';
 import { PARTY, partyClock, partyDone, partyDue, partyLoop } from './party';
@@ -1027,6 +1028,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Munten erbij, tot de kas vol is. */
   private earn(n: number, gx?: number, gy?: number): void {
     const before = this.coins;
+    this.earnedSince += n;
     this.coins = Math.min(COIN_CAP, this.coins + n);
     this.debt = Math.max(0, this.debt - n);
     if (gx !== undefined && gy !== undefined && this.coins > before) {
@@ -4840,6 +4842,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   private tap(cx: number, cy: number): void {
     if (this.gongTapped(cx, cy)) return;
+    // een tik op de poort: het overzicht van je park
+    if (this.tool === 'hand' && !this.moving && this.gateTapped(cx, cy)) return this.openPark();
     const g = this.view.groundPoint(cx, cy);
     const x = g ? Math.floor(g.gx) : -1, y = g ? Math.floor(g.gy) : -1;
     const inside = this.grid.inBounds(x, y);
@@ -5172,6 +5176,70 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.gongBadge.hidden = false;
     const [gx, gy] = this.view.gongSpot(), s = this.view.toScreen(gx, gy, 1.45);
     this.gongBadge.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%)`;
+  }
+
+  /**
+   * Een tik op de poort bij de ingang: op het bord bovenin altijd, op de palen alleen als je daar geen gast of dier
+   * aantikt (er lopen veel gasten door de poort).
+   */
+  private gateTapped(cx: number, cy: number): boolean {
+    const gx = Math.floor(W / 2) + 0.5, gy = H + 0.12, px = this.pxPerTile();
+    const sign = this.view.toScreen(gx, gy, 1.6);
+    if (Math.abs(sign.x - cx) < px * 0.95 && Math.abs(sign.y - cy) < px * 0.45) return true;
+    const low = this.view.toScreen(gx, gy, 0.75);
+    if (Math.abs(low.x - cx) > px * 0.8 || Math.abs(low.y - cy) > px * 0.75) return false;
+    return !this.pickAnimal(cx, cy, 0.3) && !this.pick(this.guests.guests, cx, cy, q => q.height * 0.6, 0.4);
+  }
+
+  /** De metingen voor het overzicht van je park: gasten en verdiende munten, om de HISTORY.every tellen. */
+  private history = newHistory();
+  private historyIn = 0;
+  private earnedSince = 0;
+
+  private updateHistory(dt: number): void {
+    this.historyIn -= dt;
+    if (this.historyIn > 0) return;
+    this.historyIn = HISTORY.every;
+    addSample(this.history.guests, this.guests.guests.length);
+    addSample(this.history.earned, this.earnedSince);
+    this.earnedSince = 0;
+  }
+
+  /** De vakjes in het overzicht: gasten en munten over de tijd, wat er verkocht is, lievelingsdieren en blije gasten. */
+  private parkPanels(): ParkPanel[] {
+    const out: ParkPanel[] = [];
+    const guests = this.guests.guests;
+    if (this.has('paths')) out.push({ icon: icon('guest'), title: t('park.guests'), now: String(guests.length), empty: t('park.wait'), chart: [...this.history.guests], slots: HISTORY.keep, color: '#4a90e2' });
+    const earned = this.history.earned.reduce((s, n) => s + n, 0);
+    out.push({ icon: icon('coin'), title: t('park.earned'), now: `+${earned}`, empty: t('park.wait'), chart: [...this.history.earned], slots: HISTORY.keep, color: '#f0b429' });
+    // alles wat verkocht wordt kost 1 munt (zie sell): dat staat achter elk balkje
+    const sold = topCounts(this.soldAt, 6).map(([kind, n]) => ({ icon: ICON_IDS.includes(kind as IconId) ? icon(kind as IconId) : icon('cart'), n, tail: `<span class="price">1${icon('coin')}</span>` }));
+    if (this.has('paths')) out.push({ icon: icon('cart'), title: t('park.sold'), empty: t('park.none'), rows: sold });
+    const favs = topCounts(tally(guests.map(q => q.fav)), 5).map(([sp, n]) => ({ icon: speciesIcon(sp), n }));
+    if (guests.length) out.push({ icon: icon('heart'), title: t('park.favs'), empty: t('park.none'), rows: favs });
+    if (guests.length) {
+      const b = funBands(guests.map(q => q.fun));
+      out.push({ icon: icon('smile_good'), title: t('park.mood'), empty: t('park.none'), rows: [{ icon: icon('smile_good'), n: b.good, color: '#6cc04a' }, { icon: icon('smile_ok'), n: b.ok, color: '#f0b429' }, { icon: icon('smile_bad'), n: b.bad, color: '#e0584f' }] });
+    }
+    return out;
+  }
+
+  /** Het overzicht van je park: hoe het gaat, de optocht en het gastenboek, en de vakjes met cijfers. */
+  private openPark(): void {
+    sfx('tap');
+    const happy = this.animals.filter(a => a.happy && !a.escaped).length;
+    const stats: { icon: string; text: string; tip: string }[] = [];
+    if (this.starShown !== null) stats.push({ icon: icon('star'), text: `${this.stars}`, tip: t('park.stars') });
+    if (this.has('paths')) stats.push({ icon: icon('guest'), text: `${this.guests.guests.length}`, tip: t('wallet.guests') });
+    if (this.animals.length) stats.push({ icon: icon('heart'), text: `${happy}/${this.animals.length}`, tip: t('park.happy') });
+    stats.push({ icon: icon('coin'), text: `${this.coins}`, tip: t('wallet.coins') });
+    const acts: { icon: string; label: string; rest: number; on: boolean; tap: () => void }[] = [];
+    if (this.has('parade') && this.guests.open) {
+      const rest = this.parade ? 0 : paradeWait(this.clock, this.paradeEnded) / PARADE.rest;
+      acts.push({ icon: icon('drum'), label: t('parade.drum'), rest, on: !!this.parade && !this.parade.over, tap: () => void this.startParade() });
+    }
+    if (this.decors.some(d => d.kind === 'guestbook')) acts.push({ icon: icon('guestbook'), label: t('book.title'), rest: 0, on: false, tap: () => this.openBook() });
+    this.hud.showPark(t('park.title'), stats, acts, this.parkPanels(), t('guide.ok'));
   }
 
   /** Een tik op de gong zelf (niet op het bordje): vlak bij de schijf op het scherm. */
@@ -5536,10 +5604,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private parade: { clown: Clown; kids: Guest[]; until: number; beat: number; beatIn: number; callIn: number; over: boolean } | null = null;
   private paradeEnded = -1e9;
   private paradeSaid = -1e9;
-  private drumButton: DrumButton | null = null;
   private wayTipIn = 1;
 
-  /** Elk beeldje: de optocht, de trommelknop, de stippellijn en de tip over de weg wijzen. */
+  /** Elk beeldje: de optocht, de stippellijn en de tip over de weg wijzen. */
   private updateGuestFun(dt: number): void {
     this.updateParade(dt);
     const way = this.wayDrag;
@@ -5725,34 +5792,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return true;
   }
 
-  /** De snelknoppen onder de kas: het snoepje en de tuinslang, zonder eerst de knop Actie te openen. */
-  private quickBtns: Partial<Record<'treat' | 'hose', HTMLButtonElement>> = {};
-
-  private updateQuick(): void {
-    for (const id of ['treat', 'hose'] as const) {
-      let b = this.quickBtns[id];
-      if (!b && this.has(id)) {
-        b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'tool small';
-        b.id = `q${id}`;
-        b.innerHTML = icon(id);
-        b.setAttribute('aria-label', t(`action.${id}`));
-        b.addEventListener('click', () => this.selectTool('action', 'action', id));
-        document.getElementById('quick')?.append(b);
-        this.quickBtns[id] = b;
-      }
-      if (!b) continue;
-      b.hidden = !this.has(id);
-      b.classList.toggle('on', this.tool === 'action' && this.option.action === id);
-    }
-  }
-
   /** De optocht: de clown loopt en trommelt, kinderen in de buurt sluiten aan, springen en zwaaien, en grote mensen klappen. */
   private updateParade(dt: number): void {
-    this.updateQuick();
-    if (this.has('parade') && !this.drumButton) this.drumButton = new DrumButton(() => void this.startParade());
-    this.drumButton?.set(this.has('parade') && this.guests.open, this.parade ? 0 : paradeWait(this.clock, this.paradeEnded) / PARADE.rest, !!this.parade && !this.parade.over);
     const p = this.parade;
     if (!p) return;
     p.clown.update(dt);
@@ -7464,6 +7505,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.updateNight();
     this.updateParty(dt);
     this.updateSky(dt);
+    this.updateHistory(dt);
     this.park.update(dt);
     this.updateHand();
     // wat er oplicht: met de veger alle poepjes en afval, anders alleen wat onder de muis ligt; en het dier in nood

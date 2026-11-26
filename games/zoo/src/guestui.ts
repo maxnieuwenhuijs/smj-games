@@ -1,7 +1,5 @@
-// Twee kleine dingen op het scherm bij de gasten: de stippellijn als je met je vinger de weg wijst, en de knop met de
-// trommel voor de optocht. Het spel (game.ts) zet ze neer en houdt ze bij.
-import { t } from '@smj/shared';
-import { icon } from './icons';
+// De stippellijn op het scherm als je een gast met je vinger de weg wijst. Het spel (game.ts) zet hem neer en houdt
+// hem bij.
 
 const SVG = 'http://www.w3.org/2000/svg';
 const HEART = 'M0 9 C-10 2 -10 -8 -4 -9 C-1 -9.5 0 -7 0 -5 C0 -7 1 -9.5 4 -9 C10 -8 10 2 0 9Z';
@@ -84,39 +82,5 @@ export class WayLine {
     this.ring.setAttribute('cx', String(Math.round(this.at[0])));
     this.ring.setAttribute('cy', String(Math.round(this.at[1])));
     this.heart.setAttribute('transform', `translate(${Math.round(this.at[0])} ${Math.round(this.at[1])}) scale(1.2)`);
-  }
-}
-
-/**
- * De knop met de trommel: een tik begint de optocht. Moet je nog even wachten, dan is hij grijs en loopt er een
- * schaduw rond die steeds kleiner wordt; tijdens de optocht wipt hij op de maat mee.
- */
-export class DrumButton {
-  private el = document.createElement('button');
-  private key = '';
-
-  constructor(onTap: () => void) {
-    this.el.type = 'button';
-    this.el.id = 'drum';
-    this.el.className = 'tool small';
-    this.el.innerHTML = `${icon('drum')}<i class="wait"></i>`;
-    this.el.setAttribute('aria-label', t('parade.drum'));
-    this.el.hidden = true;
-    this.el.addEventListener('click', onTap);
-    // in het rijtje onder de kas, als eerste (daarna het snoepje en de slang)
-    const quick = document.getElementById('quick');
-    if (quick) quick.prepend(this.el);
-    else layer().append(this.el);
-  }
-
-  /** `show`: de knop staat er. `rest`: zoveel van de wachttijd is er nog (1 tot 0). `on`: de optocht is bezig. */
-  set(show: boolean, rest: number, on: boolean): void {
-    const key = `${show}/${Math.ceil(rest * 40)}/${on}`;
-    if (key === this.key) return;
-    this.key = key;
-    this.el.hidden = !show;
-    this.el.classList.toggle('rest', rest > 0);
-    this.el.classList.toggle('on', on);
-    this.el.style.setProperty('--rest', rest.toFixed(3));
   }
 }

@@ -741,7 +741,7 @@ Veertien ideeën uit `docs/IDEEEN-INTERACTIEF.md`, gekozen door Max en gebouwd d
 - **Kinderen helpen** (`kids.ts`): zwaaien in het menu van een gast (de gast zwaait terug en een kind springt); een gevallen ijsje (vanaf level 13, tik op het bordje boven het huilende kind en het krijgt een nieuw); een muntje geven aan een kind zonder geld (vanaf level 14, het tekent bij het weggaan een hartje in het gastenboek); een wegvliegende ballon terugvangen (vanaf level 23, tik hem binnen zes tellen aan). Elk hooguit eens per paar minuten.
 - **De weg wijzen**: sleep met het handje vanaf een gast die de weg kwijt is. Een stippellijn volgt je vinger; een roze ring met hartje boven het verblijf met zijn lievelingsdier. Laat je los, dan loopt hij erheen.
 - **Raad het lievelingsdier** (vanaf level 7): een kaartje met drie hints (een kleur, het aantal poten en het geluid) en drie dieren uit het park om uit te kiezen. Goed: een munt en de gast loopt meteen naar zijn dier.
-- **Optocht** (vanaf level 14): de trommelknop bovenaan laat een clown een rondje over de paden lopen; kinderen in de buurt lopen springend en zwaaiend mee, grote mensen klappen. Daarna rust de clown tweeënhalve minuut uit.
+- **Optocht** (vanaf level 14): de trommel in het overzicht van je park (tik op de poort) laat een clown een rondje over de paden lopen; kinderen in de buurt lopen springend en zwaaiend mee, grote mensen klappen. Daarna rust de clown tweeënhalve minuut uit.
 - **Schminktent** (vanaf level 18, bij Winkels, 12 munten): kinderen krijgen er zin in en dragen daarna een tijger-, poezen-, vlinder- of pandagezicht. Tik op de tent om het volgende gezicht te kiezen.
 - **Bladeren harken** (in de herfst, vanaf level 17): onder bomen vallen blaadjes. Met de hark (bij Actie) veeg je ze op een hoop; is die groot, dan springt er een kind in. Harken geeft een munt; blaadjes op het pad tellen als rommel voor de sterren (`parkplay.ts`).
 - **Sneeuwpop bouwen** (in de winter): met Sneeuw (bij Actie) rol je een sneeuwbal over het besneeuwde gras; drie tikken en het is een sneeuwpop met een sjaal. Kinderen komen kijken en gooien een sneeuwballetje. Na de winter smelt hij.
@@ -750,7 +750,7 @@ Veertien ideeën uit `docs/IDEEEN-INTERACTIEF.md`, gekozen door Max en gebouwd d
 
 ### Rondlopen als bezoeker
 
-Vanaf het level met paden staat er een knop met een lopend kindje (onder de trommel). Daarmee zak je in 1,3 tel naar ooghoogte van een kind, op het pad in het midden van je beeld (anders bij de ingang). Met dezelfde knop of Escape vlieg je terug naar precies waar je was (`walk.ts`, `walkmode.ts`).
+Vanaf het level met paden staat er een knop met een lopend kindje. Daarmee zak je in 1,3 tel naar ooghoogte van een kind, op het pad in het midden van je beeld (anders bij de ingang). Met dezelfde knop of Escape vlieg je terug naar precies waar je was (`walk.ts`, `walkmode.ts`).
 
 - **Lopen:** pijltjes of WASD (links en rechts draaien, Shift erbij om opzij te stappen), rondkijken door te slepen; op een tablet een grote ronde knop linksonder. Rustig tempo, een zacht knikkend hoofd en voetstapjes (`walk.step`).
 - **Niet door** hekken, verblijven, water, gebouwen, kramen, versieringen, bomen en rotsen; tegen een muur glijd je erlangs.
@@ -758,7 +758,9 @@ Vanaf het level met paden staat er een knop met een lopend kindje (onder de trom
 - Tijdens het lopen verdwijnen de bouwknoppen; munten, sterren en de klok blijven. Dag en nacht, regen en sneeuw lopen gewoon door.
 - **Kopen bij een kraam:** tik op een kraam en je krijgt iets van wat hij verkoopt (verkoopt hij meer dingen, dan kies je met grote plaatjes). Het kost 1 munt; zonder munten krijg je het toch. Je houdt het rechtsonder in beeld vast en het wiebelt mee met je stappen. Tik op het scherm (als je nergens naar kijkt) of Spatie om het te gebruiken: drie hapjes of slokjes, een hoedje opzetten (je ziet de rand bovenin en een hoedje bij je munten), aan de ballon trekken, de knuffel knuffelen, of je schmink zien. De wc spoelt door. Wat je vasthoudt wordt altijd vooraan getekend (`held.ts`, `walkhand.ts`).
 
-**Knoppen en kas** (26 november): rechtsboven één rij, iets kleiner: draaien, draaien, rondlopen, geluid, huis. Daaronder een rijtje snelknoppen: de trommel voor de optocht, het snoepje en de tuinslang (die laatste twee kiezen meteen dat gereedschap bij Actie). Wat alleen iets laat zien (sterren, munten, klok, gasten, seizoen en weer) staat rechtsonder naast de knoppenbalk; op een smal scherm en tijdens het rondlopen staat het rechtsboven onder de knoppen.
+**Knoppen en kas** (26 november): rechtsboven één rij, iets kleiner: draaien, draaien, rondlopen, geluid, huis. Daaronder de kas: sterren, munten, klok, gasten, seizoen en weer. Het snoepje en de tuinslang staan gewoon bij Actie.
+
+**Het overzicht van je park** (tik op de poort bij de ingang, `openPark`, `parkstats.ts`): bovenin sterren, gasten, blije dieren en munten. Daaronder grote knoppen: de optocht (de trommel; grijs met een rondlopende schaduw als de clown nog uitrust) en het gastenboek. Daaronder vakjes met cijfers: een grafiekje van het aantal gasten en van de verdiende munten (een meting om de 20 tellen, de laatste 8 minuten), wat er dit level verkocht is met de prijs per stuk (1 munt), de lievelingsdieren van de gasten in het park, en hoeveel gasten blij, gewoon of niet blij zijn.
 
 ### Het logo van SMJ Games
 

@@ -646,6 +646,47 @@ export class Hud {
     this.openCard(card);
   }
 
+  /**
+   * Het overzicht van je park (een tik op de poort): bovenin hoe het gaat (sterren, gasten, blije dieren, munten),
+   * daaronder grote knoppen om iets te doen, zoals de optocht. Een knop met `rest` is grijs met een schaduw die
+   * rondloopt (nog even wachten); een tik op een knop sluit de kaart en doet het.
+   */
+  showPark(title: string, stats: { icon: string; text: string; tip: string }[], acts: { icon: string; label: string; rest: number; on: boolean; tap: () => void }[], panels: ParkPanel[], ok: string): void {
+    const card = el('div', 'card park');
+    const head = el('div', 'big');
+    head.textContent = title;
+    const row = el('div', 'stats');
+    for (const st of stats) {
+      const pill = el('span', 'pill', `${st.icon}<b></b>`);
+      pill.querySelector('b')!.textContent = st.text;
+      pill.title = st.tip;
+      row.append(pill);
+    }
+    card.append(head, row);
+    if (acts.length) {
+      const deeds = el('div', 'acts');
+      for (const act of acts) {
+        const b = el('button', `tool act${act.rest > 0 ? ' rest' : ''}${act.on ? ' on' : ''}`, `${act.icon}<b></b><i class="wait"></i>`) as HTMLButtonElement;
+        b.type = 'button';
+        b.querySelector('b')!.textContent = act.label;
+        b.style.setProperty('--rest', act.rest.toFixed(3));
+        b.addEventListener('click', () => {
+          if (card.isConnected) this.overlay.hidden = true;
+          act.tap();
+        });
+        deeds.append(b);
+      }
+      card.append(deeds);
+    }
+    if (panels.length) {
+      const grid = el('div', 'panels');
+      for (const pn of panels) grid.append(parkPanel(pn));
+      card.append(grid);
+    }
+    card.append(this.okButton(card, ok));
+    this.openCard(card, () => (this.overlay.hidden = true));
+  }
+
   /** Wist je dat? Een groot plaatje van het dier, zijn naam, één weetje en een knop om verder te gaan. */
   showFact(pic: string, name: string, text: string, ok: string, onOk?: () => void): void {
     const card = el('div', 'card fact');
@@ -839,4 +880,48 @@ export class Hud {
     this.overlay.append(card);
     this.overlay.hidden = false;
   }
+}
+
+/**
+ * Een vakje in het overzicht van je park: een kopje met een plaatje, en daaronder een staafgrafiek over de tijd
+ * (`chart`, oudste links, `slots` plekken breed) of een lijstje met balkjes (`rows`). `now` staat groot naast het
+ * kopje; `empty` staat er als er nog niets te zien is.
+ */
+export type ParkPanel = { icon: string; title: string; now?: string; empty: string } & (
+  | { chart: number[]; slots: number; color: string }
+  | { rows: { icon: string; n: number; tail?: string; color?: string }[] }
+);
+
+function parkPanel(pn: ParkPanel): HTMLElement {
+  const box = el('div', 'panel');
+  const head = el('div', 'phead', `${pn.icon}<span class="pt"></span>${pn.now ? '<b class="now"></b>' : ''}`);
+  head.querySelector('.pt')!.textContent = pn.title;
+  if (pn.now) head.querySelector('.now')!.textContent = pn.now;
+  box.append(head);
+  const none = (): void => {
+    const e = el('div', 'none');
+    e.textContent = pn.empty;
+    box.append(e);
+  };
+  if ('chart' in pn) {
+    if (pn.chart.length < 2) none();
+    else {
+      const w = 240, h = 70, slot = w / Math.max(pn.slots, pn.chart.length), top = Math.max(1, ...pn.chart);
+      const bars = pn.chart.map((v, i) => {
+        const bh = Math.max(v > 0 ? 3 : 0, (v / top) * (h - 8));
+        return `<rect x="${(i * slot + 1).toFixed(1)}" y="${(h - bh).toFixed(1)}" width="${Math.max(1, slot - 2).toFixed(1)}" height="${bh.toFixed(1)}" rx="2" fill="${pn.color}"/>`;
+      }).join('');
+      box.append(el('div', 'chart', `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="${h - 0.5}" x2="${w}" y2="${h - 0.5}"/>${bars}</svg><span class="top"></span>`));
+      box.querySelector('.chart .top')!.textContent = String(Math.round(top));
+    }
+  } else if (!pn.rows.length) none();
+  else {
+    const top = Math.max(1, ...pn.rows.map(r => r.n));
+    for (const r of pn.rows) {
+      const row = el('div', 'brow', `${r.icon}<span class="bar"><i style="width:${Math.round((r.n / top) * 100)}%${r.color ? `;background:${r.color}` : ''}"></i></span><b></b>${r.tail ?? ''}`);
+      row.querySelector('b')!.textContent = String(r.n);
+      box.append(row);
+    }
+  }
+  return box;
 }
