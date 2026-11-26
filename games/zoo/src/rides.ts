@@ -8,6 +8,11 @@
 // voren (de voorkant, waar het pad hoort te liggen) en `h` is de hoogte boven de grond, alles in tegels. Een
 // kijkrichting van 0 is naar voren (+z), een halve pi naar rechts (+x). Hoe het gebouw in het park gedraaid staat,
 // rekent de gebruiker er zelf bij (zie `rideLocal` en `rideWorld`).
+//
+// Wie een toestel wil gebruiken (een gast, of later de speler die zelf meerijdt): `newRide` maakt de stand van een
+// toestel en `rideStep` zet hem elk beeldje een stukje verder. `planVisit` kiest een vrij zitje en rekent een heel
+// bezoek uit; `visitPose` zegt waar je op elk moment van dat bezoek bent, van het pad tot en met weer op het pad.
+// `seatPose` geeft alleen het zitje zelf (zonder het lopen), en `rideRunning` of het ritje nu bezig is.
 import type { ShopKind } from './data';
 
 const TAU = Math.PI * 2;
@@ -409,6 +414,12 @@ export function carouselSeat(out: RidePose, seat: number, s: RideState): RidePos
 
 /** Wie ver moet lopen naar een ritje dat zo begint, zet er de pas in: hooguit zoveel keer zo snel als gewoon. */
 const HURRY = 2;
+/**
+ * Na een ritje stappen de gasten niet allemaal tegelijk af: elk zitje wacht zoveel tellen langer dan het vorige (in
+ * groepjes van `OFF_TURNS`). Zo lopen ze achter elkaar aan naar het pad en niet als één kluitje.
+ */
+const OFF_GAP = 0.28, OFF_TURNS = 5;
+const offDelay = (seat: number): number => OFF_GAP * (seat % OFF_TURNS);
 
 /**
  * Hoe lang een gast doet over `len` tegels lopen en gaan zitten als het ritje over `room` tellen begint: gewoon
@@ -461,7 +472,7 @@ function carouselPlan(v: Visit, s: RideState, used: number): boolean {
   v.walk = walkInTime(least, CAROUSEL.stop - c - 0.2);
   if (v.walk < 0) return false;
   v.wait = CAROUSEL.stop - c - v.walk;
-  v.ride = CAROUSEL.up + CAROUSEL.run + CAROUSEL.down;
+  v.ride = CAROUSEL.up + CAROUSEL.run + CAROUSEL.down + offDelay(best);
   // (de molen staat straks ergens anders stil: reken op het langste eind lopen)
   v.back = SIT_TIME + (Math.hypot(v.fx, v.fz) + 0.6 + Math.PI * CAROUSEL.aisle) / RIDE_WALK;
   return true;
@@ -624,7 +635,7 @@ function bumperPlan(v: Visit, s: RideState, used: number): boolean {
   v.walk = walkInTime(least, BUMPER.stop - c - 0.2);
   if (v.walk < 0) return false;
   v.wait = BUMPER.stop - c - v.walk;
-  v.ride = BUMPER.run + BUMPER.down;
+  v.ride = BUMPER.run + BUMPER.down + offDelay(best);
   v.back = SIT_TIME + (Math.hypot(v.fx, v.fz - BUMPER.gate) + 0.6 + Math.hypot(BUMPER.ax * 2, BUMPER.z1 - BUMPER.z0)) / RIDE_WALK;
   return true;
 }
@@ -907,10 +918,11 @@ function slidePose(out: RidePose, v: Visit, e: number): RidePose {
 // ------------------------------------------------------------ schommel, wipwap, wipkip en trampoline
 /**
  * De schommel (2 bij 1): twee zitjes, `side` links en rechts van het midden, aan touwen van `rope` lang onder een
- * balk op hoogte `top`. `max`: zo ver zwaait een zitje hooguit uit (radialen), `speed`: hoe snel het heen en weer
- * gaat. Een leeg zitje wiegt op `calm` daarvan. `stay`: zo lang schommelt een kind.
+ * balk op hoogte `top`. `max`: zo ver zwaait een zitje hooguit uit (radialen; het zitje blijft dan net boven zijn
+ * eigen tegel en zwaait niet door een hek erachter), `speed`: hoe snel het heen en weer gaat. Een leeg zitje wiegt op
+ * `calm` daarvan. `stay`: zo lang schommelt een kind.
  */
-export const SWINGSET = { seats: 2, side: 0.42, top: 1.62, rope: 1.18, max: 0.5, speed: 2.5, calm: 0.1, stay: 7 };
+export const SWINGSET = { seats: 2, side: 0.42, top: 1.62, rope: 1.18, max: 0.44, speed: 2.5, calm: 0.1, stay: 7 };
 /** De wipwap (2 bij 1): een plank om een as op hoogte `pivot`, met een zitje op `side` van het midden; hij kantelt hooguit `max` radialen. */
 export const SEESAW = { seats: 2, pivot: 0.46, side: 0.68, lift: 0.07, max: 0.28, speed: 3, calm: 0.12, stay: 7 };
 /** De wipkip (1 bij 1): een dier op een veer. Het wipt om het punt `pivot` hoog, het zadel zit op `seat`; `max` is hoe ver het wipt. */
