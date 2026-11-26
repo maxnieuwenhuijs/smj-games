@@ -894,20 +894,24 @@ Alle attracties en speeltoestellen zijn opnieuw gemodelleerd, en bijna geen is n
 
 | Wat | Maat | Prijs | Wat je ziet |
 |---|---|---|---|
-| Reuzenrad | 8 bij 2 | 90 | Twaalf bakjes voor twee, een perron met een trapje, lampjes die rondlopen. Een gast wacht tot zijn bakje onderin is, maakt één rondje en stapt weer uit. |
-| Botsauto's | 4 bij 3 | 50 | Een hal met een glazen dak en zes auto's die echt sturen, botsen en terugstuiten. Een ritje heeft een begin en een eind; bij een harde klap springt er een vonk van de spriet. |
-| Draaimolen | 3 bij 3 | 60 | Negen paarden in twee ringen gaan op en neer onder een groot gestreept dak met looplicht. Hij staat stil om in te stappen, komt op gang, draait en loopt uit. |
-| Fontein | 3 bij 3 | 30 | Een groot bassin met twee schalen en acht stralen in een kring die een waterballet doen; 's nachts gloeit er een lampje onder elke straal. |
+| Reuzenrad | 8 bij 2 | 90 | Een rad met een straal van 3,4 tegels (de top bijna acht tegels hoog), twaalf bakjes voor twee die rechtop blijven en licht slingeren, een perron met een trapje, een kaartjeshuisje en lampjes die rondlopen. Het draait altijd door; een gast wacht tot zijn bakje onderin is, maakt één rondje en stapt weer uit. |
+| Botsauto's | 4 bij 3 | 50 | Een hal met een glazen dak en zes auto's die echt sturen, botsen en terugstuiten. In ritjes: vijf en een halve tel stilstaan om in te stappen, dan elf tellen rijden; bij een harde klap springt er een vonk van de spriet. |
+| Draaimolen | 3 bij 3 | 60 | Negen paarden in twee ringen gaan op en neer onder een groot gestreept dak met looplicht. In ritjes: vijf tellen stilstaan om in te stappen, dan ruim elf tellen draaien; wie komt terwijl hij draait, wacht in de rij. |
+| Fontein | 3 bij 3 | 30 | Een groot bassin met twee schalen, acht stralen in een kring en één in het midden, in een waterballet van 24 tellen; 's nachts gloeit er een lampje onder elke straal. Acht gasten staan eromheen te kijken. |
 | Restaurant | 3 bij 2 | 30 | Een keuken met een kok achter het luik en een terras met vier tafels, parasols en lantaarns (acht gasten tegelijk). |
-| Uitkijktoren | 2 bij 2 | 25 | Hoog, met een trap die je ziet: vier stukken langs de vier kanten. Gasten klimmen echt naar boven, kijken rond en lopen weer naar beneden. |
+| Uitkijktoren | 2 bij 2 | 25 | 2,7 tegels hoog, met een trap die je ziet: vier stukken langs de vier kanten. Gasten klimmen echt naar boven (vijf plekken aan het hek), kijken rond en lopen weer naar beneden. |
 | Glijbaan | 2 bij 3 | 6 | Een torentje met een dak, een trap met leuningen en een lange gele baan. |
 | Schommel | 2 bij 1 | 5 | Twee zitjes die los van elkaar zwaaien. |
 | Wipwap | 2 bij 1 | 4 | Een plank met zitjes en handvatten. |
 | Wipkip | 1 bij 1 | 3 | Een kip, een paardje of een kikker op een veer (welke hangt af van de plek). |
 | Trampoline | 2 bij 2 | 8 | Je klimt erop langs een trapje. |
 
-- **Plaatsen:** een gebouw mag elke maat hebben en draait met de draaiknop mee (`shopSpan`). Het past niet over een hek, bankje of paal op een rand binnen zijn blok.
-- **Een ouder spel** (het opslagbestand is nu versie 5): een gebouw dat een andere maat kreeg, zoekt bij het laden de dichtstbijzijnde plek waar het past, het liefst aan het pad en hooguit een paar tegels verderop. Lukt dat niet, dan krijg je de munten terug en zegt de bouwer dat je het opnieuw kunt neerzetten (`say.rides.bigger`).
+De wc en de schuilhut zijn niet veranderd (2 bij 2). Leeg bewegen de toestellen een beetje, met gasten flink; 's nachts gloeien de lampjes, en het rad en de toren hebben een eigen gloed in de hoogte.
+
+- **Plaatsen:** een gebouw mag elke maat hebben (`SHOP_SIZE` is de breedte langs de voorkant, `SHOP_DEEP` de diepte) en draait met de draaiknop mee (`shopSpan`); een niet-vierkant gebouw draait uit zichzelf alleen een halve slag. Het past niet over een hek, bankje of paal op een rand binnen zijn blok. Op een hoog toestel kun je ook tikken waar het boven zijn eigen tegels uitsteekt (het rad zelf).
+- **Instappen:** gasten stappen kort na elkaar in en uit. Ligt het pad opzij of achter een groot toestel, dan lopen ze buitenom naar de ingang.
+- **Een ouder spel** (het opslagbestand is nu versie 5): een gebouw dat een andere maat kreeg, zoekt bij het laden de dichtstbijzijnde plek waar het past, het liefst aan het pad en met de voorkant ernaartoe: hooguit acht tegels verderop, of vier als die plek los van het pad ligt. Lukt dat niet, dan krijg je de volle prijs terug en zegt de bouwer één keer dat je het opnieuw kunt neerzetten (`say.rides.bigger`). Wat niet in de kas van 99 past, komt terug doordat de gasten een poos vaker kopen.
+- **Nog niet af of zwak:** de stand van een toestel wordt niet bewaard (na het laden begint elk toestel in rust). Bij een volle draaimolen of botsautohal is het bij de ingang nog druk als de ene groep eraf gaat en de volgende erop. Gasten wijken niet voor elkaar uit op de vloer en op de trap van de toren. Wie haast heeft, loopt twee keer zo snel met gewone stapjes. De plaatjes op de knoppen zijn nog de oude tekeningen.
 
 ### Puzzeltjes met plaatjes
 
