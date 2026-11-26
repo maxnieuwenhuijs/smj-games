@@ -2851,7 +2851,8 @@ export class View {
 
     this.ghostTileMesh.position.y = 0.012;
     this.ghostRing.position.y = 0.014;
-    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostWallMesh, this.ghostNetMesh, this.ghostGlassMesh, this.ghostWindowMesh, this.ghostPicketMesh, this.ghostPetgateMesh, this.ghostTroughMesh, ...Object.values(this.ghostBeds), ...Object.values(this.ghostToys), ...Object.values(this.ghostDecors), ...Object.values(this.ghostProps), ...Object.values(this.ghostShops), this.ghostTileMesh, this.ghostRing, this.ghostCableMesh, this.ghostPylonMesh];
+    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostWallMesh, this.ghostNetMesh, this.ghostGlassMesh, this.ghostWindowMesh, this.ghostPicketMesh, this.ghostPetgateMesh, this.ghostTroughMesh, ...Object.values(this.ghostBeds), ...Object.values(this.ghostToys), ...Object.values(this.ghostDecors), ...Object.values(this.ghostProps), ...Object.values(this.ghostShops), this.ghostTileMesh, this.ghostRing, this.ghostCableMesh];
+    this.ghosts.push(this.ghostPylonMesh);
     for (const g of this.ghosts) {
       g.visible = false;
       g.traverse(o => { o.renderOrder = 5; });
