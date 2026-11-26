@@ -492,6 +492,22 @@ const ICONS = {
     `<path d="M40 6 L17.5 34" stroke="${WOOD_D}" stroke-width="6" stroke-linecap="round"/><path d="M39.4 6.6 L18 33.4" stroke="${WOOD}" stroke-width="3" stroke-linecap="round"/>` +
     `<path d="M41 4.8 L33.5 14.2" stroke="#a8261f" stroke-width="8.4" stroke-linecap="round"/><path d="M41 4.8 L33.5 14.2" stroke="${RED}" stroke-width="5.6" stroke-linecap="round"/>` +
     `<path d="M38.2 6.4 L36.2 8.9" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".7"/>`,
+  // het zakje met snoepjes: een papieren zak met een wortel en een appel erin, en een hartje erop
+  treat:
+    `<ellipse cx="24" cy="44" rx="14" ry="2.6" fill="#000" opacity=".12"/>` +
+    `<g transform="translate(19 -1) rotate(20 10 14) scale(.5)">${CARROT}</g>` +
+    `<circle cx="17" cy="15" r="6.5" fill="${RED}" stroke="#b83a32" stroke-width="1.6"/><path d="M17 9 V6" stroke="${WOOD_D}" stroke-width="2" stroke-linecap="round"/><ellipse cx="20" cy="6.5" rx="3" ry="1.6" fill="${GREEN}"/>` +
+    `<path d="M9 19 H39 L41 41 Q41 43 39 43 H9 Q7 43 7 41Z" fill="#d9a86a" stroke="${WOOD_D}" stroke-width="2.2" stroke-linejoin="round"/>` +
+    `<path d="M9 19 L12 24 L15 19 L18 24 L21 19 L24 24 L27 19 L30 24 L33 19 L36 24 L39 19" fill="#e8c088" stroke="${WOOD_D}" stroke-width="1.8" stroke-linejoin="round"/>` +
+    `<path d="M24 39 C17 34 17 28.5 20.5 28 C22.3 27.8 24 29.2 24 30.6 C24 29.2 25.7 27.8 27.5 28 C31 28.5 31 34 24 39Z" fill="${RED}"/>`,
+  // de tuinslang: een groene slang in een rol, met een gele spuitkop en een straaltje water
+  hose:
+    `<ellipse cx="20" cy="44" rx="15" ry="2.6" fill="#000" opacity=".12"/>` +
+    `<circle cx="18" cy="30" r="11" fill="none" stroke="#2f7f3a" stroke-width="7"/><circle cx="18" cy="30" r="11" fill="none" stroke="#4fb35a" stroke-width="4"/>` +
+    `<circle cx="18" cy="30" r="4.5" fill="none" stroke="#4fb35a" stroke-width="3.5"/>` +
+    `<path d="M27 23 Q31 16 33 15" fill="none" stroke="#2f7f3a" stroke-width="6" stroke-linecap="round"/><path d="M27 23 Q31 16 33 15" fill="none" stroke="#4fb35a" stroke-width="3" stroke-linecap="round"/>` +
+    `<path d="M31 17 L37 10 L40.5 13.5 L34.5 19.5Z" fill="${SUN}" stroke="${SUN_D}" stroke-width="1.8" stroke-linejoin="round"/>` +
+    drop(42.5, 7) + drop(42, 20),
   // de hamer: een houten steel met een rood handvat en een stalen kop met een klauw
   hammer:
     `<g transform="rotate(38 24 25)">` +
