@@ -758,7 +758,7 @@ Vanaf het level met paden staat er een knop met een lopend kindje (onder de trom
 - Tijdens het lopen verdwijnen de bouwknoppen; munten, sterren en de klok blijven. Dag en nacht, regen en sneeuw lopen gewoon door.
 - **Kopen bij een kraam:** tik op een kraam en je krijgt iets van wat hij verkoopt (verkoopt hij meer dingen, dan kies je met grote plaatjes). Het kost 1 munt; zonder munten krijg je het toch. Je houdt het rechtsonder in beeld vast en het wiebelt mee met je stappen. Tik op het scherm (als je nergens naar kijkt) of Spatie om het te gebruiken: drie hapjes of slokjes, een hoedje opzetten (je ziet de rand bovenin en een hoedje bij je munten), aan de ballon trekken, de knuffel knuffelen, of je schmink zien. De wc spoelt door. Wat je vasthoudt wordt altijd vooraan getekend (`held.ts`, `walkhand.ts`).
 
-**Knoppen en kas** (26 november): rechtsboven één rij, iets kleiner: draaien, rondlopen, draaien, geluid, huis. Daaronder een rijtje snelknoppen: de trommel voor de optocht, het snoepje en de tuinslang (die laatste twee kiezen meteen dat gereedschap bij Actie). Wat alleen iets laat zien (sterren, munten, klok, gasten, seizoen en weer) staat rechtsonder naast de knoppenbalk; op een smal scherm en tijdens het rondlopen staat het rechtsboven onder de knoppen.
+**Knoppen en kas** (26 november): rechtsboven één rij, iets kleiner: draaien, draaien, rondlopen, geluid, huis. Daaronder een rijtje snelknoppen: de trommel voor de optocht, het snoepje en de tuinslang (die laatste twee kiezen meteen dat gereedschap bij Actie). Wat alleen iets laat zien (sterren, munten, klok, gasten, seizoen en weer) staat rechtsonder naast de knoppenbalk; op een smal scherm en tijdens het rondlopen staat het rechtsboven onder de knoppen.
 
 ### Het logo van SMJ Games
 
@@ -766,6 +766,19 @@ SMJ staat voor **Super Magical Journeys**. De drie letters zijn figuurtjes: een 
 
 - **Laadscherm:** na het kiezen van een park ploppen de letters er snel een voor een in als drilpudding (ze staan dicht tegen elkaar aan, de J een stukje voor de M, en stuiteren daarna om de beurt rustig na, met belletjes erachter), met de woorden Super Magical Journeys als één regel in het midden eronder en een kort magisch deuntje (`logo.jingle`). Het scherm blijft minstens 2,6 tellen staan en vervaagt dan.
 - **Beginscherm:** dezelfde letters klein boven "Dierentuin", zonder geluid.
+
+### Mooier licht en kleur (26 november)
+
+Zonder dat het spel trager wordt (geen extra beeldbewerking, alles één keer berekend of in één tekenbeurt):
+
+- **Tone mapping** (`NeutralToneMapping`, belichting 1,1): felle plekken lopen zacht af in plaats van hard wit, de kleuren blijven vrolijk.
+- **Licht per uur** (`daylight.ts`): 's ochtends zacht warm oranje, 's middags helder wit, 's avonds goud, in de schemering en 's nachts koel blauw. Herfst iets warmer, winter iets koeler. Voor de nacht in het spel zit is het altijd 13 uur.
+- **Lucht met een verloop** (`sky.ts`): dieper blauw bovenin naar een lichte horizon in de kleur van het uur, met zeven zachte wolkjes die langzaam rond drijven (vooral te zien bij het rondlopen).
+- **Waas aan de horizon**: het park blijft scherp, alles ver buiten het park vervaagt naar de kleur van de horizon.
+- **Schaduw in de kleuren** (`shade.ts`): onderkanten, buiken en poten van dieren, poppetjes, kramen, speeltoestellen en bomen zijn iets donkerder. Eén keer berekend per model; ogen en de kop blijven licht.
+- **Schaduwvlekjes** (`blobs.ts`): een zacht rond vlekje onder elk dier, elke gast en elke werker (niet in het water, de kabelbaan of het treintje; 's nachts lichter).
+
+Vergelijken in de browser: `__zoo.view.setLook(false)` (oud licht, lucht en waas), `__zoo.blobs.on = false`, en `localStorage.zooNoShade = '1'` met herladen.
 
 ## Bekende zwakke punten van de modellen
 

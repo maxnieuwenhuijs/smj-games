@@ -108,7 +108,7 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 #options .row:has(.tool:nth-child(12)) .tool { width: min(64px, 7.2vw); }
 #options .row:has(.tool:nth-child(12)) .tool b { font-size: clamp(7px, 1.5vw, 11px); }
 
-/* de knoppen rechtsboven, in één rij van rechts naar links: huis, geluid, draaien, rondlopen, draaien. Iets kleiner
+/* de knoppen rechtsboven, in één rij van rechts naar links: huis, geluid, rondlopen, draaien, draaien. Iets kleiner
    dan de knoppen onderin (--hb). Daaronder het rijtje snelknoppen: trommel, snoepje en slang. Wat alleen iets laat
    zien (sterren, munten, klok, gasten, seizoen en weer) staat rechtsonder, zodat het bovenin rustig blijft. */
 #ui { --hb: min(58px, 11vw); }
@@ -116,10 +116,15 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 #home .ic, #sound .ic, #turnR .ic, #walk .ic, #turnL .ic, #quick .tool .ic { font-size: calc(var(--hb) * 0.48); }
 #home { position: absolute; top: 12px; right: 12px; }
 #sound { position: absolute; top: 12px; right: calc(12px + 1 * (var(--hb) + 8px)); }
-/* het beeld draaien: twee pijlen, met de knop voor rondlopen ertussen; de linker pijl is gespiegeld */
-#turnR { position: absolute; top: 12px; right: calc(12px + 2 * (var(--hb) + 8px)); }
-#walk { position: absolute; top: 12px; right: calc(12px + 3 * (var(--hb) + 8px)); z-index: 2; }
+/* het beeld draaien: twee pijlen naast elkaar, links van de knop voor rondlopen; de linker pijl is gespiegeld */
+#turnR { position: absolute; top: 12px; right: calc(12px + 3 * (var(--hb) + 8px)); }
+#walk { position: absolute; top: 12px; right: calc(12px + 2 * (var(--hb) + 8px)); z-index: 2; }
 #turnL { position: absolute; top: 12px; right: calc(12px + 4 * (var(--hb) + 8px)); }
+/* zolang rondlopen er nog niet is, schuiven de pijlen een plekje op */
+@media (min-width: 621px) {
+  #ui:has(#walk[hidden]) #turnR { right: calc(12px + 2 * (var(--hb) + 8px)); }
+  #ui:has(#walk[hidden]) #turnL { right: calc(12px + 3 * (var(--hb) + 8px)); }
+}
 #turnL .ic { transform: scaleX(-1); }
 #walk[hidden] { display: none; }
 #walk.on { background: #ffe9a8; }
