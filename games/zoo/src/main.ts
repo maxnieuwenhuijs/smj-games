@@ -71,8 +71,11 @@ const BUBBLES: [number, number, number, number, number][] = [
   [56, 20, 2.7, 0.1, -16], [68, 9, 2.0, 1.1, 10], [80, 22, 3.0, 0.7, 18], [92, 14, 2.4, 1.6, -12],
 ];
 function logoHtml(kind: 'splash' | 'start'): string {
-  return `<div class="logo ${kind}" aria-label="SMJ Games">` +
-    LOGO.map(([k, word]) => `<figure class="l-${k}"><img src="./logo/${k}.png" alt="${k.toUpperCase()}" draggable="false"><figcaption>${word}</figcaption></figure>`).join('') +
+  return `<div class="logo ${kind}" aria-label="SMJ Games"><div class="letters">` +
+    LOGO.map(([k]) => `<figure class="l-${k}"><img src="./logo/${k}.png" alt="${k.toUpperCase()}" draggable="false"></figure>`).join('') +
+    '</div>' +
+    // de woorden als één regel, in het midden onder alle drie de letters
+    `<div class="words">${LOGO.map(([k, word]) => `<span class="w-${k}">${word}</span>`).join(' ')}</div>` +
     // op het laadscherm: belletjes die achter de letters opstijgen (elk met een eigen plek, grootte en tempo)
     (kind === 'splash' ? BUBBLES.map(([x, s, t, d, dx]) => `<i class="bub" style="left:${x}%;--s:${s}px;--t:${t}s;--d:${d}s;--x:${dx}px"></i>`).join('') : '') +
     '</div>';

@@ -752,7 +752,7 @@ Veertien ideeën uit `docs/IDEEEN-INTERACTIEF.md`, gekozen door Max en gebouwd d
 
 SMJ staat voor **Super Magical Journeys**. De drie letters zijn figuurtjes: een oranje S met een cape, een paarse harige M met een toverstaf en een groene J met een safarihoed. De plaatjes zijn losgeknipt van hun witte achtergrond (`tools/logo/knip.py` met Blender, bron in `tools/logo/bron/`, uitkomst in `games/zoo/public/logo/`).
 
-- **Laadscherm:** na het kiezen van een park ploppen de letters er een voor een in als drilpudding (ze staan dicht tegen elkaar aan en stuiteren daarna om de beurt na, met belletjes erachter), met de woorden Super, Magical en Journeys eronder en een kort magisch deuntje (`logo.jingle`). Het scherm blijft minstens 2,6 tellen staan en vervaagt dan.
+- **Laadscherm:** na het kiezen van een park ploppen de letters er snel een voor een in als drilpudding (ze staan dicht tegen elkaar aan, de J een stukje voor de M, en stuiteren daarna om de beurt rustig na, met belletjes erachter), met de woorden Super Magical Journeys als één regel in het midden eronder en een kort magisch deuntje (`logo.jingle`). Het scherm blijft minstens 2,6 tellen staan en vervaagt dan.
 - **Beginscherm:** dezelfde letters klein boven "Dierentuin", zonder geluid.
 
 ## Bekende zwakke punten van de modellen

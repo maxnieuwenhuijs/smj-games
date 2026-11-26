@@ -607,7 +607,8 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 #loading.out { opacity: 0; pointer-events: none; }
 /* het logo: de letters S, M en J ploppen er een voor een in als drilpudding, staan dicht tegen elkaar aan en
    stuiteren daarna om de beurt zachtjes na; op het laadscherm stijgen er belletjes op */
-.logo { position: relative; display: flex; align-items: flex-end; justify-content: center; }
+.logo { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.logo .letters { display: flex; align-items: flex-end; justify-content: center; }
 .logo figure { position: relative; margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: 0; transform-origin: 50% 100%;
   animation: logo-pop 0.5s cubic-bezier(0.25, 1, 0.4, 1) forwards, logo-jelly 4.6s ease-in-out 0.9s infinite; }
 .logo figure + figure { margin-left: max(-4.5vw, -40px); }
@@ -618,19 +619,18 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
 .logo figure:nth-child(3) { animation-delay: 0.28s, 2.3s; }
 .logo img { display: block; width: auto; height: min(30vh, 30vw, 290px); filter: drop-shadow(0 8px 0 rgba(0, 0, 0, 0.1)); user-select: none; }
 .logo .l-m img { height: min(24vh, 24vw, 232px); }
-.logo figcaption { font: 900 clamp(15px, 3.2vw, 30px)/1 system-ui, sans-serif; letter-spacing: 0.02em; opacity: 0;
-  text-shadow: 0 2px 0 #fff, 2px 0 0 #fff, -2px 0 0 #fff, 0 -2px 0 #fff, 0 4px 0 rgba(0, 0, 0, 0.12); animation: logo-word 0.35s cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
-.logo .l-s figcaption { color: #e8641a; animation-delay: 0.3s; }
-.logo .l-m figcaption { color: #a0249b; animation-delay: 0.44s; }
-.logo .l-j figcaption { color: #18877f; animation-delay: 0.58s; }
-/* de woorden schuiven iets uit elkaar, omdat de J over de M heen staat */
-.logo .l-m figcaption { position: relative; left: min(-2vw, -6px); }
-.logo .l-j figcaption { position: relative; left: min(4vw, 40px); }
+.logo .words { font: 900 clamp(16px, 3.4vw, 32px)/1 system-ui, sans-serif; letter-spacing: 0.02em; white-space: nowrap; text-align: center; }
+.logo .words span { display: inline-block; opacity: 0; text-shadow: 0 2px 0 #fff, 2px 0 0 #fff, -2px 0 0 #fff, 0 -2px 0 #fff, 0 4px 0 rgba(0, 0, 0, 0.12);
+  animation: logo-word 0.35s cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
+.logo .w-s { color: #e8641a; animation-delay: 0.3s; }
+.logo .w-m { color: #a0249b; animation-delay: 0.44s; }
+.logo .w-j { color: #18877f; animation-delay: 0.58s; }
 .logo.start img { height: clamp(54px, 12vh, 118px); }
 .logo.start .l-m img { height: clamp(44px, 9.5vh, 94px); }
 .logo.start figure + figure { margin-left: max(-2vw, -18px); }
 .logo.start figure.l-j { margin-left: max(-4vw, -38px); }
-.logo.start figcaption { font-size: clamp(11px, 1.8vw, 17px); }
+.logo.start { gap: 6px; }
+.logo.start .words { font-size: clamp(12px, 2vw, 19px); }
 /* belletjes achter de letters op het laadscherm */
 .logo .bub { position: absolute; bottom: 10%; width: var(--s, 16px); height: var(--s, 16px); border-radius: 50%; pointer-events: none; z-index: -1;
   background: radial-gradient(circle at 30% 30%, #fff 0 18%, rgba(255, 255, 255, 0.55) 19% 45%, rgba(255, 255, 255, 0.15) 46%); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.8);
@@ -657,7 +657,7 @@ img.ic { object-fit: contain; -webkit-user-drag: none; }
   15% { opacity: 0.9; }
   100% { opacity: 0; transform: translate(var(--x, 0px), -46vh) scale(1.1); }
 }
-@media (prefers-reduced-motion: reduce) { .logo figure, .logo figcaption { animation: none; opacity: 1; } .logo .bub { display: none; } }
+@media (prefers-reduced-motion: reduce) { .logo figure, .logo .words span { animation: none; opacity: 1; } .logo .bub { display: none; } }
 #loading .ic { animation: bounce 0.8s ease-in-out infinite alternate; }
 @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-50px); } }
 
