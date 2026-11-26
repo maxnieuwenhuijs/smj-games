@@ -5279,6 +5279,8 @@ export class Train {
   /** Net gestopt bij een halte (voor de fluit), en net weggereden (voor het geratel). */
   arrived = false;
   departed = false;
+  /** De plek waar de speler zelf zit als hij in de loopstand meerijdt (-1: hij rijdt niet mee): daar stapt geen gast in. */
+  walkerSeat = -1;
   /** Het midden van de wagons, en waar de locomotief rijdt die voorop gaat (in tegels). */
   gx = 0;
   gy = 0;
@@ -5300,6 +5302,35 @@ export class Train {
   /** Stopt de trein bij deze halte? */
   serves(shop: ShopSpot): boolean {
     return !!this.route?.stops.some(stop => stop.stations.some(k => this.stations[k] === shop));
+  }
+
+  /** Staat de trein nu stil bij deze halte (dan kun je instappen)? */
+  stoppedAt(shop: ShopSpot): boolean {
+    return this.at >= 0 && !!this.route?.stops[this.at]?.stations.some(k => this.stations[k] === shop);
+  }
+
+  /** De halte waar de trein nu het dichtst bij is: daar stapt de speler uit als hij onderweg uitstapt. */
+  nearestStation(): ShopSpot | null {
+    let best: ShopSpot | null = null, near = Infinity;
+    for (const stop of this.route?.stops ?? [])
+      for (const k of stop.stations) {
+        const station = this.stations[k];
+        if (!station) continue;
+        const [sx, sy] = shopCenter(station), d = Math.hypot(sx - this.gx, sy - this.gy);
+        if (d < near) [best, near] = [station, d];
+      }
+    return best;
+  }
+
+  /** De speler stapt in (in de loopstand): de eerste vrije plek is voor hem. Geeft false als de trein vol is of niet rijdt. */
+  walkerOn(): boolean {
+    const seats = (this.route?.wagons ?? 0) * TRAIN.seats;
+    for (let seat = 0; seat < seats; seat++)
+      if (!this.riders[seat]) {
+        this.walkerSeat = seat;
+        return true;
+      }
+    return false;
   }
 
   /** Staat de trein op (een tegel van) deze route? */
@@ -5443,7 +5474,7 @@ export class Train {
     for (const g of guests) {
       const shop = g.waitingAt;
       if (!shop || !stop.stations.some(k => this.stations[k] === shop)) continue;
-      while (seat < seats && this.riders[seat]) seat++;
+      while (seat < seats && (this.riders[seat] || seat === this.walkerSeat)) seat++;
       if (seat >= seats) return;
       this.riders[seat] = g;
       this.origin[seat] = shop;
@@ -5583,6 +5614,11 @@ export class CableCar {
   private at: CableSeat = { gx: 0, gy: 0, h: 0, mx: 0, my: 0, turn: 0 };
   /** Per stoeltje hoe scheef het hangt in een bocht: dat loopt rustig op en weer af. */
   private lean: number[];
+  /**
+   * De speler zelf, als hij in de loopstand meerijdt: bij welk huisje hij op een stoeltje wacht (`wait`), op welke plek
+   * hij zit (`seat`, -1: nergens), naar welk huisje hij rijdt (`to`) en bij welk huisje hij net is uitgestapt (`off`).
+   */
+  walker: { wait: ShopSpot | null; seat: number; to: ShopSpot | null; off: ShopSpot | null } = { wait: null, seat: -1, to: null, off: null };
 
   constructor(readonly a: ShopSpot, readonly b: ShopSpot, readonly model: CableModel, readonly path: CablePath) {
     this.len = path.len;
@@ -5632,7 +5668,7 @@ export class CableCar {
     for (let i = 0; i < this.riders.length; i++) if (this.riders[i] && (this.riders[i]!.g.gone || this.riders[i]!.g.riding !== this)) this.riders[i] = null;
     const linked = this.doors[0] !== null && this.doors[1] !== null;
     this.boarding = linked && !w.goingHome() && !w.closed();
-    const aboard = this.riders.some(r => r);
+    const aboard = this.riders.some(r => r) || this.walker.seat >= 0;
     // 's nachts staan de stoeltjes stil; wie er nog in zit, wordt eerst naar een huisje gebracht
     const target = (linked && !w.closed()) || aboard ? 1 : 0;
     this.go += (target - this.go) * Math.min(1, dt * 0.8);
@@ -5646,6 +5682,19 @@ export class CableCar {
         const here = end ? this.b : this.a, there = end ? this.a : this.b, door = this.doors[end];
         // bij het wiel: eerst uitstappen, dan instappen
         for (const k of [i * 2, i * 2 + 1]) {
+          // de speler rijdt zelf mee: hij stapt uit bij het huisje waar hij heen ging, en in waar hij stond te wachten
+          const me = this.walker;
+          if (me.seat === k && me.to === here) {
+            me.seat = -1;
+            me.off = here;
+          }
+          if (me.wait === here && me.seat < 0 && !this.riders[k] && this.boarding) {
+            me.wait = null;
+            me.seat = k;
+            me.to = there;
+            continue;
+          }
+          if (me.seat === k) continue;
           const r = this.riders[k];
           if (r && r.to === here) {
             if (r.back) {

@@ -32,7 +32,7 @@ import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStat
 import { ENTRANCE, GuestManager, Vendor, Worker, edgePose, edgeSides, shopCenter, shopTiles, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type PetSpot, type ShopSpot, type VetJob, type WorkerRole, type WorkerWorld, type FixJob, type GuardJob } from './people';
 import { SIGHT, type GuestCue, type Sight } from './people';
 import { PEN } from './people';
-import { CableCar } from './people';
+import { CableCar, type TrainSeat } from './people';
 import { Clown } from './people';
 import { CLUES, FACE_PAINTS, PARADE, WAY, guessChoices, nearestTile, paintId, paradeLoop, paradeWait } from './guestfun';
 import { WayLine } from './guestui';
@@ -436,6 +436,8 @@ const BALL = { gravity: 9, brake: 0.9, drag: 0.7, wall: 0.65, bounce: 0.5, home:
 const LOG = { pull: 4, damp: 2.4, near: 0.3, far: 0.8, kick: 3.8 };
 /** Zo hoog zitten je ogen boven een bankje of stoel als je in de loopstand ergens in zit (tegels). */
 const SIT_EYE = 0.38;
+/** In het treintje zit je zoveel hoger: anders kijk je tegen de achterkant van de locomotief aan. */
+const TRAIN_VIEW = 0.28;
 /** Zoveel tellen is een dier extra blij na een hapje van de trainer in de show. */
 const SHOW_GLEE = 20;
 interface ShopObj extends ShopSpot {
@@ -7026,11 +7028,105 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   /**
    * Kun je hier in de loopstand in of op gaan zitten? Dan geeft dit terug wat een tik doet (instappen); anders null.
-   * De tribune: je gaat op het bovenste bankje zitten en kijkt naar de show.
+   * De tribune: je gaat op het bovenste bankje zitten en kijkt naar de show. Een treinhalte: je wacht op het perron
+   * en rijdt mee. Een huisje van de kabelbaan: je stapt in het eerste vrije stoeltje.
    */
   private walkRide(shop: ShopObj): (() => void) | null {
     if (shop.kind === 'show') return () => this.walkWatch(shop);
+    if (shop.kind === 'station') return () => this.walkTrain(shop);
+    if (shop.kind === 'cablecar') return () => this.walkLift(shop);
     return null;
+  }
+
+  /**
+   * Waar je in de loopstand weer op de grond staat bij dit gebouw: de vrije tegel pad ertegenaan die het dichtst bij
+   * (nx, ny) ligt, of anders een andere vrije tegel ernaast. Null: er is nergens plek (dan sta je waar je vandaan kwam).
+   */
+  private walkDoor(shop: ShopSpot, nx: number, ny: number): [number, number] | null {
+    const ground = this.walkGround(), [w, h] = shopTiles(shop);
+    let best: [number, number] | null = null, score = Infinity;
+    for (const i of this.around(shop.x, shop.y, w, h)) {
+      const [x, y] = tileXY(i);
+      if (ground.boxes(x, y).length) continue;
+      // liever op het pad dan in het gras
+      const d = Math.hypot(x + 0.5 - nx, y + 0.5 - ny) + (isPath(this.grid.terrain[i]) ? 0 : 50);
+      if (d < score) [best, score] = [[x + 0.5, y + 0.5], d];
+    }
+    return best;
+  }
+
+  /** Het lukt nu niet (de trein rijdt niet, de kabelbaan is dicht, alles zit vol): een klokje of kruisje boven het ding. */
+  private walkNope(shop: ShopSpot, pic: IconId = 'cross'): void {
+    const [cx, cy] = blockCenter(shop);
+    this.floatAt(icon(pic), cx, cy, 1.8);
+    sfx('nope', { every: 0.3 });
+  }
+
+  /**
+   * Meerijden met het treintje: je wacht op het perron tot de trein bij deze halte stilstaat, stapt in en rijdt mee,
+   * net zo lang als je wilt. Stap je uit, dan sta je bij de halte waar de trein het dichtst bij is.
+   */
+  private walkTrain(shop: ShopObj): void {
+    if (this.walk.seated) return;
+    const train = this.guests.trains.find(k => k.running && k.serves(shop));
+    if (!train) return this.walkNope(shop);
+    const from = this.walk.at, [cx, cy] = blockCenter(shop), seat: TrainSeat = { gx: 0, gy: 0, h: 0, heading: 0 };
+    // waar je op de trein wacht: op het pad bij de halte
+    const [wx, wy] = this.walkDoor(shop, from[0], from[1]) ?? from;
+    let aboard = false;
+    const sat = this.walk.sit({
+      pose: () => {
+        if (!train.running || (!aboard && !this.shops.includes(shop))) return null;
+        if (!aboard && train.stoppedAt(shop) && train.walkerOn()) {
+          aboard = true;
+          sfx('train.toot', { volume: 0.3, every: 2 });
+        }
+        // nog aan het wachten: kijken naar waar de trein vandaan komt
+        if (!aboard) return [wx, wy, WALK.eye, Math.atan2(train.headX - wx, train.headY - wy)];
+        // je zit wat hoger dan een gast: zo kijk je net over het dak van de locomotief heen
+        train.seatPos(train.walkerSeat, seat);
+        return [seat.gx, seat.gy, seat.h + SIT_EYE + TRAIN_VIEW, seat.heading];
+      },
+      exit: () => {
+        const stop = aboard ? train.nearestStation() ?? shop : shop;
+        return this.walkDoor(stop, ...(aboard ? blockCenter(stop) : from)) ?? [from[0], from[1]];
+      },
+      left: () => void (train.walkerSeat = -1),
+    });
+    if (sat && !train.stoppedAt(shop)) this.floatAt(icon('clock'), cx, cy, 1.8);
+  }
+
+  /**
+   * Meerijden met de kabelbaan: je wacht op het perron op het eerste vrije stoeltje, zweeft naar het andere huisje en
+   * stapt daar uit. Stap je onderweg uit, dan sta je bij het huisje waar je heen ging.
+   */
+  private walkLift(shop: ShopObj): void {
+    if (this.walk.seated) return;
+    const lift = this.guests.lifts.find(l => l.serves(shop) && l.walker.seat < 0 && !l.walker.wait);
+    if (!lift) return this.walkNope(shop);
+    const from = this.walk.at, me = lift.walker, [cx, cy] = blockCenter(shop), other = lift.a === shop ? lift.b : lift.a, [ox, oy] = blockCenter(other);
+    Object.assign(me, { wait: shop, seat: -1, to: null, off: null });
+    let rode = false;
+    this.walk.sit({
+      pose: () => {
+        if (!this.guests.lifts.includes(lift) || me.off) return null;
+        if (me.seat < 0) {
+          // de kabelbaan gaat dicht terwijl je nog wacht: dan stap je gewoon weer af
+          if (!lift.boarding) return null;
+          // op het perron: kijken langs de kabel, naar het andere huisje
+          return [cx, cy, CABLE.low - CABLE.hang + SIT_EYE, Math.atan2(ox - cx, oy - cy)];
+        }
+        rode = true;
+        const c = lift.seatSpot(me.seat), side = me.seat % 2 ? 0.12 : -0.12, len = Math.hypot(c.mx, c.my) || 1;
+        // twee plekken naast elkaar: een stukje links of rechts van de kabel, dwars op de rijrichting
+        return [c.gx + (c.my / len) * side, c.gy - (c.mx / len) * side, c.h - CABLE.hang + SIT_EYE, Math.atan2(c.mx, c.my)];
+      },
+      exit: () => {
+        const house = me.off ?? (rode ? me.to ?? shop : shop);
+        return this.walkDoor(house, ...(house === shop ? from : blockCenter(house))) ?? [from[0], from[1]];
+      },
+      left: () => void Object.assign(me, { wait: null, seat: -1, to: null, off: null }),
+    });
   }
 
   /**
