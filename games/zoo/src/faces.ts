@@ -732,6 +732,8 @@ const LOOKS: Record<string, number> = {
   rainbow: look(EYE.wide, MOUTH.grin), stretch: look(EYE.shut, MOUTH.smile), tap: look(EYE.open, MOUTH.flat), watch: look(EYE.open, MOUTH.flat),
   // bij een ding in het park
   giggle: look(EYE.glad, MOUTH.grin), mimic: look(EYE.open, MOUTH.grin), show: look(EYE.open, MOUTH.grin), sniff: look(EYE.shut, MOUTH.smile), warm: look(EYE.shut, MOUTH.smile),
+  // in de blaadjes springen en een sneeuwballetje gooien
+  leap: look(EYE.wide, MOUTH.grin), snowball: look(EYE.glad, MOUTH.grin),
 };
 
 /**

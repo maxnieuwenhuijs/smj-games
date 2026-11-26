@@ -205,6 +205,13 @@ export const say = {
   cableOne: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.cable.one' }),
   cableWhere: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.cable.where' }),
   cableFirst: (): Line => ({ who: 'host', mood: 'happy', key: 'say.cable.first' }),
+  /** Spelen met het seizoen en de nacht: de eerste herfst met de hark, het eerste kind in de blaadjes, de eerste winter met sneeuw, de eerste sneeuwpop, de lampjes en het eerste lichtfeestje. */
+  leavesNew: (): Line => ({ who: 'host', mood: 'happy', key: 'say.leaves.new' }),
+  leavesJump: (): Line => ({ who: 'host', mood: 'happy', key: 'say.leaves.jump' }),
+  snowNew: (): Line => ({ who: 'director', mood: 'happy', key: 'say.snow.new' }),
+  snowman: (): Line => ({ who: 'director', mood: 'happy', key: 'say.snowman' }),
+  lampsNew: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.lamps.new' }),
+  lampsWave: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.lamps.wave' }),
   dirty: (): Line => ({ who: 'host', mood: 'worried', key: 'say.dirty' }),
   vetHow: (): Line => ({ who: 'keeper', mood: 'worried', key: 'say.vet.how' }),
   pettingNew: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.petting.new' }),
@@ -329,7 +336,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   for (const ask of ['green.more', 'green.less', 'stone.more', 'stone.less']) add(wishLine(tr, 'wild', 'pig', null, false, ask));
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(),
     say.dirty(), say.vetHow(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.filterTip(), say.showWhere(), say.showFirst(),
-    say.cableOne(), say.cableWhere(), say.cableFirst()]) add(line);
+    say.cableOne(), say.cableWhere(), say.cableFirst(), say.leavesNew(), say.leavesJump(), say.snowNew(), say.snowman(), say.lampsNew(), say.lampsWave()]) add(line);
   add(say.eventNew());
   add(say.starsNew());
   for (let n = 2; n <= 5; n++) add(say.stars(n));
