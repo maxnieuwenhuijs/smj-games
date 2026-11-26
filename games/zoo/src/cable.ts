@@ -299,8 +299,9 @@ export interface CablePole {
 
 /**
  * Waar de palen vanzelf komen te staan, per stuk kabel: bij een huisje waar de kabel boven is, en daartussen zo
- * veel dat er hooguit `poleGap` tussen twee steunpunten zit (een tussenpaal is zelf ook een steunpunt). Bij een
- * korte kabel tussen twee huisjes staat er één paal in het midden.
+ * veel dat er hooguit `poleGap` tussen twee steunpunten zit (een tussenpaal is zelf ook een steunpunt; staat die
+ * vlak achter de klim, dan komt daar geen paal bij). Bij een korte kabel tussen twee huisjes staat er één paal in
+ * het midden.
  */
 export function cablePoles(path: CablePath): CablePole[] {
   const pts = path.pts, n = pts.length - 1, up = 1 + path.ramp, poles: CablePole[] = [];
@@ -310,7 +311,7 @@ export function cablePoles(path: CablePath): CablePole[] {
     const a = pts[i], b = pts[i + 1], l = dist(a, b), dx = (b[0] - a[0]) / l, dy = (b[1] - a[1]) / l;
     const first = i === 0 ? up : 0, last = i === n - 1 ? l - up : l, spots: number[] = [];
     if (n === 1 && last - first < 2) spots.push(l / 2);
-    else if (last - first >= 1.5) {
+    else if (last - first >= 2) {
       const k = Math.ceil((last - first) / CABLE.poleGap);
       // (waar een tussenpaal staat, hoeft geen paal)
       for (let j = i > 0 ? 1 : 0; j <= (i < n - 1 ? k - 1 : k); j++) spots.push(first + ((last - first) * j) / k);

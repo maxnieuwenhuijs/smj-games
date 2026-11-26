@@ -5717,14 +5717,15 @@ export class CableCar {
         }
       }
     }
-    // de stoeltjes, met een beetje schommelen (om een wiel hangen ze even scheef); de grote wielen draaien mee
+    // de stoeltjes, met een beetje schommelen; de grote wielen draaien mee. Om een wiel hangt een stoeltje even
+    // scheef: in het huisje naar het wiel toe (zoals het was), hoog bij een tussenpaal naar buiten, van de paal af
     const { chairs, wheels, group } = this.model, lean = this.lean, ease = Math.min(1, dt * 7);
     for (let i = 0; i < n; i++) {
       const c = cableAt(this.path, this.s + (i * this.loop) / n, this.at);
       const chair = chairs[i];
       chair.position.set(toWorldX(c.gx), c.h, toWorldZ(c.gy));
       chair.rotation.order = 'YXZ';
-      lean[i] += (-c.turn - lean[i]) * ease;
+      lean[i] += ((c.h > CABLE.low + 0.5 ? c.turn : -c.turn) - lean[i]) * ease;
       const t = this.clock * 1.6 + i * 1.7;
       chair.rotation.set(Math.sin(t * 0.7) * 0.05 * this.go, Math.atan2(c.mx, c.my), (Math.sin(t) * 0.05 + lean[i] * 0.1) * this.go);
     }
