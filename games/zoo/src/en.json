@@ -691,6 +691,7 @@
   "alert.herd": "{The} likes to live in a group. Put {herd} together!",
   "alert.space": "{The} needs more room. Make the pen bigger!",
   "tool.toy": "Toys",
+  "tool.care": "Care",
   "tool.staff": "Staff",
   "staff.feed": "Feeder",
   "staff.clean": "Cleaner",

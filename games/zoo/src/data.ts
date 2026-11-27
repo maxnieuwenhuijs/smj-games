@@ -111,6 +111,12 @@ export const FOODS: FoodId[] = ['veg', 'hay', 'fruit', 'grain', 'meat', 'leaves'
 export const BEDS: BedKind[] = ['straw', 'shed', 'rock', 'shade', 'nest', 'cave', 'climb', 'coral'];
 export const TOYS: ToyKind[] = ['ball', 'bush', 'log', 'flowerbed', 'hoop', 'tunnel', 'drink', 'hill', 'rocks', 'frame', 'fall', 'lamp', 'icebox',
   'tyre', 'rocker', 'tetherball', 'logarch', 'tyreswing', 'pole', 'filter'];
+/**
+ * Wat geen speelgoed is maar wel in een verblijf hoort: de warmtelamp, het ijsblok en het waterfilter. Ze staan onder
+ * een eigen knop (Verzorging) in plaats van bij Speelgoed. In het spel en in het opslagbestand zijn het nog steeds
+ * dingen in een verblijf zoals speelgoed (ToyKind), zodat oudere spellen gewoon blijven werken.
+ */
+export const CARE_TOYS: ToyKind[] = ['lamp', 'icebox', 'filter'];
 /** Na hoeveel gehaalde levels je iets voor in het verblijf vrijspeelt, en wat het kost (anders PRICE.toy). */
 export const TOY_FROM: Record<ToyKind, number> = {
   ball: 9, bush: 9, log: 9, flowerbed: 9, tunnel: 11, drink: 12, hill: 14, rocks: 17, hoop: 20, frame: 22, fall: 27, lamp: 25, icebox: 30,

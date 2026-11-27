@@ -14,7 +14,7 @@ import { MURK, murkAfter, murkLoad, murkRate, murkyWater } from './data';
 import { guestCard, guestFacts, guestNames } from './traits';
 import { ATTRACTIONS, SHOW_ROUTINE, SHOW_STARS, SHOW_TIME, newShow, showFinale, showMoves, showReady, showSoon, showTick } from './data';
 import { bucketSides, glassSides, hangAt } from './grid';
-import { TROUGH, TROUGHS } from './data';
+import { CARE_TOYS, TROUGH, TROUGHS } from './data';
 import { ICON_IDS } from './icons';
 import { LOOKS, RIDES } from './data';
 import { STALLS } from './data';
@@ -953,5 +953,14 @@ describe('het naambord boven de ingang', () => {
       expect(tr['park.sign.named']).toContain('{name}');
     }
     expect(nl['park.sign.named'].replace('{name}', 'Sam')).toBe('Dierentuin van Sam');
+  });
+});
+
+describe('de knop Verzorging', () => {
+  it('de warmtelamp, het ijsblok en het waterfilter staan onder Verzorging, niet onder Speelgoed', () => {
+    expect(CARE_TOYS).toEqual(['lamp', 'icebox', 'filter']);
+    for (const k of CARE_TOYS) expect(TOYS).toContain(k);
+    expect(nl['tool.care']).toBe('Verzorging');
+    expect(en['tool.care']).toBeTruthy();
   });
 });

@@ -1064,6 +1064,10 @@ De proefspeler bouwt vaste verblijven van 3 bij 3. Sinds grote dieren elk apart 
 - **Wat de gasten missen:** in het overzicht bij de poort staat een vak met wat de gasten die nu in het park zijn missen, het meest gemiste bovenaan (hooguit zes): het plaatje van wat ze willen, hoeveel gasten, en een label. Oranje "erbij bouwen": er is nog geen kraam of gebouw voor. Blauw "niet te koop": de kraam is er wel, maar verkoopt dit niet. Rood "te druk": er staat een rij, er moet er een bij.
 - **Nog niet:** de nieuwe zin van de bouwer over de paal (`say.cable.path`) is nog niet ingesproken; tot dan praat hij op het klokje. Draai `node tools/voice/build.mjs all`.
 
+### De knop Verzorging (27 november)
+
+De warmtelamp, het ijsblok en het waterfilter zijn geen speelgoed. Ze staan nu onder een eigen knop **Verzorging** (met de warmtelamp als plaatje), tussen Speelgoed en Natuur; de knop verschijnt zodra het eerste ervan vrijkomt (het waterfilter met het aquarium, de warmtelamp na level 25). Neerzetten, de smileys bij het neerzetten en het hartje op wat een dier mist werken net als bij Speelgoed. In het spel en in het opslagbestand blijven het dingen in een verblijf zoals speelgoed (`CARE_TOYS` in `data.ts`), zodat oudere spellen gewoon werken.
+
 ### Het naambord boven de ingang (27 november)
 
 Boven het bord met de sterren staat nu een houten naambord met de naam van het park: "Dierentuin van Sam" als de speler zijn naam heeft ingevuld, anders "Dierentuin" (`park.sign`, `park.sign.named`; in het Engels "Sam's Zoo"). De naam staat aan beide kanten, zodat je hem ook leest als je het beeld draait, met een vlaggetje aan elke kant; de lantaarn van de ingang hangt eronder. Een lange naam wordt kleiner geschreven, zodat hij altijd op het bord past (`setParkName` in `view.ts`, `parkName` in `game.ts`).

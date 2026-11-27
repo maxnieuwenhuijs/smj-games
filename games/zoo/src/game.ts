@@ -14,7 +14,7 @@ import {
   BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, SHOP_DEEP, RESIZED_V5, onEdge, shopSpan, herdOf, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
-  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, hourAt, WAGE, TOY_LIKES, DECOR, DECORS, type DecorKind, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, GUESTS_HOME, STAFF_HOME, STAFF_BACK, VENDORS_BACK, LIGHT, SPACE, spaceNeed, guestsAt, SERVES,
+  type WishId, type WorldId, TOYS, CARE_TOYS, type ToyKind, HOUR_SECONDS, hourAt, WAGE, TOY_LIKES, DECOR, DECORS, type DecorKind, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, GUESTS_HOME, STAFF_HOME, STAFF_BACK, VENDORS_BACK, LIGHT, SPACE, spaceNeed, guestsAt, SERVES,
   isPath, PATH_KINDS, PATH_FROM, TOY_FROM, TOY_PRICE, CLIMATE, palsOf, PETTABLE, PETTING_MIN, NATURES, pickRare, RARE_CHANCE, MUD_LOVERS, crowdLoad, CROWD_EASE,
   EDGE_DECOR, POLE_DECOR, LOW_POLES, SMALL_DECOR, PARK_GROUPS, ATTRACTIONS, parkShopGroup, PROP, PROPS, WILD_PROPS, PARK_PROPS, WILD_KINDS, wildRange, wildWant, type PropKind, type WildKind, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, seasonOn, homeWorld, PALS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
 import { CLIMB_SECONDS, PUSH, SWING, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, sinceHit, sway, swingAt, tetherAt } from './data';
@@ -64,7 +64,7 @@ import { FLUME, FLUME_SPLASH_AT, balloonAt, isLap, lapTime, newSpot, shipAngle, 
 
 /** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken; een dier een snoepje geven of wassen (care.ts); in de herfst harken, in de winter sneeuw rollen. */
 export type ActionId = 'broom' | 'hammer' | 'picker' | CareAction | 'rake' | 'snowball';
-export type ToolId = 'hand' | 'action' | 'terrain' | 'fence' | 'trough' | 'bed' | 'toy' | 'prop' | 'shop' | 'rides' | 'decor' | 'animal' | 'staff' | 'erase';
+export type ToolId = 'hand' | 'action' | 'terrain' | 'fence' | 'trough' | 'bed' | 'toy' | 'care' | 'prop' | 'shop' | 'rides' | 'decor' | 'animal' | 'staff' | 'erase';
 /** Wat een dier ergens van vindt: dit wilde ik (groen), prima maar niet nodig (geel), te veel (rood) of het doet me niets (grijs). */
 type Verdict = 'good' | 'ok' | 'bad' | 'none';
 type Sex = 'male' | 'female';
@@ -79,7 +79,7 @@ const SNORE = { gap: [2.5, 5], volume: 0.5, big: 1.3 };
 const TOOL_GROUPS: [string, ToolId[]][] = [
   ['do', ['hand', 'action', 'erase']],
   ['land', ['terrain', 'fence']],
-  ['animal', ['animal', 'trough', 'bed', 'toy', 'prop']],
+  ['animal', ['animal', 'trough', 'bed', 'toy', 'care', 'prop']],
   ['park', ['shop', 'rides', 'decor', 'staff']],
 ];
 /** De tussenpaal van de kabelbaan: een keuze in de rij van de attracties, naast het huisje (zie placePylon). */
@@ -599,7 +599,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   stats: Stats = emptyStats();
   tool: ToolId = 'hand';
 
-  private option = { trough: 'wood', action: 'broom', terrain: 'mud', fence: 'fence', fenceMode: 'box', bed: 'straw', toy: 'ball', prop: 'tuft', ride: 'slide', rideGroup: 'play', staff: 'feed', decor: 'tree', decorGroup: 'green', terrainGroup: 'pen', shop: 'foodstall', animal: '', sex: 'male', world: 'farm' };
+  private option = { trough: 'wood', action: 'broom', terrain: 'mud', fence: 'fence', fenceMode: 'box', bed: 'straw', toy: 'ball', care: 'lamp', prop: 'tuft', ride: 'slide', rideGroup: 'play', staff: 'feed', decor: 'tree', decorGroup: 'green', terrainGroup: 'pen', shop: 'foodstall', animal: '', sex: 'male', world: 'farm' };
   private puddles: { mesh: THREE.Mesh; life: number }[] = [];
   private bubbles = new Map<Animal, HTMLElement>();
   private guestBubbles = new Map<Guest, HTMLElement>();
@@ -1644,7 +1644,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private canSpin(): boolean {
     // (een tussenpaal van de kabelbaan is rond: daar valt niets aan te draaien)
     if (this.mode() === 'pylon') return false;
-    return this.tool === 'trough' || this.tool === 'bed' || this.tool === 'toy' || this.tool === 'prop' || this.tool === 'decor' || this.tool === 'shop' || this.tool === 'rides';
+    return this.tool === 'trough' || this.tool === 'bed' || this.tool === 'toy' || this.tool === 'care' || this.tool === 'prop' || this.tool === 'decor' || this.tool === 'shop' || this.tool === 'rides';
   }
 
   /** Staat de tussenpaal van de kabelbaan in de rij van de attracties? Zodra er een huisje staat. En stond hij er de vorige keer? */
@@ -1722,8 +1722,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!(pylon && this.option.ride === PYLON)) pickFrom('ride', rideRow);
     pickFrom('shop', stalls);
     pickFrom('fence', this.fenceOptions());
-    const toys = TOYS.filter(k => TOY_FROM[k] <= this.level);
+    // speelgoed onder Speelgoed; de warmtelamp, het ijsblok en het waterfilter onder Verzorging
+    const toys = TOYS.filter(k => TOY_FROM[k] <= this.level && !CARE_TOYS.includes(k));
+    const cares = CARE_TOYS.filter(k => TOY_FROM[k] <= this.level);
     pickFrom('toy', toys);
+    pickFrom('care', cares);
     // natuur is er meteen helemaal
     const propRow = WILD_PROPS;
     if (!propRow.includes(this.option.prop as PropKind)) this.option.prop = propRow[0];
@@ -1737,7 +1740,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.hud.setAfford(this.coins);
     // met Speelgoed of Natuur open: een hartje op wat een dier in je park nu nog mist
     const wanted = new Set<string>();
-    if (this.tool === 'toy') for (const k of toys) if (this.animals.some(a => !a.escaped && this.toyVerdict(a, k) === 'good')) wanted.add(k);
+    if (this.tool === 'toy' || this.tool === 'care') for (const k of this.tool === 'care' ? cares : toys) if (this.animals.some(a => !a.escaped && this.toyVerdict(a, k) === 'good')) wanted.add(k);
     if (this.tool === 'prop' && this.wantsWild()) for (const a of this.animals) if (a.wildAsk?.more) for (const k of propRow) if (PROP[k].wild === a.wildAsk.kind) wanted.add(k);
     const key = [this.tool, this.linger, hint, this.level, this.season, ...Object.values(this.option), ...this.fresh, '/', ...wanted].join('|');
     if (!force && key === this.toolsKey) return;
@@ -1795,6 +1798,13 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         ...opt('toy', 'ball', t('tool.toy')),
         fresh: toys.some(k => this.fresh.has(k)),
         rows: [{ key: 'toy', active: this.option.toy, options: toys.map(k => ({ ...opt(k, k, t(`toy.${k}`), TOY_PRICE[k] ?? PRICE.toy), fresh: this.fresh.has(k), wanted: wanted.has(k) })) }],
+      });
+    // verzorging: wat een dier nodig heeft maar geen speelgoed is (warm, koel, schoon water)
+    if (cares.length)
+      defs.push({
+        ...opt('care', 'lamp', t('tool.care')),
+        fresh: cares.some(k => this.fresh.has(k)),
+        rows: [{ key: 'care', active: this.option.care, options: cares.map(k => ({ ...opt(k, k, t(`toy.${k}`), TOY_PRICE[k] ?? PRICE.toy), fresh: this.fresh.has(k), wanted: wanted.has(k) })) }],
       });
     // natuur voor in de verblijven: graspollen, bloemetjes, stenen en bomen, per kwart tegel
     if (this.has('wild'))
@@ -1870,7 +1880,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const grouped = TOOL_GROUPS.flatMap(([group, ids]) => ids.flatMap(id => defs.filter(d => d.id === id).map(d => ({ ...d, group }))));
     this.hud.setTools(grouped, this.tool, hint, this.linger);
     this.hud.setSpin(this.canSpin() && !this.moving, this.spins, this.spinning());
-    this.hud.setFans(this.tool === 'toy' && !this.moving ? this.toyFans(this.option.toy as ToyKind) : '', this.option.toy);
+    this.hud.setFans((this.tool === 'toy' || this.tool === 'care') && !this.moving ? this.toyFans(this.toyChoice()) : '', this.toyChoice());
     // boven het gekozen hek hangen twee knoppen met het plaatje van dat hek: een heel hok slepen, of los plaatsen
     // (een poort, kijkruit of poortje zet je altijd los neer: daar valt niets te kiezen)
     const fenceKind = FENCE_KIND[this.option.fence], fenceIcon = icon(this.option.fence as IconId);
@@ -4188,10 +4198,15 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   /** Speelgoed of een plant in een verblijf: daar worden alle dieren in dat verblijf blij van. */
+  /** Wat je met Speelgoed of Verzorging in de hand hebt. */
+  private toyChoice(): ToyKind {
+    return (this.tool === 'care' ? this.option.care : this.option.toy) as ToyKind;
+  }
+
   private placeToy(x: number, y: number): void {
     const region = this.grid.enclosureAt(x, y);
     if (!region) return this.nope(x + 0.5, y + 0.5);
-    const kind = this.option.toy as ToyKind;
+    const kind = this.toyChoice();
     // het waterfilter hoort in een bak van glas, in het water
     if (kind === 'filter' && !this.tankTiles.has(tileIndex(x, y))) return this.nope(x + 0.5, y + 0.5);
     if (this.taken(x, y) || !this.pay(TOY_PRICE[kind] ?? PRICE.toy, x + 0.5, y + 0.5)) return;
@@ -5593,9 +5608,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
    */
   private hoverFaces(gx: number, gy: number): void {
     const mode = this.moving ? '' : this.mode();
-    const region = mode === 'toy' || mode === 'prop' ? this.grid.enclosureAt(Math.floor(gx), Math.floor(gy)) : null;
+    const region = mode === 'toy' || mode === 'care' || mode === 'prop' ? this.grid.enclosureAt(Math.floor(gx), Math.floor(gy)) : null;
     if (!region) return this.showFaces(null);
-    const toy = this.option.toy as ToyKind, prop = mode === 'prop' ? this.propKind() : null;
+    const toy = this.toyChoice(), prop = mode === 'prop' ? this.propKind() : null;
     this.showFaces(this.animalsIn(region.id).map(a => ({ a, verdict: prop ? this.propVerdict(a, prop) : this.toyVerdict(a, toy) })).filter(f => !f.a.escaped));
   }
 
@@ -5650,8 +5665,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         if (free) this.view.ghostBed(x, y, this.option.bed as BedKind, !!this.grid.enclosureAt(x, y), this.quarter);
         return this.hud.setCursor(CUR[this.option.bed]);
       case 'toy':
-        if (free) this.view.ghostToy(x, y, this.option.toy as ToyKind, !!this.grid.enclosureAt(x, y), this.quarter);
-        return this.hud.setCursor(CUR[this.option.toy]);
+      case 'care':
+        if (free) this.view.ghostToy(x, y, this.toyChoice(), !!this.grid.enclosureAt(x, y), this.quarter);
+        return this.hud.setCursor(CUR[this.toyChoice()]);
       case 'decor':
         if (POLE_DECOR.includes(this.option.decor as DecorKind)) {
           // een paal hangt boven de dichtstbijzijnde hoek of het midden van de dichtstbijzijnde rand
@@ -6180,7 +6196,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (stall && this.tool === 'hand') return (stall.dirt ?? 0) >= 1 ? this.pointTo('broom', x + 0.5, y + 0.5) : this.shopMenu(stall);
     if (this.tool === 'trough') return this.placeTrough(x, y);
     if (this.tool === 'bed') return this.placeBed(x, y);
-    if (this.tool === 'toy') return this.placeToy(x, y);
+    if (this.tool === 'toy' || this.tool === 'care') return this.placeToy(x, y);
     if (this.mode() === 'decor') return this.placeDecor(x, y, g?.gx, g?.gy);
     if (this.tool === 'staff') return this.placeStaff(x, y);
     if (this.tool === 'animal') return this.placeAnimal(x, y);
