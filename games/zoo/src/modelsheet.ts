@@ -103,7 +103,7 @@ const shop = (kind: ShopKind): Item => ({
 const trough = (kind: TroughKind, food: FoodId | null, amount: number): Item => ({
   name: food ? `${kind}: ${food}` : kind, size: 1,
   put: (x, y) => {
-    if (ghost) return view.ghostTrough(x, y, true, rot);
+    if (ghost) return view.ghostTrough(x, y, true, rot, kind === 'bucket');
     view.fillTrough(view.makeTrough(x, y, kind, rot), food, amount);
   },
 });
@@ -261,7 +261,7 @@ const SHOP_SETS: Record<string, ShopKind[]> = {
 };
 const GROUPS: Record<string, Item[]> = {
   bedden: BEDS.map(bed),
-  voer: [...TROUGHS.map(kind => trough(kind, null, 0)), ...FOODS.map(food => trough('wood', food, 4)), trough('big', 'hay', 8), trough('silo', 'grain', 12)],
+  voer: [...TROUGHS.map(kind => trough(kind, null, 0)), ...FOODS.map(food => trough('wood', food, 4)), trough('big', 'hay', 8), trough('silo', 'grain', 12), trough('bucket', null, 0), trough('bucket', 'fish', 8)],
   speeltjes: TOYS.map(toy),
   hekken: [fence('hek', 1), fence('hek, versleten 1', 1, 1), fence('hek, versleten 2', 1, 2), fence('hek, versleten 3', 1, 3), fence('poort', 2), fence('muur', 3), fence('net', 4), fence('glas', 5), fence('kijkvenster', 6), fence('wit hekje', 7), fence('poortje', 8)],
   // elk soort hek dat slijt, in zijn drie fases (zie wear.ts)

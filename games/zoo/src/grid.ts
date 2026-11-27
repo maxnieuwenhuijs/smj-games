@@ -365,6 +365,27 @@ export function glassSides(grid: Grid, x: number, y: number, w: number, h: numbe
 }
 
 /**
+ * Voor de voeremmer van het aquarium: de kanten van tegel (x, y) met glas (of een kijkruit) waar buiten het glas geen
+ * verblijf ligt. Daar kan de emmer hangen en staat de voerder. Per kant de stand van de emmer (`rot`: 0 = noord,
+ * 1 = west, 2 = zuid, 3 = oost; zie hangAt) en de tegel buiten het glas, in die volgorde.
+ */
+export function bucketSides(grid: Grid, x: number, y: number): { rot: number; out: number }[] {
+  const sides: [number, Edge, number, number][] = [
+    [0, { o: 'h', x, y }, x, y - 1],
+    [1, { o: 'v', x, y }, x - 1, y],
+    [2, { o: 'h', x, y: y + 1 }, x, y + 1],
+    [3, { o: 'v', x: x + 1, y }, x + 1, y],
+  ];
+  return sides
+    .filter(([, e, ox, oy]) => (grid.getEdge(e) === 5 || grid.getEdge(e) === 6) && grid.inBounds(ox, oy) && !grid.enclosureAt(ox, oy))
+    .map(([rot, , ox, oy]) => ({ rot, out: tileIndex(ox, oy) }));
+}
+
+/** Waar een voeremmer met stand `rot` aan het glas hangt: midden op de noordrand (0), westrand (1), zuidrand (2) of oostrand (3) van zijn tegel. */
+export const hangAt = (x: number, y: number, rot: number): [number, number] =>
+  rot === 0 ? [x + 0.5, y] : rot === 1 ? [x, y + 0.5] : rot === 2 ? [x + 0.5, y + 1] : [x + 1, y + 0.5];
+
+/**
  * De rand in één richting waar een punt langs loopt. Bij slepen kijken we alleen naar randen in de
  * sleeprichting, zodat er op de hoeken geen losse dwarshekjes bijkomen.
  */

@@ -94,6 +94,7 @@
   "trough.wood": "Wooden trough",
   "trough.big": "Big trough",
   "trough.silo": "Feed silo",
+  "trough.bucket": "Feed bucket",
   "tool.bed": "Bed",
   "tool.shop": "Shops",
   "tool.rides": "Rides",
@@ -812,6 +813,8 @@
   "alert.dusty": "This animal is all dusty! Take the hose from Action and give it a nice wash.",
   "alert.murky": "The water is dirty! Tap the tank with the broom to make it clean again.",
   "say.filter.tip": "Put a water filter in the tank. Then the water stays clean much longer.",
+  "say.bucket.glass": "A trough sinks in the water. Put it against the glass, then it becomes a feed bucket.",
+  "say.bucket.new": "A feed bucket on the glass! I put the food in from outside, and the animals swim underneath to eat.",
   "alert.wrongfood": "{The} does not like that.",
 
   "host.first": "Here come the first guests!",

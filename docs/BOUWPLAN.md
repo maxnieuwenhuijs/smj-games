@@ -164,7 +164,7 @@ Gemeten met `tools/playtest/berichten.js` in een park met 80 dieren zonder verzo
 ## Gebeurtenissen
 
 - **Personeel (vanaf level 12):** met de knop Personeel zet je een voerder of een schoonmaker neer in het park, buiten de verblijven, net zoals je een dier plaatst. Ze lopen echt door het hele park:
-  - de voerder vult voerbakken die bijna leeg zijn;
+  - de voerder vult voerbakken die bijna leeg zijn; een voeremmer in het aquarium vult hij van buiten, over het glas heen (zie 'De voeremmer van het aquarium');
   - de schoonmaker veegt poep (in de verblijven en op het pad) en raapt afval op.
   - Ze gaan een verblijf alleen in door een **poort**. Poorten kun je vanaf level 12 bouwen (knop Hek, keuze Poort). Kan een werker ergens niet in, dan verschijnt er een poortje boven die plek en zegt de bouwer dat er een poort moet komen.
   - Bij het neerzetten hangt er een doorzichtige werker boven de plek onder je vinger of muis: hij zweeft, trappelt met zijn benen en zwaait met zijn armen. Mag hij daar niet staan (in een verblijf of op iets anders), dan is hij bijna onzichtbaar en is de tegel rood. Tik je, dan ploft hij neer, veert even in en gaat aan het werk.
@@ -353,6 +353,17 @@ Na level 20 komt er een zesde afdeling bij de knop Dier: het aquarium, met de **
 - **Zeedieren** leven alleen in water: ze zwemmen nooit over een droge tegel, ontsnappen niet en willen een bak van glas, vis, en koraal om bij te rusten (een nieuwe slaapplek). De dolfijn wil met zijn drieën zijn en negen tegels; de orka twaalf tegels.
 - **Hoepel:** nieuw speelgoed, het lievelingsding van de dolfijn. Hij springt er in een boog doorheen naar de andere kant, met spatters bij het opduiken en neerkomen. De orka speelt met de bal.
 - **Aantikken:** tik met het handje op speelgoed in een verblijf (ook de bal, de boomstam of de struik bij andere dieren) en een dier komt eraan en gaat ermee spelen; bij de hoepel springt het erdoor.
+- **Voeren:** met de voeremmer aan het glas (zie hieronder).
+
+### De voeremmer van het aquarium
+
+Een gewone voerbak in het water van een bak van glas zonk weg, en de voerder kon er niet bij: zonder poort riep de bouwer steeds dat er een poort moest komen, en met een poort waadde de voerder tot zijn kin door het water. Nu is er de **voeremmer**.
+
+- **Neerzetten:** kies Voerbak en tik op een watertegel tegen het glas. Het voorbeeld is dan een emmer aan het glas, en zo wordt hij ook neergezet (3 munten, 8 porties), welke voerbak er ook gekozen is. Hij hangt aan het glas waar de voerder buiten kan staan, het liefst aan de kant van het pad; in een hoek kies je de kant met de knop Draai. Midden in het water, of tegen glas waar buiten een ander verblijf of grond ligt die nog niet gekocht is, mag het niet: dan is het voorbeeld rood en zegt de bouwer: "In het water zinkt een voerbak. Zet hem tegen het glas, dan wordt het een voeremmer." Bij de eerste emmer legt de verzorger uit hoe hij werkt.
+- **Vullen:** de voerder loopt buiten om de bak heen naar de tegel tegen het glas, en schept het voer over het glas in de emmer. Hij komt niet meer in het water en hoeft geen poort. Met de hand gaat het zoals bij elke voerbak: tik op de emmer en kies het voer.
+- **Eten:** een emmer neemt geen tegel in. Een hongerig zeedier zwemt eronder, met zijn neus naar het glas, en eet daar (`hang` op `Trough` in `animal.ts`).
+- **Oudere spellen:** een voerbak die al in het water van een aquarium stond, wordt vanzelf een emmer; stond hij midden in het water, dan schuift hij naar de dichtstbijzijnde vrije plek aan het glas. Gaat het glas later weg, dan wordt de emmer weer een gewone bak (`fitBuckets` in `game.ts`).
+- **Code:** `bucketSides` en `hangAt` in `grid.ts` (welke kant glas heeft en waar de voerder staat), `fillSpots` voor de voerder, het model `BUCKET_GEO` in `view.ts`, het icoon `trough_bucket`. De getallen staan in `TROUGH.bucket` in `data.ts`.
 
 De getallen staan in `games/zoo/src/data.ts` (`BONUS`, `AQUATIC`, `TANK_WATER`). De modellen komen uit `tools/animals/packs/50_sea.py`.
 
@@ -392,15 +403,16 @@ Veel dieren willen een mix: hun eigen grond, en daarnaast een stukje (minstens t
 
 Ontbreekt er iets, dan toont het wolkje boven het dier precies die grond, en de verzorger noemt de hele mix ("De leeuw wil zand met een stukje droog gras en rotsgrond in het verblijf."). Tik je op het dier, dan staat elk stukje van de mix apart, groen of rood. Klopt de eigen grond en ontbreekt alleen nog een stukje van de mix, dan is het dier niet blij, maar het wordt er nooit voor opgehaald. In een bestaand opgeslagen park zijn daardoor veel dieren eerst niet blij, tot je de stukjes erbij legt. De lijst staat in `games/zoo/src/data.ts` (`ALSO`, `MIX_TILES`).
 
-## Drie voerbakken
+## Drie voerbakken (en de voeremmer)
 
 | Voerbak | Prijs | Porties | Vanaf level | Hoe hij eruitziet |
 |---|---|---|---|---|
 | Houten bak | 1 | 4 | 1 | De gewone bak |
 | Grote bak | 4 | 8 | 7 | Van steen, breder en dieper, met twee rijen voer |
 | Voersilo | 10 | 16 | 17 | Een ronde toren met een rood dak en een bakje ervoor |
+| Voeremmer | 3 | 8 | met het aquarium | Een blauwe emmer aan haken over de rand van het glas, met een geel glijgootje naar het water |
 
-Hoe groter de bak, hoe minder vaak je hoeft te vullen. Zodra de grote bak er is, kies je de soort in de rij boven de knop Voerbak. Tik je op een grote bak of silo, dan staat er een getal bij het voer (zoveel porties zitten er nog in). Weghalen geeft de helft terug. De getallen staan in `games/zoo/src/data.ts` (`TROUGH`).
+De voeremmer staat niet in de rij: hij komt vanzelf als je een voerbak in het water van een aquarium zet (zie 'De voeremmer van het aquarium'). Hoe groter de bak, hoe minder vaak je hoeft te vullen. Zodra de grote bak er is, kies je de soort in de rij boven de knop Voerbak. Tik je op een grote bak of silo, dan staat er een getal bij het voer (zoveel porties zitten er nog in). Weghalen geeft de helft terug. De getallen staan in `games/zoo/src/data.ts` (`TROUGH`).
 
 ## De klusser
 
@@ -1040,6 +1052,10 @@ De proefspeler bouwt vaste verblijven van 3 bij 3. Sinds grote dieren elk apart 
 - **'s Nachts stil:** als het park dicht is (0 tot 7 uur) en er niemand meer op zit, zakt de fontein in acht tellen helemaal in (`RIDE_WAKE`), en om zeven uur komt hij net zo rustig weer op. De andere attracties staan dan al stil omdat er niemand is, de kabelbaan en de trein slapen zoals eerst.
 - **Wat de gasten missen:** in het overzicht bij de poort staat een vak met wat de gasten die nu in het park zijn missen, het meest gemiste bovenaan (hooguit zes): het plaatje van wat ze willen, hoeveel gasten, en een label. Oranje "erbij bouwen": er is nog geen kraam of gebouw voor. Blauw "niet te koop": de kraam is er wel, maar verkoopt dit niet. Rood "te druk": er staat een rij, er moet er een bij.
 - **Nog niet:** de nieuwe zin van de bouwer over de paal (`say.cable.path`) is nog niet ingesproken; tot dan praat hij op het klokje. Draai `node tools/voice/build.mjs all`.
+
+### De voeremmer van het aquarium (27 november)
+
+In een aquarium kon de voerder niet bij de voerbak. Nu wordt een voerbak in het water een voeremmer aan het glas: de voerder vult hem van buiten en de zeedieren zwemmen eronder om te eten. Zie 'De voeremmer van het aquarium' bij het aquarium. De twee nieuwe zinnen (`say.bucket.glass`, `say.bucket.new`) zijn nog niet ingesproken.
 
 ## De modellen onder Park mooier (28 november 2026)
 

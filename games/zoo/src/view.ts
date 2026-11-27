@@ -805,6 +805,27 @@ const SILO_GEO = painted(
 const SILO_ROOF_GEO = merge([cone(0.3, 0.24, 0, 1.02, -0.2), ball(0.04, 0, 1.15, -0.2)]);
 const SILO_TRAY_GEO = TROUGH_GEO.clone().scale(0.75, 0.8, 0.55).translate(0, 0, 0.26);
 const SILO_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5 });
+/**
+ * De voeremmer van het aquarium. Hij hangt aan de binnenkant van het glas (het glas ligt op z = -0.5, de bovenkant op
+ * 0,74): twee haken over de rand, een blauwe emmer met een witte rand en een hengsel net boven het water (0,42), en een
+ * glijgootje naar het water waar het voer in glijdt. De voerder schept er van buiten het voer in.
+ */
+const BUCKET_Z = -0.3;
+const BUCKET_GEO = painted(
+  // de haken: over de rand van het glas, aan de buitenkant een stukje omlaag en binnen naar de emmer
+  [0x8a8f98, ...[-0.12, 0.12].flatMap(x => [boxAt(0.035, 0.03, 0.2, x, 0.775, -0.5), boxAt(0.035, 0.1, 0.03, x, 0.73, -0.6), boxAt(0.035, 0.03, 0.12, x, 0.775, -0.38)])],
+  [0x3f8fd0, tube(0.17, 0.13, 0.26, 0, 0.6, BUCKET_Z)],
+  [0xf7f4ec, tube(0.185, 0.185, 0.035, 0, 0.735, BUCKET_Z), tube(0.135, 0.135, 0.03, 0, 0.48, BUCKET_Z)],
+  // twee lichte banden: zo zie je dat het een emmer is
+  [0x7fbde8, tube(0.158, 0.158, 0.025, 0, 0.64, BUCKET_Z)],
+  // het hengsel, rechtop boven de emmer
+  [0x6b7480, new THREE.TorusGeometry(0.17, 0.012, 4, 12, Math.PI).translate(0, 0.74, BUCKET_Z)],
+  // het glijgootje: van de voorkant van de emmer schuin omlaag naar het water
+  [0xffd23f, beam(0.05, [0, 0.62, BUCKET_Z + 0.16], [0, 0.46, BUCKET_Z + 0.38]), beam(0.016, [-0.045, 0.64, BUCKET_Z + 0.16], [-0.045, 0.48, BUCKET_Z + 0.38]), beam(0.016, [0.045, 0.64, BUCKET_Z + 0.16], [0.045, 0.48, BUCKET_Z + 0.38])],
+);
+/** Het donkere binnenkant van de emmer, waar het voer op ligt. */
+const BUCKET_INSIDE_GEO = new THREE.CylinderGeometry(0.16, 0.16, 0.01, 10).translate(0, 0.665, BUCKET_Z);
+const BUCKET_INSIDE_MAT = std(0x24557f, 0.8);
 const METAL = std(0x8a8f98, 0.6);
 const P_RED = std(0xe0584f), P_BLUE = std(0x4a90e2), P_YELLOW = std(0xffd23f, 0.6);
 /** Het licht van een lantaarn: overdag een zacht geel, 's nachts fel. */
@@ -4592,6 +4613,7 @@ export class View {
   private ghostFenceMesh = new THREE.Mesh(FENCE_GEO, this.ghostMat);
   private ghostGateMesh = new THREE.Mesh(GATE_GEO, this.ghostMat);
   private ghostTroughMesh = new THREE.Mesh(TROUGH_GEO, this.ghostMat);
+  private ghostBucketMesh = new THREE.Mesh(BUCKET_GEO, this.ghostMat);
   private ghostWallMesh = new THREE.Mesh(WALL_GEO, this.ghostMat);
   private ghostNetMesh = new THREE.Mesh(NET_GEO, this.ghostMat);
   private ghostGlassMesh = new THREE.Mesh(GLASS_FRAME_GEO, this.ghostMat);
@@ -4760,7 +4782,7 @@ export class View {
 
     this.ghostTileMesh.position.y = 0.012;
     this.ghostRing.position.y = 0.014;
-    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostWallMesh, this.ghostNetMesh, this.ghostGlassMesh, this.ghostWindowMesh, this.ghostPicketMesh, this.ghostPetgateMesh, this.ghostSafariGateMesh, this.ghostTroughMesh, ...Object.values(this.ghostBeds), ...Object.values(this.ghostToys), ...Object.values(this.ghostDecors), ...Object.values(this.ghostProps), ...Object.values(this.ghostShops), this.ghostTileMesh, this.ghostRing, this.ghostCableMesh];
+    this.ghosts = [this.ghostFenceMesh, this.ghostGateMesh, this.ghostWallMesh, this.ghostNetMesh, this.ghostGlassMesh, this.ghostWindowMesh, this.ghostPicketMesh, this.ghostPetgateMesh, this.ghostSafariGateMesh, this.ghostTroughMesh, this.ghostBucketMesh, ...Object.values(this.ghostBeds), ...Object.values(this.ghostToys), ...Object.values(this.ghostDecors), ...Object.values(this.ghostProps), ...Object.values(this.ghostShops), this.ghostTileMesh, this.ghostRing, this.ghostCableMesh];
     this.ghosts.push(this.ghostPylonMesh);
     for (const g of this.ghosts) {
       g.visible = false;
@@ -6410,7 +6432,14 @@ export class View {
   makeTrough(x: number, y: number, kind: TroughKind = 'wood', rot = 0): TroughMesh {
     const group = new THREE.Group();
     const food = new THREE.Group();
-    if (kind === 'silo') {
+    if (kind === 'bucket') {
+      const parts = [new THREE.Mesh(BUCKET_GEO, SILO_MAT), new THREE.Mesh(BUCKET_INSIDE_GEO, BUCKET_INSIDE_MAT)];
+      parts[0].castShadow = true;
+      // het voer ligt boven in de emmer: kleiner, en net boven de rand te zien
+      food.position.set(0, 0.6, BUCKET_Z);
+      food.scale.setScalar(0.62);
+      group.add(...parts, food);
+    } else if (kind === 'silo') {
       const parts = [new THREE.Mesh(SILO_GEO, SILO_MAT), new THREE.Mesh(SILO_ROOF_GEO, ROOF_MAT), new THREE.Mesh(SILO_TRAY_GEO, WOOD_MAT)];
       for (const m of parts) m.castShadow = true;
       shadeGroup(new THREE.Group().add(...parts));
@@ -6446,10 +6475,12 @@ export class View {
   fillTrough(mesh: TroughMesh, food: FoodId | null, amount: number): void {
     mesh.food.clear();
     if (!food) return;
-    const pieces = mesh.kind === 'silo' ? Math.ceil(amount / 4) : amount;
+    // in de emmer past een stukje per twee porties, in twee rijtjes van twee
+    const pieces = mesh.kind === 'silo' ? Math.ceil(amount / 4) : mesh.kind === 'bucket' ? Math.ceil(amount / 2) : amount;
     for (let i = 0; i < pieces; i++) {
       const piece = foodPiece(food);
-      piece.position.set(-0.255 + (i % 4) * 0.17, food === 'hay' ? 0.14 : 0.13, mesh.kind === 'big' ? (i < 4 ? -0.1 : 0.1) : 0);
+      if (mesh.kind === 'bucket') piece.position.set(-0.1 + (i % 2) * 0.2, 0.13 + Math.floor(i / 2) * 0.04, i < 2 ? -0.09 : 0.09);
+      else piece.position.set(-0.255 + (i % 4) * 0.17, food === 'hay' ? 0.14 : 0.13, mesh.kind === 'big' ? (i < 4 ? -0.1 : 0.1) : 0);
       piece.rotation.y = food === 'veg' || food === 'meat' ? (i % 2 ? 0.25 : -0.25) : 0;
       piece.traverse(o => { o.castShadow = true; });
       mesh.food.add(piece);
@@ -6795,11 +6826,13 @@ export class View {
     this.ghostTileMesh.visible = true;
   }
 
-  ghostTrough(x: number, y: number, ok: boolean, rot = 0): void {
+  /** `bucket`: het voorbeeld is de voeremmer aan het glas (in een aquarium). */
+  ghostTrough(x: number, y: number, ok: boolean, rot = 0, bucket = false): void {
     this.ghostMat.color.setHex(ok ? OK_COLOR : BAD_COLOR);
-    this.ghostTroughMesh.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
-    this.ghostTroughMesh.rotation.y = (rot * Math.PI) / 2;
-    this.ghostTroughMesh.visible = true;
+    const mesh = bucket ? this.ghostBucketMesh : this.ghostTroughMesh;
+    mesh.position.set(toWorldX(x + 0.5), 0, toWorldZ(y + 0.5));
+    mesh.rotation.y = (rot * Math.PI) / 2;
+    mesh.visible = true;
   }
 
   /** Doorzichtig dier op de tegel, met een ring in de kleur van jongen of meisje. */

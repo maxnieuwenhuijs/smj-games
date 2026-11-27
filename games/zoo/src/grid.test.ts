@@ -13,7 +13,9 @@ import { PETTABLE, PREY_OF, WISH_ORDER, huntersOf, scares } from './data';
 import { MURK, murkAfter, murkLoad, murkRate, murkyWater } from './data';
 import { guestCard, guestFacts, guestNames } from './traits';
 import { ATTRACTIONS, SHOW_ROUTINE, SHOW_STARS, SHOW_TIME, newShow, showFinale, showMoves, showReady, showSoon, showTick } from './data';
-import { glassSides } from './grid';
+import { bucketSides, glassSides, hangAt } from './grid';
+import { TROUGH, TROUGHS } from './data';
+import { ICON_IDS } from './icons';
 import { LOOKS, RIDES } from './data';
 import { STALLS } from './data';
 import { TOYS, herdOf, homeWorld } from './data';
@@ -888,5 +890,58 @@ describe('ontsnappen', () => {
     expect(FEATURE.guard).toBeGreaterThanOrEqual(FEATURE.escape);
     const texts = allLines(tr).map(l => l.text);
     expect(texts).toContain(tr('say.escaped.net', speciesVars(tr, 'monkey')));
+  });
+});
+
+describe('de voeremmer van het aquarium', () => {
+  /** Een bak van glas van (x0,y0) tot en met (x1,y1). */
+  const tank = (g: Grid, x0: number, y0: number, x1: number, y1: number): void => {
+    for (const e of fenceBox(g, x0, y0, x1, y1)) g.setEdge(e, 5);
+  };
+
+  it('hangt alleen aan een tegel tegen het glas, en weet waar de voerder buiten staat', () => {
+    const g = new Grid(FULL_LAND);
+    tank(g, 10, 10, 13, 12);
+    // midden in de bak: geen glas, dus geen plek voor een emmer
+    expect(bucketSides(g, 11, 11)).toEqual([]);
+    // tegen het glas aan de noordkant: de voerder staat op de tegel erboven
+    expect(bucketSides(g, 11, 10)).toEqual([{ rot: 0, out: tileIndex(11, 9) }]);
+    // in de hoek: twee kanten, noord en west
+    expect(bucketSides(g, 10, 10).map(s => s.rot)).toEqual([0, 1]);
+    // zuid en oost
+    expect(bucketSides(g, 13, 12)).toEqual([{ rot: 2, out: tileIndex(13, 13) }, { rot: 3, out: tileIndex(14, 12) }]);
+  });
+
+  it('hangt niet aan een houten hek, wel aan een kijkruit', () => {
+    const g = new Grid(FULL_LAND);
+    for (const e of fenceBox(g, 10, 10, 13, 12)) g.setEdge(e, 1);
+    expect(bucketSides(g, 11, 10)).toEqual([]);
+    g.setEdge({ o: 'h', x: 11, y: 10 }, 6);
+    expect(bucketSides(g, 11, 10).map(s => s.rot)).toEqual([0]);
+  });
+
+  it('niet aan glas tussen twee bakken: daar kan de voerder niet staan', () => {
+    const g = new Grid(FULL_LAND);
+    tank(g, 10, 10, 11, 12);
+    tank(g, 12, 10, 13, 12);
+    // de tegel (11, 11) heeft aan de oostkant glas, maar daarachter ligt de andere bak
+    expect(bucketSides(g, 11, 11)).toEqual([]);
+    expect(bucketSides(g, 11, 10).map(s => s.rot)).toEqual([0]);
+  });
+
+  it('de emmer hangt midden op de rand met het glas', () => {
+    expect(hangAt(4, 7, 0)).toEqual([4.5, 7]);
+    expect(hangAt(4, 7, 1)).toEqual([4, 7.5]);
+    expect(hangAt(4, 7, 2)).toEqual([4.5, 8]);
+    expect(hangAt(4, 7, 3)).toEqual([5, 7.5]);
+  });
+
+  it('staat niet in de rij met voerbakken, maar heeft wel een prijs, porties, een naam en een icoon', () => {
+    expect(TROUGHS).not.toContain('bucket');
+    expect(TROUGH.bucket.portions).toBeGreaterThan(TROUGH.wood.portions);
+    expect(TROUGH.bucket.from).toBeGreaterThanOrEqual(BONUS.dolphin!);
+    expect(nl['trough.bucket']).toBe('Voeremmer');
+    expect(en['trough.bucket']).toBeTruthy();
+    expect(ICON_IDS).toContain('trough_bucket');
   });
 });

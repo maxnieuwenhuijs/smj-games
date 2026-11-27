@@ -6548,6 +6548,8 @@ export interface KeeperTrough {
   y: number;
   food: string | null;
   amount: number;
+  /** Een voeremmer aan het glas van een aquarium (zie Trough in animal.ts): de voerder vult hem van buiten. */
+  hang?: [number, number];
 }
 export type WorkerRole = 'feed' | 'clean' | 'fix' | 'vet' | 'guide' | 'photo' | 'guard';
 /** Een ontsnapt dier dat de bewaker weer naar huis brengt. */
@@ -6584,6 +6586,8 @@ export interface WorkerWorld {
   /** Komt er op deze tegel een trein aan, of staat er een? Dan wacht een werker even voor hij het spoor oversteekt. */
   railShut(tile: number): boolean;
   workerFill(trough: KeeperTrough, food: FoodId): void;
+  /** De tegels waar de voerder kan staan om deze bak te vullen: naast de bak, of buiten tegen het glas bij een voeremmer. */
+  fillSpots(trough: KeeperTrough): number[];
   workerClean(mess: KeeperPoop): void;
   /** Deze klus is niet te bereiken: er zit geen poort in het hek. */
   noGate(gx: number, gy: number): void;
@@ -6950,11 +6954,12 @@ export class Worker implements Leader {
     if (this.role === 'feed') {
       const jobs = w.feedJobs().filter(j => !claimed.has(j.trough)).map(j => ({ ...j, at: [j.trough.x + 0.5, j.trough.y + 0.5] as [number, number] }));
       for (const j of near(jobs)) {
-        // naast de voerbak gaan staan, in het verblijf
-        const beside = new Set(w.grid.neighbors(tileIndex(j.trough.x, j.trough.y)).filter(i => w.walkable(i)));
+        // naast de voerbak gaan staan, in het verblijf; bij een voeremmer buiten, tegen het glas
+        const beside = new Set(w.fillSpots(j.trough));
         const route = beside.size ? this.routeTo(w, beside) : null;
         if (!route) {
-          w.noGate(j.at[0], j.at[1]);
+          // bij een emmer helpt een poort niet: de voerder kan er alleen van buiten bij
+          if (!j.trough.hang) w.noGate(j.at[0], j.at[1]);
           continue;
         }
         this.job = { key: j.trough, trough: j.trough, food: j.food };

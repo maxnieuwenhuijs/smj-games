@@ -27,7 +27,7 @@ import { CROSSING, FIREWORK, RAILS, SAFARI, TRAIN, TUBE, isRail } from './data';
 import { planRails, railLinks } from './rails';
 import { ESCAPE_WAY, escapeChance, escapeWay, pickEscaper, type EscapeWay } from './data';
 import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, nearestSpot, spotEdges, spotPos, spotTiles, tileIndex, tileXY, type Edge, type EdgeKind, type Region, type Side, type Spot } from './grid';
-import { glassSides } from './grid';
+import { bucketSides, glassSides, hangAt } from './grid';
 import { Hud, type GoalView, type ParkPanel, type ToolDef, type ToolOption } from './hud';
 import { ICON_IDS, cursor, icon, stacked, type IconId } from './icons';
 import { emptyStats, goalProgress, levelDone, pairKey, type Stats } from './levels';
@@ -112,7 +112,7 @@ const FEATHER: Partial<Record<SpeciesId, number>> = {
   duck: 0xd9cbb0, parrot: 0xe2412f, peacock: 0x2a6fb0, toucan: 0x2b2b2b, owl: 0xa07a52, flamingo: 0xf4a3b8,
 };
 const PAINT_TOOLS = new Set<ToolId>(['terrain', 'fence', 'erase', 'action']);
-const TROUGH_ICON: Record<TroughKind, IconId> = { wood: 'trough_empty', big: 'trough_big', silo: 'trough_silo' };
+const TROUGH_ICON: Record<TroughKind, IconId> = { wood: 'trough_empty', big: 'trough_big', silo: 'trough_silo', bucket: 'trough_bucket' };
 const ROLE_ICON: Record<WorkerRole, IconId> = { feed: 'feed', clean: 'broom', fix: 'hammer', vet: 'vet', guide: 'guide', photo: 'photo', guard: 'guard' };
 /** Vanaf wanneer je welk personeel kunt aannemen, en wie een karretje kan krijgen. */
 const STAFF_FROM: Record<WorkerRole, keyof typeof FEATURE> = { feed: 'keeper', clean: 'keeper', fix: 'wear', photo: 'photo', guide: 'guide', vet: 'vet', guard: 'guard' };
@@ -2261,6 +2261,16 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return !this.taken(x, y);
   }
 
+  /** Waar de voerder staat om deze bak te vullen: naast de bak, of bij een voeremmer buiten tegen het glas. */
+  fillSpots(trough: KeeperTrough): number[] {
+    const tr = trough as TroughObj;
+    if (tr.kind === 'bucket') {
+      const side = this.bucketSides(tr.x, tr.y).find(s => s.rot === tr.rot);
+      return side && this.walkable(side.out) ? [side.out] : [];
+    }
+    return this.grid.neighbors(tileIndex(tr.x, tr.y)).filter(i => this.walkable(i));
+  }
+
   workerFill(trough: KeeperTrough, food: FoodId): void {
     if (this.troughs.includes(trough as TroughObj)) this.keeperFill(trough, food);
   }
@@ -2820,9 +2830,54 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   private addTrough(x: number, y: number, food: FoodId | null, amount: number, kind: TroughKind = 'wood', rot = 0): TroughObj {
     const tr: TroughObj = { x, y, food, amount, kind, rot, mesh: this.view.makeTrough(x, y, kind, rot) };
+    if (kind === 'bucket') tr.hang = hangAt(x, y, rot);
     this.view.fillTrough(tr.mesh, food, amount);
     this.troughs.push(tr);
     return tr;
+  }
+
+  /**
+   * De kanten van tegel (x, y) waar een voeremmer aan het glas kan hangen (zie bucketSides in grid.ts), de beste kant
+   * eerst: waar de voerder buiten kan staan, en het liefst op een pad.
+   */
+  private bucketSides(x: number, y: number): { rot: number; out: number }[] {
+    const score = (i: number): number => (this.walkable(i) ? 2 : 0) + (isPath(this.grid.terrain[i]) ? 1 : 0);
+    return bucketSides(this.grid, x, y).sort((a, b) => score(b.out) - score(a.out));
+  }
+
+  /** De stand van een voeremmer op deze tegel: `want` als die kant glas heeft, anders de beste kant; null zonder glas. */
+  private bucketRot(x: number, y: number, want?: number): number | null {
+    const sides = this.bucketSides(x, y);
+    return sides.find(s => s.rot === want)?.rot ?? sides[0]?.rot ?? null;
+  }
+
+  /**
+   * Een voerbak in het water van een aquarium hangt als voeremmer aan het glas. Verandert het hek of het water, dan
+   * hangt de emmer aan een andere kant, of wordt hij weer een gewone bak als er geen glas meer is. Zo worden ook
+   * voerbakken uit een ouder spel, die in het water stonden, een emmer.
+   */
+  private fitBuckets(): void {
+    for (const tr of this.troughs) {
+      const wet = this.tankTiles.has(tileIndex(tr.x, tr.y));
+      // een bak die midden in het water staat (uit een ouder spel) schuift naar de dichtstbijzijnde vrije plek aan het glas
+      if (wet && tr.kind !== 'bucket' && this.bucketRot(tr.x, tr.y) === null) {
+        const region = this.grid.regionOf[tileIndex(tr.x, tr.y)];
+        const spots = [...this.tankTiles]
+          .map(i => tileXY(i))
+          .filter(([sx, sy]) => this.grid.regionOf[tileIndex(sx, sy)] === region && !this.taken(sx, sy) && this.bucketRot(sx, sy) !== null)
+          .sort((a, b) => Math.hypot(a[0] - tr.x, a[1] - tr.y) - Math.hypot(b[0] - tr.x, b[1] - tr.y));
+        if (spots.length) [tr.x, tr.y] = spots[0];
+      }
+      const rot = this.tankTiles.has(tileIndex(tr.x, tr.y)) ? this.bucketRot(tr.x, tr.y, tr.kind === 'bucket' ? tr.rot : undefined) : null;
+      if (rot === null ? tr.kind !== 'bucket' : tr.kind === 'bucket' && tr.rot === rot) continue;
+      this.view.scene.remove(tr.mesh.group);
+      tr.kind = rot === null ? 'wood' : 'bucket';
+      tr.rot = rot ?? 0;
+      tr.hang = rot === null ? undefined : hangAt(tr.x, tr.y, rot);
+      tr.amount = Math.min(tr.amount, TROUGH[tr.kind].portions);
+      tr.mesh = this.view.makeTrough(tr.x, tr.y, tr.kind, tr.rot);
+      this.view.fillTrough(tr.mesh, tr.food, tr.amount);
+    }
   }
 
   /** Wat er op deze tegel staat (palen en borden op een rand tellen niet: die nemen geen tegel in). */
@@ -3278,6 +3333,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
     this.tankTiles = new Set(tiles);
     this.view.syncTanks(tiles.map(i => tileXY(i)), TANK_WATER, murk);
+    this.fitBuckets();
   }
 
   /** Hoe vies het water in dit verblijf is; 0 als het geen bak van glas is. */
@@ -3487,7 +3543,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.grid.regionOf[i] !== this.grid.regionOf[home] || this.solid.has(i)) return false;
     if ((this.grid.terrain[i] === WATER) !== (this.grid.terrain[home] === WATER)) return false;
     // gewone lussen: dit loopt elk beeldje, en dan maken we liever niets nieuws aan
-    for (const tr of this.troughs) if (tr.x === x && tr.y === y) return false;
+    for (const tr of this.troughs) if (tr.x === x && tr.y === y && !tr.hang) return false;
     for (const b of this.beds) if (b.x === x && b.y === y) return false;
     for (const k of this.toys) if (k.x === x && k.y === y) return false;
     return true;
@@ -4068,7 +4124,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Mag er op deze tegel een dier staan? */
   private canHost(x: number, y: number, mover?: Animal): boolean {
     const region = this.grid.enclosureAt(x, y);
-    if (!region || this.troughAt(x, y)) return false;
+    if (!region || (this.troughAt(x, y) && !this.troughAt(x, y)!.hang)) return false;
     if ((this.penAt(x, y)?.closedUntil ?? 0) > this.clock) return false;
     return this.animalsIn(region.id).filter(a => a !== mover && !a.young).length < penCap(region);
   }
@@ -4076,11 +4132,23 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private placeTrough(x: number, y: number): void {
     const region = this.grid.enclosureAt(x, y);
     if (!region) return this.nope(x + 0.5, y + 0.5);
-    const kind = this.option.trough as TroughKind;
+    // in het water van een aquarium wordt het een voeremmer aan het glas: een bak zou zinken, en de voerder kan er
+    // dan niet bij. Midden in het water, waar geen glas is, kan dat niet.
+    const wet = this.tankTiles.has(tileIndex(x, y));
+    const kind: TroughKind = wet ? 'bucket' : (this.option.trough as TroughKind);
+    const rot = wet ? this.bucketRot(x, y, this.quarter) : this.quarter;
+    if (rot === null) {
+      this.nope(x + 0.5, y + 0.5);
+      return this.mention(say.bucketGlass(), 20);
+    }
     if (this.taken(x, y) || !this.pay(TROUGH[kind].price, x + 0.5, y + 0.5)) return;
     // de eerste voerbak in een verblijf is precies wat de dieren nodig hebben (groen); een bak extra is prima (geel)
     const first = !this.troughs.some(tr => this.grid.regionOf[tileIndex(tr.x, tr.y)] === region.id);
-    this.addTrough(x, y, null, 0, kind, this.quarter);
+    this.addTrough(x, y, null, 0, kind, rot);
+    if (wet && !this.told.has('bucket')) {
+      this.told.add('bucket');
+      this.lines.push(say.bucketNew());
+    }
     this.uncover(x, y);
     sfx('place');
     this.floatAt(icon('sparkle'), x + 0.5, y + 0.5);
@@ -5567,7 +5635,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         return this.hud.setCursor(CUR[this.option.fence]);
       }
       case 'trough':
-        if (free) this.view.ghostTrough(x, y, !!this.grid.enclosureAt(x, y), this.quarter);
+        if (free && this.tankTiles.has(tileIndex(x, y))) {
+          // in het water van een aquarium: het voorbeeld is de voeremmer, aan het glas waar hij komt te hangen
+          const rot = this.bucketRot(x, y, this.quarter);
+          this.view.ghostTrough(x, y, rot !== null, rot ?? this.quarter, true);
+        } else if (free) this.view.ghostTrough(x, y, !!this.grid.enclosureAt(x, y), this.quarter);
         return this.hud.setCursor(inside && this.troughAt(x, y) ? CUR.feed : CUR.trough);
       case 'bed':
         if (free) this.view.ghostBed(x, y, this.option.bed as BedKind, !!this.grid.enclosureAt(x, y), this.quarter);
@@ -5663,7 +5735,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
           this.view.ghostDecor(post.x + qx - 0.5, post.y + qy - 0.5, post.kind, false, undefined, post.rot ?? 0);
         }
         else if (e && this.grid.getEdge(e) !== 0) this.view.ghostFence(e, this.grid.getEdge(e), false);
-        else if (inside && this.troughAt(x, y)) this.view.ghostTrough(x, y, false, this.troughAt(x, y)!.rot ?? 0);
+        else if (inside && this.troughAt(x, y)) this.view.ghostTrough(x, y, false, this.troughAt(x, y)!.rot ?? 0, this.troughAt(x, y)!.kind === 'bucket');
         else if (inside && this.bedAt(x, y)) this.view.ghostBed(x, y, this.bedAt(x, y)!.kind, false, this.bedAt(x, y)!.rot ?? 0);
         else if (inside && this.toyAt(x, y)) this.view.ghostToy(x, y, this.toyAt(x, y)!.kind, false, this.toyAt(x, y)!.rot ?? 0);
         else if (inside && this.decorAt(x, y)) {

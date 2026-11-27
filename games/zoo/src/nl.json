@@ -94,6 +94,7 @@
   "trough.wood": "Houten bak",
   "trough.big": "Grote bak",
   "trough.silo": "Voersilo",
+  "trough.bucket": "Voeremmer",
   "tool.bed": "Slaapplek",
   "tool.shop": "Winkels",
   "tool.rides": "Attracties",
@@ -812,6 +813,8 @@
   "alert.dusty": "Dit dier is helemaal stoffig! Pak de slang bij Actie en was het lekker schoon.",
   "alert.murky": "Het water is vies! Tik met de veger op de bak, dan wordt het weer schoon.",
   "say.filter.tip": "Zet een waterfilter in de bak. Dan blijft het water veel langer schoon.",
+  "say.bucket.glass": "In het water zinkt een voerbak. Zet hem tegen het glas, dan wordt het een voeremmer.",
+  "say.bucket.new": "Een voeremmer aan het glas! Ik doe het voer er van buiten in, en de dieren zwemmen eronder om te eten.",
   "alert.wrongfood": "Dat lust {the} niet.",
 
   "host.first": "Daar zijn de eerste gasten!",

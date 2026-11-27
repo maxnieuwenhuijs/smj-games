@@ -320,6 +320,10 @@ export const say = {
   /** Een dier is helemaal stoffig: wassen met de slang. */
   dusty: (): Line => ({ who: 'keeper', mood: 'worried', key: 'alert.dusty' }),
   filterTip: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.filter.tip' }),
+  /** Een voerbak midden in het water van een aquarium: die moet tegen het glas, dan wordt het een voeremmer. */
+  bucketGlass: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.bucket.glass' }),
+  /** De eerste voeremmer aan het glas: de verzorger legt uit hoe hij werkt. */
+  bucketNew: (): Line => ({ who: 'keeper', mood: 'happy', key: 'say.bucket.new' }),
 };
 
 /** De uitleg bij elk spelletje van de dokter (vetgame.ts): de verzorger leest hem voor. */
@@ -441,7 +445,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(wishLine(tr, 'fun', 'pig', null, false, undefined, 'tyre'));
   add(say.keysNew());
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(), say.trainOld(), say.trainCrossing(), say.ridesBigger(),
-    say.dirty(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.dusty(), say.filterTip(), say.showWhere(), say.showFirst(),
+    say.dirty(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.dusty(), say.filterTip(), say.bucketGlass(), say.bucketNew(), say.showWhere(), say.showFirst(),
     say.cableOne(), say.cableWhere(), say.cableNeedPole(), say.cablePath(), say.cablePole(), say.tunnelWhere(), say.tunnelNew(), say.safariWhere(), say.fireworkWorld(), say.fireworkFinale(), say.cableFirst(), say.partyToday(), say.partyGong(), say.partyStart(), say.partyEnd(), say.treatNew(), say.treatFull(), say.treatSick(), say.hoseNew(), say.hoseMud(), say.leavesNew(), say.leavesJump(), say.snowNew(), say.snowman(), say.lampsNew(), say.lampsWave()]) add(line);
   for (const key of ['balloon', 'icecream', 'coin', 'thanks'] as const) add(say.kid(key));
   add(say.eventNew());

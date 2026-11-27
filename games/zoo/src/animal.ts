@@ -23,6 +23,11 @@ export interface Trough {
   y: number;
   food: string | null;
   amount: number;
+  /**
+   * Een voeremmer die aan het glas van een aquarium hangt: het punt op het glas waar hij hangt. Zo'n emmer neemt
+   * geen tegel in; de zeedieren zwemmen eronder en eten daar, met hun neus naar het glas.
+   */
+  hang?: [number, number];
 }
 
 export interface Toy {
@@ -285,7 +290,7 @@ function tint(c: THREE.Color, kind: Rare, floor: number): void {
 }
 
 /** Een tegel waar een dier niet overheen loopt: daar staat een voerbak, een boom of een rots. */
-const isTroughTile = (w: AnimalWorld, i: number): boolean => w.solidAt(i) || w.troughs.some(t => tileIndex(t.x, t.y) === i);
+const isTroughTile = (w: AnimalWorld, i: number): boolean => w.solidAt(i) || w.troughs.some(t => !t.hang && tileIndex(t.x, t.y) === i);
 
 export class Animal {
   readonly model: Spawned;
@@ -1861,7 +1866,7 @@ export class Animal {
     if (!w.grid.inBounds(x, y)) return false;
     const i = tileIndex(x, y);
     if (w.grid.regionOf[i] !== regionId || w.solidAt(i) || this.dry(w, i)) return false;
-    for (const t of w.troughs) if (t.x === x && t.y === y) return false;
+    for (const t of w.troughs) if (!t.hang && t.x === x && t.y === y) return false;
     return true;
   }
 
@@ -2431,7 +2436,7 @@ export class Animal {
       this.play('Poop');
       return;
     }
-    const isTrough = (i: number): boolean => w.troughs.some(t => tileIndex(t.x, t.y) === i) || this.dry(w, i);
+    const isTrough = (i: number): boolean => w.troughs.some(t => !t.hang && tileIndex(t.x, t.y) === i) || this.dry(w, i);
     const tame = this.tameIn(w, region.id);
     if (wasUp) {
       // eerst van de heuvel, de rotsen of het klimrek af
@@ -2446,7 +2451,8 @@ export class Animal {
         if ((trough.food !== food && !tame) || trough.amount <= 0) continue;
         const ti = tileIndex(trough.x, trough.y);
         if (w.grid.regionOf[ti] !== region.id) continue;
-        const spots = w.grid.neighbors(ti).filter(i => !isTrough(i));
+        // onder een voeremmer aan het glas zwemt het dier zelf; bij een bak gaat het ernaast staan
+        const spots = trough.hang ? [ti].filter(i => !isTrough(i)) : w.grid.neighbors(ti).filter(i => !isTrough(i));
         const spot = spots[Math.floor(Math.random() * spots.length)];
         const route = spot === undefined ? null : w.grid.path(this.tile, spot, isTrough);
         if (route) {
@@ -2898,7 +2904,8 @@ export class Animal {
       if (this.drinkAt && Math.random() < dt * 1.3) w.splash(this.drinkAt.x + 0.5, this.drinkAt.y + 0.5);
       if (this.mud && this.trick?.kind === 'roll' && Math.random() < dt * 2.5) w.splash(this.gx, this.gy);
       if (this.state === 'eat' && this.eatAt) {
-        this.turnTo(Math.atan2(this.eatAt.x + 0.5 - this.gx, this.eatAt.y + 0.5 - this.gy), dt);
+        const [fx, fy] = this.eatAt.hang ?? [this.eatAt.x + 0.5, this.eatAt.y + 0.5];
+        this.turnTo(Math.atan2(fx - this.gx, fy - this.gy), dt);
         if (this.timeLeft <= 0) {
           this.hunger = 0;
           if (!this.young) w.ate(this.eatAt);
