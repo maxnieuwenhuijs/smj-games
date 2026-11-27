@@ -45,13 +45,16 @@ const hash = (a: number, b: number): number => {
 
 // ------------------------------------------------------------ wat een toestel en een gast bijhouden
 /** De toestellen en attracties met een eigen bezoek (zie planVisit). De rest koopt aan een toonbank of heeft eigen regels. */
-export type RideKind = 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline' | 'fountain' | 'tower' | 'carousel' | 'bumper' | 'ferris' | 'restaurant';
+export type RideKind = 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline' | 'fountain' | 'tower' | 'carousel' | 'bumper' | 'ferris' | 'restaurant'
+  // de grote attracties van het eind: zweefmolen, schommelschip, luchtballon, wildwaterbaan en achtbaan
+  | 'swinger' | 'ship' | 'airballoon' | 'flume' | 'coaster';
 /**
  * Voor zoveel tegels is elk toestel gemaakt: [breed (langs de voorkant), diep]. SHOP_SIZE en SHOP_DEEP in data.ts
  * zeggen hetzelfde (rides.test.ts let daarop).
  */
 export const RIDE_SPAN: Record<RideKind, [number, number]> = {
   slide: [2, 3], swing: [2, 1], seesaw: [2, 1], springer: [1, 1], trampoline: [2, 2], fountain: [3, 3], tower: [2, 2], carousel: [3, 3], bumper: [4, 3], ferris: [8, 2], restaurant: [3, 2],
+  swinger: [4, 4], ship: [6, 2], airballoon: [3, 3], flume: [8, 3], coaster: [8, 4],
 };
 export const RIDE_KINDS = Object.keys(RIDE_SPAN) as RideKind[];
 export const isRide = (kind: ShopKind): kind is RideKind => (RIDE_KINDS as ShopKind[]).includes(kind);
@@ -90,6 +93,13 @@ export interface RideState {
   amps: number[];
   /** De botsauto's (alleen bij de botsauto's). */
   cars: BumperCar[];
+  /**
+   * Is het toestel wakker, van 0 tot 1? 's Nachts, als het park dicht is en iedereen slaapt, zakt dit langzaam naar 0:
+   * het rad en de draaimolen draaien uit, de botsauto's staan stil, de fontein zakt in en de schommels hangen stil.
+   */
+  wake: number;
+  /** Bij een ritje met een eigen ronde (zie lapStep): de klok van het toestel toen deze ronde begon. */
+  zero: number;
 }
 
 /** Wat het lijf van een gast op een toestel doet. Armen, benen en hoofd maakt people.ts erbij. */
@@ -380,12 +390,12 @@ function ferrisPose(out: RidePose, v: Visit, s: RideState, e: number): RidePose 
  * De draaimolen. De vloer draait: `r` is zijn straal en `deck` zijn hoogte. De paarden staan in ringen (`rings`:
  * straal, aantal en hoeveel de ring verdraaid staat); `aisle`: op die straal loop je tussen de ringen door.
  * `saddle`: de hoogte van het zadel midden in de slag; een paard gaat `bob` op en neer, `bobs` keer per rondje.
- * `speed`: radialen per tel op volle snelheid; zonder gasten draait hij op `idle` daarvan. Een ritje: `stop` tellen
+ * `speed`: radialen per tel op volle snelheid; zonder gasten staat hij stil. Een ritje: `stop` tellen
  * stilstaan (uit- en instappen), in `up` tellen op gang komen, `run` tellen draaien en in `down` tellen uitlopen.
  */
 export const CAROUSEL = {
   r: 1.36, deck: 0.2, rings: [{ r: 1.05, n: 6, turn: 0 }, { r: 0.52, n: 3, turn: 0.52 }], aisle: 0.79, saddle: 0.8, bob: 0.1, bobs: 3,
-  speed: 1.15, idle: 0.3, stop: 5, up: 1.5, run: 8, down: 2,
+  speed: 1.15, stop: 5, up: 1.5, run: 8, down: 2,
 };
 export const CAROUSEL_SEATS = CAROUSEL.rings.reduce((n, ring) => n + ring.n, 0);
 const CAROUSEL_CYCLE = CAROUSEL.stop + CAROUSEL.up + CAROUSEL.run + CAROUSEL.down;
@@ -523,7 +533,8 @@ export const newCars = (): BumperCar[] =>
 export function stepCars(cars: BumperCar[], dt: number, clock: number, power: number, drivers: number): void {
   const idle = drivers === 0, top = BUMPER.speed * (idle ? BUMPER.idle : 1), xr = BUMPER.ax - BUMPER.r, zr0 = BUMPER.z0 + BUMPER.r, zr1 = BUMPER.z1 - BUMPER.r;
   for (let i = 0; i < cars.length; i++) {
-    const car = cars[i], driven = power > 0 && (idle || (drivers >> i) & 1);
+    // alleen een auto met een bestuurder rijdt; de lege auto's staan stil (of rollen uit na een botsing)
+    const car = cars[i], driven = power > 0 && !idle && (drivers >> i) & 1;
     if (driven) {
       // een nieuw doel om de paar tellen, en meteen na een botsing: meestal ergens op de vloer, soms een andere auto
       const slot = Math.floor(clock / (2.1 + (i % 3) * 0.5) + i * 0.37) + car.turn * 7, pick = hash(i + 1, slot);
@@ -1151,11 +1162,415 @@ function restaurantPose(out: RidePose, v: Visit, e: number): RidePose {
   return out;
 }
 
+// ------------------------------------------------------------ ritjes met een eigen ronde
+// De zweefmolen, het schommelschip, de luchtballon, de wildwaterbaan en de achtbaan werken allemaal zo: het toestel
+// staat stil met de deur open tot er iemand komt. Dan is er `stop` tellen om in te stappen, daarna duurt het ritje
+// `run` tellen, en dan staat alles weer precies in rust. Zonder gasten begint er geen ritje.
+export type LapKind = 'swinger' | 'ship' | 'airballoon' | 'flume' | 'coaster';
+export const LAP_KINDS: LapKind[] = ['swinger', 'ship', 'airballoon', 'flume', 'coaster'];
+export const isLap = (kind: ShopKind): kind is LapKind => (LAP_KINDS as ShopKind[]).includes(kind);
+
+/**
+ * De zweefmolen (4 bij 4). `seats` stoeltjes hangen aan kettingen van `chain` lang aan een kap; in rust hangen ze op
+ * `r0` van de mast en zit de kap `top` hoog. Draait hij, dan gaat de kap `rise` omhoog en zwaaien de stoeltjes tot
+ * `lean` radialen naar buiten. `speed`: radialen per tel op volle snelheid. Een ritje: in `up` tellen op gang komen,
+ * `run` tellen draaien en in `down` tellen uitlopen. `walk`: op die straal loop je om de stoeltjes heen.
+ */
+export const SWINGER = { seats: 8, r0: 0.74, top: 2.15, rise: 0.75, chain: 1.55, lean: 0.8, speed: 1.9, stop: 7, up: 3.5, run: 9, down: 4, walk: 1.3 };
+/**
+ * Het schommelschip (6 bij 2). Het schip hangt aan een as op `pivot` hoogte: de zittingen `seatR` eronder, de kiel
+ * `hullR`. De banken staan op `rows` (x, in rust) en kijken naar het midden, met op elke bank twee plekken (`side`
+ * voor en achter het midden). Het zwaait tot `max` radialen, een keer heen en weer in `period` tellen: in `up`
+ * tellen steeds hoger, `run` tellen voluit en in `down` tellen weer tot stilstand. Het perron is `deck` hoog en
+ * ligt op `deckZ`.
+ */
+export const SHIP = { pivot: 3.05, seatR: 2.3, hullR: 2.55, rows: [-1.05, -0.45, 0.45, 1.05], side: 0.2, max: 0.9, period: 3.3, stop: 8, up: 7, run: 6.2, down: 6.6, deck: 0.5, deckZ: 0.74 };
+export const SHIP_SEATS = SHIP.rows.length * 2;
+/**
+ * De luchtballon (3 bij 3). In de mand staan vier gasten (`spots`, ten opzichte van het midden van de mand); de vloer
+ * van de mand is in rust `floor` hoog en stijgt aan het touw tot `high` daarboven. Boven drijft hij `drift` tegels
+ * heen en weer. Een ritje: `up` tellen stijgen, `run` tellen hangen en `down` tellen dalen. `step`: daar (z) stap je in.
+ */
+export const AIRBALLOON = { spots: [[-0.17, 0.17], [0.17, 0.17], [-0.17, -0.17], [0.17, -0.17]], floor: 0.3, high: 4.6, drift: 0.3, stop: 7, up: 6, run: 9, down: 6, step: 0.62 };
+
+/** Hoe lang je kunt instappen en hoe lang een ritje duurt; van de wildwaterbaan en de achtbaan staat `run` verderop (het volgt uit de baan). */
+export const LAP: Record<LapKind, { stop: number; run: number }> = {
+  swinger: { stop: SWINGER.stop, run: SWINGER.up + SWINGER.run + SWINGER.down },
+  ship: { stop: SHIP.stop, run: SHIP.up + SHIP.run + SHIP.down },
+  airballoon: { stop: AIRBALLOON.stop, run: AIRBALLOON.up + AIRBALLOON.run + AIRBALLOON.down },
+  flume: { stop: 9, run: 0 },
+  coaster: { stop: 9, run: 0 },
+};
+
+/** Zoveel tellen is het ritje bezig; 0 zolang het toestel stilstaat (instappen, of er is niemand). */
+export const lapTime = (kind: LapKind, s: RideState): number => (s.amp > 0 ? Math.max(0, Math.min(LAP[kind].run, s.clock - s.zero - LAP[kind].stop)) : 0);
+
+/** Van 0 naar 1 in `up` tellen, `run` tellen 1, en in `down` tellen terug naar 0; daarbuiten 0. */
+const hill = (t: number, up: number, run: number, down: number): number => (t <= 0 ? 0 : t < up ? ease(t / up) : t < up + run ? 1 : 1 - ease((t - up - run) / down));
+
+/** Een ronde verder: de klok van de ronde bijhouden en vertrekken zodra de instaptijd om is en er iemand meegaat. */
+function lapStep(kind: LapKind, s: RideState, dt: number, taken: boolean): void {
+  const lap = LAP[kind], total = lap.stop + lap.run;
+  if (s.clock - s.zero >= total) {
+    // het ritje is voorbij: alles staat weer in rust en de deur gaat open
+    s.zero += total;
+    s.amp = 0;
+  }
+  if (!s.amp) {
+    // niemand: het toestel wacht, en de instaptijd begint pas als de eerste gast komt
+    if (!taken) s.zero = s.clock;
+    else if (s.clock - s.zero >= lap.stop) s.amp = 1;
+  }
+  if (kind === 'swinger') s.spin = (s.spin + dt * SWINGER.speed * swingerGo(s)) % TAU;
+}
+
+// ---- de zweefmolen
+/** Hoe hard de zweefmolen draait, van 0 tot 1. */
+export const swingerGo = (s: RideState): number => hill(lapTime('swinger', s), SWINGER.up, SWINGER.run, SWINGER.down);
+/** Hoe ver stoeltje `seat` naar buiten zwaait (radialen): hoe harder hij draait, hoe verder, met een klein eigen wiebeltje. */
+export function swingerLean(seat: number, s: RideState): number {
+  const go = swingerGo(s);
+  return SWINGER.lean * Math.pow(go, 1.3) * (1 + 0.05 * Math.sin(s.clock * 1.9 + seat * 2.3));
+}
+/** Zo hoog zit de kap nu. */
+export const swingerTop = (s: RideState): number => SWINGER.top + SWINGER.rise * swingerGo(s);
+/** De hoek van stoeltje `seat` om de mast (0 = vooraan, oplopend naar rechts). */
+export const swingerAngle = (seat: number, spin: number): number => spin + ((seat % SWINGER.seats) * TAU) / SWINGER.seats;
+
+export function swingerSeat(out: RidePose, seat: number, s: RideState): RidePose {
+  const a = swingerAngle(seat, s.spin), lean = swingerLean(seat, s), r = SWINGER.r0 + SWINGER.chain * Math.sin(lean);
+  put(out, Math.sin(a) * r, swingerTop(s) - SWINGER.chain * Math.cos(lean), Math.cos(a) * r, a + Math.PI / 2, 'sit');
+  // het stoeltje hangt schuin: het hoofd naar de mast toe
+  out.roll = -lean;
+  out.on = true;
+  out.u = swingerGo(s);
+  out.w = (Math.cos(a) + 1) / 2;
+  return out;
+}
+
+/** De route van het pad naar stoeltje `seat`: om de stoeltjes heen en dan naar binnen, tot vlak naast het stoeltje. */
+function swingerWay(v: Visit, s: RideState): void {
+  const from = Math.atan2(v.fx, v.fz), a = swingerAngle(v.seat, s.spin), near = SWINGER.r0 + 0.26;
+  wayFrom(v.fx, 0, v.fz);
+  wayTo(Math.sin(from) * SWINGER.walk, 0, Math.cos(from) * SWINGER.walk);
+  wayArc(from, a, SWINGER.walk, 0);
+  wayTo(Math.sin(a) * near, 0, Math.cos(a) * near);
+}
+
+// ---- het schommelschip
+/** De hoek van het schip (radialen): plus is de rechterkant (+x) omhoog. */
+export function shipAngle(s: RideState): number {
+  const t = lapTime('ship', s);
+  return SHIP.max * hill(t, SHIP.up, SHIP.run, SHIP.down) * Math.sin((t * TAU) / SHIP.period);
+}
+
+export function shipSeat(out: RidePose, seat: number, s: RideState): RidePose {
+  const sx = SHIP.rows[Math.floor(seat / 2) % SHIP.rows.length], a = shipAngle(s), cos = Math.cos(a), sin = Math.sin(a);
+  put(out, sx * cos + SHIP.seatR * sin, SHIP.pivot + sx * sin - SHIP.seatR * cos, seat % 2 ? -SHIP.side : SHIP.side, sx < 0 ? Math.PI / 2 : -Math.PI / 2, 'sit');
+  // wie naar het midden kijkt, helt achterover als zijn kant omhoog gaat
+  out.pitch = sx < 0 ? a : -a;
+  out.on = true;
+  // hoe hoog deze bank nu is: 1 = helemaal bovenin
+  out.u = clamp01((Math.sign(sx) * a) / SHIP.max);
+  out.w = Math.abs(a) / SHIP.max;
+  return out;
+}
+
+/** De route van het pad naar bank `seat`: de trap op, over het perron tot voor de bank. */
+function shipWay(v: Visit): void {
+  const sx = SHIP.rows[Math.floor(v.seat / 2) % SHIP.rows.length];
+  wayIn(v, RIDE_SPAN.ship[0], RIDE_SPAN.ship[1], sx * 0.5, RIDE_SPAN.ship[1] / 2 + 0.04);
+  wayTo(sx * 0.5, SHIP.deck, SHIP.deckZ + 0.16);
+  wayTo(sx, SHIP.deck, SHIP.deckZ);
+}
+
+// ---- de luchtballon
+/** Waar de mand nu is: x, de hoogte van zijn vloer, z, hoe ver hij gedraaid is, en hoe hard de brander brandt (0 tot 1). Een gedeeld lijstje. */
+const BASKET = [0, 0, 0, 0, 0];
+export function balloonAt(s: RideState): number[] {
+  const t = lapTime('airballoon', s), B = AIRBALLOON, g = hill(t, B.up, B.run, B.down);
+  BASKET[0] = B.drift * g * Math.sin(t * 0.45);
+  BASKET[1] = B.floor + B.high * g + 0.06 * g * Math.sin(t * 1.3);
+  BASKET[2] = B.drift * g * Math.sin(t * 0.33 + 1);
+  BASKET[3] = 0.5 * g * Math.sin(t * 0.21);
+  // de brander: voluit bij het stijgen, af en toe een stoot terwijl hij hangt, uit bij het dalen
+  BASKET[4] = t <= 0 ? 0 : t < B.up ? 0.75 + 0.25 * Math.sin(t * 9) : t < B.up + B.run ? Math.max(0, Math.sin(t * 1.6)) ** 6 : 0;
+  return BASKET;
+}
+
+export function balloonSeat(out: RidePose, seat: number, s: RideState): RidePose {
+  const [sx, sz] = AIRBALLOON.spots[seat % AIRBALLOON.spots.length], [bx, bh, bz, turn] = balloonAt(s), cos = Math.cos(turn), sin = Math.sin(turn);
+  put(out, bx + sx * cos + sz * sin, bh, bz - sx * sin + sz * cos, Math.atan2(sx, sz) + turn, 'stand');
+  out.on = true;
+  out.u = clamp01((bh - AIRBALLOON.floor) / AIRBALLOON.high);
+  return out;
+}
+
+/** De route van het pad de mand in: naar het deurtje vooraan, de opstap op en naar je hoek. */
+function balloonWay(v: Visit): void {
+  const [sx, sz] = AIRBALLOON.spots[v.seat % AIRBALLOON.spots.length];
+  wayIn(v, RIDE_SPAN.airballoon[0], RIDE_SPAN.airballoon[1], 0, RIDE_SPAN.airballoon[1] / 2 - 0.1);
+  wayTo(0, 0, AIRBALLOON.step);
+  wayTo(0, AIRBALLOON.floor, 0.3);
+  wayTo(sx, AIRBALLOON.floor, sz);
+}
+
+// ---- een baan met een treintje (de wildwaterbaan en de achtbaan)
+/**
+ * Een gesloten baan: `n` punten (x, hoogte, z) op een rij, met bij elk punt hoe ver het van het begin is (`len`), na
+ * hoeveel tellen het treintje er is (`time`), hoe hard het daar gaat (`speed`) en hoe scheef het daar in de bocht
+ * hangt (`bank`, radialen). Het begin is de plek in het station waar de voorste wagen stilstaat.
+ */
+export interface Track {
+  n: number;
+  pts: Float32Array;
+  len: Float32Array;
+  time: Float32Array;
+  speed: Float32Array;
+  bank: Float32Array;
+  total: number;
+  run: number;
+}
+
+/**
+ * Maakt een baan door de punten van `ctrl` (x, hoogte, z en de snelheid daar), met vloeiende bochten ertussen.
+ * `per`: zoveel stukjes tussen twee punten. Het treintje trekt op uit stilstand en remt aan het eind weer af tot
+ * stilstand (`accel`). `lean`: hoe scheef het in de bochten hangt (0 = nooit).
+ */
+function makeTrack(ctrl: number[][], lean: number, per = 10, accel = 1.1): Track {
+  const m = ctrl.length, n = m * per, pts = new Float32Array((n + 1) * 3), raw = new Float32Array(n + 1);
+  const at = (i: number): number[] => ctrl[((i % m) + m) % m];
+  for (let i = 0; i < m; i++) {
+    const p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
+    for (let j = 0; j < per; j++) {
+      const t = j / per, k = (i * per + j) * 3;
+      for (let c = 0; c < 3; c++) pts[k + c] = 0.5 * (2 * p1[c] + (p2[c] - p0[c]) * t + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * t * t + (3 * p1[c] - p0[c] - 3 * p2[c] + p3[c]) * t * t * t);
+      raw[i * per + j] = p1[3] + (p2[3] - p1[3]) * t;
+    }
+  }
+  for (let c = 0; c < 3; c++) pts[n * 3 + c] = pts[c];
+  raw[n] = raw[0];
+  const len = new Float32Array(n + 1);
+  for (let i = 0; i < n; i++) len[i + 1] = len[i] + Math.hypot(pts[i * 3 + 3] - pts[i * 3], pts[i * 3 + 4] - pts[i * 3 + 1], pts[i * 3 + 5] - pts[i * 3 + 2]);
+  const total = len[n], speed = new Float32Array(n + 1), time = new Float32Array(n + 1), bank = new Float32Array(n + 1);
+  for (let i = 0; i <= n; i++) speed[i] = Math.min(raw[i], Math.sqrt(0.05 + 2 * accel * len[i]), Math.sqrt(0.05 + 2 * accel * (total - len[i])));
+  for (let i = 0; i < n; i++) time[i + 1] = time[i] + (len[i + 1] - len[i]) / ((speed[i] + speed[i + 1]) / 2);
+  // in een bocht hangt het treintje naar binnen: hoe scherper de bocht en hoe harder het gaat, hoe schever
+  const turnAt = (i: number): number => {
+    const a = ((i - 2 + n) % n) * 3, b = (i % n) * 3, c = ((i + 2) % n) * 3;
+    const h1 = Math.atan2(pts[b] - pts[a], pts[b + 2] - pts[a + 2]), h2 = Math.atan2(pts[c] - pts[b], pts[c + 2] - pts[b + 2]);
+    const far = Math.hypot(pts[c] - pts[a], pts[c + 2] - pts[a + 2]) / 2;
+    return far > 1e-4 ? turnTo(h1, h2) / far : 0;
+  };
+  const rough = new Float32Array(n + 1);
+  for (let i = 0; i <= n; i++) rough[i] = Math.max(-0.75, Math.min(0.75, -lean * turnAt(i) * speed[i % n] * speed[i % n]));
+  for (let i = 0; i <= n; i++) {
+    let sum = 0;
+    for (let k = -3; k <= 3; k++) sum += rough[(((i + k) % n) + n) % n];
+    bank[i] = sum / 7;
+  }
+  return { n, pts, len, time, speed, bank, total, run: time[n] };
+}
+
+/** Een punt op een baan: waar het is, welke kant de baan op gaat (een pijl van lengte 1), hoe scheef en hoe hard. */
+export interface TrackSpot {
+  x: number;
+  h: number;
+  z: number;
+  dx: number;
+  dh: number;
+  dz: number;
+  bank: number;
+  speed: number;
+}
+export const newSpot = (): TrackSpot => ({ x: 0, h: 0, z: 0, dx: 0, dh: 0, dz: 1, bank: 0, speed: 0 });
+
+/** Het hoeveelste punt van `list` het laatste is dat niet voorbij `value` ligt. */
+function lookup(list: Float32Array, n: number, value: number): number {
+  let lo = 0, hi = n;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (list[mid] <= value) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** Zet `out` op `d` tegels langs de baan (voorbij het eind begint hij weer vooraan, en voor het begin telt hij terug). */
+export function trackAt(out: TrackSpot, tr: Track, d: number): TrackSpot {
+  const at = ((d % tr.total) + tr.total) % tr.total, i = lookup(tr.len, tr.n, at), seg = tr.len[i + 1] - tr.len[i], t = seg > 1e-9 ? (at - tr.len[i]) / seg : 0;
+  const a = i * 3, b = a + 3, p = tr.pts;
+  out.x = lerp(p[a], p[b], t);
+  out.h = lerp(p[a + 1], p[b + 1], t);
+  out.z = lerp(p[a + 2], p[b + 2], t);
+  const k = 1 / (seg || 1);
+  out.dx = (p[b] - p[a]) * k;
+  out.dh = (p[b + 1] - p[a + 1]) * k;
+  out.dz = (p[b + 2] - p[a + 2]) * k;
+  out.bank = lerp(tr.bank[i], tr.bank[i + 1], t);
+  out.speed = lerp(tr.speed[i], tr.speed[i + 1], t);
+  return out;
+}
+
+/** Hoe ver de voorste wagen is, `t` tellen na het vertrek. */
+export function trackDist(tr: Track, t: number): number {
+  if (t <= 0) return 0;
+  if (t >= tr.run) return tr.total;
+  const i = lookup(tr.time, tr.n, t), seg = tr.time[i + 1] - tr.time[i];
+  return lerp(tr.len[i], tr.len[i + 1], seg > 1e-9 ? (t - tr.time[i]) / seg : 0);
+}
+
+/**
+ * De wildwaterbaan (8 bij 3). Drie boomstammen (`cars`) varen achter elkaar, `gap` uit elkaar, met in elke stam twee
+ * gasten achter elkaar (`tandem` voor en achter het midden). `seat`: zo hoog boven de bodem van de goot zit je.
+ * Het perron is `deck` hoog en ligt op `deckZ`; de goot in het station ligt op `stationZ`. `splash`: daar (x) komt
+ * de stam beneden in het water. `water`: zo diep staat het water in de goot. `top`: zo hoog is de goot bovenin.
+ */
+export const FLUME = { cars: 3, per: 2, gap: 0.82, seat: 0.1, tandem: 0.16, deck: 0.2, deckZ: 1.27, stationZ: 0.85, splash: 1.0, water: 0.09, top: 2.9 };
+/**
+ * De achtbaan (8 bij 4). Drie karretjes (`cars`), `gap` uit elkaar, met in elk karretje twee gasten naast elkaar
+ * (`side` uit het midden). `seat`: zo hoog boven de rails zit je. Het perron is `deck` hoog en ligt op `deckZ`; het
+ * station ligt op `stationZ`. `top`: het hoogste punt van de baan.
+ */
+export const COASTER = { cars: 3, per: 2, gap: 0.6, seat: 0.17, side: 0.12, deck: 0.3, deckZ: 1.72, stationZ: 1.3, top: 3.72 };
+
+// de goot: het station vooraan (naar links), de bocht om, achterlangs de lift op, bovenlangs de bocht om, en dan de
+// glijbaan af het water in en uitdrijven tot het station
+const FLUME_TRACK = makeTrack([
+  [-2.3, 0.16, 0.85, 1.0], [-2.9, 0.16, 0.85, 1.1],
+  [-3.6, 0.16, 0.6, 1.1], [-3.85, 0.16, 0, 1.1], [-3.6, 0.16, -0.6, 1.1], [-3.0, 0.18, -0.85, 1.0],
+  [-2.0, 0.5, -0.85, 0.85], [-0.7, 1.25, -0.85, 0.85], [0.6, 2.0, -0.85, 0.85], [1.9, 2.7, -0.85, 0.85], [2.7, FLUME.top, -0.85, 0.9],
+  [3.6, FLUME.top, -0.6, 1.0], [3.85, FLUME.top, 0, 1.0], [3.6, FLUME.top, 0.6, 1.1], [3.0, 2.85, 0.85, 1.4],
+  [2.3, 1.9, 0.85, 3.0], [1.6, 0.8, 0.85, 4.2], [FLUME.splash, 0.2, 0.85, 4.4], [0.3, 0.14, 0.85, 2.4], [-0.5, 0.16, 0.85, 1.4], [-1.4, 0.16, 0.85, 1.1],
+], 0);
+// de rails: het station vooraan (naar links), de grote bocht om, achterlangs de ketting op, bovenin de bocht om, de
+// grote afdaling en een hoge heuvel, een krappe bocht, drie hupjes terug, de laatste bocht en remmen tot het station
+const COASTER_TRACK = makeTrack([
+  [-0.9, 0.35, 1.3, 1.2], [-1.7, 0.35, 1.3, 1.6],
+  [-3.125, 0.4, 0.875, 1.8], [-3.55, 0.5, -0.15, 1.8], [-3.125, 0.6, -1.175, 1.6], [-2.1, 0.7, -1.6, 1.2],
+  [-0.9, 1.45, -1.6, 1.0], [0.4, 2.3, -1.6, 1.0], [1.7, 3.15, -1.6, 1.0], [2.6, 3.65, -1.6, 1.1],
+  [3.236, COASTER.top, -1.461, 1.3], [3.375, 3.7, -1.125, 1.4], [3.236, 3.62, -0.789, 1.6], [2.8, 3.4, -0.65, 2.0],
+  [2.0, 2.1, -0.65, 3.6], [1.2, 0.75, -0.65, 4.6], [0.5, 0.45, -0.65, 4.8],
+  [-0.5, 1.5, -0.65, 3.6], [-1.2, 1.9, -0.65, 3.0], [-1.8, 1.4, -0.65, 3.6], [-2.3, 1.0, -0.65, 3.9],
+  [-2.654, 0.9, -0.504, 3.6], [-2.8, 0.85, -0.15, 3.4], [-2.654, 0.82, 0.204, 3.4], [-2.3, 0.8, 0.35, 3.4],
+  [-1.5, 1.35, 0.35, 2.9], [-0.7, 0.7, 0.35, 3.3], [0.1, 1.25, 0.35, 2.8], [0.9, 0.65, 0.35, 3.1], [1.7, 1.0, 0.35, 2.7], [2.5, 0.6, 0.35, 2.6],
+  [3.236, 0.52, 0.489, 2.4], [3.375, 0.45, 0.825, 2.2], [3.236, 0.4, 1.161, 2.0], [2.9, 0.36, 1.3, 1.8],
+  [2.0, 0.35, 1.3, 1.5], [1.0, 0.35, 1.3, 1.2], [0.0, 0.35, 1.3, 1.0],
+], 0.055);
+LAP.flume.run = FLUME_TRACK.run;
+/** Zo ver langs de goot duiken de boomstammen het water in (voor de plons en het geluid). */
+export const FLUME_SPLASH_AT = ((): number => {
+  for (let i = Math.floor(FLUME_TRACK.n * 0.6); i < FLUME_TRACK.n; i++) if (FLUME_TRACK.pts[i * 3] <= FLUME.splash) return FLUME_TRACK.len[i];
+  return FLUME_TRACK.total * 0.8;
+})();
+LAP.coaster.run = COASTER_TRACK.run;
+export const trackOf = (kind: 'flume' | 'coaster'): Track => (kind === 'flume' ? FLUME_TRACK : COASTER_TRACK);
+
+/** Waar wagen (of boomstam) `car` nu is: de voorste op de plek van het treintje, de volgende steeds `gap` erachter. */
+export function trainCar(out: TrackSpot, kind: 'flume' | 'coaster', car: number, s: RideState, shift = 0): TrackSpot {
+  const tr = trackOf(kind);
+  return trackAt(out, tr, trackDist(tr, lapTime(kind, s)) - car * (kind === 'flume' ? FLUME.gap : COASTER.gap) + shift);
+}
+
+const SPOT = newSpot();
+/** Waar een gast op plek `seat` zit: in de boomstam achter elkaar, in het karretje naast elkaar. */
+export function trainSeat(out: RidePose, kind: 'flume' | 'coaster', seat: number, s: RideState): RidePose {
+  const flume = kind === 'flume', car = Math.floor(seat / 2) % (flume ? FLUME.cars : COASTER.cars), second = seat % 2 === 1;
+  const p = trainCar(SPOT, kind, car, s, flume ? (second ? -FLUME.tandem : FLUME.tandem) : 0), flat = Math.hypot(p.dx, p.dz) || 1;
+  const face = Math.atan2(p.dx, p.dz), side = flume ? 0 : (second ? -1 : 1) * COASTER.side, up = flume ? FLUME.seat : COASTER.seat;
+  // (opzij is dwars op de baan; in een scheve bocht zit de ene gast wat hoger dan de andere)
+  put(out, p.x + (p.dz / flat) * side * Math.cos(p.bank), p.h + up * flat + side * Math.sin(p.bank), p.z - (p.dx / flat) * side * Math.cos(p.bank), face, 'sit');
+  out.pitch = -Math.asin(Math.max(-1, Math.min(1, p.dh)));
+  out.roll = p.bank;
+  out.on = true;
+  // hoe spannend het nu is: steil naar beneden en hard
+  out.u = clamp01(-p.dh * 1.5 + (p.speed - 3) * 0.3);
+  out.w = clamp01(p.speed / 4.8);
+  return out;
+}
+
+const SCRATCH_SEAT = newPose();
+/** De route van het pad naar je plek op het perron, naast je zitje. */
+function trainWay(v: Visit, kind: 'flume' | 'coaster', s: RideState): void {
+  const flume = kind === 'flume', [w, d] = RIDE_SPAN[kind], deck = flume ? FLUME.deck : COASTER.deck, z = flume ? FLUME.deckZ : COASTER.deckZ;
+  const x = trainSeat(SCRATCH_SEAT, kind, v.seat, s).x;
+  wayIn(v, w, d, x, d / 2 + 0.03);
+  wayTo(x, deck, z + 0.12);
+  wayTo(x, deck, z);
+}
+
+// ---- instappen, meerijden en uitstappen: voor alle vijf hetzelfde
+/** Het zitje zelf. */
+function lapSeat(out: RidePose, kind: LapKind, seat: number, s: RideState): RidePose {
+  return kind === 'swinger' ? swingerSeat(out, seat, s) : kind === 'ship' ? shipSeat(out, seat, s) : kind === 'airballoon' ? balloonSeat(out, seat, s) : trainSeat(out, kind, seat, s);
+}
+/** De route van het pad tot naast het zitje (in de ballon: tot op je plek). */
+function lapWay(v: Visit, s: RideState): void {
+  const kind = v.kind as LapKind;
+  if (kind === 'swinger') swingerWay(v, s);
+  else if (kind === 'ship') shipWay(v);
+  else if (kind === 'airballoon') balloonWay(v);
+  else trainWay(v, kind, s);
+}
+export const LAP_SEATS: Record<LapKind, number> = { swinger: SWINGER.seats, ship: SHIP_SEATS, airballoon: AIRBALLOON.spots.length, flume: FLUME.cars * FLUME.per, coaster: COASTER.cars * COASTER.per };
+
+function lapPlan(v: Visit, s: RideState, used: number): boolean {
+  const kind = v.kind as LapKind, lap = LAP[kind], c = s.clock - s.zero;
+  // het ritje is bezig, of het vertrekt zo: dan wacht je in de rij op het volgende
+  if (s.amp > 0 || c >= lap.stop) return false;
+  // het vrije zitje waar je het kortst voor loopt
+  let best = -1, least = Infinity;
+  for (let seat = 0; seat < LAP_SEATS[kind]; seat++) {
+    if (used & (1 << seat)) continue;
+    v.seat = seat;
+    lapWay(v, s);
+    const len = wayLength();
+    if (len < least) {
+      best = seat;
+      least = len;
+    }
+  }
+  if (best < 0) return false;
+  v.seat = best;
+  v.walk = walkInTime(least, lap.stop - c - 0.2);
+  if (v.walk < 0) return false;
+  v.wait = lap.stop - c - v.walk;
+  v.ride = lap.run + offDelay(best);
+  // (de zweefmolen staat straks ergens anders stil: reken daar op het langste eind lopen)
+  v.back = SIT_TIME + (kind === 'swinger' ? Math.hypot(v.fx, v.fz) + Math.PI * SWINGER.walk + 0.6 : least) / RIDE_WALK + 0.4;
+  return true;
+}
+
+const LAP_SIDE = newPose();
+function lapPose(out: RidePose, v: Visit, s: RideState, e: number): RidePose {
+  const kind = v.kind as LapKind, leave = v.walk + v.wait + v.ride;
+  if (e >= v.walk && e < leave) return lapSeat(out, kind, v.seat, s);
+  if (e < v.walk - SIT_TIME) {
+    lapWay(v, s);
+    wayAt(out, (e / (v.walk - SIT_TIME)) * wayLength());
+    return out;
+  }
+  if (e < v.walk || e < leave + SIT_TIME) {
+    // instappen of uitstappen: van naast het zitje erop, of andersom
+    lapWay(v, s);
+    wayAt(LAP_SIDE, 1e9);
+    const sx = LAP_SIDE.x, sh = LAP_SIDE.h, sz = LAP_SIDE.z, sf = LAP_SIDE.face;
+    lapSeat(out, kind, v.seat, s);
+    hopOn(out, sx, sh, sz, sf, e < v.walk ? (e - (v.walk - SIT_TIME)) / SIT_TIME : 1 - (e - leave) / SIT_TIME);
+    out.on = false;
+    return out;
+  }
+  lapWay(v, s);
+  out.done = wayAt(out, (e - leave - SIT_TIME) * RIDE_WALK, true);
+  return out;
+}
+
 // ------------------------------------------------------------ alles bij elkaar
 /** Hoeveel gasten er tegelijk op of in kunnen. */
 export const RIDE_SEATS: Record<RideKind, number> = {
   slide: SLIDE.slots, swing: SWINGSET.seats, seesaw: SEESAW.seats, springer: SPRINGER.seats, trampoline: TRAMPOLINE.seats, fountain: FOUNTAIN.spread.length,
   tower: TOWER.spots.length, carousel: CAROUSEL_SEATS, bumper: BUMPER.cars, ferris: FERRIS.cabins * FERRIS.per, restaurant: RESTAURANT.tables.length * 2,
+  ...LAP_SEATS,
 };
 
 const SCRATCH = newPose();
@@ -1187,7 +1602,8 @@ export function planVisit(kind: RideKind, s: RideState, used: number, fx: number
   v.fz = fz;
   v.t0 = s.clock;
   v.walk = v.wait = v.ride = v.back = 0;
-  const ok = kind === 'ferris' ? ferrisPlan(v, s, used)
+  const ok = isLap(kind) ? lapPlan(v, s, used)
+    : kind === 'ferris' ? ferrisPlan(v, s, used)
     : kind === 'carousel' ? carouselPlan(v, s, used)
     : kind === 'bumper' ? bumperPlan(v, s, used)
     : kind === 'fountain' ? fountainPlan(v, used)
@@ -1205,7 +1621,8 @@ export function planVisit(kind: RideKind, s: RideState, used: number, fx: number
  */
 export function visitPose(out: RidePose, v: Visit, s: RideState): RidePose {
   const e = Math.max(0, s.clock - v.t0), kind = v.kind;
-  if (kind === 'ferris') ferrisPose(out, v, s, e);
+  if (isLap(kind)) lapPose(out, v, s, e);
+  else if (kind === 'ferris') ferrisPose(out, v, s, e);
   else if (kind === 'carousel') carouselPose(out, v, s, e);
   else if (kind === 'bumper') bumperPose(out, v, s, e);
   else if (kind === 'fountain') fountainPose(out, v, e);
@@ -1220,6 +1637,7 @@ export function visitPose(out: RidePose, v: Visit, s: RideState): RidePose {
 
 /** Alleen het zitje zelf, zonder het lopen ernaartoe: waar iemand op zitje `seat` nu zit. Voor wie zelf meerijdt. */
 export function seatPose(out: RidePose, kind: RideKind, seat: number, s: RideState): RidePose {
+  if (isLap(kind)) return lapSeat(out, kind, seat, s);
   if (kind === 'ferris') return ferrisSeat(out, seat, s);
   if (kind === 'carousel') return carouselSeat(out, seat, s);
   if (kind === 'bumper') return bumperSeat(out, seat, s);
@@ -1237,8 +1655,11 @@ export function seatPose(out: RidePose, kind: RideKind, seat: number, s: RideSta
 
 /** Een nieuw toestel: de klok op nul, alles in rust. */
 export function newRide(kind: ShopKind): RideState {
-  return { clock: 0, spin: 0, amp: 0, amps: [], cars: kind === 'bumper' ? newCars() : [] };
+  return { clock: 0, spin: 0, amp: 0, amps: [], cars: kind === 'bumper' ? newCars() : [], wake: 1, zero: 0 };
 }
+
+/** Zoveel tellen duurt het voor een toestel 's nachts stil valt, of 's ochtends weer helemaal op gang is. */
+export const RIDE_WAKE = 8;
 
 /** Hoe snel de speeltoestellen heen en weer gaan (radialen per tel). */
 const PLAY_SPEED: Partial<Record<ShopKind, number>> = { swing: SWINGSET.speed, seesaw: SEESAW.speed, springer: SPRINGER.speed, trampoline: TRAMPOLINE.speed };
@@ -1253,16 +1674,25 @@ function nudge(s: RideState, i: number, to: number, rate: number, from = 0): voi
  * Het toestel een beeldje verder: `dt` tellen. `aboard`: op welke zitjes nu echt iemand zit (een bit per zitje);
  * daarmee gaat een bezet zitje flink heen en weer en wiegt een leeg zitje alleen wat, draait de draaimolen op
  * volle snelheid en rijden de botsauto's echt. De klok loopt altijd gewoon door.
+ * `rest`: het park is dicht en iedereen slaapt. Zit er niemand meer op, dan valt het toestel langzaam stil (zie
+ * `wake`); 's ochtends komt het net zo rustig weer op gang. Een toestel waar niemand op zit, staat stil: het beweegt
+ * alleen met gasten erop. `used`: de zitjes die bezet zijn of waar een gast naartoe loopt (het reuzenrad draait al
+ * zodra er iemand op weg is, want de gast stapt in als zijn bakje langs het perron komt).
  */
-export function rideStep(kind: ShopKind, s: RideState, dt: number, aboard: number): void {
+export function rideStep(kind: ShopKind, s: RideState, dt: number, aboard: number, rest = false, used = aboard): void {
   s.clock += dt;
   const busy = aboard !== 0;
-  if (kind === 'ferris') {
-    // het reuzenrad draait altijd rustig rond; een bakje met gasten slingert wat meer
-    s.spin = (s.spin + dt * FERRIS.speed) % TAU;
+  // in zo'n acht tellen uit of aan
+  s.wake = Math.max(0, Math.min(1, (s.wake ?? 1) + (rest && !busy ? -dt : dt) / RIDE_WAKE));
+  if (isLap(kind)) lapStep(kind, s, dt, (aboard | used) !== 0);
+  else if (kind === 'ferris') {
+    // het reuzenrad draait rustig rond zodra er iemand op of naartoe gaat (meteen op snelheid: de gast rekent erop),
+    // en draait leeg in een paar tellen uit; een bakje met gasten slingert wat meer
+    s.amp = (used | aboard) !== 0 ? 1 : Math.max(0, s.amp - dt / 2.5);
+    s.spin = (s.spin + dt * FERRIS.speed * s.amp) % TAU;
     for (let c = 0; c < FERRIS.cabins; c++) nudge(s, c, (aboard >> (c * FERRIS.per)) & 3 ? 1 : 0, dt * 1.5);
   } else if (kind === 'carousel') {
-    s.amp += ((busy ? 1 : CAROUSEL.idle) - s.amp) * Math.min(1, dt * 1.2);
+    s.amp += ((busy ? 1 : 0) - s.amp) * Math.min(1, dt * 1.2);
     s.spin = (s.spin + dt * CAROUSEL.speed * s.amp * cycleSpeed(s.clock % CAROUSEL_CYCLE, CAROUSEL.stop, CAROUSEL.up, CAROUSEL.run, CAROUSEL.down)) % TAU;
   } else if (kind === 'bumper') {
     const c = s.clock % BUMPER_CYCLE;
@@ -1274,8 +1704,8 @@ export function rideStep(kind: ShopKind, s: RideState, dt: number, aboard: numbe
     // speeltoestellen wiegen zachtjes als er niemand op zit en gaan flink heen en weer met een kind erop
     // (de hoek loopt door tot dertig rondjes: dan passen ook de halve en de driedubbele slagen precies)
     s.spin = (s.spin + dt * PLAY_SPEED[kind]!) % (TAU * 30);
-    s.amp += ((busy ? 1 : 0.12) - s.amp) * Math.min(1, dt * 2.5);
-    const seats = RIDE_SEATS[kind as RideKind], calm = kind === 'trampoline' ? 0 : 0.12;
+    s.amp += ((busy ? 1 : 0) - s.amp) * Math.min(1, dt * 2.5);
+    const seats = RIDE_SEATS[kind as RideKind], calm = 0;
     for (let i = 0; i < seats; i++) nudge(s, i, (aboard >> i) & 1 ? 1 : calm, dt * 2.5, calm);
   }
 }
@@ -1284,12 +1714,14 @@ export function rideStep(kind: ShopKind, s: RideState, dt: number, aboard: numbe
 export function rideRunning(kind: ShopKind, s: RideState): boolean {
   if (kind === 'carousel') return s.clock % CAROUSEL_CYCLE >= CAROUSEL.stop;
   if (kind === 'bumper') return s.clock % BUMPER_CYCLE >= BUMPER.stop;
+  if (isLap(kind)) return s.amp > 0;
   return false;
 }
 
 /** Hoe hoog een toestel ongeveer is, in tegels: zo kun je er ook op tikken waar het boven zijn tegels uitsteekt (zie tallShopUnder in game.ts). */
 export const RIDE_TOP: Partial<Record<ShopKind, number>> = {
   ferris: FERRIS.hub + FERRIS.radius + 0.2, tower: TOWER.top + 1.9, carousel: 3.1, bumper: 2.4, slide: 3, fountain: 2.2, swing: 1.7, restaurant: 1.7,
+  swinger: SWINGER.top + 1.3, ship: SHIP.pivot + 0.5, airballoon: 3.2, flume: FLUME.top + 0.5, coaster: COASTER.top + 0.4,
 };
 
 /**
@@ -1300,4 +1732,8 @@ export const RIDE_GLOW: Partial<Record<ShopKind, [number, number, number, number
   ferris: [[0, FERRIS.hub, 0, 2.75]],
   tower: [[0, TOWER.top + 0.5, 0, 1.3]],
   carousel: [[0, 1.9, 0, 1.5]],
+  swinger: [[0, 2.6, 0, 1.9]],
+  ship: [[0, SHIP.pivot, 0, 1.8]],
+  flume: [[2.9, FLUME.top + 0.3, 0, 1.4], [-2.6, 1, 0, 1.3]],
+  coaster: [[2.9, COASTER.top, -1.1, 1.5], [-2.6, 1.2, 0, 1.6], [0.5, 1.2, 0, 1.6]],
 };

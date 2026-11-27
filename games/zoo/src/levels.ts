@@ -39,6 +39,10 @@ export interface Stats {
   toyKinds: number;
   /** Blije dieren per wereld. */
   happyWorld: Record<string, number>;
+  /** Hoeveel gasten er in dit level een ritje maakten, per soort attractie. */
+  rode: Record<string, number>;
+  /** Hoeveel tegels glazen tunnel er liggen. */
+  tunnels: number;
 }
 
 /** De naam waaronder een tweetal soorten in `Stats.together` staat: op alfabet, zodat de volgorde niet uitmaakt. */
@@ -48,7 +52,7 @@ export function emptyStats(): Stats {
   return {
     enclosures: 0, troughs: 0, beds: 0, paths: 0, guests: 0, coins: 0, shops: {}, animals: {}, happy: {},
     happyAll: 0, kinds: 0, fed: 0, cleaned: 0, born: 0, healed: 0, caught: 0, keepers: 0, tidied: 0, sold: {}, soldAt: {}, soldAll: 0,
-    young: {}, together: {}, toyKinds: 0, happyWorld: {},
+    young: {}, together: {}, toyKinds: 0, happyWorld: {}, rode: {}, tunnels: 0,
   };
 }
 
@@ -62,6 +66,8 @@ export function goalProgress(goal: Goal, s: Stats): number {
     case 'guests': value = s.guests; break;
     case 'coins': value = s.coins; break;
     case 'shop': value = s.shops[goal.shop ?? ''] ?? 0; break;
+    case 'rode': value = s.rode[goal.shop ?? ''] ?? 0; break;
+    case 'tunnel': value = s.tunnels; break;
     case 'animals': value = s.animals[goal.species ?? ''] ?? 0; break;
     case 'happy': value = s.happy[goal.species ?? ''] ?? 0; break;
     case 'fed': value = s.fed; break;

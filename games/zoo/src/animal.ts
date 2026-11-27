@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { dusty } from './care';
 import {
   ALSO, AQUATIC, CLIMATE, MIX_TILES, MUD_LOVERS, PETTABLE, TANK_WATER, TOY_DRINK, TOY_LIFT, type Nature, type Rare, type Terrain, type ToyKind,
-  MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, WISH_ORDER, herdOf, palsOf, scares, wildRange, WILD_KINDS, type PropGroup, type WildKind, type FenceNeed, type SpeciesId, type Variant, type WishId, type EscapeWay,
+  MAX_POOPS_CLEAN, SPACE, SPECIES, TERRAINS, WISH_ORDER, herdOf, palsOf, scares, spaceNeed, wildRange, WILD_KINDS, type PropGroup, type WildKind, type FenceNeed, type SpeciesId, type Variant, type WishId, type EscapeWay,
 } from './data';
 import { CLIMB_SECONDS, PUSH, ROCK_SECONDS, SWING, SWING_SECONDS, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, swingAt, toyGap, wishOrder, type Beat, type ShowMove } from './data';
 import { MURK, murkyWater } from './data';
@@ -159,6 +159,8 @@ const BED_LIFT: Record<string, number> = { straw: 0.1, shed: 0.1, rock: 0.22, ne
 /** Tot deze hoogte ligt het schaduwvlekje op de slaapplek; wie hoger zit (een schommel, een paal), heeft het op de grond. */
 const BLOB_PERCH = 0.25;
 const WATER_TILE = TERRAINS.indexOf('water');
+/** Ligt hier water? Ook boven de glazen tunnel in een bak staat water: daar zwemmen de dieren gewoon overheen. */
+const wet = (w: AnimalWorld, tile: number): boolean => w.grid.terrain[tile] === WATER_TILE || (w.grid.tube >= 0 && w.grid.terrain[tile] === w.grid.tube);
 /** Kunstjes die een dier zomaar kan doen: hoe lang ze duren en welke animatie uit het model erbij hoort. */
 type Solo = 'hop' | 'spin' | 'roll' | 'shake' | 'wiggle' | 'stretch' | 'sniff' | 'dig' | 'bow' | 'jumpturn' | 'sway' | 'peek' | 'survey'
   // voor de gasten bij het hek: brullen, huilen, stampen, zwaaien, de poten op het hek, bedelen, trappelen, knikken,
@@ -981,6 +983,13 @@ export class Animal {
     this.doTrick(kind, SHOW[kind][0], SHOW[kind][1]);
   }
 
+  /** Er komt iets langs (de jeep van de safaritrein): een dier dat niets te doen heeft, kijkt ernaar; een speels of jong dier wordt er blij van. */
+  lookAt(x: number, y: number): void {
+    if (this.sick || this.escaped || this.sleeping || this.trick || this.state === 'walk' || this.state === 'eat') return;
+    this.face(x, y);
+    if ((this.young || this.nature === 'playful') && Math.random() < 0.25) this.emote('Happy', 1.2);
+  }
+
   /** Rustig naar dit punt toe draaien. */
   private face(x: number, y: number): void {
     if (Math.hypot(x - this.gx, y - this.gy) > 0.1) this.faceTo = Math.atan2(x - this.gx, y - this.gy);
@@ -1427,7 +1436,8 @@ export class Animal {
       const friends = palsOf(this.species);
       this.lonely = Math.max(0, herdOf(this.species) - w.animals.filter(a => (a.species === this.species || friends.includes(a.species)) && w.grid.regionOf[a.tile] === region.id).length);
       result.friend = this.lonely === 0;
-      result.space = region.tiles.length >= (SPACE[this.species] ?? 0);
+      // (alle grote dieren in het verblijf samen: drie olifanten willen drie keer zoveel ruimte als een)
+      result.space = !SPACE[this.species] || region.tiles.length >= spaceNeed(w.animals.filter(a => w.grid.regionOf[a.tile] === region.id));
       // een zeedier wil ook schoon water in zijn bak
       result.clean = w.poopsIn(region.id) <= MAX_POOPS_CLEAN && !(this.aquatic && murkyWater(w.murkIn(region.id))) && !dusty(this.dust);
       result.bed = w.beds.some(b => b.kind === info.bed && w.grid.regionOf[tileIndex(b.x, b.y)] === region.id);
@@ -1774,7 +1784,7 @@ export class Animal {
 
   /** Een zeedier kan niet over het droge: die tegels telt het als versperd. */
   private dry(w: AnimalWorld, tile: number): boolean {
-    return this.aquatic && w.grid.terrain[tile] !== WATER_TILE;
+    return this.aquatic && !wet(w, tile);
   }
 
   /** Iemand tikt op het speelgoed: het dier komt eraan en gaat ermee spelen. Lukt dat (is er een weg)? */
@@ -2021,7 +2031,7 @@ export class Animal {
     const [x, y] = tileXY(this.tile), regionId = w.grid.regionOf[this.tile], from = Math.floor(Math.random() * 4);
     for (let n = 0; n < 4; n++) {
       const [dx, dy] = AROUND[(from + n) % 4], i = tileIndex(x + dx, y + dy);
-      if (w.grid.canStep(x, y, dx, dy) && this.roomAt(w, x + dx, y + dy, regionId) && (w.grid.terrain[i] === WATER_TILE) === water) return i;
+      if (w.grid.canStep(x, y, dx, dy) && this.roomAt(w, x + dx, y + dy, regionId) && wet(w, i) === water) return i;
     }
     return -1;
   }
@@ -2568,7 +2578,7 @@ export class Animal {
       this.leap = null;
       w.splash(this.gx, this.gy);
       // de plons hoor je alleen als het dier in het water landt
-      if (w.grid.terrain[this.tile] === WATER_TILE) w.trickSound(this, 'splash');
+      if (wet(w, this.tile)) w.trickSound(this, 'splash');
     }
     if (this.bolt && this.trick?.kind !== 'bolt') this.bolt = null;
     if (this.bolt && this.trick) {
@@ -2595,7 +2605,7 @@ export class Animal {
     else if ((this.young || this.nature === 'playful') && this.tailRest <= 0 && Math.random() < dt * 0.8) this.spotPasser(w);
     if (this.hit && this.trick?.kind !== 'punch') this.hit = null;
     if (this.fetch && this.trick?.kind !== 'fetch') this.fetch = null;
-    const swims = w.grid.terrain[this.tile] === WATER_TILE && !this.lift;
+    const swims = wet(w, this.tile) && !this.lift;
     // in een bak van glas staat het water hoger: daar zwemt het dier in het water, met de rug net boven
     this.sink = swims ? (w.inTank(this.tile) ? this.top * 0.62 - TANK_WATER : this.top * 0.34) : 0;
     if (swims) this.wet = true;
@@ -2695,6 +2705,15 @@ export class Animal {
           this.play('Idle');
         }
       } else {
+        // de ingang van de glazen tunnel is alleen voor mensen: een dier keert daar om
+        if (next !== undefined && w.grid.tube >= 0 && w.grid.mouthBetween(this.tile, next)) {
+          this.route = [];
+          this.state = 'idle';
+          this.timeLeft = 0.6 + Math.random();
+          this.play('Idle');
+          this.place();
+          return;
+        }
         let dx = this.spotX - this.gx, dy = this.spotY - this.gy;
         if (next !== undefined) {
           const [tx, ty] = tileXY(next);

@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { PLUSH, PRODUCTS, SEEK_REACH, STALLS, type FoodId, type ShopKind } from './data';
 import { Grid, H, W, tileIndex, tileXY } from './grid';
-import { DARK_FUN, LOOKS, PETTING_GUESTS, PLAY, RIDES, SUIT_COLORS, TRAIN, isPath } from './data';
+import { DARK_FUN, LOOKS, PETTING_GUESTS, PLAY, RIDES, SAFARI, SUIT_COLORS, TRAIN, isPath } from './data';
 import { SHOW_ROWS, SHOW_TIME } from './data';
 import { FOUNTAIN, RIDE_KINDS, RIDE_SEATS, isRide, newPose, planVisit, rideLocal, visitAge, visitOff, visitPose, visitTime, type RideState, type Visit } from './rides';
 import { CABLE, cableAt, cablePassed, cableStop, type CablePath, type CableSeat } from './cable';
@@ -96,7 +96,7 @@ export function edgeSides(shop: { x: number; y: number; edge?: 'h' | 'v' }): num
 }
 
 /** Waar een gast voor naar een winkel gaat. */
-export type Need = 'food' | 'drink' | 'toilet' | 'icecream' | 'balloon' | 'hat' | 'souvenir' | 'play' | 'sit' | 'look' | 'ride' | 'umbrella' | 'shelter' | 'pet'
+export type Need = 'food' | 'drink' | 'toilet' | 'icecream' | 'candy' | 'balloon' | 'hat' | 'souvenir' | 'play' | 'sit' | 'look' | 'ride' | 'umbrella' | 'shelter' | 'pet'
   // schmink: alleen kinderen, bij de schminktent
   | 'paint';
 
@@ -265,10 +265,20 @@ export interface GuestWorld {
   showPaid(shop: ShopSpot, guest: Guest): void;
   /** Rijdt de kabelbaan bij dit huisje, en mag je nu instappen? */
   liftRuns(shop: ShopSpot): boolean;
+  /** Rijdt er bij dit station een jeep (ligt er een verblijf naast waar hij een rondje door kan)? */
+  jeepRuns(shop: ShopSpot): boolean;
+  /** Het rondje van de jeep bij dit station; null als het niet kan. */
+  jeepRoute(shop: ShopSpot): JeepRoute | null;
+  /** De jeep rijdt hier: de dieren in de buurt kijken op. */
+  jeepPass(gx: number, gy: number): void;
   /** Welke soorten er onder dit punt wonen: dat ziet een gast vanuit de kabelbaan. */
   liftView(gx: number, gy: number): string[];
   /** Een gast is met de kabelbaan geweest: hij betaalt voor zijn ritje. */
   liftPaid(shop: ShopSpot, guest: Guest): void;
+  /** Een gast heeft een ritje gemaakt in deze attractie (voor de doelen van een level). */
+  rode(shop: ShopSpot): void;
+  /** De attractie waar dit level nog ritjes in vraagt, of null. */
+  askedRide(): ShopKind | null;
   /** Mag er nu zo'n moment met een kind gebeuren (zie kids.ts)? Zo ja, dan onthoudt het spel dat het er een was. */
   kidMoment(kind: KidMoment, guest: Guest): boolean;
   /** Een kind liet zijn ijsje vallen: een vlek op het pad. */
@@ -778,7 +788,7 @@ type MoreIdle = 'yawn' | 'sigh' | 'peek' | 'rainbow' | 'fidget';
 /** Zoveel gasten kan één kraam, wc, bankje of attractie tegelijk helpen; de rest staat in de rij. */
 const AT_ONCE: Partial<Record<ShopKind, number>> = {
   toilet: 2, bench: 2, playground: 3, carousel: 4, fountain: 6, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2,
-  tower: 4, restaurant: 6, shelter: 6, station: 8, umbrellas: 2, show: SHOW_TIME.seats,
+  tower: 4, restaurant: 6, shelter: 6, station: 8, umbrellas: 2, show: SHOW_TIME.seats, safari: 6,
   // op het perron van de kabelbaan wachten er vier, elk in een hoekje; wie in een stoeltje zit, telt niet meer mee
   cablecar: 4,
 };
@@ -800,6 +810,7 @@ const RIDE_TURN = new THREE.Euler(0, 0, 0, 'YXZ');
 const SERVE_TIME: Partial<Record<ShopKind, number>> = {
   foodstall: 6, drinkstall: 6, icecream: 6, balloon: 4, hats: 4, souvenir: 4, toilet: 9, bench: 8, playground: 6, carousel: 8, fountain: 4, slide: 6, swing: 7, seesaw: 7, springer: 6, trampoline: 6,
   tower: 9, restaurant: 11, ferris: 14, bumper: 10, shelter: 4, station: 4, umbrellas: 2, show: 4, cablecar: 4, facepaint: 7,
+  swinger: 16, ship: 20, airballoon: 21, flume: 22, coaster: 20, candy: 6, safari: 4,
 };
 const WC_TIME = SERVE_TIME.toilet ?? 9, BENCH_TIME = SERVE_TIME.bench ?? 8;
 /**
@@ -838,7 +849,7 @@ const PATIENCE = 32;
 const MAX_PURCHASES = 4;
 const NEED_SHOP: Record<Need, ShopKind> = {
   food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', hat: 'hats', souvenir: 'souvenir', play: 'playground', sit: 'bench', look: 'fountain', ride: 'carousel',
-  umbrella: 'umbrellas', shelter: 'shelter', pet: 'bench', paint: 'facepaint',
+  umbrella: 'umbrellas', shelter: 'shelter', pet: 'bench', paint: 'facepaint', candy: 'candy',
 };
 // rolstoel, kinderwagen, paraplu en zonnebril: van blokjes, net als de gasten zelf
 const WHEEL_GEO = new THREE.CylinderGeometry(0.15, 0.15, 0.03, 12).rotateZ(Math.PI / 2);
@@ -865,6 +876,14 @@ let theStar: Guest | null = null;
 const TRAINS_AT: number[] = [];
 /** Een zitplek in de trein, en waar een gast vandaan stapt bij het in- en uitstappen: elke keer opnieuw ingevuld. */
 const TRAIN_SEAT: TrainSeat = { gx: 0, gy: 0, h: 0, heading: 0 };
+/**
+ * Hoe diep de grond op deze plek onder het gewone pad ligt (de trap naar de glazen tunnel, en de tunnel zelf): zo
+ * diep staat wie daar loopt. Het beeld weet waar de tunnels liggen en vult dit in (zie View.sink).
+ */
+let sinkAt: (gx: number, gy: number) => number = () => 0;
+export function setSink(at: (gx: number, gy: number) => number): void {
+  sinkAt = at;
+}
 const HOP_TO = new THREE.Vector3();
 /** Zo lang duurt de stap van het perron de wagon in (en er weer uit), en zo hoog is het sprongetje. */
 const TRAIN_HOP = 0.4, TRAIN_HOP_UP = 0.14;
@@ -929,7 +948,11 @@ function makeTreat(kind: ShopKind, product: string | undefined): THREE.Group {
   const g = new THREE.Group();
   g.position.set(0, -0.19, 0.03);
   g.rotation.x = Math.PI / 2;
-  if (kind === 'icecream' && product === 'lolly') {
+  if (kind === 'candy') {
+    // een suikerspin: een grote wolk op een stokje, met een kleinere bol erbovenop
+    const color = product === 'floss_blue' ? 0x9fd8f5 : 0xf9a8c9;
+    g.add(bit(STRING_GEO, 0xf3e7cf, 0, 0.02, 0, 1.4, 0.3, 1.4), bit(POM_GEO, color, 0, 0.125, 0, 2.5, 2.9, 2.5), bit(POM_GEO, color, 0.012, 0.185, 0.008, 1.7));
+  } else if (kind === 'icecream' && product === 'lolly') {
     g.add(bit(STRING_GEO, 0xe9d5a8, 0, 0.03, 0, 1.6, 0.2, 1.6), bit(SPIKE_GEO, pick([0xe0584f, 0xf5a623, 0x4a90e2]), 0, 0.1, 0, 1.3, 1.8, 0.8));
   } else if (kind === 'icecream') {
     const cone = bit(PARTY_GEO, 0xe3b06a, 0, 0.042, 0, 0.42);
@@ -1137,6 +1160,8 @@ export class Guest implements Leader {
   private urgent = 0;
   /** Zin in een ijsje. */
   treat = Math.random() * 0.4;
+  /** Zin in een suikerspin. */
+  sweet = Math.random() * 0.4;
   /** Zin in een ballon (vooral kinderen). */
   balloon = 0;
   /** Zin in een hoedje. */
@@ -1216,7 +1241,7 @@ export class Guest implements Leader {
   private strayFree = 0;
   private doubted = false;
   /** In het treintje, of in een stoeltje van de kabelbaan. */
-  riding: Train | CableCar | null = null;
+  riding: Train | CableCar | Jeep | null = null;
   /**
    * In de kabelbaan: op welke plek (twee per stoeltje), hoe hoog de gast nu zit, welke soorten hij al onder zich zag
    * en hoe lang hij nog naar beneden wijst.
@@ -1591,6 +1616,11 @@ export class Guest implements Leader {
     return true;
   }
 
+  /** Wacht de gast op het perron van dit station op de jeep van de safaritrein? */
+  get jeepAt(): ShopSpot | null {
+    return this.state === 'sit' && !this.riding && !this.rode && this.shop?.kind === 'safari' ? this.shop : null;
+  }
+
   /** Wacht de gast bij deze halte op het treintje? (Wie net is uitgestapt, wacht niet meer.) */
   get waitingAt(): ShopSpot | null {
     return this.state === 'sit' && !this.riding && !this.rode && this.shop?.kind === 'station' ? this.shop : null;
@@ -1598,6 +1628,8 @@ export class Guest implements Leader {
 
   /** De kabelbaan waar de gast het laatst in zat, en hoeveel stukken kabel hij al achter elkaar reed (bij een tussenstation). */
   lastLift: CableCar | null = null;
+  /** Hoeveel dieren er in het verblijf waren waar de jeep doorheen reed. */
+  jeepSaw = 0;
   hops = 0;
 
   /** Staat de gast op het perron van dit huisje van de kabelbaan te wachten op een stoeltje? */
@@ -1906,7 +1938,7 @@ export class Guest implements Leader {
   }
 
   /** Instappen in het treintje, op plek `seat`: met een stapje van het perron de wagon in. */
-  board(train: Train, seat: number): void {
+  board(train: Train | Jeep, seat: number): void {
     this.hopFrom.copy(this.mesh.position);
     this.hopAt = this.age;
     this.riding = train;
@@ -2100,8 +2132,8 @@ export class Guest implements Leader {
         }
         return;
       }
-      if (kind === 'station') {
-        // op het perron wachten tot het treintje komt: in twee rijen voor het afdak, achter de gele streep, met het
+      if (kind === 'station' || kind === 'safari') {
+        // op het perron wachten tot het treintje (of de jeep) komt: in twee rijen voor het afdak, achter de gele streep, met het
         // gezicht naar het spoor. Wie net is uitgestapt, stapt eerst uit de wagon het perron op
         put(mix(here, at(((this.seat % 4) - 1.5) * 0.38, 0.12, this.seat % 8 < 4 ? 0.44 : 0.12), k), k > 0.5 ? turn : this.heading);
         this.stepAboard();
@@ -2126,7 +2158,7 @@ export class Guest implements Leader {
     const kneel = this.act === 'kneel' && this.state === 'watch' ? -0.07 : 0;
     // een stap achteruit of opzij (schrikken, bah): alleen in het beeld
     const hs = Math.sin(this.heading), hc = Math.cos(this.heading);
-    m.position.set(toWorldX(this.gx - hs * this.back + hc * this.aside), (this.state === 'accident' ? -0.07 : kneel) + this.hop, toWorldZ(this.gy - hc * this.back - hs * this.aside));
+    m.position.set(toWorldX(this.gx - hs * this.back + hc * this.aside), (this.state === 'accident' ? -0.07 : kneel) + this.hop - sinkAt(this.gx, this.gy), toWorldZ(this.gy - hc * this.back - hs * this.aside));
     // een moe gastje loopt een beetje voorovergebogen
     m.rotation.set((this.tired > 0.7 && this.state === 'walk' ? 0.12 : 0) + this.lean, this.heading + this.twist, this.tilt);
   }
@@ -2161,7 +2193,7 @@ export class Guest implements Leader {
     // (wat de gebaren met het lijf doen, zoals hurken aan de rand van de fontein, telt er gewoon bij op)
     m.position.set(toWorldX(cx + p.x * cos + p.z * sin), p.h - k * 0.2 * m.scale.y + this.hop, toWorldZ(cy - p.x * sin + p.z * cos));
     // boven op de toren kijkt de gast rustig om zich heen
-    const look = visit.kind === 'tower' && p.on ? Math.sin(this.phase * 0.07 + this.seat * 1.7) * 0.9 : 0;
+    const look = (visit.kind === 'tower' || (visit.kind === 'airballoon' && p.u > 0.25)) && p.on ? Math.sin(this.phase * 0.07 + this.seat * 1.7) * (visit.kind === 'tower' ? 0.9 : 0.5) : 0;
     m.quaternion.setFromEuler(RIDE_TURN.set(p.pitch + this.lean - 0.14 * jolt, turn + p.face + this.twist + look, p.roll + this.tilt + Math.sin(this.phase * 2.6) * 0.16 * jolt));
     this.heading = turn + p.face;
     this.aboard = p.on;
@@ -2290,6 +2322,76 @@ export class Guest implements Leader {
         this.legs(-1.4 * k);
         if (p.on) limbs[3].rotation.x = -1.75 + Math.sin(this.phase * 0.45 + this.seat) * 0.5;
         break;
+      case 'swinger': {
+        // in het stoeltje van de zweefmolen: de benen bungelen en zwaaien op snelheid naar voren; de handen aan de
+        // kettingen, en wie durft steekt ze op volle snelheid allebei de lucht in
+        const go = p.on ? p.u : 0;
+        this.legs((-0.45 - 0.75 * go + Math.sin(this.phase * 0.4 + this.seat * 1.3) * 0.14 * (1 - go)) * k);
+        if (go > 0.85 && (this.child || this.seat % 3 === 0)) {
+          this.arms(-2.75);
+          limbs[2].rotation.z = -0.35;
+          limbs[3].rotation.z = 0.35;
+        } else if (go > 0.3 && p.w > 0.75 && this.seat % 2) {
+          // langs de voorkant: even zwaaien naar wie staat te kijken
+          limbs[2].rotation.x = -1.7 * k;
+          this.wave(limbs[3]);
+        } else this.arms(-1.7 * k);
+        head.rotation.x = -0.18 * go;
+        if (go > 0.6 && !this.rideMark) this.cue = 'guest.whee';
+        this.rideMark = go > 0.6 ? 1 : go < 0.2 ? 0 : this.rideMark;
+        break;
+      }
+      case 'ship': {
+        // in het schommelschip: de handen aan de beugel; wie bovenin komt, gooit de armen omhoog en leunt achterover
+        this.legs(-1.35 * k);
+        const high = p.on ? p.u : 0, wild = p.on ? p.w : 0;
+        if (high > 0.55) {
+          this.arms(-2.8);
+          head.rotation.x = -0.3;
+        } else this.arms((-1.15 - 0.25 * wild) * k);
+        if (high > 0.8 && !this.rideMark) this.cue = 'guest.whee';
+        this.rideMark = high > 0.8 ? 1 : high < 0.3 ? 0 : this.rideMark;
+        break;
+      }
+      case 'airballoon': {
+        // in de mand: de handen op de rand; eenmaal boven kijkt de een door de handen, wijst de ander en zwaait de derde naar beneden
+        if (!p.on) break;
+        const mood = Math.sin(this.phase * 0.02 + this.seat * 2.1);
+        if (p.u < 0.25) this.arms(-0.75);
+        else if (this.seat % 2 === 0 && mood > -0.2) {
+          this.arms(-2.25);
+          limbs[2].rotation.z = -0.5;
+          limbs[3].rotation.z = 0.5;
+          this.spy();
+        } else if (mood > 0.2) {
+          this.wave(limbs[2], -2.3);
+          limbs[3].rotation.x = -0.75;
+          head.rotation.x = 0.35;
+        } else {
+          limbs[2].rotation.x = -1.5;
+          limbs[3].rotation.x = -0.75;
+          head.rotation.x = 0.2;
+        }
+        break;
+      }
+      case 'flume':
+      case 'coaster': {
+        // in de boomstam of het karretje: de handen aan de beugel; in de afdaling gaan de armen omhoog en het hoofd in de nek
+        this.legs(-1.4 * k);
+        const thrill = p.on ? p.u : 0;
+        if (thrill > 0.35) {
+          this.arms(-2.85);
+          limbs[2].rotation.z = -0.25;
+          limbs[3].rotation.z = 0.25;
+          head.rotation.x = -0.3;
+        } else this.arms((-1.2 - 0.3 * (p.on ? p.w : 0)) * k);
+        // joehoe: een keer per afdaling
+        if (thrill > 0.5 && !this.rideMark) this.cue = 'guest.whee';
+        this.rideMark = thrill > 0.5 ? 1 : thrill < 0.15 ? 0 : this.rideMark;
+        // door de bochten en over de hupjes schudt het hoofd wat mee
+        if (p.on && visit.kind === 'coaster') head.rotation.z = -p.roll * 0.5;
+        break;
+      }
     }
   }
 
@@ -2385,6 +2487,8 @@ export class Guest implements Leader {
       if (!sameUse(shop.kind, kind) || (product && shop.kind === kind && !shop.sells.includes(product))) continue;
       // bij een halte zonder spoor komt geen treintje
       if (shop.kind === 'station' && !w.trainRuns(shop)) continue;
+      // de safaritrein rijdt alleen met een verblijf ernaast waar hij doorheen kan (en niet met een rolstoel of kinderwagen)
+      if (shop.kind === 'safari' && (this.wheels || !w.jeepRuns(shop))) continue;
       // de kabelbaan pas met twee huisjes aan het pad, en niet als het park bijna dichtgaat (en niet met een rolstoel
       // of kinderwagen: die past niet in een stoeltje)
       if (shop.kind === 'cablecar' && (this.wheels || !w.liftRuns(shop))) continue;
@@ -2407,6 +2511,15 @@ export class Guest implements Leader {
       }
     }
     if (!options.length) return null;
+    // vraagt het level om ritjes in één attractie, dan gaan de meeste gasten daarheen
+    const asked = kind === 'carousel' ? w.askedRide() : null;
+    if (asked && Math.random() < 0.85) {
+      const there = options.filter(o => o.shop.kind === asked);
+      if (there.length) {
+        options.length = 0;
+        options.push(...there);
+      }
+    }
     // de kortste rij is het aantrekkelijkst
     const load = (o: { shop: ShopSpot }): number => (o.shop.busyNow ?? 0) + (o.shop.line ?? 0) + Math.random() * 0.6;
     return options.reduce((best, o) => (load(o) < load(best) ? o : best));
@@ -2432,7 +2545,7 @@ export class Guest implements Leader {
     if (this.purchases >= MAX_PURCHASES || this.fun < 0.5) return null;
     // iets lekkers of leuks: waar de gast de meeste zin in heeft
     // alleen wat er in dit level al te koop is: een hoedje of ballon vragen voordat die kraam bestaat, kan niet
-    const treats = ([['icecream', this.treat, 'icecream'], ['balloon', this.balloon, 'balloon'], ['hat', this.hat, 'hats'], ['souvenir', this.gift, 'souvenir']] as [Need, number, ShopKind][])
+    const treats = ([['icecream', this.treat, 'icecream'], ['candy', this.sweet, 'candy'], ['balloon', this.balloon, 'balloon'], ['hat', this.hat, 'hats'], ['souvenir', this.gift, 'souvenir']] as [Need, number, ShopKind][])
       .filter(t => w.sells(t[2]));
     // een kind wil misschien een dierengezicht uit de schminktent
     if (this.child && !this.painted && w.sells('facepaint')) treats.push(['paint', this.paintWish, 'facepaint']);
@@ -2445,6 +2558,7 @@ export class Guest implements Leader {
   private postpone(want: Need): void {
     if (want === 'sit') this.tired = 0.5;
     if (want === 'icecream') this.treat = 0.3;
+    if (want === 'candy') this.sweet = 0.3;
     if (want === 'balloon') this.balloon = 0.3;
     if (want === 'hat') this.hat = 0.3;
     if (want === 'souvenir') this.gift = 0.3;
@@ -3662,6 +3776,16 @@ export class Guest implements Leader {
       w.guestSound('guest.laugh', this);
       this.playful = 0;
       this.fun = Math.min(1, this.fun + 0.25);
+    } else if (this.state === 'sit' && kind === 'safari') {
+      // terug van de safari: blij, en hoe meer dieren er in het verblijf waren, hoe blijer
+      if (this.rode) {
+        this.rideWish = 0;
+        this.curious = 0;
+        this.fun = Math.min(1, this.fun + 0.3 + 0.03 * Math.min(6, this.jeepSaw));
+        this.joy = 1;
+        if (this.shop) w.rode(this.shop);
+        w.guestSound('guest.laugh', this);
+      } else this.postpone('ride');
     } else if (this.state === 'sit' && kind === 'station') {
       // uitgestapt bij de volgende halte, of het treintje kwam niet
       if (this.rode) {
@@ -3687,7 +3811,9 @@ export class Guest implements Leader {
     } else if (this.state === 'sit' && kind && RIDES.includes(kind)) {
       w.guestSound('guest.laugh', this);
       this.rideWish = 0;
-      this.fun = Math.min(1, this.fun + (kind === 'ferris' ? 0.4 : 0.35));
+      if (this.shop) w.rode(this.shop);
+      // (hoe groter de attractie, hoe blijer: de achtbaan en de wildwaterbaan het meest)
+      this.fun = Math.min(1, this.fun + (kind === 'coaster' || kind === 'flume' ? 0.5 : kind === 'ferris' || kind === 'ship' || kind === 'swinger' || kind === 'airballoon' ? 0.4 : 0.35));
       // duizelig van het draaien, of een high five met wie er tegelijk uitstapt
       this.afterRide();
     } else if (this.state === 'sit' && kind === 'tower' && this.shop) {
@@ -3734,11 +3860,13 @@ export class Guest implements Leader {
         this.bought[kind] = (this.bought[kind] ?? 0) + 1;
         this.purchases++;
         // wat lekkers gaat mee in de hand: de gast eet of drinkt er nog even van
-        if (kind === 'foodstall' || kind === 'drinkstall' || kind === 'icecream') {
+        if (kind === 'foodstall' || kind === 'drinkstall' || kind === 'icecream' || kind === 'candy') {
           if (this.snack) this.limbs[3].remove(this.snack);
           // een hoorntje, een beker met een rietje, een zak friet, ...: elk met zijn eigen manier van eten
           this.snack = makeTreat(kind, got);
           this.bite = kind === 'icecream' ? 'lick' : kind === 'drinkstall' ? 'sip' : 'bite';
+          // (een suikerspin is groot: daar doe je langer over)
+          if (kind === 'candy') this.eating = 11;
           this.full = kind !== 'drinkstall';
           this.limbs[3].add(this.snack);
           this.eating = 7;
@@ -3748,6 +3876,7 @@ export class Guest implements Leader {
           this.thirst = 0;
           this.bladder = Math.min(0.85, this.bladder + 0.15);
         } else if (kind === 'icecream') this.treat = 0;
+        else if (kind === 'candy') this.sweet = 0;
         else if (kind === 'balloon') {
           this.balloon = 0;
           this.addBalloon(got);
@@ -3764,7 +3893,7 @@ export class Guest implements Leader {
         const joy = kind === 'foodstall' || kind === 'drinkstall' ? 0.1 : 0.2;
         this.fun = Math.min(1, this.fun + (exact ? joy : joy * 0.3));
         // een kind dat net iets leuks kreeg, springt even
-        if (this.child && (kind === 'icecream' || kind === 'balloon' || kind === 'souvenir' || kind === 'facepaint')) this.joy = 0.9;
+        if (this.child && (kind === 'icecream' || kind === 'candy' || kind === 'balloon' || kind === 'souvenir' || kind === 'facepaint')) this.joy = 0.9;
         // gekocht met het muntje van de speler: heel blij
         if (this.gifted) {
           this.gifted = false;
@@ -4072,13 +4201,15 @@ export class Guest implements Leader {
     if (w.sells('drinkstall') && !this.bought.drinkstall) this.thirst = Math.min(1, this.thirst + (dt / 130) * demand * w.craving('drinkstall'));
     if (w.sells('toilet')) this.bladder = Math.min(1, this.bladder + (dt / 170) * ease);
     if (w.sells('icecream') && !this.bought.icecream) this.treat = Math.min(1, this.treat + (dt / 190) * demand * w.craving('icecream'));
+    if (w.sells('candy') && !this.bought.candy) this.sweet = Math.min(1, this.sweet + (dt / (this.child ? 110 : 200)) * demand * w.craving('candy'));
     if (w.sells('balloon') && this.wantsBalloon && !this.bought.balloon) this.balloon = Math.min(1, this.balloon + (dt / 85) * demand * w.craving('balloon'));
     if (w.sells('hats') && this.wantsHat && !this.bought.hats) this.hat = Math.min(1, this.hat + (dt / 75) * demand * w.craving('hats'));
     if (w.sells('bench')) this.tired = Math.min(1, this.tired + (dt / 180) * ease);
     if (w.sells('souvenir') && !this.bought.souvenir) this.gift = Math.min(1, this.gift + (dt / 120) * demand * w.craving('souvenir'));
     if (w.sells('playground') && this.child) this.playful = Math.min(1, this.playful + (dt / 90) * ease);
     if (w.sells('fountain')) this.curious = Math.min(1, this.curious + (dt / 120) * ease);
-    if (w.sells('carousel')) this.rideWish = Math.min(1, this.rideWish + (dt / (this.child ? 70 : 170)) * ease);
+    // (vraagt het level om ritjes, dan krijgen gasten daar drie keer zo snel zin in: zo hoef je er niet lang op te wachten)
+    if (w.sells('carousel')) this.rideWish = Math.min(1, this.rideWish + (dt / (this.child ? 70 : 170)) * ease * (w.askedRide() ? 3 : 1));
     if (w.feature('petting')) this.petWish = Math.min(1, this.petWish + dt / (this.child ? 60 : 170));
     if (w.sells('facepaint') && this.child && !this.painted) this.paintWish = Math.min(1, this.paintWish + (dt / PAINT.want) * demand * w.craving('facepaint'));
     // in een vol park koopt een gast minder vaak iets leuks; zijn plezier zakt dan ook wat langzamer
@@ -4176,6 +4307,10 @@ export class Guest implements Leader {
         } else if (this.shop.kind === 'station' && !this.rode) {
           this.waitT += dt;
           this.timer = this.waitT > TRAIN_PATIENCE || !w.trainRuns(this.shop) ? Math.min(this.timer, 0.2) : Math.max(this.timer, 1);
+        } else if (this.shop.kind === 'safari' && !this.rode) {
+          // op het perron van de safaritrein: wachten tot de jeep terug is
+          this.waitT += dt;
+          this.timer = this.waitT > SAFARI.patience || !w.jeepRuns(this.shop) ? Math.min(this.timer, 0.2) : Math.max(this.timer, 1);
         } else if (this.shop.kind === 'cablecar' && !this.rode) {
           // op het perron van de kabelbaan: wachten tot er een stoeltje langs het wiel komt
           this.waitT += dt;
@@ -5778,8 +5913,10 @@ export class CableCar {
     const linked = this.doors[0] !== null && this.doors[1] !== null;
     this.boarding = linked && !w.goingHome() && !w.closed();
     const aboard = this.riders.some(r => r) || this.walker.seat >= 0;
-    // 's nachts staan de stoeltjes stil; wie er nog in zit, wordt eerst naar een huisje gebracht
-    const target = (linked && !w.closed()) || aboard ? 1 : 0;
+    // de stoeltjes lopen alleen als er iemand in zit of in een huisje staat te wachten (ook 's nachts staan ze dus
+    // stil); wie er nog in zit, wordt eerst naar een huisje gebracht
+    const waiting = this.walker.wait === this.a || this.walker.wait === this.b || guests.some(q => q.liftWaiting === this.a || q.liftWaiting === this.b);
+    const target = (linked && this.boarding && waiting) || aboard ? 1 : 0;
     this.go += (target - this.go) * Math.min(1, dt * 0.8);
     if (this.go < 0.01 && !target) this.go = 0;
     const n = this.model.chairs.length, before = this.s;
@@ -5855,6 +5992,151 @@ export class CableCar {
 }
 
 // ------------------------------------------------------------ alle gasten samen
+/** Het rondje van een jeep: de punten (gx, gy om en om) van het station door het verblijf en weer terug, en hoeveel dieren er wonen. */
+export interface JeepRoute {
+  key: string;
+  pts: number[];
+  animals: number;
+}
+
+/**
+ * De jeep van de safaritrein. Hij staat in het verblijf, vlak naast het station: gasten stappen van het perron over
+ * het hek in. Zodra er iemand in zit, wacht hij nog even op meer gasten en rijdt dan een rondje door het verblijf.
+ * De dieren kijken op als hij langskomt. Terug bij het station stapt iedereen uit.
+ */
+export class Jeep {
+  riders: (Guest | null)[] = Array.from({ length: SAFARI.seats }, () => null);
+  gx: number;
+  gy: number;
+  heading = 0;
+  driving = false;
+  /** Net vertrokken (voor de toeter); het spel zet dit weer uit. */
+  departed = false;
+  private route: JeepRoute | null = null;
+  /** Hoe ver elk punt van het rondje van het begin ligt. */
+  private far: number[] = [];
+  private d = 0;
+  private v = 0;
+  private idle = 0;
+  private check = 0;
+  private notice = 0;
+
+  constructor(readonly shop: ShopSpot, readonly model: THREE.Object3D) {
+    [this.gx, this.gy] = shopCenter(shop);
+    model.visible = false;
+  }
+
+  get runs(): boolean {
+    return !!this.route;
+  }
+
+  /** Hoe hard hij nu rijdt, van 0 tot 1. */
+  get pace(): number {
+    return this.v / SAFARI.speed;
+  }
+
+  /** Iedereen stapt uit (het station of het verblijf is weg): op het pad voor het station, of anders bij de ingang. */
+  empty(w: GuestWorld, reach: Set<number>): void {
+    const door = w.shops.includes(this.shop) ? doorOf(w, reach, this.shop) : null;
+    this.riders.forEach((g, i) => {
+      if (g?.riding === this) g.alight(door ?? ENTRANCE, door === null ? undefined : this.shop);
+      this.riders[i] = null;
+    });
+    this.driving = false;
+    this.d = this.v = this.idle = 0;
+  }
+
+  update(dt: number, w: GuestWorld, reach: Set<number>, guests: Guest[]): void {
+    this.check -= dt;
+    if (this.check <= 0) {
+      // om de tel: klopt het rondje nog (is er iets neergezet, of is het verblijf veranderd)?
+      this.check = 1;
+      const route = w.jeepRoute(this.shop);
+      if ((route?.key ?? '') !== (this.route?.key ?? '')) {
+        this.empty(w, reach);
+        this.route = route;
+        this.far = [0];
+        for (let i = 2; route && i < route.pts.length; i += 2) this.far.push(this.far[this.far.length - 1] + Math.hypot(route.pts[i] - route.pts[i - 2], route.pts[i + 1] - route.pts[i - 1]));
+      } else if (route && this.route) this.route.animals = route.animals;
+    }
+    const route = this.route;
+    this.model.visible = !!route;
+    if (!route) return;
+    for (let i = 0; i < this.riders.length; i++) if (this.riders[i] && (this.riders[i]!.gone || this.riders[i]!.riding !== this)) this.riders[i] = null;
+    const total = this.far[this.far.length - 1];
+    if (!this.driving) {
+      // instappen: wie op het perron wacht, neemt de eerste vrije plek
+      if (!w.closed() && !w.goingHome())
+        for (let k = 0; k < this.riders.length; k++) {
+          if (this.riders[k]) continue;
+          const g = guests.find(q => q.jeepAt === this.shop);
+          if (!g) break;
+          g.jeepSaw = route.animals;
+          g.board(this, k);
+          this.riders[k] = g;
+        }
+      const aboard = this.riders.filter(g => g).length;
+      this.idle = aboard ? this.idle + dt : 0;
+      if (aboard && (this.idle >= SAFARI.wait || aboard === this.riders.length)) {
+        this.driving = this.departed = true;
+        this.d = this.v = 0;
+      }
+    } else {
+      // rijden: rustig optrekken, en op tijd remmen voor het station
+      const want = Math.min(SAFARI.speed, Math.sqrt(0.02 + 2 * SAFARI.accel * Math.max(0, total - this.d)));
+      this.v += Math.max(-SAFARI.accel * 2 * dt, Math.min(SAFARI.accel * dt, want - this.v));
+      this.d += this.v * dt;
+      this.notice -= dt;
+      if (this.notice <= 0) {
+        this.notice = 0.5;
+        w.jeepPass(this.gx, this.gy);
+      }
+      if (this.d >= total - 0.01) {
+        // terug bij het station: iedereen stapt uit
+        const door = doorOf(w, reach, this.shop);
+        this.riders.forEach((g, i) => {
+          if (g?.riding === this) g.alight(door ?? ENTRANCE, door === null ? undefined : this.shop);
+          this.riders[i] = null;
+        });
+        this.driving = false;
+        this.d = this.v = this.idle = 0;
+      }
+    }
+    this.place(dt);
+  }
+
+  /** Zet de jeep op zijn plek langs het rondje: de wielen draaien en de bak hobbelt een beetje. */
+  private place(dt: number): void {
+    const pts = this.route!.pts, far = this.far;
+    let i = 0;
+    while (i + 2 < far.length && far[i + 1] <= this.d) i++;
+    const seg = far[i + 1] - far[i] || 1, t = Math.max(0, Math.min(1, (this.d - far[i]) / seg));
+    const ax = pts[i * 2], ay = pts[i * 2 + 1], bx = pts[i * 2 + 2] ?? ax, by = pts[i * 2 + 3] ?? ay;
+    this.gx = ax + (bx - ax) * t;
+    this.gy = ay + (by - ay) * t;
+    // (een stukje vooruit kijken: zo draait hij vloeiend de bocht in)
+    const j = Math.min(far.length - 1, i + 2), want = Math.atan2(pts[j * 2] - this.gx, pts[j * 2 + 1] - this.gy);
+    if (Math.hypot(pts[j * 2] - this.gx, pts[j * 2 + 1] - this.gy) > 0.05) this.heading += Math.atan2(Math.sin(want - this.heading), Math.cos(want - this.heading)) * Math.min(1, dt * (this.driving ? 5 : 3));
+    const m = this.model, hobble = this.pace;
+    m.position.set(toWorldX(this.gx), Math.abs(Math.sin(this.d * 7.3)) * 0.014 * hobble - sinkAt(this.gx, this.gy), toWorldZ(this.gy));
+    m.rotation.set(Math.sin(this.d * 5.1) * 0.025 * hobble, this.heading, Math.sin(this.d * 6.7 + 1) * 0.03 * hobble);
+    for (const wheel of (m.userData.wheels as THREE.Object3D[]) ?? []) wheel.rotation.x += (this.v * dt) / 0.11;
+    // de ranger stuurt: zijn armen gaan met het stuur mee
+    const arms = m.userData.arms as THREE.Object3D | undefined;
+    if (arms) arms.rotation.z = Math.sin(this.d * 2.1) * 0.25 * hobble;
+  }
+
+  /** Waar plek `seat` nu is: naast de ranger, of op de achterbank. */
+  seatPos(seat: number, out: TrainSeat): TrainSeat {
+    const lx = seat === 0 ? -0.13 : seat === 1 ? 0.13 : -0.13, lz = seat === 0 ? 0.04 : -0.24, sin = Math.sin(this.heading), cos = Math.cos(this.heading);
+    out.gx = this.gx + lx * cos + lz * sin;
+    out.gy = this.gy - lx * sin + lz * cos;
+    out.h = SAFARI.bench - sinkAt(this.gx, this.gy);
+    out.heading = this.heading;
+    return out;
+  }
+}
+
 export class GuestManager {
   guests: Guest[] = [];
   /** De treintjes: één per spoor met een halte (het spel legt de routes, zie layRails). */
@@ -5872,9 +6154,15 @@ export class GuestManager {
   private shutList: number[] = [];
   /** De kabelbanen: één per paar huisjes (het spel houdt deze lijst bij). */
   lifts: CableCar[] = [];
+  /** De jeeps van de safaritrein: één per station (het spel houdt dit lijstje bij, zie syncJeeps). */
+  jeeps: Jeep[] = [];
   private spawnIn = 2;
   private list: number[] = [];
   private reach = new Set<number>();
+  /** De padtegels waar gasten vanaf de ingang kunnen komen. */
+  get reached(): Set<number> {
+    return this.reach;
+  }
   private reachIn = 0;
   private chatIn = 3;
   /** Een klas die uit de bus stapt: de juf of meester, het hoeveelste kind nu aan de beurt is (van `n`) en hoe lang het vorige geleden is. */
@@ -6104,6 +6392,7 @@ export class GuestManager {
       if (train.running) TRAINS_AT.push(train.headX, train.headY);
     }
     for (const lift of this.lifts) lift.update(dt, this.world, this.reach, this.guests, this.lifts);
+    for (const jeep of this.jeeps) jeep.update(dt, this.world, this.reach, this.guests);
     for (const g of this.guests) g.update(dt, this.world, this.list, this.reach);
     for (const g of this.guests) g.showFace();
     if (this.guests.some(g => g.gone)) this.guests = this.guests.filter(g => !g.gone);
@@ -6163,7 +6452,9 @@ export class GuestManager {
       // hun plek en niet als één kluitje.
       const ride = shop.ride;
       while (line.length && (shop.busyNow ?? 0) < (AT_ONCE[shop.kind] ?? 1) && (!ride || ride.clock >= (shop.nextIn ?? 0)) && line[0].serve()) {
-        line.shift();
+        const g = line.shift()!;
+        // (zijn zitje telt meteen als bezet: zo gaat het reuzenrad al draaien terwijl hij er nog heen loopt)
+        if (ride && g.seat >= 0) shop.used = (shop.used ?? 0) | (1 << g.seat);
         if (ride) shop.nextIn = ride.clock + RIDE_GAP;
       }
       shop.line = line.length;
@@ -6429,7 +6720,7 @@ export class Worker implements Leader {
   }
 
   private place(): void {
-    this.mesh.position.set(toWorldX(this.gx), 0, toWorldZ(this.gy));
+    this.mesh.position.set(toWorldX(this.gx), -sinkAt(this.gx, this.gy), toWorldZ(this.gy));
     this.mesh.rotation.y = this.heading;
   }
 
@@ -7103,9 +7394,10 @@ const VENDORS: Partial<Record<ShopKind, { shirt: number; hat: number }>> = {
   hats: { shirt: 0x6cc04a, hat: 0xe0584f },
   souvenir: { shirt: 0x7a5cc9, hat: 0xffe08a },
   facepaint: { shirt: 0x2bb5a8, hat: 0xf06aa6 },
+  candy: { shirt: 0xf7f4ec, hat: 0xf9a8c9 },
 };
 /** De kleur van wat de verkoper aangeeft: een zak friet, een beker, een ijsje, een ballon, een petje of een knuffel. */
-const VENDOR_ITEM: Partial<Record<ShopKind, number>> = { foodstall: 0xffd23f, drinkstall: 0x9fd8f5, icecream: 0xffc1d6, balloon: 0xe0584f, hats: 0x4a90e2, souvenir: 0xc98d5e, facepaint: 0xa06ad9 };
+const VENDOR_ITEM: Partial<Record<ShopKind, number>> = { foodstall: 0xffd23f, drinkstall: 0x9fd8f5, icecream: 0xffc1d6, balloon: 0xe0584f, hats: 0x4a90e2, souvenir: 0xc98d5e, facepaint: 0xa06ad9, candy: 0xf9a8c9 };
 
 /** Het poppetje dat in een kraam werkt. Het wiegt een beetje en zwaait als het iets verkoopt. */
 export class Vendor {

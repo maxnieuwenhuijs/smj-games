@@ -30,6 +30,7 @@ const REST: Record<Held['kind'], { at: [number, number, number]; size: number; t
   food: { at: [0.15, -0.165, -0.33], size: 1.35, tilt: 0.35 },
   drink: { at: [0.15, -0.17, -0.33], size: 1.25, tilt: 0.3 },
   ice: { at: [0.15, -0.17, -0.33], size: 1.25, tilt: 0.25 },
+  floss: { at: [0.15, -0.18, -0.34], size: 1.15, tilt: 0.2 },
   // de ballon leunt naar voren: zo zweeft hij rechtsboven in beeld
   balloon: { at: [0.17, -0.2, -0.4], size: 1, tilt: -0.95 },
   hat: { at: [0.14, -0.15, -0.34], size: 0.55, tilt: 0.55 },

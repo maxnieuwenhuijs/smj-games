@@ -76,6 +76,12 @@ export class Hud {
   private goalRows: { fill: HTMLElement; count: HTMLElement; row: HTMLElement; n: number }[] = [];
   private mouthTimer = 0;
   private voice: Voice | null = null;
+  /** De laatste meldingen, de nieuwste eerst: terug te lezen in het venster onder de knop met het praatwolkje. */
+  private log: { who: FigureId; mood: Mood; text: string; tap: (() => void) | null; again: (() => Voice | null) | null; at: number }[] = [];
+  /** Hoeveel meldingen er zijn bijgekomen sinds het venster voor het laatst open was. */
+  private unread = 0;
+  private inboxBtn = el('button', 'tool small', `${icon('inbox')}<i class="count" hidden></i>`);
+  private inbox = el('div', '');
 
   private need = el('div', '');
   private needKey = '';
@@ -113,6 +119,19 @@ export class Hud {
       this.hush();
       go?.();
     });
+    // de meldingen terugzien: een knop met een praatwolkje rechtsboven, met een venster eronder
+    this.inboxBtn.id = 'inbox';
+    this.inboxBtn.setAttribute('aria-label', t('inbox'));
+    this.inboxBtn.title = t('inbox');
+    this.inboxBtn.addEventListener('click', () => (this.inbox.hidden ? this.openInbox() : this.closeInbox()));
+    this.inbox.id = 'inboxpanel';
+    this.inbox.hidden = true;
+    document.getElementById('ui')!.append(this.inboxBtn, this.inbox);
+    // ergens anders tikken doet het venster dicht
+    document.addEventListener('pointerdown', e => {
+      const at = e.target as Node;
+      if (!this.inbox.hidden && !this.inbox.contains(at) && !this.inboxBtn.contains(at)) this.closeInbox();
+    }, true);
     // twee pijlen rechtsboven: het beeld een kwartslag naar links of naar rechts draaien
     for (const dir of [-1, 1] as const) {
       const b = el('button', 'tool small', icon('camturn'));
@@ -389,6 +408,12 @@ export class Hud {
           line.append(o);
         }
         this.options.append(line);
+        // veel knoppen (of past de rij niet op het scherm): twee rijen onder elkaar in plaats van één lange
+        const n = line.children.length;
+        if (n >= 12 || (n >= 6 && line.scrollWidth > line.clientWidth + 2)) {
+          line.classList.add('two');
+          line.style.setProperty('--cols', String(Math.ceil(n / 2)));
+        }
       }
     }
     // dezelfde rij als net: weer op dezelfde plek; een nieuwe rij: de gekozen knop in beeld
@@ -700,8 +725,9 @@ export class Hud {
    * Een figuur zegt iets. Met een ingesproken zin beweegt het mondje mee met het geluid en gaat het
    * venster dicht als de zin uit is; zonder stem praat het figuur op een klokje.
    */
-  say(who: FigureId, mood: Mood, text: string, voice: Voice | null = null, onTap: (() => void) | null = null): void {
+  say(who: FigureId, mood: Mood, text: string, voice: Voice | null = null, onTap: (() => void) | null = null, again: (() => Voice | null) | null = null, remember = true): void {
     this.hush();
+    if (remember) this.remember(who, mood, text, onTap, again);
     // `onTap`: de melding gaat over een plek in het park; tik erop en het beeld gaat erheen
     this.speechTap = onTap;
     this.speech.querySelector<HTMLElement>('.goto')!.hidden = !onTap;
@@ -739,6 +765,70 @@ export class Hud {
         if (ms > talkMs + 3000) this.hush();
       }
     }, 65);
+  }
+
+  /**
+   * Bewaart een melding voor het venster. Dezelfde zin vlak achter elkaar staat er maar één keer in (alleen de tijd
+   * schuift op), en er blijven er hooguit dertig staan.
+   */
+  private remember(who: FigureId, mood: Mood, text: string, tap: (() => void) | null, again: (() => Voice | null) | null): void {
+    const same = this.log.findIndex(m => m.text === text);
+    if (same >= 0 && same < 3) this.log.splice(same, 1);
+    this.log.unshift({ who, mood, text, tap, again, at: performance.now() });
+    this.log.length = Math.min(this.log.length, 30);
+    this.unread++;
+    this.showUnread();
+  }
+
+  private showUnread(): void {
+    const count = this.inboxBtn.querySelector<HTMLElement>('.count')!;
+    count.hidden = !this.unread;
+    count.textContent = this.unread > 9 ? '9+' : String(this.unread);
+    if (!this.inbox.hidden) this.fillInbox();
+  }
+
+  /** Het venster met de meldingen: de nieuwste bovenaan. Tik op een melding en je hoort hem weer en gaat erheen. */
+  private openInbox(): void {
+    this.inbox.hidden = false;
+    this.inboxBtn.classList.add('on');
+    this.unread = 0;
+    this.showUnread();
+    this.fillInbox();
+  }
+
+  closeInbox(): void {
+    this.inbox.hidden = true;
+    this.inboxBtn.classList.remove('on');
+  }
+
+  private fillInbox(): void {
+    const head = el('div', 'head', `<b>${t('inbox')}</b>`);
+    const shut = el('button', 'shut', '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M12 12 L36 36 M36 12 L12 36" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"/></svg>');
+    shut.type = 'button';
+    shut.setAttribute('aria-label', t('event.no'));
+    shut.addEventListener('click', () => this.closeInbox());
+    head.append(shut);
+    const list = el('div', 'list');
+    if (!this.log.length) list.append(el('p', 'empty', t('inbox.empty')));
+    const now = performance.now();
+    for (const m of this.log) {
+      const min = Math.floor((now - m.at) / 60000);
+      const ago = min < 1 ? t('inbox.now') : t('inbox.min', { n: min });
+      const b = el('button', `msg${m.tap ? ' go' : ''}`, `<span class="portrait">${portrait(m.who, m.mood, 0)}</span><span class="words"><span class="name">${t(`figure.${m.who}`)}<i>${ago}</i></span><span class="text"></span></span>${m.tap ? `<span class="goto">${icon('goto')}</span>` : ''}`);
+      b.type = 'button';
+      b.dataset.mood = m.mood;
+      b.querySelector('.text')!.textContent = m.text;
+      b.addEventListener('click', () => {
+        // nog een keer: de zin opnieuw in het praatvenster (met stem als die er is), en erheen als het over een plek gaat
+        this.closeInbox();
+        this.say(m.who, m.mood, m.text, m.again?.() ?? null, m.tap, m.again, false);
+        m.tap?.();
+      });
+      list.append(b);
+    }
+    const top = this.inbox.querySelector('.list')?.scrollTop ?? 0;
+    this.inbox.replaceChildren(head, list);
+    list.scrollTop = top;
   }
 
   hush(): void {

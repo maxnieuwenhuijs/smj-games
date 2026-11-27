@@ -250,12 +250,14 @@ const DECOR_SETS: Record<string, DecorKind[]> = {
   beelden: ['scarecrow', 'totem', 'snowman', 'campfire', 'windmill', 'statue', 'clocktower'],
 };
 const SHOP_SETS: Record<string, ShopKind[]> = {
-  kramen: ['foodstall', 'drinkstall', 'icecream', 'balloon', 'hats', 'souvenir', 'facepaint'],
+  kramen: ['foodstall', 'drinkstall', 'icecream', 'balloon', 'hats', 'souvenir', 'facepaint', 'candy'],
   gebouwen: ['toilet', 'restaurant', 'shelter', 'station'],
   klein: ['bench', 'flowers', 'bin', 'umbrellas'],
   // (het hoogste achteraan, op de eerste rij: anders staat het voor de rest)
   speeltuin: ['slide', 'trampoline', 'swing', 'seesaw', 'springer', 'springer', 'springer'],
   attracties: ['ferris', 'tower', 'carousel', 'bumper', 'fountain', 'show', 'cablecar'],
+  // de grote attracties van het eind
+  groot: ['coaster', 'flume', 'ship', 'swinger', 'airballoon', 'safari'],
 };
 const GROUPS: Record<string, Item[]> = {
   bedden: BEDS.map(bed),

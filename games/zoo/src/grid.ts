@@ -23,9 +23,10 @@ export const MIN_ENCLOSURE = 4;
 
 /**
  * 0 = niets, 1 = houten hek, 2 = poort, 3 = stenen muur, 4 = hoog net, 5 = glas (aquarium), 6 = kijkvenster (past in
- * elk hek), 7 = het witte hekje van de kinderboerderij, 8 = het poortje waar gasten door naar binnen gaan.
+ * elk hek), 7 = het witte hekje van de kinderboerderij, 8 = het poortje waar gasten door naar binnen gaan,
+ * 9 = de safaripoort: een dubbele poort tussen twee verblijven waar alleen de jeep van de safaritrein doorheen kan.
  */
-export type EdgeKind = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+export type EdgeKind = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 /** 'h' ligt aan de noordkant van tegel (x,y); 'v' aan de westkant. */
 export interface Edge {
@@ -129,12 +130,52 @@ export class Grid {
     return true;
   }
 
+  /**
+   * De glazen tunnel (zie TUBE in data.ts): het nummer van die grond, en welke grond een pad is. Het spel vult ze in;
+   * zonder is er geen tunnel. Een tunnel ligt verzonken in een bak van glas en hoort bij dat verblijf: het water
+   * staat erboven. Waar hij tegen het glas van de bak aan komt en daarbuiten een pad (of nog een stuk tunnel) ligt, is
+   * de ingang: daar loop je met een trap onder het glas door.
+   */
+  tube = -1;
+  walk: (terrain: number) => boolean = () => false;
+
+  /** Het hek op de rand waar je overheen stapt van tegel (x, y) naar (x + dx, y + dy). */
+  private edgeTo(x: number, y: number, dx: number, dy: number): number {
+    return dy === -1 ? this.h[x + y * W] : dy === 1 ? this.h[x + (y + 1) * W] : dx === -1 ? this.v[x + y * (W + 1)] : this.v[x + 1 + y * (W + 1)];
+  }
+
+  /** Is deze stap de ingang van een tunnel: door het glas van de bak, van een pad de tunnel in (of andersom)? */
+  private mouthStep(x: number, y: number, dx: number, dy: number): boolean {
+    if (this.tube < 0 || this.edgeTo(x, y, dx, dy) !== 5) return false;
+    const a = this.terrain[tileIndex(x, y)], b = this.terrain[tileIndex(x + dx, y + dy)];
+    return (a === this.tube || b === this.tube) && (a === this.tube || this.walk(a)) && (b === this.tube || this.walk(b));
+  }
+
+  /** Kan de jeep van de safaritrein deze stap zetten? Hij rijdt waar geen hek staat, en door een safaripoort (hekje 9). */
+  jeepStep(x: number, y: number, dx: number, dy: number): boolean {
+    if (!this.inBounds(x + dx, y + dy)) return false;
+    const edge = this.edgeTo(x, y, dx, dy);
+    return edge === 0 || edge === 9;
+  }
+
+  /** Ligt tussen deze twee tegels (naast elkaar) de ingang van een tunnel? */
+  mouthBetween(a: number, b: number): boolean {
+    const [ax, ay] = tileXY(a), [bx, by] = tileXY(b);
+    return Math.abs(ax - bx) + Math.abs(ay - by) === 1 && this.mouthStep(ax, ay, bx - ax, by - ay);
+  }
+
+  /** Is deze rand de ingang van een tunnel? Daar gaat de tunnel onder het glas van de bak door. */
+  mouth(e: Edge): boolean {
+    const [x, y, dx, dy] = e.o === 'h' ? [e.x, e.y, 0, -1] : [e.x, e.y, -1, 0];
+    return this.inBounds(x, y) && this.inBounds(x + dx, y + dy) && this.mouthStep(x, y, dx, dy);
+  }
+
   /** Kun je van tegel (x,y) een stap (dx,dy) zetten zonder door een hek te gaan? */
   /** `gates`: personeel kan door een poort (hekje 2); dieren en gasten niet. */
   canStep(x: number, y: number, dx: number, dy: number, gates = false): boolean {
     if (!this.inBounds(x + dx, y + dy)) return false;
-    const edge = dy === -1 ? this.h[x + y * W] : dy === 1 ? this.h[x + (y + 1) * W] : dx === -1 ? this.v[x + y * (W + 1)] : this.v[x + 1 + y * (W + 1)];
-    return edge === 0 || (gates && (edge === 2 || edge === 8));
+    const edge = this.edgeTo(x, y, dx, dy);
+    return edge === 0 || (gates && (edge === 2 || edge === 8)) || (edge === 5 && this.mouthStep(x, y, dx, dy));
   }
 
   /** Ligt de tegel aan de rand van het park zonder hek ertussen? */
@@ -163,7 +204,8 @@ export class Grid {
         const [x, y] = tileXY(i);
         if (this.leaks(x, y)) region.enclosed = false;
         for (const [dx, dy] of DIRS) {
-          if (!this.canStep(x, y, dx, dy)) continue;
+          // (de ingang van een tunnel telt hier als dicht: het verblijf blijft een verblijf)
+          if (!this.inBounds(x + dx, y + dy) || this.edgeTo(x, y, dx, dy) !== 0) continue;
           const j = tileIndex(x + dx, y + dy);
           if (this.regionOf[j] === -1) {
             this.regionOf[j] = region.id;
@@ -188,11 +230,12 @@ export class Grid {
 
   /**
    * Waar is de rand van het verblijf van gemaakt? Geeft 3 als alles steen is, 4 als alles hoog net is
-   * en anders 1. Poorten tellen niet mee: die passen bij elk hek.
+   * en anders 1. Poorten tellen niet mee: die passen bij elk hek. Ook een hek tussen twee verblijven telt niet mee:
+   * daar heeft elk verblijf zijn eigen kant (een dubbel hek), dus het gaat om het hek aan de buitenkant.
    */
   penKind(region: Region): EdgeKind {
     const inside = new Set(region.tiles);
-    let found: EdgeKind = 0;
+    let found: EdgeKind = 0, shared: EdgeKind = 0;
     for (const i of region.tiles) {
       const [x, y] = tileXY(i);
       const sides: [number, number, number][] = [
@@ -204,12 +247,40 @@ export class Grid {
       for (const [dx, dy, kind] of sides) {
         const out = !this.inBounds(x + dx, y + dy) || !inside.has(tileIndex(x + dx, y + dy));
         // een poort en een kijkvenster passen bij elk soort hek
-        if (!out || kind === 2 || kind === 6 || kind === 8) continue;
+        if (!out || kind === 2 || kind === 6 || kind === 8 || kind === 9) continue;
+        // een hek dat dit verblijf deelt met een ander verblijf telt niet mee: daar staat vanzelf een dubbel hek, aan
+        // elke kant het hek van dat verblijf (zie sharedSide en View.syncFences)
+        if (this.inBounds(x + dx, y + dy) && this.enclosureAt(x + dx, y + dy)) {
+          shared ||= kind as EdgeKind;
+          continue;
+        }
         if (kind === 1 || (found && found !== kind)) return 1;
         found = kind as EdgeKind;
       }
     }
-    return found || 1;
+    // (een verblijf dat helemaal tussen andere verblijven in ligt, heeft geen eigen buitenhek: dan telt wat er staat)
+    return found || shared || 1;
+  }
+
+  /**
+   * Een hek tussen twee verblijven: welk soort hek er aan elke kant staat, [de kant van de tegel erboven of links, de
+   * kant van de tegel eronder of rechts]. Een verblijf met een bijzonder hek (steen, net, glas, wit hekje) heeft dat
+   * ook aan zijn kant van het gedeelde hek; een verblijf met een gewoon houten hek neemt wat er staat. Zijn de twee
+   * kanten verschillend, dan staat er een dubbel hek. Null: dit is geen hek tussen twee verblijven (of het is een
+   * poort, venster of safaripoort: die blijven enkel). `kinds`: een kladje om het soort hek per verblijf te onthouden.
+   */
+  sharedSide(e: Edge, kinds = new Map<number, EdgeKind>()): [EdgeKind, EdgeKind] | null {
+    const kind = this.getEdge(e);
+    if (kind !== 1 && kind !== 3 && kind !== 4 && kind !== 5 && kind !== 7) return null;
+    const of = (x: number, y: number): EdgeKind => {
+      const region = this.enclosureAt(x, y);
+      if (!region) return 0;
+      if (!kinds.has(region.id)) kinds.set(region.id, this.penKind(region));
+      return kinds.get(region.id)!;
+    };
+    const a = e.o === 'h' ? of(e.x, e.y - 1) : of(e.x - 1, e.y), b = of(e.x, e.y);
+    if (!a || !b) return null;
+    return [a !== 1 ? a : kind, b !== 1 ? b : kind];
   }
 
   /** De randen aan de buitenkant van een verblijf (ook de poorten: vraag met getEdge wat er staat). */

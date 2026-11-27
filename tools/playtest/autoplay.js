@@ -14,6 +14,10 @@ const data = await import('/src/data.ts');
 const { goalProgress } = await import('/src/levels.ts');
 const models = await import('/src/models.ts');
 const { SPECIES, LEVELS, TERRAINS, FEATURE, SHOP_PRICE, PRODUCTS, PRICE } = data;
+// LET OP: de proefspeler bouwt vaste verblijven van 3 bij 3. Grote dieren willen in het echte spel veel meer ruimte
+// (zie SPACE in data.ts: twee olifanten willen samen 24 tegels). Daarom zet hij de ruimte-eis hier laag: of een
+// speler genoeg ruimte kan maken, test de proefspeler dus NIET.
+for (const sp of Object.keys(data.SPACE)) data.SPACE[sp] = Math.min(data.SPACE[sp], 2);
 /** Personeel loopt door het park: zet een werker op het pad bij de ingang. */
 const hire = role => {
   const game = window.__zoo;
@@ -44,6 +48,9 @@ const SHOP_ROWS = [
   { py: 17, below: true, deep: 2, xs: [7, 11, 5, 13, 3, 15, 1, 17, 19, -1, 21, -3] },
   { py: -1, below: false, deep: 3, xs: [8, 11, 6, 13, 4, 15, 2, 17, 0, 19, -2, 21, -4] },
   { py: -5, below: false, deep: 3, xs: [8, 11, 6, 13, 4, 15, 2, 17, 0, 19, -2, 21, -4] },
+  // is er geen plek meer, of is iets vier tegels diep (de zweefmolen, de achtbaan), dan koopt hij de strook achter het
+  // park erbij: daar komt een pad (y = -9) met een rij erboven
+  { py: -9, below: false, deep: 4, back: true, xs: [8, 11, 6, 13, 4, 15, 2, 17, 0, 19, -2, 21, -4] },
 ];
 // losse dingen staan op de noordrand van het zijpad
 const SMALL_SPOTS = [9, 11, 8, 12, 7, 13, 6, 14, 5, 15, 4, 16, 3, 17, 2, 18, 1, 19].map(x => [x + OX, 17 + OY]);
@@ -275,6 +282,8 @@ export const T = {
     const [w, h] = data.shopSpan(kind, 0);
     for (const row of SHOP_ROWS) {
       if (h > row.deep) continue;
+      // (de strook achter het park erbij kopen)
+      if (row.back && !this.land('back')) continue;
       const y = (row.below ? row.py + 1 : row.py - h) + OY;
       // andere breedtes: elke plek langs het pad, het dichtst bij het middenpad eerst
       const xs = w === 2 ? row.xs : Array.from({ length: 28 - w }, (_, i) => i - 4).sort((a, b) => Math.abs(a + w / 2 - 10.5) - Math.abs(b + w / 2 - 10.5));
@@ -288,10 +297,73 @@ export const T = {
     const game = z();
     while (game.shops.filter(s => s.kind === kind).length < n) {
       const big = !data.onEdge(kind);
-      const spot = big ? this.spotFor(kind) : SMALL_SPOTS.find(([x, y]) => !game.shops.some(s => s.x === x && s.y === y && s.edge));
+      const spot = kind === 'safari' ? this.safariSpot() : big ? this.spotFor(kind) : SMALL_SPOTS.find(([x, y]) => !game.shops.some(s => s.x === x && s.y === y && s.edge));
       if (!spot || !this.pay(SHOP_PRICE[kind])) return;
       game.addShop(spot[0], spot[1], kind, undefined, big ? undefined : 'h');
     }
+  },
+
+  /** Een strook grond erbij kopen (links, rechts of achter). Geeft terug of hij nu van het park is. */
+  land(side) {
+    const game = z();
+    if (game.grid.owns(side)) return true;
+    if (!this.pay(data.LAND_PRICE)) return false;
+    game.coins += data.LAND_PRICE;
+    game.buyLand(side);
+    game.hud.hush();
+    // achter het park: het middenpad doortrekken en een dwarspad leggen
+    if (side === 'back' && game.grid.owns(side)) {
+      this.terrain(10 + OX, -9 + OY, 10 + OX, -5 + OY, 'path');
+      this.terrain(OX - 4, -9 + OY, 23 + OX, -9 + OY, 'path');
+    }
+    return game.grid.owns(side);
+  },
+
+  /**
+   * Een bak van glas met een glazen tunnel erdoor, voor het level dat erom vraagt: op de strook rechts van het park
+   * een bak van 3 bij 3 met water, en de tunnel over de middelste rij met aan beide kanten een pad.
+   */
+  tunnel(n) {
+    const game = z(), G = game.grid, x0 = 24 + OX, y0 = -4 + OY, water = TERRAINS.indexOf('water'), path = TERRAINS.indexOf('path');
+    if (G.terrain.filter(k => k === data.TUBE).length >= n || !this.land('right')) return;
+    for (let x = x0; x < x0 + 3; x++) {
+      G.setEdge({ o: 'h', x, y: y0 }, 5);
+      G.setEdge({ o: 'h', x, y: y0 + 3 }, 5);
+    }
+    for (let y = y0; y < y0 + 3; y++) {
+      G.setEdge({ o: 'v', x: x0, y }, 5);
+      G.setEdge({ o: 'v', x: x0 + 3, y }, 5);
+    }
+    game.gridChanged();
+    for (let y = y0; y < y0 + 3; y++) for (let x = x0; x < x0 + 3; x++) game.layGround(x, y, water);
+    // het pad: vanaf het achterste pad naar de bak, en de tunnel dwars door de middelste rij
+    for (let y = -5 + OY; y <= y0 + 1; y++) game.layGround(x0 - 1, y, path);
+    game.layGround(x0 + 3, y0 + 1, path);
+    for (let x = x0; x < x0 + 3; x++) {
+      const lay = game.groundFor(x, y0 + 1, 'seatunnel');
+      if (lay) game.layGround(x, y0 + 1, lay[0], lay[1]);
+    }
+    game.hud.hush();
+  },
+
+  /**
+   * De plek voor het station van de safaritrein: dat moet tegen een verblijf aan staan. Op de strook rechts van het
+   * park komt daarom een leeg verblijf van 5 bij 4 met het station ervoor, en een pad naar het dwarspad.
+   */
+  safariSpot() {
+    const game = z(), G = game.grid, sx = 24 + OX, sy = 2 + OY, path = TERRAINS.indexOf('path');
+    if (!this.land('right')) return null;
+    for (let x = sx + 2; x < sx + 7; x++) {
+      G.setEdge({ o: 'h', x, y: sy - 1 }, 1);
+      G.setEdge({ o: 'h', x, y: sy + 3 }, 1);
+    }
+    for (let y = sy - 1; y < sy + 3; y++) {
+      G.setEdge({ o: 'v', x: sx + 2, y }, 1);
+      G.setEdge({ o: 'v', x: sx + 7, y }, 1);
+    }
+    game.gridChanged();
+    for (let y = sy; y <= 4 + OY; y++) game.layGround(sx - 1, y, path);
+    return game.shopFits(sx, sy, 'safari', 0) ? [sx, sy] : null;
   },
 
   /** Het vangen van een ontsnapt dier, met dezelfde tik als bij een speler. */
@@ -444,6 +516,9 @@ export const T = {
     for (const kind of ['foodstall', 'drinkstall', 'toilet', 'bench', 'slide', 'icecream', 'balloon', 'bin', 'hats', 'souvenir']) if (done >= FEATURE[kind]) this.shop(kind, game.shopsNeeded(kind));
     for (const g of level.goals) {
       if (g.type === 'shop') this.shop(g.shop, g.n);
+      // zoveel gasten in een attractie: die moet er dan staan
+      if (g.type === 'rode') this.shop(g.shop, 1);
+      if (g.type === 'tunnel') this.tunnel(g.n);
       if (g.type === 'sold' && g.shop) this.shop(g.shop, 1);
       if (g.type === 'sold' && g.product) {
         // de kraam zo instellen dat hij verkoopt waar het level om vraagt

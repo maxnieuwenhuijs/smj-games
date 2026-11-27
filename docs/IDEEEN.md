@@ -78,7 +78,7 @@ Een lijst om uit te kiezen. Achter wat er al in het spel zit, staat **Gebouwd.**
 57. **Lampionnenavond**: gasten lopen 's nachts met lichtjes door het park. *Middel.*
 58. **Hittegolf**: dieren willen extra water en schaduw. *Klein.*
 59. **Ooievaar brengt een verrassingsdier** dat je een dag mag houden. *Middel.*
-60. **Vuurwerk** bij het halen van een wereld. *Klein.*
+60. **Vuurwerk** bij het halen van een wereld. *Klein.* **Gebouwd.**
 
 ## Awards en verzamelen (10)
 

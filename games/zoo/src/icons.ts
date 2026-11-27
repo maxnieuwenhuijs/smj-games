@@ -189,6 +189,70 @@ const ICONS = {
     '<circle cx="14" cy="24" r="3.2" fill="#fff" stroke="#e5b520" stroke-width="2"/><path d="M14 24 Q6 30 3 42" fill="none" stroke="#a8743f" stroke-width="2.5" stroke-linecap="round"/>' +
     `<path d="M22 19 H38 M22 25 H38 M22 31 H32" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`,
   // 'ga erheen': staat in een melding waar je op kunt tikken om te zien waar het over gaat
+  // de grote attracties van het eind
+  swinger:
+    '<path d="M24 12 V44" stroke="#2bb5a8" stroke-width="4" stroke-linecap="round"/><rect x="17" y="42" width="14" height="4" rx="2" fill="#c9453c"/>' +
+    '<path d="M6 14 L24 3 L42 14Z" fill="#e0584f"/><path d="M17 14 L24 3 L31 14Z" fill="#fff7e0"/><rect x="6" y="13" width="36" height="4" rx="2" fill="#ffd23f"/>' +
+    '<path d="M11 17 L5 32 M37 17 L43 32 M18 17 L15 35 M30 17 L33 35" stroke="#9aa0a6" stroke-width="1.6"/>' +
+    '<rect x="1" y="31" width="8" height="6" rx="1.5" fill="#4a90e2"/><rect x="39" y="31" width="8" height="6" rx="1.5" fill="#6cc04a"/><rect x="11.5" y="34" width="7" height="6" rx="1.5" fill="#f06aa6"/><rect x="29.5" y="34" width="7" height="6" rx="1.5" fill="#ffd23f"/>',
+  ship:
+    '<path d="M24 6 L8 45 M24 6 L40 45" stroke="#4a90e2" stroke-width="3.5" stroke-linecap="round"/>' +
+    '<g transform="rotate(-18 24 7)"><path d="M24 8 L14 30 M24 8 L34 30" stroke="#9aa0a6" stroke-width="2"/><path d="M6 28 H42 L37 39 H11Z" fill="#8f5632"/>' +
+    '<rect x="6" y="27" width="36" height="3.5" rx="1.75" fill="#ffd23f"/><path d="M41 28 l3 -8 l3 1 l-2 8z" fill="#3d8b5a"/><circle cx="16" cy="34" r="2.4" fill="#e0584f"/><circle cx="24" cy="34" r="2.4" fill="#4a90e2"/><circle cx="32" cy="34" r="2.4" fill="#6cc04a"/></g>' +
+    '<circle cx="24" cy="7" r="3.8" fill="#ffd23f"/>',
+  airballoon:
+    '<path d="M24 3 C11 3 6 13 6 19 C6 27 15 33 19 37 H29 C33 33 42 27 42 19 C42 13 37 3 24 3Z" fill="#e0584f"/>' +
+    '<path d="M24 3 C19 3 17 13 17 19 C17 27 20 33 21.5 37 H26.5 C28 33 31 27 31 19 C31 13 29 3 24 3Z" fill="#ffd23f"/>' +
+    '<path d="M13 8 C9 12 9 22 15 30 M35 8 C39 12 39 22 33 30" fill="none" stroke="#4a90e2" stroke-width="3.5" stroke-linecap="round"/>' +
+    '<path d="M19.5 37 L20.5 41 M28.5 37 L27.5 41" stroke="#8a857a" stroke-width="1.6"/><rect x="18.5" y="40" width="11" height="6.5" rx="1.5" fill="#c9944f"/><rect x="18" y="39.5" width="12" height="2.2" rx="1.1" fill="#a8743f"/>',
+  flume:
+    '<path d="M3 7 H15 L36 33 H46 V40 H30 L11 16 H3Z" fill="#a9743f"/><path d="M4 9.5 H14 L35 35.5 H45" fill="none" stroke="#6ec3e8" stroke-width="3.5"/>' +
+    '<g transform="rotate(51 23 20)"><rect x="14" y="16" width="18" height="8" rx="4" fill="#8a5a34"/><circle cx="19.5" cy="14.5" r="3.2" fill="#f4c9a0"/><circle cx="27" cy="14.5" r="3.2" fill="#f4c9a0"/></g>' +
+    '<path d="M35 34 q-3 -10 -9 -11 M40 34 q2 -9 6 -10 M37.5 33 v-12" fill="none" stroke="#d6f1ff" stroke-width="2.6" stroke-linecap="round"/>' +
+    '<rect x="2" y="40" width="44" height="5" rx="2.5" fill="#6ec3e8"/>',
+  coaster:
+    '<path d="M8 45 V31 M15 45 V15 M22 45 V10 M29 45 V20 M36 45 V35 M43 45 V30" stroke="#c9ced4" stroke-width="2.2"/>' +
+    '<path d="M2 41 C10 41 12 8 22 8 C32 8 30 35 38 35 C42 35 44 29 46 26" fill="none" stroke="#e0584f" stroke-width="3.6" stroke-linecap="round"/>' +
+    '<g transform="rotate(-60 13 23)"><rect x="5.5" y="16" width="15" height="8" rx="2.5" fill="#4a90e2"/><rect x="5.5" y="21.5" width="15" height="2.5" rx="1.2" fill="#ffd23f"/><circle cx="10" cy="14.5" r="3" fill="#f4c9a0"/><circle cx="16.5" cy="14.5" r="3" fill="#f4c9a0"/></g>',
+  // de suikerspin: een roze wolk op een stokje
+  candy:
+    '<path d="M24 30 L27 46" stroke="#e9d9b8" stroke-width="3.4" stroke-linecap="round"/>' +
+    '<circle cx="17" cy="17" r="10" fill="#f9a8c9"/><circle cx="31" cy="16" r="10" fill="#f9a8c9"/><circle cx="24" cy="24" r="10" fill="#f9a8c9"/><circle cx="24" cy="11" r="8.5" fill="#fcc4dc"/>' +
+    '<path d="M13 16 q5 -6 10 -1 M25 23 q5 -4 9 0 M19 27 q4 -3 7 0" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".85"/>',
+  floss_pink:
+    '<path d="M24 30 L27 46" stroke="#e9d9b8" stroke-width="3.4" stroke-linecap="round"/>' +
+    '<circle cx="17" cy="17" r="10" fill="#f9a8c9"/><circle cx="31" cy="16" r="10" fill="#f9a8c9"/><circle cx="24" cy="24" r="10" fill="#f9a8c9"/><circle cx="24" cy="11" r="8.5" fill="#fcc4dc"/>',
+  floss_blue:
+    '<path d="M24 30 L27 46" stroke="#e9d9b8" stroke-width="3.4" stroke-linecap="round"/>' +
+    '<circle cx="17" cy="17" r="10" fill="#9fd8f5"/><circle cx="31" cy="16" r="10" fill="#9fd8f5"/><circle cx="24" cy="24" r="10" fill="#9fd8f5"/><circle cx="24" cy="11" r="8.5" fill="#c9eafb"/>',
+  // de safaripoort: twee palen met een bord met strepen, twee deuren die openstaan en twee oranje zwaailichten
+  safarigate:
+    '<path d="M8 46 V10 M40 46 V10" stroke="#8a5a34" stroke-width="5" stroke-linecap="round"/><rect x="5" y="7" width="38" height="5" rx="2.5" fill="#6e4a2a"/>' +
+    '<rect x="14" y="13" width="20" height="9" rx="2" fill="#ffd23f"/><path d="M18 14.5 l3 6 M24 14.5 l3 6 M30 14.5 l2 4" stroke="#2c2f36" stroke-width="2.4" stroke-linecap="round"/>' +
+    '<path d="M10 44 L20 40 V24 L10 28Z M38 44 L28 40 V24 L38 28Z" fill="#a8743f" stroke="#8a5a34" stroke-width="1.5" stroke-linejoin="round"/>' +
+    '<circle cx="8" cy="5" r="4" fill="#ff9a1f"/><circle cx="40" cy="5" r="4" fill="#ff9a1f"/><path d="M2 2 l-1 -1 M14 2 l1 -1 M34 2 l-1 -1 M46 2 l1 -1" stroke="#ffb347" stroke-width="1.6" stroke-linecap="round"/>',
+  // de safaritrein: een open jeep met een zonnedak
+  safari:
+    '<rect x="5" y="22" width="38" height="12" rx="3.5" fill="#7a9a4a"/><path d="M12 22 V12 M34 22 V12" stroke="#5a7a34" stroke-width="3" stroke-linecap="round"/><rect x="7" y="8.5" width="32" height="4.5" rx="2.2" fill="#e9d05a"/>' +
+    '<circle cx="19" cy="18" r="3.4" fill="#f4c9a0"/><circle cx="28" cy="18" r="3.4" fill="#f4c9a0"/><rect x="38" y="25" width="5" height="4" rx="1.5" fill="#ffd23f"/>' +
+    '<path d="M9 27 h7 M9 30.5 h5" stroke="#5a7a34" stroke-width="2" stroke-linecap="round"/>' +
+    '<circle cx="14" cy="36" r="6" fill="#3a2a1a"/><circle cx="14" cy="36" r="2.5" fill="#c9ced4"/><circle cx="34" cy="36" r="6" fill="#3a2a1a"/><circle cx="34" cy="36" r="2.5" fill="#c9ced4"/>',
+  // de tunnel van glas onder water: een boog met vissen eromheen
+  seatunnel:
+    '<path d="M3 45 V24 C3 10 13 3 24 3 C35 3 45 10 45 24 V45Z" fill="#6ec3e8"/><path d="M12 45 V27 C12 18 17 13 24 13 C31 13 36 18 36 27 V45Z" fill="#e3c08a"/>' +
+    '<path d="M12 45 V27 C12 18 17 13 24 13 C31 13 36 18 36 27 V45" fill="none" stroke="#eaf8ff" stroke-width="2.6"/>' +
+    '<path d="M32 9 q4 -3.5 8 0 q-4 3.5 -8 0z M40 9 l3 -2.5 v5z" fill="#f08a24"/><path d="M5 24 q3 -2.5 5.5 0 q-2.5 2.5 -5.5 0z M5 24 l-2 -2 v4z" fill="#ffd23f"/><path d="M38 30 q3 -2.5 5.5 0 q-2.5 2.5 -5.5 0z" fill="#f06aa6"/>' +
+    '<circle cx="24" cy="30" r="3.4" fill="#f4c9a0"/><rect x="21" y="34" width="6" height="9" rx="2" fill="#4a90e2"/>',
+  // vuurwerk: een pijl die uit elkaar spat
+  firework:
+    '<path d="M24 46 V32" stroke="#9aa0a6" stroke-width="2.5" stroke-linecap="round"/>' +
+    '<path d="M24 22 V5 M24 22 L36 10 M24 22 H42 M24 22 L36 34 M24 22 L12 34 M24 22 H6 M24 22 L12 10" stroke="#ffd23f" stroke-width="3" stroke-linecap="round"/>' +
+    '<circle cx="24" cy="4" r="2.6" fill="#e0584f"/><circle cx="37" cy="9" r="2.6" fill="#4a90e2"/><circle cx="43" cy="22" r="2.6" fill="#6cc04a"/><circle cx="37" cy="35" r="2.6" fill="#f06aa6"/>' +
+    '<circle cx="11" cy="35" r="2.6" fill="#4a90e2"/><circle cx="5" cy="22" r="2.6" fill="#e0584f"/><circle cx="11" cy="9" r="2.6" fill="#6cc04a"/><circle cx="24" cy="22" r="4" fill="#fff7e0"/>',
+  // het praatwolkje van de meldingen: daarin lees je terug wat de figuren eerder zeiden
+  inbox:
+    '<path d="M7 7 H41 Q45 7 45 11 V30 Q45 34 41 34 H21 L11 43 V34 H7 Q3 34 3 30 V11 Q3 7 7 7Z" fill="#fff" stroke="#4a90e2" stroke-width="3.5" stroke-linejoin="round"/>' +
+    '<path d="M11 16 H37 M11 25 H28" stroke="#4a90e2" stroke-width="4" stroke-linecap="round"/>',
   goto: '<circle cx="24" cy="24" r="13" fill="#fff" stroke="#4a90e2" stroke-width="5"/><circle cx="24" cy="24" r="5" fill="#4a90e2"/><path d="M24 2 V9 M24 39 V46 M2 24 H9 M39 24 H46" stroke="#4a90e2" stroke-width="5" stroke-linecap="round"/>',
   sleep: disc('#6f8fe0') + '<path d="M13 14 H23 L13 26 H23 M27 22 H35 L27 32 H35" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>',
   move:
@@ -585,12 +649,12 @@ const ICONS = {
     `<path d="M7 15 Q15 9 24 13 Q33 17 41 11 L43 33 Q35 40 26 36 Q17 32 9 38Z" fill="#8fd0ee" stroke="#3f8fb5" stroke-width="2.2" stroke-linejoin="round"/>` +
     `<path d="M15 18 Q21 23 19 31 M28 20 Q33 25 31 32" fill="none" stroke="#3f8fb5" stroke-width="1.8" stroke-linecap="round" opacity=".55"/>` +
     `<path d="M12 4 L13.6 8.4 L18 10 L13.6 11.6 L12 16 L10.4 11.6 L6 10 L10.4 8.4Z" fill="${SUN}"/><path d="M39 36 L40.2 39.3 L43.5 40.5 L40.2 41.7 L39 45 L37.8 41.7 L34.5 40.5 L37.8 39.3Z" fill="${SUN}"/>`,
-  // het hok is te klein: een klein verblijf met een dier dat er bijna niet in past, en groene pijlen naar de grootte die het moet worden
+  // het hok is te klein: een klein verblijf met een dier dat er bijna niet in past, en rode pijlen naar de grootte die het moet worden
   grow:
-    `<rect x="4" y="4" width="40" height="40" rx="5" fill="#dff2d0" stroke="#5bab4c" stroke-width="3" stroke-dasharray="5 4"/>` +
+    `<rect x="4" y="4" width="40" height="40" rx="5" fill="#fde3df" stroke="#e0584f" stroke-width="3" stroke-dasharray="5 4"/>` +
     `<rect x="14" y="14" width="20" height="20" rx="2" fill="#f1e2c0" stroke="${WOOD_D}" stroke-width="4"/>` +
     `<ellipse cx="24" cy="25" rx="8" ry="6.5" fill="#9aa0a6"/><circle cx="31" cy="21" r="4" fill="#9aa0a6"/><circle cx="32.5" cy="20" r="1" fill="${INK}"/>` +
-    `<path d="M12 12 L5 5 M5 5 h6 M5 5 v6 M36 36 L43 43 M43 43 h-6 M43 43 v-6 M36 12 L43 5 M43 5 h-6 M43 5 v6 M12 36 L5 43 M5 43 h6 M5 43 v-6" fill="none" stroke="#2f8f3a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>`,
+    `<path d="M12 12 L5 5 M5 5 h6 M5 5 v6 M36 36 L43 43 M43 43 h-6 M43 43 v-6 M36 12 L43 5 M43 5 h-6 M43 5 v6 M12 36 L5 43 M5 43 h6 M5 43 v-6" fill="none" stroke="#d6362c" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>`,
   tree:
     '<rect x="21" y="26" width="6" height="18" rx="2" fill="#a8743f"/><circle cx="24" cy="18" r="14" fill="#5bab4c"/><circle cx="16" cy="24" r="8" fill="#4f9e45"/><circle cx="33" cy="23" r="8" fill="#468f3e"/>',
   pine:

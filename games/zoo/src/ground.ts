@@ -17,9 +17,9 @@ const TAU = Math.PI * 2;
  * De brug ligt over water: daar ligt dus gewoon het plaatje van water onder. Het spoor ligt in het gras en een
  * overweg is een stuk pad; de bedding, de bielzen en de rails zelf tekent het beeld (zie View.buildRails).
  */
-type Drawn = Exclude<Terrain, 'bridge' | 'rails' | 'crossing'>;
+type Drawn = Exclude<Terrain, 'bridge' | 'rails' | 'crossing' | 'seatunnel'>;
 type Surface = Drawn | 'around';
-const surfaceOf = (kind: Terrain): Drawn => (kind === 'bridge' ? 'water' : kind === 'rails' ? 'grass' : kind === 'crossing' ? 'path' : kind);
+const surfaceOf = (kind: Terrain): Drawn => (kind === 'bridge' || kind === 'seatunnel' ? 'water' : kind === 'rails' ? 'grass' : kind === 'crossing' ? 'path' : kind);
 
 // ------------------------------------------------------------ kleine hulpjes
 /** Vaste 'toevallige' getallen van 0 tot 1: met hetzelfde begin komt er altijd hetzelfde rijtje uit. */
@@ -703,6 +703,8 @@ export function aroundTexture(size: number, sharp = 1): THREE.Texture | null {
 }
 
 // ------------------------------------------------------------ het vlak met alle tegels
+/** Een tegel zonder grond (in het lijstje dat `paint` krijgt): daar zit een gat in het vlak. */
+export const GROUND_HOLE = 255;
 /** Welk materiaal bij een soort grond hoort (het nummer in TERRAINS): de brug deelt dat van water. */
 const SLOT = TERRAINS.map(kind => TERRAINS.indexOf(surfaceOf(kind)));
 
@@ -768,9 +770,10 @@ export class Ground {
   /** Zet de tegels op soort bij elkaar: per soort grond één stuk met zijn eigen materiaal. */
   private rebuild(): void {
     const { x0, y0, x1, y1 } = this.land, terrain = this.terrain;
-    const slot = (x: number, y: number): number => (terrain ? SLOT[terrain[x + y * W]] ?? 0 : 0);
+    // (GROUND_HOLE: hier ligt geen grond, je kijkt in de verzonken tunnel)
+    const slot = (x: number, y: number): number => (terrain ? (terrain[x + y * W] === GROUND_HOLE ? -1 : SLOT[terrain[x + y * W]] ?? 0) : 0);
     const count = new Int32Array(TERRAINS.length), next = new Int32Array(TERRAINS.length);
-    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) count[slot(x, y)]++;
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) if (slot(x, y) >= 0) count[slot(x, y)]++;
     this.geo.clearGroups();
     let at = 0;
     for (let k = 0; k < count.length; k++) {
@@ -783,7 +786,9 @@ export class Ground {
     const order = this.order, row = W + 1;
     for (let y = y0; y < y1; y++)
       for (let x = x0; x < x1; x++) {
-        const k = slot(x, y), o = next[k], a = x + y * row, c = a + row;
+        const k = slot(x, y);
+        if (k < 0) continue;
+        const o = next[k], a = x + y * row, c = a + row;
         order[o] = a;
         order[o + 1] = c;
         order[o + 2] = a + 1;

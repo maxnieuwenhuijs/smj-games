@@ -1293,6 +1293,88 @@
       "id": "road.busdoor",
       "seconds": 1.2,
       "prompt": "A bus door opening with a short, soft hiss of air. Gentle, clean recording with no background noise."
+    },
+    {
+      "id": "ride.bell",
+      "seconds": 1.0,
+      "prompt": "A cheerful small fairground bell ringing twice to announce that a ride is starting. Bright, friendly, for a children's game. Clean, no background noise."
+    },
+    {
+      "id": "ride.organ",
+      "seconds": 5.0,
+      "influence": 0.5,
+      "prompt": "A cheerful fairground organ playing a short happy waltz phrase, like an old carousel. Light, bouncy, for a children's game. No voices."
+    },
+    {
+      "id": "ride.swoosh",
+      "seconds": 1.0,
+      "variants": 2,
+      "prompt": "A large swinging pirate ship fairground ride sweeping past: one big soft whoosh of air with a tiny wooden creak. No voices, no screams."
+    },
+    {
+      "id": "ride.burner",
+      "seconds": 1.2,
+      "variants": 2,
+      "prompt": "A hot air balloon burner: one short soft roaring blast of flame. Friendly, not harsh. Clean recording with no background noise."
+    },
+    {
+      "id": "ride.chain",
+      "seconds": 0.5,
+      "variants": 2,
+      "prompt": "Two soft mechanical clicks of a small roller coaster lift chain, 'clack clack'. Short, dry, friendly."
+    },
+    {
+      "id": "ride.rush",
+      "seconds": 1.6,
+      "variants": 2,
+      "prompt": "A small children's roller coaster car rushing past on its track: a quick rattle and a whoosh. No voices, no screams."
+    },
+    {
+      "id": "ride.bigsplash",
+      "seconds": 1.6,
+      "variants": 2,
+      "prompt": "A log flume boat hitting the water at the bottom of a slide: one big, round, happy splash with spray falling back. Clean recording with no background noise."
+    },
+    {
+      "id": "ride.horn",
+      "seconds": 0.8,
+      "prompt": "A friendly little safari jeep horn: two short cute beeps. For a children's game. Clean, no background noise."
+    },
+    {
+      "id": "ride.jeep",
+      "seconds": 2.0,
+      "variants": 2,
+      "prompt": "A small toy safari jeep engine puttering along gently. Soft, low, friendly. No horn."
+    },
+    {
+      "id": "tunnel.bubbles",
+      "seconds": 1.6,
+      "variants": 2,
+      "prompt": "Soft underwater bubbles rising in a calm aquarium, a gentle blub blub. Quiet and soothing."
+    },
+    {
+      "id": "firework.launch",
+      "seconds": 1.0,
+      "variants": 2,
+      "prompt": "A small firework rocket shooting up into the sky with a soft rising whistle. Short and gentle, not loud."
+    },
+    {
+      "id": "firework.bang",
+      "seconds": 1.3,
+      "variants": 3,
+      "prompt": "A distant firework bursting: a soft round pop followed by gentle crackling sparkles. Festive and friendly, not scary."
+    },
+    {
+      "id": "firework.big",
+      "seconds": 2.0,
+      "variants": 2,
+      "prompt": "A big firework bursting far away with a deep round boom and a long glittering crackle. Festive, for a children's game, not harsh."
+    },
+    {
+      "id": "gate.open",
+      "seconds": 1.6,
+      "variants": 2,
+      "prompt": "A big wooden safari park gate swinging open with a friendly creak, with three soft electronic warning beeps on top. For a children's game. Clean, no background noise."
     }
   ]
 }

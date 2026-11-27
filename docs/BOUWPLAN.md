@@ -99,7 +99,7 @@ Vanaf level 10 willen de meeste dieren iets leuks in hun verblijf, en elk dier h
 
 ### Ruimte en groepen
 
-- **Ruimte:** grote dieren willen een groot verblijf. Minstens 9 tegels: olifant, giraf, neushoorn, nijlpaard, ijsbeer, bizon, walrus. Minstens 8: leeuw, tijger, beer, gorilla, kameel, panter, cheeta, wolf, kangoeroe. Minstens 6: paard, koe, zebra, ezel, rendier, jak, krokodil, zeehond, panda, struisvogel. De rest past overal. Is het te klein, dan zie je een eigen plaatje (een klein hok met een dier erin en groene pijlen naar buiten) in het wolkje, en zegt de bouwer dat het verblijf groter moet. Zet je een dier in een te klein verblijf, dan zie en hoor je dat meteen. Het dier wordt er niet voor opgehaald.
+- **Ruimte:** grote dieren willen een groot verblijf, en elk groot dier telt apart (`SPACE` en `spaceNeed` in data.ts; een jong telt half). Per dier 12 tegels: olifant, giraf. 10: neushoorn, nijlpaard. 9: ijsbeer, bizon, walrus. 8: leeuw, tijger, beer, gorilla, kameel, panter, cheeta, wolf, kangoeroe. 6: paard, koe, zebra, ezel, rendier, jak, krokodil, zeehond, panda, struisvogel. Twee olifanten willen dus 24 tegels en drie olifanten 36; een giraf en twee zebra's samen 24. De rest neemt geen ruimte in en past overal. Is het te klein, dan zie je een eigen plaatje (een klein hok met een dier erin en groene pijlen naar buiten) in het wolkje, en zegt de bouwer dat het verblijf groter moet. Zet je een dier in een te klein verblijf, dan zie en hoor je dat meteen. Het dier wordt er niet voor opgehaald.
 - **Groepen:** groepsdieren willen met meer bij elkaar zijn (jongen tellen mee). Vijf: kip, pinguïn, flamingo. Vier: eend, konijn, gazelle, aap, maki. Drie: schaap, geit, alpaca, zebra, struisvogel, papegaai, toekan, rendier, wolf, otter, pelikaan, bizon. Alle andere dieren zijn tevreden met z'n tweeën. In het wolkje staat hoeveel er nog bij moeten (+3).
 
 ### Kunstjes en gebaren
@@ -216,7 +216,7 @@ Staat een gebouw, bankje, bloembak of afvalbak niet aan een pad dat aan de ingan
 Twee dure dingen om voor te sparen. Ze leveren zelf geen munten op; gasten worden er blijer van, en blije gasten kopen meer.
 
 - **Fontein (30 munten, vanaf level 16):** een bassin met een waterstraal die op en neer gaat. Gasten komen ernaast staan kijken.
-- **Draaimolen (60 munten, vanaf level 26):** draait altijd. Gasten stappen op een paardje en draaien een rondje mee.
+- **Draaimolen (60 munten, vanaf level 26):** gasten stappen op een paardje en draaien een rondje mee. Leeg staat hij stil (zie 'Attracties bewegen alleen met gasten' onderaan).
 
 Dingen die gebruikt worden bewegen: een kraam veert op als er iets verkocht wordt, de voerbak als een dier eet, de afvalbak als je er iets in gooit. Vlaggen wapperen, bomen en bloemen wuiven, de waterval stroomt en de plompenbladen in de vijver dobberen.
 
@@ -231,6 +231,7 @@ Gasten vragen steeds vaker om iets bepaalds; hun wolkje laat zien wat. Tik op ee
 | Eetkraam | Friet (5), pannenkoek (17), hotdog (29) |
 | Drinkkraam | Limonade (6), melk (19), sap (33) |
 | IJskraam | Schepijs (12), waterijs (20) |
+| Suikerspin | Roze suikerspin (37), blauwe suikerspin (43). De gast loopt er daarna mee rond en doet er lang over. |
 | Ballonnen | Rood en blauw (22), geel (25), hartjesballon (35). De gast loopt daarna met die ballon rond. |
 | Hoedjes | Rood en blauw petje (23), strohoed (27), feestmuts (32), kroon (41). De gast draagt het hoedje daarna. |
 | Knuffels | Een knuffel van elke diersoort die in je park woont. Gasten vragen het liefst om hun lievelingsdier. |
@@ -469,20 +470,20 @@ Elk level speelt een dier vrij en vraagt om blije dieren van de soort die je net
 | 34 | 2 blije ijsberen, 9 soorten blij, 17 blije gasten | Rendier |
 | 35 | 3 blije rendieren, 1 jong rendier, 8 keer afval | Wolf |
 | 36 | 3 blije wolven, 6 werkers, 20 blije dieren | Poolvos |
-| 37 | 2 blije poolvossen, 3 zieke dieren beter, 2 dieren gevangen, 18 blije gasten | Beer |
-| 38 | 2 blije beren, 8 soorten speelgoed in je verblijven, 5 bekers melk verkopen | Jak |
-| 39 | Jak en rendier samen blij in één verblijf, 5 jongen, 22 blije dieren | Sneeuwuil |
-| 40 | 2 blije sneeuwuilen, 20 blije gasten, 3 zieke dieren beter, 16 blije dieren van ijs en bergen | Walrus |
-| 41 | 2 blije walrussen, 10 soorten blij, 20 blije gasten | Flamingo |
-| 42 | 5 blije flamingo's, 5 jongen, 3 dieren gevangen | Schildpad |
-| 43 | 2 blije schildpadden, 24 blije dieren, 10 keer precies verkopen wat een gast vraagt | Otter |
-| 44 | 3 blije otters, 8 werkers, 4 zieke dieren beter | Bever |
-| 45 | 2 blije bevers, 11 soorten blij, 21 blije gasten | Pelikaan |
-| 46 | Pelikaan en flamingo samen blij in één verblijf, 6 jongen, 10 keer afval | Koala |
-| 47 | 2 blije koala's, 26 blije dieren, 3 dieren gevangen, 15 keer precies verkopen wat een gast vraagt | Rode panda |
+| 37 | 2 blije poolvossen, zweefmolen, 3 zieke dieren beter, 18 blije gasten | Beer |
+| 38 | 2 blije beren, 8 soorten speelgoed in je verblijven, 8 gasten in de zweefmolen, 4 roze suikerspinnen verkopen | Jak |
+| 39 | Jak en rendier samen blij in één verblijf, schommelschip, 5 jongen, 22 blije dieren | Sneeuwuil |
+| 40 | 2 blije sneeuwuilen, 8 gasten in het schommelschip, 20 blije gasten, 16 blije dieren van ijs en bergen | Walrus |
+| 41 | 2 blije walrussen, luchtballon, 10 soorten blij, 20 blije gasten | Flamingo |
+| 42 | 5 blije flamingo's, 8 gasten in de luchtballon, 5 jongen, 3 dieren gevangen | Schildpad |
+| 43 | 2 blije schildpadden, wildwaterbaan, 24 blije dieren, 10 keer precies verkopen wat een gast vraagt | Otter |
+| 44 | 3 blije otters, 10 gasten in de wildwaterbaan, 8 werkers, 4 zieke dieren beter | Bever |
+| 45 | 2 blije bevers, safaritrein, 11 soorten blij, 21 blije gasten | Pelikaan |
+| 46 | Pelikaan en flamingo samen blij in één verblijf, 8 gasten in de safaritrein, 6 jongen, 10 keer afval | Koala |
+| 47 | 2 blije koala's, 3 stukken glazen tunnel, 26 blije dieren, 15 keer precies verkopen wat een gast vraagt | Rode panda |
 | 48 | 2 blije rode panda's, 1 jonge rode panda, 12 soorten blij, 22 blije gasten | Maki |
-| 49 | 4 blije maki's, 5 zieke dieren beter, 6 jongen, 28 blije dieren | Bizon |
-| 50 | 3 blije bizons, 12 soorten blij, 22 blije gasten, 30 blije dieren, 30 munten | Kangoeroe |
+| 49 | 4 blije maki's, achtbaan, 6 jongen, 28 blije dieren | Bizon |
+| 50 | 3 blije bizons, 12 gasten in de achtbaan, 12 soorten blij, 22 blije gasten, 30 blije dieren | Kangoeroe |
 
 'Soorten blij' betekent: zoveel soorten waarvan er minstens twee blij zijn. 'Samen blij in één verblijf' gaat altijd om twee soorten die vriendjes zijn (`PALS`): van elk minstens één blij dier in hetzelfde verblijf. 'Soorten speelgoed' telt de verschillende dingen die in een verblijf met dieren staan. 'Dieren van de boerderij' (of een andere wereld) telt alle blije dieren van de soorten die je in die wereld kreeg. Na level 50 is het vrij spelen. De tabel staat in `games/zoo/src/data.ts` (`LEVELS`), het tellen in `levels.ts`.
 
@@ -869,8 +870,8 @@ De kabel hoeft niet meer langs het raster en mag zo lang worden als je wilt (`ca
 
 - **Een rij punten:** een kabelbaan is een huisje, nul of meer tussenpalen en weer een huisje. Twee huisjes zonder palen staan 5 tot 14 tegels uit elkaar, in elke richting. Met palen is elk stuk hooguit 14 tegels; twee palen staan minstens 2 tegels uit elkaar en een paal minstens 4 tegels van een huisje (de kabel moet eerst omhoog). Bij een paal of tussenstation draait de kabel hooguit 100 graden. De totale lengte is vrij; er hangen hooguit 24 stoeltjes aan een kabel.
 - **Bouwen:** zet het eerste huisje. Zodra er een huisje staat, staat naast Kabelbaan de knop Tussenpaal (3 munten; de bouwer legt hem één keer uit). De paal komt midden op de tegel onder je vinger en de knop blijft aan. Je ziet een lijn vanaf het laatste punt naar je vinger: groen als het past, rood als het niet past. Palen in aanbouw staan er al, met een geel stippellijntje vanaf het huisje. Het eindhuisje maakt de kabel af. Een nieuw huisje of een eerste paal binnen bereik van een eindhuisje maakt daar een tussenstation van.
-- **Waar een paal mag:** in een verblijf en op het pad; niet op een tegel waar iets staat, niet in het water, niet onder een boom of op een rots en niet in de ingang. Op de tegel van een paal mag daarna niets anders.
-- **Het beeld:** bij een tussenpaal gaat elke kabel met een boog om een eigen liggend rood wiel; de stoeltjes hangen er naar buiten. Onder lange stukken komen vanzelf gewone palen. Een huisje laat de hoekpaal weg waar de stoeltjes schuin naar buiten gaan.
+- **Waar een paal mag:** net als een lantaarn langs het pad: op een tegel naast een pad (ook schuin ernaast), niet op het pad zelf en nooit in een verblijf. Ook niet op een tegel waar iets staat, niet in het water, niet onder een boom of op een rots en niet in de ingang. Op de tegel van een paal mag daarna niets anders. Zet je hem toch in een verblijf of ver van een pad, dan zegt de bouwer dat (`say.cable.path`). Palen die al in een verblijf stonden (uit een ouder spel), blijven staan.
+- **Het beeld:** bij een tussenpaal gaat elke kabel met een boog om een eigen liggend rood wiel; de stoeltjes hangen er naar buiten. Onder lange stukken komen vanzelf gewone palen; die staan nooit in een verblijf of gebouw. Valt er een in een verblijf, dan schuift hij tot anderhalve tegel langs de kabel naar een vrije plek (liefst naast een pad), en anders hangt de kabel daar wat verder door. Bouw je later een verblijf onder de kabel, dan schuiven de palen mee. Een huisje laat de hoekpaal weg waar de stoeltjes schuin naar buiten gaan.
 - **Weghalen:** de gum op een paal haalt alleen die paal weg als de kabel dan nog klopt (anders een kruisje, en de bouwer zegt waarom). Een huisje weghalen haalt zijn kabels en hun palen weg; van elke paal krijg je 1 munt terug.
 - **Bewaren:** naast `link` en `link2` van een huisje staan nu `via` en `via2`: de tegels van de palen ten opzichte van het huisje dat de kabel begon.
 - **Nog niet:** een paal invoegen in een kabel die af is, of twee bestaande huisjes alsnog verbinden. Een nieuw huisje binnen 5 tot 14 tegels van een eindhuisje haakt daar bijna altijd aan vast; een tweede, losse kabelbaan vlak bij een bestaande is daardoor lastig te beginnen. Kabels houden geen rekening met hoge dingen (een toren, het reuzenrad) of met elkaar.
@@ -949,6 +950,96 @@ Het spel duurt dus een tiende tot een vijfde langer: de levels vragen meer diere
 Eén ding kwam uit deze proeven: level 46 (tien keer afval oprapen) duurde na deze ronde vaak veel langer dan eerst (vijf tot tien minuten, en vier keer langer dan het kwartier waarna de proefspeler opgeeft), tegen twee minuten ervoor. Afval kwam alleen van gasten die iets gegeten of gedronken hadden, en met een kortere dag en een nacht ertussen kwam dat te weinig voor. Daarom komt afval nu sneller als een level erom vraagt (zie Tijd); in de acht proeven daarna duurde level 46 tussen de halve minuut en de vijf minuten. De tijden per level wisselen hoe dan ook flink per keer (een jong of de ochtend afwachten): level 35 duurde in de proeven tussen ruim een minuut en elf minuten, en vóór deze ronde ook al een keer vijf.
 
 Zonder beeldkaart meet het spel zichzelf als een traag apparaat; de proefspeler zet daarom zelf vast hoe snel het apparaat is (`speed` in `kijk.mjs`).
+
+## De grote attracties van het eind (28 november 2026)
+
+Na het reuzenrad (level 36) kwam er niets groots meer bij. Nu komt er van level 37 tot en met 50 om het level iets bij dat steeds groter is, en het level erna vraagt dat gasten er ook echt in gaan.
+
+| Level | Wat er vrijkomt | Maat | Prijs |
+|---|---|---|---|
+| 37 | Zweefmolen, en de suikerspinkraam | 4 bij 4 | 70 (kraam 14) |
+| 39 | Schommelschip | 6 bij 2 | 80 |
+| 41 | Luchtballon | 3 bij 3 | 75 |
+| 43 | Wildwaterbaan | 8 bij 3 | 95 |
+| 45 | Safaritrein, met de safaripoort bij Hek | 2 bij 2 | 90 |
+| 47 | Glazen tunnel (bij Grond, tussen de paden) | per tegel | gratis |
+| 49 | Achtbaan | 8 bij 4 | 99 |
+| 50 | Vuurwerk als slot | | |
+
+De kas kan niet voller dan 99 munten (`COIN_CAP`): voor de achtbaan moet hij dus helemaal vol zijn.
+
+### Ritjes met een eigen ronde (`rides.ts`, `LapKind`)
+
+De zweefmolen, het schommelschip, de luchtballon, de wildwaterbaan en de achtbaan werken allemaal hetzelfde. Het toestel staat stil met de deur open tot er iemand komt. Vanaf de eerste gast is er een vaste instaptijd (7 tot 9 tellen: wie later komt, sluit nog aan), dan duurt het ritje een vaste tijd en staat alles weer precies in rust. Zonder gasten begint er geen ritje. Het beeld en de gasten rekenen met dezelfde stand, dus iedereen zit precies op zijn plek.
+
+- **Zweefmolen:** de kap schuift langs de mast omhoog en draait; de acht stoeltjes zwaaien aan hun kettingen steeds verder naar buiten. Gasten laten de benen bungelen, zwaaien als ze vooraan langskomen en steken op volle snelheid de armen omhoog.
+- **Schommelschip:** een houten schip met een drakenkop tussen twee hoge poten. Het zwaait in zeven tellen steeds hoger, zes tellen voluit en komt dan uit. Vier banken die naar het midden kijken; wie bovenin komt, gooit de armen omhoog.
+- **Luchtballon:** een mand voor vier onder een ballon in zes kleuren. Hij stijgt aan een touw (de brander brandt), blijft negen tellen hangen terwijl hij wat drijft en draait, en zakt dan. Gasten kijken door hun handen, wijzen en zwaaien naar beneden.
+- **Wildwaterbaan:** een houten goot met water op palen. Drie boomstammen met elk twee gasten varen het station uit, gaan achterlangs aan de band omhoog, bovenlangs de bocht om en dan steil naar beneden het water in: daar spat het hoog op. De baan staat vast (`FLUME_TRACK`).
+- **Achtbaan:** rode rails op witte palen. Drie karretjes voor twee: aan de ketting omhoog, de grote afdaling, een hoge heuvel, een krappe bocht en drie hupjes terug naar het station. De karretjes hangen scheef in de bochten en de gasten gooien de armen omhoog in de afdaling. De baan staat vast (`COASTER_TRACK`); de snelheid op elk punt staat erbij.
+- Een baan is een rij punten met een snelheid; `makeTrack` maakt er vloeiende bochten van en rekent uit wanneer het treintje waar is. Een nieuwe baan is dus alleen een nieuw lijstje punten.
+- De tests in `rides.test.ts` lopen ook over deze vijf: geen sprongen, niemand buiten zijn tegels, iedereen terug op het pad.
+
+### De suikerspinkraam
+
+Een eigen kraam met een reuzensuikerspin op het dak. Gasten krijgen er apart zin in (kinderen sneller), kopen een roze of blauwe suikerspin en lopen er lang mee rond. In de loopstand kun je er zelf ook een kopen.
+
+### De glazen tunnel
+
+Een nieuw pad (`seatunnel`, achteraan in `TERRAINS`) dat alleen in een bak van glas kan liggen. Hij ligt verzonken: 0,8 tegel onder de grond, met een dak van glas. Het water van de bak staat erboven en de vissen zwemmen er gewoon overheen.
+
+- **Bouwen:** leg de tunnel met Grond dwars door een bak van glas. Waar hij tegen het glas van de bak aan komt en daarbuiten een pad ligt, wordt die padtegel vanzelf een trap naar beneden. Buiten een bak kan hij niet; dan zegt de bouwer waar hij hoort.
+- **Lopen:** gasten, werkers en de speler in de loopstand dalen de trap af en lopen onder het water door (`View.sink` geeft de diepte, `setSink` in people.ts). Boven de tunnel is het water helderder, en de tunnel is van binnen verlicht.
+- **Dieren:** voor een dier is de tunnel gewoon water. Door de ingang kan geen dier (`Grid.mouthBetween`), dus er ontsnapt niets, en de bak blijft één verblijf (`recompute` telt de ingang als dicht).
+- **Het beeld:** in de grond zit een gat (`GROUND_HOLE`); het grote vlak onder het park wordt als eerste getekend, zodat je de tunnel erdoorheen ziet.
+- **Nog niet:** een bocht of kruising in de tunnel krijgt wel wanden, maar het dak is per tegel een vlakke ruit. Het wolkje boven een gast in de tunnel hangt te hoog.
+
+### De safaritrein en de safaripoort
+
+- **Het station** (2 bij 2) moet tegen een gewoon verblijf aan staan, met een pad ervoor. Anders past het niet en zegt de bouwer waarom.
+- **De jeep** staat in het verblijf, vlak naast het station, met een ranger aan het stuur en drie plekken voor gasten. Na de eerste gast wacht hij nog vijf tellen op meer gasten. Dan rijdt hij een rondje: naar de verste hoek, naar een tweede hoek en terug, om voerbakken, slaapplekken, speelgoed, bomen en water heen, in ronde bochten. De wielen draaien, de bak hobbelt en de ranger stuurt. Dieren waar hij langskomt, kijken op.
+- **De safaripoort** (bij Hek, hekje 9) is een dubbele houten poort tussen twee verblijven, met een bord met zebrastrepen. Alleen de jeep kan erdoor. Komt hij eraan, dan zwaaien de twee deuren open, van de jeep af, en gaan de oranje zwaailichten op de palen om de beurt knipperen terwijl hun lichtbundels ronddraaien. Is hij voorbij, dan gaat de poort weer dicht. Zo rijdt hij bijvoorbeeld van de zebra's door naar de leeuwen: alle verblijven die zo aan elkaar zitten doen mee in het rondje. Voor de dieren is het een dicht hek.
+- **Niet door een bak van glas.** Het rondje wordt elke tel nagekeken; verandert het verblijf, dan stappen de gasten uit en begint hij opnieuw.
+- **Nog niet:** in de loopstand kun je zelf nog niet meerijden. Ontsnapte dieren en de jeep letten niet op elkaar.
+
+### Vuurwerk
+
+Als je een hele wereld af hebt (level 10, 20, 30 en 40) is er twaalf tellen vuurwerk; na level 50 een show van dertig tellen. Vanaf level 31 eindigt ook het avondfeest met vuurwerk. Pijlen stijgen op met een gouden staart en spatten uit elkaar in bollen, ringen, treurwilgen en dubbele bollen; aan het eind vijf tegelijk. Het wordt er even avond bij, ook midden op de dag. Het zijn lichtpuntjes in één wolk (`View.fireworks`), dus het kost weinig.
+
+### Een dubbel hek tussen twee verblijven
+
+Een stuk hek tussen twee verblijven kon maar één soort zijn: steen of hout, steen of net. Leeuwen (steen) naast apen (net) kon daardoor nooit voor allebei kloppen. Nu geldt:
+
+- **Elk verblijf telt zijn eigen buitenhek.** Het hek dat het deelt met een ander verblijf telt niet meer mee voor het soort (`Grid.penKind`). Een verblijf dat helemaal tussen andere verblijven in ligt, neemt wat er staat.
+- **Aan elke kant het eigen hek** (`Grid.sharedSide`): een verblijf met een bijzonder hek (steen, net, glas, wit hekje) heeft dat ook aan zijn kant van het gedeelde hek. Een verblijf met een gewoon houten hek neemt wat er gezet is. Zijn de twee kanten verschillend, dan tekent het beeld een dubbel hek: elk een stukje naar zijn eigen verblijf geschoven (`DOUBLE_FENCE`).
+- Een poort, kijkvenster of safaripoort in een gedeeld hek blijft enkel. Slijtage hoort bij het hek dat er echt gezet is.
+- **Nog niet:** een dier dat het gedeelde hek omduwt, gooit het hele stuk om, ook de kant van de buren.
+
+Het plaatje "het hok is te klein" heeft nu rode pijlen en een rode stippellijn in plaats van groene: groen leek op "goed zo".
+
+### Twee nieuwe soorten doelen
+
+- **`rode`:** zoveel gasten hebben in dit level een ritje gemaakt in een attractie. Het spel telt het als een gast uitstapt.
+- **`tunnel`:** zoveel tegels glazen tunnel.
+
+### Geluid
+
+De nieuwe geluiden staan in `tools/voice/sounds.json` en zijn in het spel aangesloten, maar nog niet gemaakt: een bel bij het vertrek van een ritje, het draaiorgeltje van de zweefmolen, het zoeven van het schip, de brander van de ballon, de ketting, het razen van de achtbaan, de grote plons, de toeter en de motor van de jeep, bubbels in de tunnel en drie geluiden voor het vuurwerk. Ook de nieuwe zinnen van de figuren zijn nog niet ingesproken. Zet de sleutel in `.env` en draai `node tools/voice/build.mjs all`. Zolang een geluid er niet is, blijft het stil; er gaat niets stuk.
+
+### De proefspeler
+
+De proefspeler bouwt vaste verblijven van 3 bij 3. Sinds grote dieren elk apart ruimte tellen, passen die daar niet meer blij in. Hij zet de ruimte-eis daarom laag (`data.SPACE`, bovenaan `autoplay.js`): of een speler genoeg ruimte kan maken, test hij dus niet. Voor de zweefmolen en de achtbaan koopt hij de strook achter het park, en voor de safaritrein en de tunnel de strook rechts.
+
+### Meldingen terugzien, twee rijen knoppen en meer (27 november, avond)
+
+- **Meldingen terugzien:** rechtsboven, naast de knop voor het geluid, staat een knop met een praatwolkje. Een rood tellertje zegt hoeveel meldingen er sinds de laatste keer kijken bij zijn gekomen. Een tik opent een venster met de laatste dertig meldingen, de nieuwste bovenaan: het figuur, wie het is, hoe lang geleden en de zin. Een zorgelijke melding is oranje, een dringende rood. Tik op een melding en je hoort hem opnieuw (met de stem als die er is); gaat hij over een plek, dan staat er een richtpuntje bij en schuift het beeld erheen. Dezelfde zin vlak achter elkaar staat er maar één keer in. Ernaast tikken of het kruisje doet het venster dicht (`hud.ts`, `remember`, `fillInbox`).
+- **Twee rijen:** heeft een keuzerij twaalf knoppen of meer (alle speelgoed, alle winkels), of past hij niet op het scherm, dan staan de knoppen in twee rijen onder elkaar: de eerste helft boven. Past ook dat niet, dan schuif je het geheel opzij (`setTools`, `#options .row.two`).
+- **Kabelbaanpalen langs het pad:** zie 'De kabelbaan: alle kanten op, met tussenpalen'.
+- **Grote dieren willen echt ruimte:** zie 'Ruimte en groepen'. Drie olifanten passen niet meer blij in een verblijf van 3 bij 3.
+- **Attracties bewegen alleen met gasten:** het reuzenrad draait zodra er een gast op of naartoe gaat (meteen op snelheid, want hij stapt in als zijn bakje langs het perron komt) en draait leeg in een paar tellen uit. De draaimolen draait alleen met iemand erop, lege botsauto's staan stil, lege schommels, wipwap, wipkip en trampoline bewegen niet, en de stoeltjes van de kabelbaan lopen alleen als er iemand in zit of in een huisje staat te wachten. Het treintje rijdt zijn rondjes zoals eerst. De fontein spuit overdag gewoon door: daar kijk je naar, je zit er niet in.
+- **'s Nachts stil:** als het park dicht is (0 tot 7 uur) en er niemand meer op zit, zakt de fontein in acht tellen helemaal in (`RIDE_WAKE`), en om zeven uur komt hij net zo rustig weer op. De andere attracties staan dan al stil omdat er niemand is, de kabelbaan en de trein slapen zoals eerst.
+- **Wat de gasten missen:** in het overzicht bij de poort staat een vak met wat de gasten die nu in het park zijn missen, het meest gemiste bovenaan (hooguit zes): het plaatje van wat ze willen, hoeveel gasten, en een label. Oranje "erbij bouwen": er is nog geen kraam of gebouw voor. Blauw "niet te koop": de kraam is er wel, maar verkoopt dit niet. Rood "te druk": er staat een rij, er moet er een bij.
+- **Nog niet:** de nieuwe zin van de bouwer over de paal (`say.cable.path`) is nog niet ingesproken; tot dan praat hij op het klokje. Draai `node tools/voice/build.mjs all`.
 
 ## Bekende zwakke punten van de modellen
 

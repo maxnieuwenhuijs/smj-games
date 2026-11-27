@@ -13,8 +13,8 @@ const ALL = RIDE_KINDS;
 /** Hoe breed en diep het toestel is, in tegels. */
 const span = (kind: RideKind): [number, number] => RIDE_SPAN[kind];
 /** Laat een toestel `seconds` tellen lopen. */
-function run(kind: RideKind, s: RideState, seconds: number, aboard = 0): void {
-  for (let t = 0; t < seconds - 1e-9; t += DT) rideStep(kind, s, DT, aboard);
+function run(kind: RideKind, s: RideState, seconds: number, aboard = 0, used = aboard): void {
+  for (let t = 0; t < seconds - 1e-9; t += DT) rideStep(kind, s, DT, aboard, false, used);
 }
 
 /**
@@ -39,7 +39,8 @@ function play(kind: RideKind, s: RideState, v: Visit, others = 0): { jump: numbe
     }
     steps++;
     if (pose.done) break;
-    rideStep(kind, s, DT, others | (pose.on ? 1 << v.seat : 0));
+    // (de gast is vanaf het plannen op weg naar zijn zitje: zo draait het reuzenrad al voor hem)
+    rideStep(kind, s, DT, others | (pose.on ? 1 << v.seat : 0), false, others | (1 << v.seat));
   }
   return { jump, on, low, high, out, end: Math.hypot(pose.x - v.fx, pose.z - v.fz) + Math.abs(pose.h), steps };
 }
@@ -202,7 +203,7 @@ describe('het reuzenrad', () => {
 
   it('je stapt in als je bakje onderin is en maakt precies één rondje', () => {
     const s = newRide('ferris'), p = newPose();
-    run('ferris', s, 7.7);
+    run('ferris', s, 7.7, 0, 1);
     const v = planVisit('ferris', s, 0, 0.4, 1.5)!;
     const cabin = Math.floor(v.seat / 2);
     // op het moment van instappen is het bakje onderin
@@ -212,7 +213,7 @@ describe('het reuzenrad', () => {
     expect(v.wait).toBeLessThan((Math.PI * 2) / FERRIS.speed / FERRIS.cabins + 0.5);
     expect(v.ride).toBeCloseTo((Math.PI * 2) / FERRIS.speed, 6);
     // halverwege zit de gast bovenin
-    run('ferris', s, v.walk + v.wait + v.ride / 2);
+    run('ferris', s, v.walk + v.wait + v.ride / 2, 0, 1 << v.seat);
     visitPose(p, v, s);
     expect(p.on).toBe(true);
     expect(p.h).toBeGreaterThan(FERRIS.hub + FERRIS.radius - FERRIS.seat - 0.1);
@@ -241,7 +242,7 @@ describe('de draaimolen', () => {
       for (let j = i + 1; j < spots.length; j++) expect(Math.hypot(spots[i][0] - spots[j][0], spots[i][1] - spots[j][1])).toBeGreaterThan(0.45);
   });
 
-  it('staat stil om in te stappen, en draait daarna: met gasten veel harder dan leeg', () => {
+  it('staat stil om in te stappen, en draait daarna; leeg draait hij niet', () => {
     const turned = (aboard: number): number => {
       const s = newRide('carousel');
       let was = s.spin, total = 0, still = 0;
@@ -256,8 +257,8 @@ describe('de draaimolen', () => {
       return total;
     };
     const empty = turned(0), full = turned(1);
-    expect(empty).toBeGreaterThan(1);
-    expect(full).toBeGreaterThan(empty * 2.5);
+    expect(empty).toBeLessThan(1e-9);
+    expect(full).toBeGreaterThan(2.5);
   });
 
   it('wie komt terwijl hij draait, wacht in de rij tot hij weer stilstaat', () => {
@@ -320,7 +321,7 @@ describe('de botsauto\'s', () => {
     for (const c of cars) expect(Math.hypot(c.vx, c.vz)).toBeLessThan(0.05);
   });
 
-  it('een auto zonder bestuurder rijdt niet zelf; leeg kruipen ze allemaal een beetje', () => {
+  it('een auto zonder bestuurder rijdt niet zelf; zonder gasten staan ze allemaal stil', () => {
     const one = newCars();
     for (let t = 0; t < 8; t += DT) stepCars(one, DT, t, 1, 0b000001);
     expect(Math.hypot(one[0].vx, one[0].vz)).toBeGreaterThan(0.3);
@@ -330,8 +331,7 @@ describe('de botsauto\'s', () => {
       stepCars(idle, DT, t, 1, 0);
       for (const c of idle) fastest = Math.max(fastest, Math.hypot(c.vx, c.vz));
     }
-    expect(fastest).toBeGreaterThan(0.1);
-    expect(fastest).toBeLessThan(BUMPER.speed * 0.6);
+    expect(fastest).toBeLessThan(1e-9);
   });
 
   it('de gast zit in zijn auto, waar die ook rijdt', () => {
@@ -490,7 +490,7 @@ describe('de speeltoestellen', () => {
     expect(apart).toBeGreaterThan(0.3);
   });
 
-  it('een leeg zitje wiegt alleen wat, een zitje met een kind gaat flink heen en weer', () => {
+  it('een leeg zitje hangt stil, een zitje met een kind gaat flink heen en weer', () => {
     const s = newRide('swing'), p = newPose();
     let empty = 0, busy = 0;
     for (let t = 0; t < 20; t += DT) {
@@ -499,8 +499,8 @@ describe('de speeltoestellen', () => {
       busy = Math.max(busy, Math.abs(swingSeat(p, 0, s).z));
       empty = Math.max(empty, Math.abs(swingSeat(p, 1, s).z));
     }
-    expect(empty).toBeGreaterThan(0.02);
-    expect(busy).toBeGreaterThan(empty * 4);
+    expect(empty).toBeLessThan(1e-6);
+    expect(busy).toBeGreaterThan(0.08);
   });
 
   it('de wipwap: gaat de ene kant omhoog, dan gaat de andere omlaag', () => {

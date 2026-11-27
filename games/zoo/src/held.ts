@@ -30,10 +30,10 @@ export const HELD = {
 };
 
 /** Wat je in je hand hebt: iets te eten, te drinken, een ijsje, een ballon, een hoed of een knuffel. */
-export type HeldKind = 'food' | 'drink' | 'ice' | 'balloon' | 'hat' | 'plush';
+export type HeldKind = 'food' | 'drink' | 'ice' | 'floss' | 'balloon' | 'hat' | 'plush';
 
 /** Kramen waar je zelf iets kunt kopen (de schminktent en het restaurant staan apart in `walkOffer`). */
-const SELLING: ShopKind[] = ['foodstall', 'drinkstall', 'icecream', 'balloon', 'hats', 'souvenir'];
+const SELLING: ShopKind[] = ['foodstall', 'drinkstall', 'icecream', 'candy', 'balloon', 'hats', 'souvenir'];
 
 /**
  * Wat je bij deze kraam kunt kiezen: hooguit HELD.most dingen. De kraam verkoopt wat hij aan de gasten verkoopt; de
@@ -59,11 +59,11 @@ export function paintOf(product: string): FacePaint | null {
 export function heldKind(product: string): HeldKind | null {
   if (product.startsWith(PLUSH)) return 'plush';
   const shop = PRODUCTS.find(p => p.id === product)?.shop;
-  return shop === 'foodstall' ? 'food' : shop === 'drinkstall' ? 'drink' : shop === 'icecream' ? 'ice' : shop === 'balloon' ? 'balloon' : shop === 'hats' ? 'hat' : null;
+  return shop === 'foodstall' ? 'food' : shop === 'drinkstall' ? 'drink' : shop === 'icecream' ? 'ice' : shop === 'candy' ? 'floss' : shop === 'balloon' ? 'balloon' : shop === 'hats' ? 'hat' : null;
 }
 
 /** De kraam waar dit vandaan komt, voor het model (zie makeHeld in people.ts). */
-export const SHOP_OF: Record<HeldKind, ShopKind> = { food: 'foodstall', drink: 'drinkstall', ice: 'icecream', balloon: 'balloon', hat: 'hats', plush: 'souvenir' };
+export const SHOP_OF: Record<HeldKind, ShopKind> = { food: 'foodstall', drink: 'drinkstall', ice: 'icecream', floss: 'candy', balloon: 'balloon', hat: 'hats', plush: 'souvenir' };
 
 /** Wat je vasthoudt, en hoeveel hapjes of slokjes er nog in zitten (een ballon of knuffel raakt nooit op). */
 export interface Held {
@@ -76,7 +76,7 @@ export interface Held {
 export function hold(product: string): Held | null {
   const kind = heldKind(product);
   if (!kind) return null;
-  const left = kind === 'food' || kind === 'drink' || kind === 'ice' ? HELD.bites : kind === 'hat' ? 1 : Infinity;
+  const left = kind === 'food' || kind === 'drink' || kind === 'ice' || kind === 'floss' ? HELD.bites : kind === 'hat' ? 1 : Infinity;
   return { product, kind, left };
 }
 
@@ -85,13 +85,13 @@ export type HeldUse = 'bite' | 'lick' | 'sip' | 'wear' | 'tug' | 'hug';
 
 /** Gebruik wat je vasthoudt. Geeft wat er gebeurt, hoeveel er nog over is en of het nu op is (of op je hoofd zit). */
 export function useHeld(h: Held): { use: HeldUse; left: number; gone: boolean } {
-  const use: HeldUse = h.kind === 'food' ? 'bite' : h.kind === 'ice' ? 'lick' : h.kind === 'drink' ? 'sip' : h.kind === 'hat' ? 'wear' : h.kind === 'balloon' ? 'tug' : 'hug';
+  const use: HeldUse = h.kind === 'food' ? 'bite' : h.kind === 'ice' || h.kind === 'floss' ? 'lick' : h.kind === 'drink' ? 'sip' : h.kind === 'hat' ? 'wear' : h.kind === 'balloon' ? 'tug' : 'hug';
   const left = Math.max(0, h.left - 1);
   return { use, left, gone: left <= 0 };
 }
 
 /** Hoe groot iets lekkers nog is, als je er al wat van op hebt: van heel (1) tot bijna op. */
-export const sizeLeft = (h: Held): number => (h.kind === 'food' || h.kind === 'drink' || h.kind === 'ice' ? 0.45 + 0.55 * (h.left / HELD.bites) : 1);
+export const sizeLeft = (h: Held): number => (h.kind === 'food' || h.kind === 'drink' || h.kind === 'ice' || h.kind === 'floss' ? 0.45 + 0.55 * (h.left / HELD.bites) : 1);
 
 /** Hoe lang het gebruiken duurt: eten en drinken het langst, een hoed opzetten iets korter, de rest is zo gebeurd. */
 export const useSeconds = (use: HeldUse): number => (use === 'bite' || use === 'lick' || use === 'sip' ? HELD.eatTime : use === 'wear' ? HELD.wearTime : HELD.useTime);

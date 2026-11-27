@@ -56,6 +56,7 @@ export function speciesVars(tr: Tr, sp: SpeciesId): Vars {
 export function goalKey(g: Goal): string {
   if (g.type === 'sold') return g.product ? `goal.sold.${g.product}` : g.shop ? `goal.sold.shop.${g.shop}` : 'goal.sold';
   if (g.type === 'shop') return `goal.shop.${g.shop}${g.n > 1 ? '.n' : ''}`;
+  if (g.type === 'rode') return `goal.rode.${g.shop}`;
   return g.n === 1 && (g.type === 'fed' || g.type === 'born' || g.type === 'healed' || g.type === 'caught' || g.type === 'keeper' || g.type === 'young') ? `goal.${g.type}.1` : `goal.${g.type}`;
 }
 
@@ -163,7 +164,7 @@ export const MINI_SAYS = [
 ];
 
 /** Voor deze winkels heeft de gastvrouw een eigen zin als het er te druk is (host.busy.<soort>); voor al het andere een algemene. */
-export const BUSY_KINDS: string[] = ['foodstall', 'drinkstall', 'toilet', 'icecream', 'playground', 'bench', 'balloon', 'hats', 'souvenir', 'fountain', 'carousel', 'umbrellas', 'shelter', 'facepaint'];
+export const BUSY_KINDS: string[] = ['foodstall', 'drinkstall', 'toilet', 'icecream', 'playground', 'bench', 'balloon', 'hats', 'souvenir', 'fountain', 'carousel', 'umbrellas', 'shelter', 'facepaint', 'candy'];
 
 export const say = {
   praise: (i: number): Line => ({ who: PRAISE[i % PRAISE.length], mood: 'happy', key: `praise.${(i % PRAISE.length) + 1}` }),
@@ -262,7 +263,17 @@ export const say = {
   cableOne: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.cable.one' }),
   cableWhere: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.cable.where' }),
   cablePole: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.cable.pole' }),
+  /** Een tussenpaal staat in een verblijf of niet langs een pad: hij hoort naast een pad, net als een lantaarn. */
+  cablePath: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.cable.path' }),
   cableFirst: (): Line => ({ who: 'host', mood: 'happy', key: 'say.cable.first' }),
+  /** Vuurwerk: een hele wereld is af, en de grote show na het allerlaatste level. */
+  fireworkWorld: (): Line => ({ who: 'director', mood: 'happy', key: 'say.firework.world' }),
+  fireworkFinale: (): Line => ({ who: 'director', mood: 'happy', key: 'say.firework.finale' }),
+  /** De safaritrein: het station staat niet tegen een verblijf aan (of het verblijf is te klein of te vol voor een rondje). */
+  safariWhere: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.safari.where' }),
+  /** De glazen tunnel: hij past daar niet (hij hoort in een bak van glas), en de eerste keer dat hij vrijkomt. */
+  tunnelWhere: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.tunnel.where' }),
+  tunnelNew: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.tunnel.new' }),
   /** Het avondfeest: de directeur vertelt het 's ochtends, wijst om acht uur op de gong, en zegt iets bij het begin en het eind. */
   partyToday: (): Line => ({ who: 'director', mood: 'happy', key: 'say.party.today' }),
   partyGong: (): Line => ({ who: 'director', mood: 'happy', key: 'say.party.gong' }),
@@ -430,7 +441,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.keysNew());
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(), say.trainOld(), say.trainCrossing(), say.ridesBigger(),
     say.dirty(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.dusty(), say.filterTip(), say.showWhere(), say.showFirst(),
-    say.cableOne(), say.cableWhere(), say.cablePole(), say.cableFirst(), say.partyToday(), say.partyGong(), say.partyStart(), say.partyEnd(), say.treatNew(), say.treatFull(), say.treatSick(), say.hoseNew(), say.hoseMud(), say.leavesNew(), say.leavesJump(), say.snowNew(), say.snowman(), say.lampsNew(), say.lampsWave()]) add(line);
+    say.cableOne(), say.cableWhere(), say.cablePath(), say.cablePole(), say.tunnelWhere(), say.tunnelNew(), say.safariWhere(), say.fireworkWorld(), say.fireworkFinale(), say.cableFirst(), say.partyToday(), say.partyGong(), say.partyStart(), say.partyEnd(), say.treatNew(), say.treatFull(), say.treatSick(), say.hoseNew(), say.hoseMud(), say.leavesNew(), say.leavesJump(), say.snowNew(), say.snowman(), say.lampsNew(), say.lampsWave()]) add(line);
   for (const key of ['balloon', 'icecream', 'coin', 'thanks'] as const) add(say.kid(key));
   add(say.eventNew());
   add(say.starsNew());

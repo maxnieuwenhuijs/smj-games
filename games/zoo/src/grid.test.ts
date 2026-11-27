@@ -84,6 +84,37 @@ describe('verblijven', () => {
     expect(g.penKind(g.enclosureAt(3, 3)!)).toBe(1);
   });
 
+  it('tussen twee verblijven staat een dubbel hek: elk verblijf houdt zijn eigen soort', () => {
+    const g = new Grid(FULL_LAND);
+    // twee verblijven van 2 bij 2 naast elkaar: links (3..4) van steen, rechts (5..6) van net
+    const paint = (kindLeft: 1 | 3 | 4, kindRight: 1 | 3 | 4, between: 1 | 3 | 4): void => {
+      for (const y of [3, 5]) for (let x = 3; x <= 6; x++) g.setEdge({ o: 'h', x, y }, x <= 4 ? kindLeft : kindRight);
+      for (const y of [3, 4]) {
+        g.setEdge({ o: 'v', x: 3, y }, kindLeft);
+        g.setEdge({ o: 'v', x: 7, y }, kindRight);
+        g.setEdge({ o: 'v', x: 5, y }, between);
+      }
+    };
+    paint(3, 4, 3);
+    expect(g.enclosures()).toHaveLength(2);
+    expect(g.penKind(g.enclosureAt(3, 3)!)).toBe(3);
+    expect(g.penKind(g.enclosureAt(5, 3)!)).toBe(4);
+    expect(g.sharedSide({ o: 'v', x: 5, y: 3 })).toEqual([3, 4]);
+    // wat er op het gedeelde hek gezet is, maakt voor twee bijzondere verblijven niet uit
+    paint(3, 4, 1);
+    expect(g.penKind(g.enclosureAt(3, 3)!)).toBe(3);
+    expect(g.penKind(g.enclosureAt(5, 3)!)).toBe(4);
+    expect(g.sharedSide({ o: 'v', x: 5, y: 4 })).toEqual([3, 4]);
+    // een verblijf van hout neemt wat er staat: steen naast hout met steen ertussen is één stenen muur
+    paint(3, 1, 3);
+    expect(g.penKind(g.enclosureAt(5, 3)!)).toBe(1);
+    expect(g.sharedSide({ o: 'v', x: 5, y: 3 })).toEqual([3, 3]);
+    paint(3, 1, 1);
+    expect(g.sharedSide({ o: 'v', x: 5, y: 3 })).toEqual([3, 1]);
+    // een hek aan de buitenkant is geen gedeeld hek
+    expect(g.sharedSide({ o: 'v', x: 3, y: 3 })).toBeNull();
+  });
+
   it('kent de buitenrand van een verblijf', () => {
     const g = new Grid(FULL_LAND);
     fenceBox(g, 3, 3, 4, 4);

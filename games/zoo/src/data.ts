@@ -5,7 +5,9 @@ export type Terrain = 'grass' | 'mud' | 'sand' | 'water' | 'path' | 'snow' | 'fo
   // nog drie paden om later vrij te spelen: rode klinkers, grijze keien en wit marmer
   | 'brick' | 'cobble' | 'marble'
   // het spoor van het treintje, en een overweg: spoor dwars over een pad (die ontstaat vanzelf, je kiest hem niet)
-  | 'rails' | 'crossing';
+  | 'rails' | 'crossing'
+  // de glazen tunnel door een bak van glas: gasten lopen er tussen de vissen door
+  | 'seatunnel';
 export type FoodId = 'veg' | 'hay' | 'fruit' | 'grain' | 'meat' | 'leaves' | 'fish' | 'bamboo';
 export type BedKind = 'straw' | 'shed' | 'rock' | 'shade' | 'nest' | 'cave' | 'climb' | 'coral';
 export type ShopKind = 'foodstall' | 'drinkstall' | 'bench' | 'toilet' | 'icecream' | 'balloon' | 'flowers' | 'bin' | 'souvenir' | 'playground' | 'hats' | 'fountain' | 'carousel'
@@ -17,8 +19,14 @@ export type ShopKind = 'foodstall' | 'drinkstall' | 'bench' | 'toilet' | 'icecre
   // een huisje van de kabelbaan: de kabel loopt naar een ander huisje, rechtstreeks of langs tussenpalen, met stoeltjes hoog boven de dieren
   | 'cablecar'
   // de schminktent: een kind krijgt een dierengezicht geschilderd
-  | 'facepaint';
-export type FenceOption = 'fence' | 'gate' | 'wall' | 'net' | 'glass' | 'window' | 'picket' | 'petgate';
+  | 'facepaint'
+  // de grote attracties van het eind: zweefmolen, schommelschip, luchtballon, wildwaterbaan en achtbaan (zie rides.ts)
+  | 'swinger' | 'ship' | 'airballoon' | 'flume' | 'coaster'
+  // de suikerspinkraam: een roze of blauwe wolk op een stokje
+  | 'candy'
+  // het station van de safaritrein: een jeep rijdt een rondje door het verblijf ernaast
+  | 'safari';
+export type FenceOption = 'fence' | 'gate' | 'wall' | 'net' | 'glass' | 'window' | 'picket' | 'petgate' | 'safarigate';
 /** Wat voor hek een dier nodig heeft: sterke dieren een stenen muur, klimmers en vliegers een hoog net. */
 export type FenceNeed = 'wall' | 'net' | 'glass';
 export type WorldId = 'farm' | 'savanna' | 'jungle' | 'ice' | 'far';
@@ -44,7 +52,7 @@ export type ToyKind = 'ball' | 'bush' | 'log' | 'flowerbed' | 'hoop'
   | 'filter';
 
 /** De volgorde is ook de waarde in het opslagbestand: nieuwe soorten komen achteraan. */
-export const TERRAINS: Terrain[] = ['grass', 'mud', 'sand', 'water', 'path', 'snow', 'forest', 'stones', 'ice', 'swamp', 'meadow', 'steppe', 'gravel', 'planks', 'flowerpath', 'bridge', 'brick', 'cobble', 'marble', 'rails', 'crossing'];
+export const TERRAINS: Terrain[] = ['grass', 'mud', 'sand', 'water', 'path', 'snow', 'forest', 'stones', 'ice', 'swamp', 'meadow', 'steppe', 'gravel', 'planks', 'flowerpath', 'bridge', 'brick', 'cobble', 'marble', 'rails', 'crossing', 'seatunnel'];
 export const TERRAIN_INFO: Record<Terrain, { colors: [number, number] }> = {
   grass: { colors: [0x86c95c, 0x7cc053] },
   mud: { colors: [0x9c6b44, 0x8f6039] },
@@ -70,12 +78,23 @@ export const TERRAIN_INFO: Record<Terrain, { colors: [number, number] }> = {
   // het spoor ligt in het gras (de bedding, de bielzen en de rails tekent het beeld); de overweg is een stuk pad
   rails: { colors: [0xb3a892, 0xa59a84] },
   crossing: { colors: [0xd8c7ab, 0xcdbb9d] },
+  seatunnel: { colors: [0x6ec3e8, 0x62b7dd] },
 };
 /** Alles waar gasten over lopen. `PATH_FROM`: na hoeveel gehaalde levels je het vrijspeelt. */
-export const PATH_KINDS: Terrain[] = ['path', 'gravel', 'planks', 'flowerpath', 'bridge', 'brick', 'cobble', 'marble'];
-export const PATH_FROM: Partial<Record<Terrain, number>> = { path: 3, gravel: 10, bridge: 13, planks: 17, brick: 21, flowerpath: 24, cobble: 30, marble: 37 };
+export const PATH_KINDS: Terrain[] = ['path', 'gravel', 'planks', 'flowerpath', 'bridge', 'brick', 'cobble', 'marble', 'seatunnel'];
+export const PATH_FROM: Partial<Record<Terrain, number>> = { path: 3, gravel: 10, bridge: 13, planks: 17, brick: 21, flowerpath: 24, cobble: 30, marble: 37, seatunnel: 46 };
 /** Het spoor en de overweg, als nummer in TERRAINS. Over een overweg lopen de gasten gewoon: voor hen is het pad. */
 export const RAILS = TERRAINS.indexOf('rails'), CROSSING = TERRAINS.indexOf('crossing');
+/**
+ * De glazen tunnel, als nummer in TERRAINS: een pad dat alleen in een bak van glas kan liggen. Gasten lopen er door
+ * het glas van de bak naar binnen (zie Grid.canStep); zeedieren springen eroverheen (zie Animal).
+ */
+export const TUBE = TERRAINS.indexOf('seatunnel');
+/**
+ * Vuurwerk boven het park: zoveel tellen als je een hele wereld af hebt (`world`), na het allerlaatste level
+ * (`finale`) en aan het eind van het avondfeest (`party`, pas vanaf `from` gehaalde levels).
+ */
+export const FIREWORK = { world: 12, finale: 30, party: 8, from: 30 };
 const PATH_IDS = new Set([...PATH_KINDS.map(k => TERRAINS.indexOf(k)), CROSSING]);
 /** Is dit (het nummer van) een soort pad? */
 export const isPath = (terrain: number): boolean => PATH_IDS.has(terrain);
@@ -226,12 +245,13 @@ export function pickRare(roll = Math.random()): Rare {
 /** Dieren die graag in een regenplas rollen. */
 export const MUD_LOVERS: SpeciesId[] = ['pig', 'hippo', 'rhino', 'elephant', 'bison'];
 /**
- * Grote dieren hebben ruimte nodig: het verblijf moet minstens zoveel tegels groot zijn. Wie hier niet staat,
- * past in elk verblijf.
+ * Grote dieren hebben ruimte nodig: zoveel tegels per dier. Ze tellen bij elkaar op, dus twee olifanten willen
+ * samen 24 tegels en drie olifanten 36 (een jong telt half, zie spaceNeed). Wie hier niet staat, neemt geen ruimte
+ * in en past in elk verblijf.
  */
 export const SPACE: Partial<Record<SpeciesId, number>> = {
   orca: 12, shark: 10, dolphin: 9, ray: 6,
-  elephant: 9, giraffe: 9, rhino: 9, hippo: 9, polarbear: 9, bison: 9, walrus: 9,
+  elephant: 12, giraffe: 12, rhino: 10, hippo: 10, polarbear: 9, bison: 9, walrus: 9,
   lion: 8, tiger: 8, bear: 8, gorilla: 8, camel: 8, panther: 8, cheetah: 8, wolf: 8, kangaroo: 8,
   horse: 6, cow: 6, zebra: 6, donkey: 6, reindeer: 6, yak: 6, crocodile: 6, seal: 6, panda: 6, ostrich: 6,
 };
@@ -246,6 +266,16 @@ export const HERD: Partial<Record<SpeciesId, number>> = {
   sheep: 3, goat: 3, alpaca: 3, zebra: 3, ostrich: 3, parrot: 3, toucan: 3, reindeer: 3, wolf: 3, otter: 3, pelican: 3, bison: 3,
 };
 export const herdOf = (sp: SpeciesId): number => HERD[sp] ?? 2;
+
+/**
+ * Hoeveel tegels een verblijf minstens moet hebben voor deze dieren samen: van elk groot dier zijn eigen ruimte
+ * (een jong de helft), opgeteld. Kleine dieren tellen niet mee.
+ */
+export function spaceNeed(animals: { species: SpeciesId; young?: boolean }[]): number {
+  let need = 0;
+  for (const a of animals) need += (SPACE[a.species] ?? 0) * (a.young ? 0.5 : 1);
+  return Math.ceil(need);
+}
 
 /**
  * Dingen voor in het park (de knop Park): ze staan op een tegel buiten de verblijven en maken gasten in de
@@ -296,7 +326,7 @@ export const SERVICE_SHOPS: ShopKind[] = ['toilet', 'bench', 'bin', 'umbrellas',
 export const parkShopGroup = (kind: ShopKind): ParkGroup | null =>
   kind === 'flowers' ? 'green' : SERVICE_SHOPS.includes(kind) ? 'service' : null;
 /** Onder de knop Attracties staan de speeltoestellen (groep Speeltuin) en de grote attracties. */
-export const ATTRACTIONS: ShopKind[] = ['fountain', 'tower', 'show', 'carousel', 'station', 'bumper', 'ferris', 'cablecar'];
+export const ATTRACTIONS: ShopKind[] = ['fountain', 'tower', 'show', 'carousel', 'station', 'bumper', 'ferris', 'cablecar', 'swinger', 'ship', 'airballoon', 'flume', 'safari', 'coaster'];
 /** Palen waar een slinger tussen komt: staan er twee in één lijn, hooguit zoveel tegels uit elkaar, dan hangt er vanzelf een slinger. */
 export const STRING_REACH = 5;
 export const STRING_HEIGHT = 1.25;
@@ -426,10 +456,17 @@ export function toyGap(sp: SpeciesId, done: number, tiles: number, group: number
  * glijbaan, later de schommel, de wipwap, de wipkip en de trampoline). 'playground' bestaat nog als naam voor
  * 'iets om te spelen' (de wens van een gast) en voor oude parken, waar hij bij het laden een glijbaan wordt.
  */
-export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'slide', 'swing', 'seesaw', 'springer', 'trampoline', 'icecream', 'flowers', 'bin', 'umbrellas', 'shelter', 'balloon', 'hats', 'souvenir', 'restaurant', 'fountain', 'tower', 'carousel', 'station', 'bumper', 'ferris', 'show', 'cablecar', 'facepaint'];
+export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'slide', 'swing', 'seesaw', 'springer', 'trampoline', 'icecream', 'flowers', 'bin', 'umbrellas', 'shelter', 'balloon', 'hats', 'souvenir', 'candy', 'restaurant', 'fountain', 'tower', 'carousel', 'station', 'bumper', 'ferris', 'show', 'cablecar', 'facepaint', 'swinger', 'ship', 'airballoon', 'flume', 'safari', 'coaster'];
 /** Waar een gast naar kijkt (zin in iets moois) en waar hij in rijdt (zin in een ritje). De kabelbaan is allebei. */
-export const LOOKS: ShopKind[] = ['fountain', 'tower', 'cablecar'];
-export const RIDES: ShopKind[] = ['carousel', 'ferris', 'bumper', 'station', 'cablecar'];
+export const LOOKS: ShopKind[] = ['fountain', 'tower', 'cablecar', 'airballoon'];
+export const RIDES: ShopKind[] = ['carousel', 'ferris', 'bumper', 'station', 'cablecar', 'swinger', 'ship', 'airballoon', 'flume', 'coaster', 'safari'];
+/**
+ * De safaritrein: een jeep met `seats` plekken voor gasten (de ranger stuurt). `speed`: tegels per tel; `accel`: zo
+ * rustig trekt hij op en remt hij af. `wait`: zo lang wacht hij na de eerste gast nog op meer gasten. `bench`: zo
+ * hoog is de zitting. `least`: zoveel vrije tegels moet het verblijf minstens hebben voor een rondje. `patience`: zo
+ * lang wacht een gast hooguit op het perron. `near`: binnen zoveel tegels kijkt een dier op als de jeep langskomt.
+ */
+export const SAFARI = { seats: 3, speed: 1.05, accel: 0.8, wait: 5, bench: 0.31, least: 6, patience: 90, near: 1.7 };
 /**
  * Maten van de grote attracties; het beeld en de gasten gebruiken dezelfde getallen. Alles ten opzichte van het midden
  * van het gebouw. De maten en rekensommen van de attracties en speeltoestellen staan in rides.ts; wat hier nog
@@ -448,7 +485,7 @@ export { FERRIS, RESTAURANT_TABLES, TOWER_TOP } from './rides';
  */
 export const TRAIN = { wagons: 3, seats: 3, gap: 0.95, half: 0.45, speed: 1.5, stop: 5, accel: 0.9, turn: 1.2, warn: 3.5, ring: 1.6, top: 0.085, most: 3, light: 2.2, gateLight: 1.3, bell: 1.2, check: 0.5 };
 /** Kramen waar een gast iets koopt voor één munt. */
-export const STALLS: ShopKind[] = ['foodstall', 'drinkstall', 'icecream', 'balloon', 'hats', 'souvenir', 'facepaint'];
+export const STALLS: ShopKind[] = ['foodstall', 'drinkstall', 'icecream', 'balloon', 'hats', 'souvenir', 'facepaint', 'candy'];
 /** Alles waar kinderen op spelen: de speeltuin en de losse toestellen. Een kind dat wil spelen kiest er zelf een. */
 export const PLAY: ShopKind[] = ['playground', 'slide', 'swing', 'seesaw', 'springer', 'trampoline'];
 /**
@@ -491,6 +528,7 @@ export const FENCE_COLORS: Record<1 | 3 | 4 | 5 | 7, number[]> = {
 export const SHOP_SIZE: Record<ShopKind, number> = {
   foodstall: 2, drinkstall: 2, toilet: 2, playground: 2, slide: 2, swing: 2, seesaw: 2, springer: 1, trampoline: 2, icecream: 2, balloon: 2, hats: 2, souvenir: 2, bench: 1, flowers: 1, bin: 1, fountain: 3, carousel: 3,
   tower: 2, restaurant: 3, ferris: 8, bumper: 4, shelter: 2, station: 2, umbrellas: 1, show: 2, cablecar: 2, facepaint: 2,
+  swinger: 4, ship: 6, airballoon: 3, flume: 8, coaster: 8, candy: 2, safari: 2,
 };
 /**
  * Hoe diep een gebouw is (van voor naar achter), als dat anders is dan zijn breedte. Een marktkraam is twee tegels
@@ -499,8 +537,8 @@ export const SHOP_SIZE: Record<ShopKind, number> = {
  * twee diep. Hier staat alleen wat niet vierkant is.
  */
 export const SHOP_DEEP: Partial<Record<ShopKind, number>> = {
-  foodstall: 1, drinkstall: 1, icecream: 1, balloon: 1, hats: 1, souvenir: 1, facepaint: 1,
-  ferris: 2, bumper: 3, slide: 3, swing: 1, seesaw: 1, restaurant: 2,
+  foodstall: 1, drinkstall: 1, icecream: 1, balloon: 1, hats: 1, souvenir: 1, facepaint: 1, candy: 1,
+  ferris: 2, bumper: 3, slide: 3, swing: 1, seesaw: 1, restaurant: 2, ship: 2, flume: 3, coaster: 4,
 };
 /** Wat je op de rand van een tegel zet, net als een hek: een bankje, bloembak, afvalbak of paraplubak neemt geen tegel in. */
 export const EDGE_SHOPS: ShopKind[] = ['bench', 'flowers', 'bin', 'umbrellas'];
@@ -537,6 +575,8 @@ export const PRODUCTS: Product[] = [
   { id: 'juice', shop: 'drinkstall', from: 32 },
   { id: 'scoop', shop: 'icecream', from: 11 },
   { id: 'lolly', shop: 'icecream', from: 19 },
+  { id: 'floss_pink', shop: 'candy', from: 36, color: 0xf9a8c9 },
+  { id: 'floss_blue', shop: 'candy', from: 42, color: 0x9fd8f5 },
   { id: 'balloon_red', shop: 'balloon', from: 21, color: 0xe0584f },
   { id: 'balloon_blue', shop: 'balloon', from: 21, color: 0x4a90e2 },
   { id: 'balloon_yellow', shop: 'balloon', from: 24, color: 0xffd23f },
@@ -642,6 +682,10 @@ export const SHOP_PRICE: Record<ShopKind, number> = {
   cablecar: 25,
   // de schminktent
   facepaint: 12,
+  // de grote attracties van het eind: elke keer iets groters om voor te sparen
+  // (de kas kan niet voller dan COIN_CAP: voor de achtbaan moet hij helemaal vol zijn)
+  swinger: 70, ship: 80, airballoon: 75, flume: 95, coaster: 99,
+  candy: 14, safari: 90,
 };
 /** Een kraam wordt vies van het verkopen (vanaf FEATURE.upkeep): na vijftig keer is hij vies en koopt een derde van de gasten er niets meer. */
 export const DIRT_PER_USE = 0.02;
@@ -760,7 +804,9 @@ export type GoalType =
   | 'kinds' | 'happyany' | 'healed' | 'caught' | 'keeper' | 'tidy' | 'sold'
   // twee soorten vriendjes samen blij in één verblijf, jongen van één soort, zoveel soorten speelgoed in de
   // verblijven, en zoveel blije dieren uit één wereld
-  | 'together' | 'young' | 'toys' | 'happyworld';
+  | 'together' | 'young' | 'toys' | 'happyworld'
+  // zoveel gasten hebben in dit level een ritje gemaakt in een attractie (`shop`), en zoveel tegels glazen tunnel
+  | 'rode' | 'tunnel';
 export interface Goal {
   type: GoalType;
   n: number;
@@ -792,6 +838,8 @@ const together = (species: SpeciesId, mate: SpeciesId): Goal => ({ type: 'togeth
 const young = (species: SpeciesId, n = 1): Goal => ({ type: 'young', species, n });
 /** Zoveel blije dieren uit één wereld. */
 const happyWorld = (world: WorldId, n: number): Goal => ({ type: 'happyworld', world, n });
+/** Zoveel gasten maken in dit level een ritje in deze attractie. */
+const rode = (n: number, kind: ShopKind): Goal => ({ type: 'rode', shop: kind, n });
 
 /**
  * Vijftig levels in vijf werelden van tien. Elk level speelt één dier vrij, en het dier dat je net kreeg komt in het
@@ -841,21 +889,22 @@ export const LEVELS: Level[] = [
   { goals: [happy('polarbear'), goal('kinds', 9), goal('guests', 17)], reward: 'reindeer' },
   { goals: [happy('reindeer', 3), young('reindeer'), goal('tidy', 8)], reward: 'wolf' },
   { goals: [happy('wolf', 3), goal('keeper', 6), goal('happyany', 20)], reward: 'arcticfox' },
-  { goals: [happy('arcticfox'), goal('healed', 3), goal('caught', 2), goal('guests', 18)], reward: 'bear' },
-  { goals: [happy('bear'), goal('toys', 8), sold(5, 'milk')], reward: 'yak' },
-  { goals: [together('yak', 'reindeer'), goal('born', 5), goal('happyany', 22)], reward: 'owl' },
-  { goals: [happy('owl'), goal('guests', 20), goal('healed', 3), happyWorld('ice', 16)], reward: 'walrus' },
+  // (vanaf hier komt er om het level iets groots bij: eerst sparen en bouwen, het level erna laten de gasten zien dat ze het leuk vinden)
+  { goals: [happy('arcticfox'), shop('swinger'), goal('healed', 3), goal('guests', 18)], reward: 'bear' },
+  { goals: [happy('bear'), goal('toys', 8), rode(8, 'swinger'), sold(4, 'floss_pink')], reward: 'yak' },
+  { goals: [together('yak', 'reindeer'), shop('ship'), goal('born', 5), goal('happyany', 22)], reward: 'owl' },
+  { goals: [happy('owl'), rode(8, 'ship'), goal('guests', 20), happyWorld('ice', 16)], reward: 'walrus' },
   // ---- wereld 5: water en verre landen. Alles door elkaar, en steeds meer.
-  { goals: [happy('walrus'), goal('kinds', 10), goal('guests', 20)], reward: 'flamingo' },
-  { goals: [happy('flamingo', 5), goal('born', 5), goal('caught', 3)], reward: 'turtle' },
-  { goals: [happy('turtle'), goal('happyany', 24), sold(10)], reward: 'otter' },
-  { goals: [happy('otter', 3), goal('keeper', 8), goal('healed', 4)], reward: 'beaver' },
-  { goals: [happy('beaver'), goal('kinds', 11), goal('guests', 21)], reward: 'pelican' },
-  { goals: [together('pelican', 'flamingo'), goal('born', 6), goal('tidy', 10)], reward: 'koala' },
-  { goals: [happy('koala'), goal('happyany', 26), goal('caught', 3), sold(15)], reward: 'redpanda' },
+  { goals: [happy('walrus'), shop('airballoon'), goal('kinds', 10), goal('guests', 20)], reward: 'flamingo' },
+  { goals: [happy('flamingo', 5), rode(8, 'airballoon'), goal('born', 5), goal('caught', 3)], reward: 'turtle' },
+  { goals: [happy('turtle'), shop('flume'), goal('happyany', 24), sold(10)], reward: 'otter' },
+  { goals: [happy('otter', 3), rode(10, 'flume'), goal('keeper', 8), goal('healed', 4)], reward: 'beaver' },
+  { goals: [happy('beaver'), shop('safari'), goal('kinds', 11), goal('guests', 21)], reward: 'pelican' },
+  { goals: [together('pelican', 'flamingo'), rode(8, 'safari'), goal('born', 6), goal('tidy', 10)], reward: 'koala' },
+  { goals: [happy('koala'), goal('tunnel', 3), goal('happyany', 26), sold(15)], reward: 'redpanda' },
   { goals: [happy('redpanda'), young('redpanda'), goal('kinds', 12), goal('guests', 22)], reward: 'lemur' },
-  { goals: [happy('lemur', 4), goal('healed', 5), goal('born', 6), goal('happyany', 28)], reward: 'bison' },
-  { goals: [happy('bison', 3), goal('kinds', 12), goal('guests', 22), goal('happyany', 30), goal('coins', 30)], reward: 'kangaroo' },
+  { goals: [happy('lemur', 4), shop('coaster'), goal('born', 6), goal('happyany', 28)], reward: 'bison' },
+  { goals: [happy('bison', 3), rode(12, 'coaster'), goal('kinds', 12), goal('guests', 22), goal('happyany', 30)], reward: 'kangaroo' },
 ];
 
 export const LEVELS_PER_WORLD = 10;
@@ -1003,6 +1052,12 @@ export const FEATURE = {
   show: 22,
   /** De kabelbaan: in de wereld van ijs en bergen, waar hij het best past. */
   cablecar: 32,
+  /** De grote attracties van het eind, om de twee levels een: zweefmolen, schommelschip, luchtballon, wildwaterbaan en achtbaan. */
+  swinger: 36, ship: 38, airballoon: 40, flume: 42, coaster: 48,
+  /** De suikerspinkraam komt tegelijk met de zweefmolen. */
+  candy: 36,
+  /** De safaritrein: een jeep door een verblijf, tussen de wildwaterbaan en de tunnel in. */
+  safari: 44,
   /** Een ruit in het hek, het weer (regen), seizoenen, kramen die vies worden, warmte en kou. */
   window: 13, weather: 10, season: 16, upkeep: 17, climate: 31,
   /** Bijzondere gasten: rolstoel en kinderwagen, een schoolklas, een verjaardag, een beroemde gast, een verdwaald kind. */
@@ -1103,6 +1158,8 @@ export const GOAL_OWNER: Record<GoalType, 'builder' | 'keeper' | 'host' | 'cashi
   trough: 'builder',
   bed: 'builder',
   path: 'builder',
+  tunnel: 'builder',
+  rode: 'host',
   animals: 'keeper',
   happy: 'keeper',
   fed: 'keeper',

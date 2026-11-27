@@ -14,7 +14,7 @@ import {
   BEDS, COIN_CAP, FEATURE, FOODS, LEVELS, PLUSH, PRODUCTS, SHOP_SIZE, SHOP_DEEP, RESIZED_V5, onEdge, shopSpan, herdOf, productsFor, slotsOf, LEVELS_PER_WORLD, LEVEL_BONUS, MAX_POOPS_CLEAN, PRICE, refund, SHOPS, SHOP_PRICE, SPECIES, START_COINS, TERRAINS,
   TERRAIN_INFO, WORLDS, migrateLevel, unlockedSpecies, worldOf,
   type BedKind, type FenceNeed, type FoodId, type Goal, type Level, type ShopKind, type SpeciesId, type Terrain, type Variant,
-  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, hourAt, WAGE, TOY_LIKES, DECOR, DECORS, type DecorKind, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, GUESTS_HOME, STAFF_HOME, STAFF_BACK, VENDORS_BACK, LIGHT, SPACE, guestsAt, SERVES,
+  type WishId, type WorldId, TOYS, type ToyKind, HOUR_SECONDS, hourAt, WAGE, TOY_LIKES, DECOR, DECORS, type DecorKind, PLAY, FENCE_COLORS, TROUGH, TROUGHS, type TroughKind, ALSO, AQUATIC, BONUS, bonusSpecies, TANK_WATER, LAND_PRICE, DAY_SECONDS, NIGHT_SECONDS, DUSK_SECONDS, GUESTS_HOME, STAFF_HOME, STAFF_BACK, VENDORS_BACK, LIGHT, SPACE, spaceNeed, guestsAt, SERVES,
   isPath, PATH_KINDS, PATH_FROM, TOY_FROM, TOY_PRICE, CLIMATE, palsOf, PETTABLE, PETTING_MIN, NATURES, pickRare, RARE_CHANCE, MUD_LOVERS, crowdLoad, CROWD_EASE,
   EDGE_DECOR, POLE_DECOR, LOW_POLES, SMALL_DECOR, PARK_GROUPS, ATTRACTIONS, parkShopGroup, PROP, PROPS, WILD_PROPS, PARK_PROPS, WILD_KINDS, wildRange, wildWant, type PropKind, type WildKind, DIRT_PER_USE, CART_PRICE, SUIT_COLORS, seasonOn, homeWorld, PALS, RAIN_EVERY, RAIN_SECONDS, RAINBOW_SECONDS, STALLS, type Nature, type Rare, type Season, type Sky, } from './data';
 import { CLIMB_SECONDS, PUSH, SWING, TETHER, TOY_PIVOT, UNDER, likesToy, rockAt, sinceHit, sway, swingAt, tetherAt } from './data';
@@ -23,7 +23,7 @@ import { scares } from './data';
 import { MURK, murkAfter, murkLoad, murkyWater } from './data';
 import { SHOW_FENCES, SHOW_ROUTINE, SHOW_ROWS, SHOW_STARS, SHOW_TIME, newShow, showFinale, showMoves, showReady, showSoon, showTick, type ShowClock } from './data';
 import { TOSS_AFTER, TRAINER_AT, TRAINER_HAND, Trainer } from './showtime';
-import { CROSSING, RAILS, TRAIN, isRail } from './data';
+import { CROSSING, FIREWORK, RAILS, SAFARI, TRAIN, TUBE, isRail } from './data';
 import { planRails, railLinks } from './rails';
 import { ESCAPE_WAY, escapeChance, escapeWay, pickEscaper, type EscapeWay } from './data';
 import { Grid, H, SIDES, W, edgeAlong, edgeKey, nearestEdge, nearestSpot, spotEdges, spotPos, spotTiles, tileIndex, tileXY, type Edge, type EdgeKind, type Region, type Side, type Spot } from './grid';
@@ -35,7 +35,7 @@ import { CHEERS, EVENT_SAYS, NAMED, PRAISE, callText, goalLine, say, textOf, voi
 import { TEACHERS, type TeacherId } from './figures';
 import { MODEL_SCALE, hasSpecies, loadSpecies, modelReady, spawnModel, spawnStatic, speciesIcon } from './models';
 import { ENTRANCE, GuestManager, Vendor, Worker, edgePose, edgeSides, shopCenter, shopTiles, type Guest, type GuestSave, type GuestWorld, type KeeperPoop, type KeeperTrough, type PetSpot, type ShopSpot, type VetJob, type WorkerRole, type WorkerWorld, type FixJob, type GuardJob } from './people';
-import { SIGHT, type GuestCue, type Sight } from './people';
+import { Jeep, SIGHT, setSink, type GuestCue, type GuestWish, type JeepRoute, type Sight } from './people';
 import { PEN } from './people';
 import { CableCar, type TrainSeat } from './people';
 import { Clown } from './people';
@@ -60,6 +60,7 @@ import { WalkHand } from './walkhand';
 import { paintOf, walkOffer, walkPrice } from './held';
 import { BlobShadows } from './blobs';
 import { RIDE_GLOW, RIDE_TOP, isRide, newPose, newRide, planVisit, rideLocal, rideStep, rideWorld, visitPose, type Visit } from './rides';
+import { FLUME, FLUME_SPLASH_AT, balloonAt, isLap, lapTime, newSpot, shipAngle, swingerGo, trackDist, trackOf, trainCar, type LapKind, type RideState } from './rides';
 
 /** Wat je met de actieknop doet: poep vegen, een hek vasttimmeren of afval prikken; een dier een snoepje geven of wassen (care.ts); in de herfst harken, in de winter sneeuw rollen. */
 export type ActionId = 'broom' | 'hammer' | 'picker' | CareAction | 'rake' | 'snowball';
@@ -149,8 +150,8 @@ const MAX_LITTER = 8;
 /** Zoveel stuks afval kun je tegelijk in je handen hebben. */
 const MAX_CARRY = 5;
 const SEX_COLOR: Record<Sex, number> = { male: 0x4a90e2, female: 0xf06aa6 };
-const FENCE_KIND: Record<string, EdgeKind> = { fence: 1, gate: 2, wall: 3, net: 4, glass: 5, window: 6, picket: 7, petgate: 8 };
-const FENCE_SOUND = ['', 'fence', 'fence', 'stone', 'net', 'stone', 'stone', 'fence', 'fence'];
+const FENCE_KIND: Record<string, EdgeKind> = { fence: 1, gate: 2, wall: 3, net: 4, glass: 5, window: 6, picket: 7, petgate: 8, safarigate: 9 };
+const FENCE_SOUND = ['', 'fence', 'fence', 'stone', 'net', 'stone', 'stone', 'fence', 'fence', 'fence'];
 const NEED_ICON: Record<FenceNeed, IconId> = { wall: 'wall', net: 'net', glass: 'glass' };
 const PATH = TERRAINS.indexOf('path');
 const WATER = TERRAINS.indexOf('water');
@@ -245,7 +246,7 @@ const blockCenter = (shop: ShopSpot): [number, number] => [shop.x + shopTiles(sh
 const NEEDS_SHOWN = 20;
 /** Bij welke winkel hoort een wens van een gast? */
 const NEED_KIND: Record<string, ShopKind> = {
-  food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', balloon: 'balloon', hat: 'hats', souvenir: 'souvenir', play: 'playground', sit: 'bench', look: 'fountain', ride: 'carousel',
+  food: 'foodstall', drink: 'drinkstall', toilet: 'toilet', icecream: 'icecream', candy: 'candy', balloon: 'balloon', hat: 'hats', souvenir: 'souvenir', play: 'playground', sit: 'bench', look: 'fountain', ride: 'carousel',
   umbrella: 'umbrellas', shelter: 'shelter', paint: 'facepaint',
 };
 
@@ -274,7 +275,7 @@ const CUR: Record<string, string> = {
   staff: cursor('keeper'),
 };
 for (const id of [...TERRAINS, ...BEDS, ...SHOPS, ...TOYS, ...DECORS]) CUR[id] = cursor(id);
-for (const id of ['window', 'picket', 'petgate'] as const) CUR[id] = cursor(id);
+for (const id of ['window', 'picket', 'petgate', 'safarigate'] as const) CUR[id] = cursor(id);
 CUR[PYLON] = cursor(PYLON);
 CUR.rake = cursor('rake', 6, 40);
 CUR.snowball = cursor('snowball', 24, 27);
@@ -311,6 +312,7 @@ export interface SaveData {
   sold?: Record<string, number>;
   soldAt?: Record<string, number>;
   soldAll?: number;
+  rides?: Record<string, number>;
   litter?: { gx: number; gy: number }[];
   /** De gasten die in het park liepen toen het spel werd bewaard. */
   guests?: GuestSave[];
@@ -564,7 +566,7 @@ const penCap = (region: Region): number => Math.max(2, Math.floor(region.tiles.l
 const NOBODY: Guest[] = [];
 
 export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
-  readonly grid = new Grid();
+  readonly grid = Object.assign(new Grid(), { tube: TUBE, walk: isPath });
   troughs: TroughObj[] = [];
   animals: Animal[] = [];
   poops: PoopObj[] = [];
@@ -584,6 +586,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   /** Verkocht in dit level: per ding (alleen als de gast er precies om vroeg), per soort kraam, en alles bij elkaar. */
   sold: Record<string, number> = {};
   soldAt: Record<string, number> = {};
+  /** Hoeveel gasten er in dit level een ritje maakten, per soort attractie (voor een doel als 'acht gasten in de zweefmolen'). */
+  rides: Record<string, number> = {};
   soldAll = 0;
   coins = START_COINS;
   /** Wat het park net heeft uitgegeven en nog niet heeft terugverdiend. */
@@ -777,6 +781,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       walk: () => this.walk.toggle(),
     });
     this.hud.onStars = () => this.showStars();
+    // wie in de glazen tunnel loopt, loopt lager: het beeld weet waar de tunnels liggen
+    setSink((gx, gy) => this.view.sink(gx, gy));
     this.guests = new GuestManager(this.view.scene, this);
     this.road = new Road(this.view.scene);
     this.blobs = new BlobShadows(this.view.scene);
@@ -909,6 +915,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.tidied = d.tidied ?? 0;
     this.sold = d.sold ?? {};
     this.soldAt = d.soldAt ?? {};
+    this.rides = d.rides ?? {};
     this.soldAll = d.soldAll ?? 0;
     this.coins = d.coins ?? START_COINS;
     this.debt = d.debt ?? 0;
@@ -1033,6 +1040,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       tidied: this.tidied,
       sold: this.sold,
       soldAt: this.soldAt,
+      rides: this.rides,
       soldAll: this.soldAll,
       coins: this.coins,
       debt: this.debt,
@@ -1170,7 +1178,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private fenceOptions(): string[] {
     const needs = new Set(this.species().map(sp => SPECIES[sp].need));
     return ['fence', ...(this.has('keeper') ? ['gate'] : []), ...(needs.has('wall') ? ['wall'] : []), ...(needs.has('net') ? ['net'] : []), ...(needs.has('glass') ? ['glass'] : []),
-      ...(this.has('window') ? ['window'] : []), ...(this.has('petting') ? ['picket', 'petgate'] : [])];
+      ...(this.has('window') ? ['window'] : []), ...(this.has('petting') ? ['picket', 'petgate'] : []),
+      // de safaripoort: een dubbele poort tussen twee verblijven, voor de jeep van de safaritrein
+      ...(this.has('safari') ? ['safarigate'] : [])];
   }
 
   /** De werelden waar je al een dier van hebt. */
@@ -1254,7 +1264,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       this.soldAll++;
     }
     if (product) this.floatAt(this.productIcon(product), cx - 0.4, cy, 1.5);
-    if (shop.kind === 'foodstall' || shop.kind === 'icecream') sfx('guest.yum', { volume: 0.5, every: 6, at: [cx, cy] });
+    if (shop.kind === 'foodstall' || shop.kind === 'icecream' || shop.kind === 'candy') sfx('guest.yum', { volume: 0.5, every: 6, at: [cx, cy] });
     this.earn(1, cx, cy);
     return true;
   }
@@ -1399,7 +1409,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   craving(kind: ShopKind): number {
     const asked = this.levelDef()?.goals.some(g =>
       g.type === 'sold' && goalProgress(g, this.stats) < g.n && (g.product ? PRODUCTS.find(p => p.id === g.product)?.shop === kind : !g.shop || g.shop === kind));
-    const snack = kind === 'foodstall' || kind === 'drinkstall' || kind === 'icecream';
+    const snack = kind === 'foodstall' || kind === 'drinkstall' || kind === 'icecream' || kind === 'candy';
     return asked || (snack && this.messy()) ? 3 : 1;
   }
 
@@ -1864,7 +1874,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       case 'enclosure': return 'fence';
       case 'trough': return 'trough';
       case 'bed': return 'bed';
-      case 'path': return 'terrain';
+      case 'path':
+      case 'tunnel': return 'terrain';
+      case 'rode': return 'rides';
       case 'shop': return goal.shop && parkShopGroup(goal.shop) ? 'decor' : goal.shop && (ATTRACTIONS.includes(goal.shop) || PLAY.includes(goal.shop)) ? 'rides' : 'shop';
       case 'animals':
       case 'together': return 'animal';
@@ -1892,6 +1904,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       guests: icon('guest') + icon('smile_good', 'badge'),
       coins: icon('coin'),
       shop: icon(g.shop ?? 'foodstall'),
+      rode: icon(g.shop ?? 'ferris') + icon('guest', 'badge'),
+      tunnel: icon('seatunnel'),
       animals: g.species ? speciesIcon(g.species) : icon('paw'),
       happy: (g.species ? speciesIcon(g.species) : icon('paw')) + icon('heart', 'badge'),
       fed: icon(sp ? SPECIES[sp].food : 'veg'),
@@ -1952,8 +1966,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const call = this.player && !line.key.startsWith('name.') && !line.vars?.name ? voiceId(line.who, callText(t, this.player)) : '';
     if (call && this.clock - this.namedAt > 40 && Math.random() < 0.35 && hasVoice(call) && hasVoice(id)) {
       this.namedAt = this.clock;
-      this.hud.say(line.who, line.mood, `${this.player}, ${text.charAt(0).toLowerCase()}${text.slice(1)}`, playVoice([call, id]), tap);
-    } else this.hud.say(line.who, line.mood, text, playVoice(id), tap);
+      this.hud.say(line.who, line.mood, `${this.player}, ${text.charAt(0).toLowerCase()}${text.slice(1)}`, playVoice([call, id]), tap, () => playVoice([call, id]));
+    } else this.hud.say(line.who, line.mood, text, playVoice(id), tap, () => playVoice(id));
   }
 
   /** Een melding die over dit dier, deze gast of deze plek gaat: tik je erop, dan gaat het beeld erheen. */
@@ -2872,7 +2886,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!this.grid.validEdge(e) || this.edgeItemAt(e) || this.edgeDecorAt(e)) return false;
     const fence = this.grid.getEdge(e);
     if (fence !== 0) {
-      if (fence === 2 || fence === 8 || kind === 'arch') return false;
+      if (fence === 2 || fence === 8 || fence === 9 || kind === 'arch') return false;
       return edgeSides({ x: e.x, y: e.y, edge: e.o }).some(i => !this.grid.enclosureAt(...tileXY(i)) && !this.shopAt(...tileXY(i)) && this.grid.terrain[i] !== WATER && !isRail(this.grid.terrain[i]));
     }
     const sides = edgeSides({ x: e.x, y: e.y, edge: e.o }).map(i => tileXY(i));
@@ -3199,7 +3213,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     for (const pen of this.pens) {
       if (this.grid.penKind(pen.region) !== 5) continue;
       const before = tiles.length;
-      for (const i of pen.region.tiles) if (this.grid.terrain[i] === WATER) {
+      // (ook boven de glazen tunnel staat het water: die ligt eronder)
+      for (const i of pen.region.tiles) if (this.grid.terrain[i] === WATER || this.grid.terrain[i] === TUBE) {
         tiles.push(i);
         murk.push(pen.murk);
       }
@@ -4168,6 +4183,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       }
     // de tribune moet met haar rug tegen de glazen bak van de dolfijnen of orka's staan
     if (kind === 'show' && !this.showPool(x, y, w, h)) return false;
+    // het station van de safaritrein moet tegen een verblijf aan staan: daar rijdt de jeep doorheen
+    if (kind === 'safari' && !this.safariPen(x, y, w, h)) return false;
     // het huisje van de kabelbaan dat erbij komt, moet passen achter het stuk waar het bij hoort (het huisje dat
     // wacht, of de laatste tussenpaal): niet te dichtbij, niet te ver weg en niet met een te scherpe bocht
     const open = kind === 'cablecar' ? this.cableOpen({ x, y }) : null;
@@ -4246,15 +4263,50 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   }
 
   /**
-   * Mag er op deze tegel een tussenpaal staan? Hij is dun: het mag ook in een verblijf en op het pad, maar niet waar
-   * al iets staat, niet in het water, niet onder een boom of op een rots en niet midden in de ingang.
+   * Mag er op deze tegel een tussenpaal staan? Net als een lantaarn staat hij langs het pad: op een tegel naast een
+   * pad (ook schuin ernaast), niet op het pad zelf en nooit in een verblijf. Ook niet waar al iets staat, niet in het
+   * water, niet onder een boom of op een rots en niet midden in de ingang.
    */
   private pylonFits(x: number, y: number): boolean {
     if (!this.grid.inBounds(x, y) || this.taken(x, y)) return false;
     const tile = tileIndex(x, y);
     // (ook niet op de plek van een paal die vanzelf onder een kabel staat: dan stonden er twee palen in elkaar)
     if (this.guests.lifts.some(l => (l.model.group.userData.poles as number[]).includes(tile))) return false;
-    return this.grid.terrain[tile] !== WATER && !this.tankTiles.has(tile) && !this.solid.has(tile) && tile !== ENTRANCE;
+    return this.grid.terrain[tile] !== WATER && !this.tankTiles.has(tile) && !this.solid.has(tile) && tile !== ENTRANCE && this.pylonByPath(x, y);
+  }
+
+  /** Ligt deze tegel langs een pad (ernaast of schuin ernaast), zonder zelf pad, spoor of verblijf te zijn? */
+  private pylonByPath(x: number, y: number): boolean {
+    const terrain = this.grid.terrain[tileIndex(x, y)];
+    if (isPath(terrain) || isRail(terrain) || this.grid.enclosureAt(x, y)) return false;
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++) {
+        if ((!dx && !dy) || !this.grid.inBounds(x + dx, y + dy)) continue;
+        const near = this.grid.terrain[tileIndex(x + dx, y + dy)];
+        if (isPath(near) && !isRail(near)) return true;
+      }
+    return false;
+  }
+
+  /**
+   * De palen die vanzelf onder een stuk kabel komen. Een paal staat nooit in een verblijf, in een gebouw of op een
+   * tussenpaal: valt hij daar, dan schuift hij een stukje langs de kabel naar de dichtstbijzijnde vrije plek (liefst
+   * naast een pad). Is er binnen anderhalve tegel geen plek, dan hangt de kabel daar gewoon wat verder door.
+   */
+  private liftPoles(path: ReturnType<typeof cablePath>): ReturnType<typeof cablePoles> {
+    const free = (gx: number, gy: number): boolean => {
+      const x = Math.floor(gx), y = Math.floor(gy);
+      return this.grid.inBounds(x, y) && !this.shopAt(x, y) && !this.pylonAt(x, y) && !this.grid.enclosureAt(x, y);
+    };
+    const out: ReturnType<typeof cablePoles> = [];
+    for (const pole of cablePoles(path)) {
+      // (ax, ay) is de dwarsbalk; langs de kabel is dat een kwartslag gedraaid
+      const ux = pole.ay, uy = -pole.ax;
+      const tries = [0, 0.5, -0.5, 1, -1, 1.5, -1.5].map(s => [pole.gx + ux * s, pole.gy + uy * s] as const).filter(([gx, gy]) => free(gx, gy));
+      const best = tries.find(([gx, gy]) => this.pylonByPath(Math.floor(gx), Math.floor(gy))) ?? tries[0];
+      if (best) out.push({ ...pole, gx: best[0], gy: best[1] });
+    }
+    return out;
   }
 
   /**
@@ -4264,8 +4316,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private placePylon(x: number, y: number): void {
     const open = this.cableOpen({ x, y }, true), free = this.pylonFits(x, y);
     if (!open || !free || cableFit(open.pts, cableSpot({ x, y }, true), false, open.before) !== 'ok') {
-      // de tegel is vrij, maar de paal staat te dichtbij, te ver weg of de bocht is te scherp: de bouwer zegt hoe het moet
+      // de tegel is vrij, maar de paal staat te dichtbij, te ver weg of de bocht is te scherp: de bouwer zegt hoe het moet.
+      // Staat hij in een verblijf of niet langs een pad, dan zegt de bouwer dat
       if (free) this.alert(say.cableWhere(), 25);
+      else if (this.grid.inBounds(x, y) && !this.taken(x, y) && !this.pylonByPath(x, y)) this.alert(say.cablePath(), 25);
       return this.nope(x + 0.5, y + 0.5);
     }
     if (!this.pay(CABLE.pylon, x + 0.5, y + 0.5)) return;
@@ -4326,7 +4380,9 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
   private syncLifts(): void {
     const houses = this.cableHouses(), pairs = cablePairs(houses);
     const routes = pairs.map(([p, q]) => cableRoute(p, q)), drafts = cableDrafts(houses);
-    const key = `${routes.map(r => r.join(' ')).join(';')}|${drafts.map(r => r.join(' ')).join(';')}|${houses.map(h => `${h.x},${h.y}`).join(';')}`;
+    // (ook de verblijven tellen mee: komt er een verblijf onder een kabel, dan schuiven de palen daar weg)
+    const pens = routes.length ? this.grid.enclosures().map(r => `${r.tiles[0]}:${r.tiles.length}`).join(',') : '';
+    const key = `${routes.map(r => r.join(' ')).join(';')}|${drafts.map(r => r.join(' ')).join(';')}|${houses.map(h => `${h.x},${h.y}`).join(';')}|${pens}`;
     if (key === this.liftKey) return;
     this.liftKey = key;
     this.pylons = [];
@@ -4338,8 +4394,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
           this.pylons.push(pylon);
           this.pylonTiles.set(tileIndex(pylon.x, pylon.y), pylon);
         });
-    // dezelfde huisjes langs dezelfde punten: die kabel blijft hangen
-    const same = (lift: CableCar, i: number): boolean => lift.a === pairs[i][0] && lift.b === pairs[i][1] && lift.path.pts.join(' ') === routes[i].join(' ');
+    // dezelfde huisjes langs dezelfde punten, met de palen op dezelfde plek: die kabel blijft hangen
+    const paths = routes.map(r => cablePath(r)), poleSets = paths.map(p => this.liftPoles(p));
+    const poleKey = (i: number): string => poleSets[i].map(p => `${p.gx.toFixed(2)},${p.gy.toFixed(2)}`).join(' ');
+    const same = (lift: CableCar, i: number): boolean =>
+      lift.a === pairs[i][0] && lift.b === pairs[i][1] && lift.path.pts.join(' ') === routes[i].join(' ') && lift.model.group.userData.poleKey === poleKey(i);
     const keep: CableCar[] = [];
     for (const lift of this.guests.lifts) {
       if (pairs.some((_, i) => same(lift, i))) keep.push(lift);
@@ -4351,12 +4410,12 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     }
     pairs.forEach(([p, q], i) => {
       if (keep.some(l => same(l, i))) return;
-      const path = cablePath(routes[i]);
-      // een paal staat niet midden in een gebouw of op de tussenpaal van een andere kabel: daar hangt de kabel gewoon wat verder door
-      const poles = cablePoles(path).filter(pole => !this.shopAt(Math.floor(pole.gx), Math.floor(pole.gy)) && !this.pylonAt(Math.floor(pole.gx), Math.floor(pole.gy)));
+      // een paal staat niet in een verblijf, midden in een gebouw of op de tussenpaal van een andere kabel (zie liftPoles)
+      const path = paths[i], poles = poleSets[i];
       const model = this.view.makeCable(path, poles, cableChairs(path.len));
       // de tegels van die palen: daar komt geen tussenpaal meer bij (zie pylonFits)
       model.group.userData.poles = poles.map(pole => tileIndex(Math.floor(pole.gx), Math.floor(pole.gy)));
+      model.group.userData.poleKey = poleKey(i);
       keep.push(new CableCar(p, q, model, path));
     });
     this.guests.lifts = keep;
@@ -4432,6 +4491,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const kind = TERRAINS.indexOf(terrain);
     if (!this.grid.inBounds(x, y)) return [kind, -1];
     const i = tileIndex(x, y), now = this.grid.terrain[i];
+    if (terrain === 'seatunnel') {
+      // de glazen tunnel ligt alleen in een bak van glas (onder het water), niet waar een voerbak, koraal of speelgoed staat
+      const pen = this.grid.enclosureAt(x, y);
+      return pen && this.grid.penKind(pen) === 5 && !this.taken(x, y) ? [kind, -1] : null;
+    }
     if (terrain === 'rails') {
       if (isRail(now)) return [now, this.crossLook.get(i) ?? -1];
       if (this.grid.enclosureAt(x, y) || this.taken(x, y) || now === WATER || TERRAINS[now] === 'bridge' || this.edgeInWay(x, y, isPath(now))) return null;
@@ -4464,6 +4528,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.view.paintTerrain(this.grid);
     this.faceEdgeItems();
     this.sweepProps();
+    // een tunnel erbij of weg, of een pad tegen een tunnel aan: het glas bij de ingang en het water in de bak gaan mee
+    if (kind === TUBE || was === TUBE || this.besideTube(x, y)) this.syncWear();
     if (!isRail(was) && !isRail(kind)) return true;
     this.syncRails(true);
     // de eerste overweg: de bouwer vertelt wat de spoorbomen doen
@@ -4472,6 +4538,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       this.lines.push(say.trainCrossing());
     }
     return true;
+  }
+
+  /** Ligt er naast deze tegel een stuk glazen tunnel? */
+  private besideTube(x: number, y: number): boolean {
+    return [[0, -1], [1, 0], [0, 1], [-1, 0]].some(([dx, dy]) => this.grid.inBounds(x + dx, y + dy) && this.grid.terrain[tileIndex(x + dx, y + dy)] === TUBE);
   }
 
   /**
@@ -4611,6 +4682,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (!this.shopFits(x, y, kind, turn)) {
       // de tribune past wel, maar staat niet bij de dolfijnen: de bouwer zegt waar hij moet
       if (kind === 'show' && this.shopFits(x, y, 'tower', turn)) this.alert(say.showWhere(), 25);
+      // het station van de safaritrein past wel, maar staat niet tegen een verblijf aan
+      if (kind === 'safari' && this.shopFits(x, y, 'tower', turn)) this.alert(say.safariWhere(), 25);
       // het huisje van de kabelbaan past wel, maar staat te dichtbij of te ver van het stuk waar het bij hoort (of de bocht is te scherp)
       if (kind === 'cablecar' && this.shopFits(x, y, 'tower', turn)) this.alert(say.cableWhere(), 25);
       return this.nope(cx, cy);
@@ -4698,7 +4771,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     if (this.has('safe') && (prey || hunter)) {
       for (const p of prey ? others.filter(o => scares(species, o.species)) : [a]) this.fright(p);
       this.sayNow(say.scared(t, prey ? prey.species : species, prey ? species : hunter!.species));
-    } else if ((SPACE[species] ?? 0) > region.tiles.length) {
+    } else if (SPACE[species] && spaceNeed([...others, a]) > region.tiles.length) {
       this.floatAt(icon('grow'), a.gx, a.gy, a.top + 0.8);
       this.sayNow(wishLine(t, 'space', species, null, false));
     }
@@ -5309,7 +5382,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       `<span class="wish ${guest.fun >= 0.3 ? 'ok' : 'no'}">${icon(guest.fun >= 0.55 ? 'smile_good' : guest.fun >= 0.3 ? 'smile_ok' : 'smile_bad')}${meter(guest.fun)}</span>` +
       (guest.fav ? `<span class="wish ${guest.favSeen ? 'ok' : 'no'}">${speciesIcon(guest.fav)}${icon('heart', 'badge')}</span>` : '') +
       need(guest.hunger, 'foodstall') + need(guest.thirst, 'drinkstall') + need(guest.bladder, 'toilet') + need(guest.tired, 'bench') +
-      want(guest.treat, 'icecream') + want(guest.balloon, 'balloon') + want(guest.gift, 'souvenir') + want(guest.playful, 'slide') + want(guest.hat, 'hats') +
+      want(guest.treat, 'icecream') + want(guest.sweet, 'candy') + want(guest.balloon, 'balloon') + want(guest.gift, 'souvenir') + want(guest.playful, 'slide') + want(guest.hat, 'hats') +
       want(guest.curious, 'fountain') + want(guest.rideWish, 'carousel') + (guest.child && !guest.painted ? want(guest.paintWish, 'facepaint') : '') +
       '</span>' + facts;
     this.hud.showMenu(s.x, s.y, card.name || t('guest.title'), [{ id: 'wave', icon: icon('hand'), label: t('guest.wave') }], () => this.waveTo(guest), header, 'guest');
@@ -5617,6 +5690,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const lay = this.groundFor(x, y, terrain);
       if (!lay) {
         if (first) this.nope(x + 0.5, y + 0.5);
+        // de tunnel hoort in een bak van glas: de bouwer zegt het
+        if (first && terrain === 'seatunnel') this.alert(say.tunnelWhere(), 25);
         return;
       }
       if (!this.layGround(x, y, lay[0], lay[1])) return;
@@ -5766,7 +5841,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const g = this.view.groundPoint(cx, cy), L = this.line;
     if (!g || !L) return;
     const kind = FENCE_KIND[this.option.fence];
-    if (kind === 2 || kind === 6 || kind === 8) return;
+    if (kind === 2 || kind === 6 || kind === 8 || kind === 9) return;
     // met losse hekken sleep je geen hok
     if (this.option.fenceMode !== 'box') return;
     const land = this.grid.land;
@@ -6112,7 +6187,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
    * Het feest dat nu bezig is: voor welk level, wanneer het begon en ophoudt (speltijd), het rondje van de gasten,
    * per verblijf de plek op het pad ervoor, wanneer de dieren weer naar het hek komen en wanneer de volgende plop komt.
    */
-  private party: { due: number; from: number; until: number; loop: number[]; fronts: Map<Pen, { tile: number; x: number; y: number }>; animalsAt: number; popAt: number; test: boolean } | null = null;
+  private party: { due: number; from: number; until: number; loop: number[]; fronts: Map<Pen, { tile: number; x: number; y: number }>; animalsAt: number; popAt: number; test: boolean; fired?: boolean } | null = null;
   /** Op welke dag de directeur vertelde dat er feest is, en wanneer hij op de gong wees. */
   private partyToldDay = -1;
   private gongToldDay = -1;
@@ -6217,6 +6292,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     // alles wat verkocht wordt kost 1 munt (zie sell): dat staat achter elk balkje
     const sold = topCounts(this.soldAt, 6).map(([kind, n]) => ({ icon: ICON_IDS.includes(kind as IconId) ? icon(kind as IconId) : icon('cart'), n, tail: `<span class="price">1${icon('coin')}</span>` }));
     if (this.has('paths')) out.push({ icon: icon('cart'), title: t('park.sold'), empty: t('park.none'), rows: sold });
+    // wat de gasten nu missen: welke kraam er nog bij moet, wat er niet te koop is en waar het te druk is
+    if (this.has('paths') && guests.length) out.push({ icon: icon('question'), title: t('park.missed'), empty: t('park.missed.none'), rows: this.missedRows() });
     const favs = topCounts(tally(guests.map(q => q.fav)), 5).map(([sp, n]) => ({ icon: speciesIcon(sp), n }));
     if (guests.length) out.push({ icon: icon('heart'), title: t('park.favs'), empty: t('park.none'), rows: favs });
     if (guests.length) {
@@ -6302,6 +6379,20 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.lines.unshift(say.partyStart());
   }
 
+  /**
+   * Vuurwerk boven het park, `seconds` tellen lang: de gasten juichen en de directeur zegt er iets bij. De pijlen en
+   * de knallen komen uit het beeld (View.fireworks); hier komt het geluid erbij.
+   */
+  private startFireworks(seconds: number): void {
+    this.view.onFirework = (what, gx, gy, big) => {
+      if (what === 'launch') sfx('firework.launch', { volume: 0.35, every: 0.12, at: [gx, gy] });
+      else sfx(big ? 'firework.big' : 'firework.bang', { volume: big ? 0.8 : 0.6, every: 0.08, at: [gx, gy] });
+    };
+    this.view.fireworks(seconds);
+    for (const g of this.guests.guests) this.cheer(g);
+    this.lines.push(seconds >= FIREWORK.finale ? say.fireworkFinale() : say.fireworkWorld());
+  }
+
   /** Tijdens het feest: de klok loopt langzamer, de lampen kleuren, de dieren komen naar het hek en aan het eind confetti. */
   private runParty(dt: number): void {
     const p = this.party!;
@@ -6318,7 +6409,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         for (const a of this.animalsIn(pen.region.id)) if (Math.random() < 0.7) a.partyShow(this, at.x, at.y);
       }
     }
-    // de laatste tellen: zachte plopjes confetti boven de poort
+    // de laatste tellen: vuurwerk (vanaf het level waarin het vrijkomt), en zachte plopjes confetti boven de poort
+    if (p.until - this.clock < PARTY.fireworks && !p.fired && this.level >= FIREWORK.from) {
+      p.fired = true;
+      this.startFireworks(FIREWORK.party);
+    }
     if (p.until - this.clock < PARTY.fireworks && this.clock >= p.popAt) {
       p.popAt = this.clock + 0.4 + Math.random() * 0.4;
       const [gx, gy] = this.view.gongSpot();
@@ -7641,8 +7736,213 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     return Math.min(0.3, seen.size * 0.05);
   }
 
+  rode(shop: ShopSpot): void {
+    this.rides[shop.kind] = (this.rides[shop.kind] ?? 0) + 1;
+  }
+
+  /** De attractie waar dit level nog ritjes in vraagt: dan krijgen gasten sneller zin in een ritje en gaan ze het liefst daarheen. */
+  askedRide(): ShopKind | null {
+    const goal = this.levelDef()?.goals.find(g => g.type === 'rode' && goalProgress(g, this.stats) < g.n);
+    return goal?.shop && this.shops.some(s => s.kind === goal.shop) ? goal.shop : null;
+  }
+
   trainRuns(shop: ShopSpot): boolean {
     return this.guests.trains.some(train => train.serves(shop));
+  }
+
+  // ------------------------------------------------------------ het geluid van de grote attracties
+  /** Wat er bij elke attractie net te horen was: of het ritje bezig was, de vorige stand van het schip, en of de plons al klonk. */
+  private heard = new WeakMap<object, { on: boolean; was: number; wet: boolean }>();
+  private trackSpot = newSpot();
+
+  /**
+   * Het geluid bij een ritje: een bel bij het vertrek, en dan per attractie wat erbij hoort. De zweefmolen heeft een
+   * draaiorgeltje, het schip zoeft elke keer dat het onderlangs komt, de brander van de ballon blaast, de ketting
+   * van de achtbaan en de band van de wildwaterbaan tikken omhoog, de achtbaan raast in de afdaling en de boomstam
+   * plonst in het water. Je hoort het alleen als de attractie in beeld is.
+   */
+  private rideSound(shop: ShopObj, kind: LapKind, s: RideState): void {
+    const at = shopCenter(shop) as [number, number], t = lapTime(kind, s);
+    let memo = this.heard.get(shop);
+    if (!memo) this.heard.set(shop, (memo = { on: false, was: 0, wet: false }));
+    if (t > 0 && !memo.on) sfx('ride.bell', { volume: 0.5, at });
+    memo.on = t > 0;
+    if (t <= 0) {
+      memo.wet = false;
+      memo.was = 0;
+      return;
+    }
+    if (kind === 'swinger') {
+      if (swingerGo(s) > 0.4) sfx('ride.organ', { volume: 0.35, every: 5.2, at });
+    } else if (kind === 'ship') {
+      // onderlangs: hoe harder het schip gaat, hoe harder het zoeft
+      const a = shipAngle(s), fast = Math.min(1, Math.abs(a - memo.was) / 0.05);
+      if (a * memo.was < 0 && fast > 0.3) sfx('ride.swoosh', { volume: 0.25 + 0.45 * fast, every: 0.6, at });
+      memo.was = a;
+    } else if (kind === 'airballoon') {
+      if (balloonAt(s)[4] > 0.5) sfx('ride.burner', { volume: 0.4, every: 1.3, at });
+    } else {
+      const p = trainCar(this.trackSpot, kind, 0, s);
+      // omhoog aan de ketting (of de band): tik, tik, tik
+      if (p.dh > 0.25 && p.speed < 1.6) sfx('ride.chain', { volume: 0.3, every: 0.42, at });
+      if (kind === 'coaster' && p.speed > 3.2) sfx('ride.rush', { volume: 0.4, every: 1.5, at });
+      if (kind === 'flume' && !memo.wet && trackDist(trackOf('flume'), t) >= FLUME_SPLASH_AT - FLUME.gap * 0.2) {
+        memo.wet = true;
+        sfx('ride.bigsplash', { volume: 0.8, at });
+      }
+    }
+  }
+
+  /** In de glazen tunnel hoor je af en toe zacht bubbelend water, als er iemand doorheen loopt. */
+  private bubbleIn = 2;
+  private tunnelSound(dt: number): void {
+    this.bubbleIn -= dt;
+    if (this.bubbleIn > 0) return;
+    this.bubbleIn = 2.2 + Math.random() * 1.6;
+    const guest = this.guests.guests.find(g => this.grid.terrain[g.tile] === TUBE);
+    if (guest) sfx('tunnel.bubbles', { volume: 0.35, at: [guest.gx, guest.gy] });
+  }
+
+  // ------------------------------------------------------------ de safaritrein
+  /** Het verblijf naast dit station waar de jeep doorheen rijdt, en de tegel in dat verblijf waar hij staat te wachten. */
+  private safariPen(x: number, y: number, w: number, h: number): { region: Region; start: number } | null {
+    let best: { region: Region; start: number } | null = null;
+    const look = (tx: number, ty: number): void => {
+      const region = this.grid.enclosureAt(tx, ty);
+      // (niet in een bak van glas: daar zwemmen de dieren)
+      if (!region || this.grid.penKind(region) === 5 || this.jeepBlocked(tileIndex(tx, ty))) return;
+      if (!best || region.tiles.length > best.region.tiles.length) best = { region, start: tileIndex(tx, ty) };
+    };
+    for (let tx = x; tx < x + w; tx++) {
+      look(tx, y - 1);
+      look(tx, y + h);
+    }
+    for (let ty = y; ty < y + h; ty++) {
+      look(x - 1, ty);
+      look(x + w, ty);
+    }
+    return best;
+  }
+
+  /** Kan de jeep niet over deze tegel: er staat iets, er ligt water of er staat een boom of rots? */
+  private jeepBlocked(tile: number): boolean {
+    const [x, y] = tileXY(tile);
+    return this.taken(x, y) || this.solid.has(tile) || this.grid.terrain[tile] === WATER || this.grid.terrain[tile] === TUBE;
+  }
+
+  /**
+   * Het rondje van de jeep bij dit station: van de tegel naast het station naar de verste hoek, dan naar een tweede
+   * hoek ver van allebei, en terug. Zit er een safaripoort in het hek, dan rijdt hij daar doorheen het volgende
+   * verblijf in (bijvoorbeeld van de zebra's naar de leeuwen): alle verblijven die zo aan elkaar zitten doen mee. Hij
+   * rijdt om voerbakken, slaapplekken, speelgoed, bomen en water heen. De hoeken zijn afgerond. Null: er ligt geen
+   * verblijf naast, of het is te klein.
+   */
+  jeepRoute(shop: ShopSpot): JeepRoute | null {
+    const pen = this.safariPen(shop.x, shop.y, shop.w ?? shop.size, shop.h ?? shop.size);
+    if (!pen) return null;
+    const { start } = pen, DIRS: [number, number][] = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+    // waar de jeep kan komen: de vrije tegels van dit verblijf en van elk verblijf achter een safaripoort (geen bak van glas)
+    const glass = new Map<number, boolean>();
+    const free = (tile: number): boolean => {
+      const [x, y] = tileXY(tile), region = this.grid.enclosureAt(x, y);
+      if (!region) return false;
+      if (!glass.has(region.id)) glass.set(region.id, this.grid.penKind(region) === 5);
+      return !glass.get(region.id) && !this.jeepBlocked(tile);
+    };
+    const next = (tile: number): number[] => {
+      const [x, y] = tileXY(tile), out: number[] = [];
+      for (const [dx, dy] of DIRS) if (this.grid.jeepStep(x, y, dx, dy) && free(tileIndex(x + dx, y + dy))) out.push(tileIndex(x + dx, y + dy));
+      return out;
+    };
+    // hoe ver elke tegel van `from` ligt (en via welke tegel je er komt)
+    const spread = (from: number): { dist: Map<number, number>; via: Map<number, number> } => {
+      const dist = new Map<number, number>([[from, 0]]), via = new Map<number, number>(), queue = [from];
+      for (let head = 0; head < queue.length; head++)
+        for (const n of next(queue[head]))
+          if (!dist.has(n)) {
+            dist.set(n, dist.get(queue[head])! + 1);
+            via.set(n, queue[head]);
+            queue.push(n);
+          }
+      return { dist, via };
+    };
+    /** De route van `from` (het begin van `map`) naar `to`. */
+    const walk = (map: { via: Map<number, number> }, from: number, to: number): number[] => {
+      const out = [to];
+      for (let k = to; k !== from; ) {
+        k = map.via.get(k)!;
+        out.push(k);
+      }
+      return out.reverse();
+    };
+    const fromStart = spread(start);
+    if (fromStart.dist.size < SAFARI.least) return null;
+    let a = start;
+    for (const [tile, d] of fromStart.dist) if (d > fromStart.dist.get(a)!) a = tile;
+    const fromA = spread(a);
+    let b = a, far = -1;
+    for (const [tile, d] of fromA.dist) {
+      const least = Math.min(d, fromStart.dist.get(tile) ?? 0);
+      if (least > far) [b, far] = [tile, least];
+    }
+    const tiles = [...walk(fromStart, start, a), ...walk(fromA, a, b).slice(1), ...walk(fromStart, start, b).reverse().slice(1)];
+    if (tiles.length < 5) return null;
+    // de middens van de tegels, met elke hoek twee keer afgesneden: zo rijdt de jeep in ronde bochten
+    let pts: [number, number][] = tiles.map(i => [tileXY(i)[0] + 0.5, tileXY(i)[1] + 0.5]);
+    for (let pass = 0; pass < 2; pass++) {
+      const round: [number, number][] = [pts[0]];
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const [px, py] = pts[i], [qx, qy] = pts[i + 1];
+        round.push([px + (qx - px) * 0.25, py + (qy - py) * 0.25], [px + (qx - px) * 0.75, py + (qy - py) * 0.75]);
+      }
+      round.push(pts[pts.length - 1]);
+      pts = round;
+    }
+    // hoeveel dieren de gasten onderweg zien: in alle verblijven waar de jeep doorheen komt
+    const regions = new Set(tiles.map(i => this.grid.regionOf[i]));
+    return { key: tiles.join(','), pts: pts.flat(), animals: [...regions].reduce((n, id) => n + this.animalsIn(id).length, 0) };
+  }
+
+  jeepRuns(shop: ShopSpot): boolean {
+    return !this.closed() && !this.goingHome() && this.guests.jeeps.some(jeep => jeep.shop === shop && jeep.runs);
+  }
+
+  /** De jeep rijdt hier langs: de dieren in de buurt kijken op. */
+  jeepPass(gx: number, gy: number): void {
+    for (const a of this.animals) if (Math.hypot(a.gx - gx, a.gy - gy) < SAFARI.near) a.lookAt(gx, gy);
+  }
+
+  /** Bij elk station van de safaritrein hoort een jeep; is het station weg, dan verdwijnt hij (wie erin zat, stapt uit). */
+  private jeepCheck = 0;
+  private updateJeeps(dt: number): void {
+    this.jeepCheck -= dt;
+    if (this.jeepCheck <= 0) {
+      this.jeepCheck = 1;
+      const stations = this.shops.filter(s => s.kind === 'safari');
+      for (const jeep of this.guests.jeeps)
+        if (!stations.includes(jeep.shop as ShopObj)) {
+          jeep.empty(this, this.guests.reached);
+          this.view.scene.remove(jeep.model);
+        }
+      this.guests.jeeps = this.guests.jeeps.filter(jeep => stations.includes(jeep.shop as ShopObj));
+      for (const shop of stations) if (!this.guests.jeeps.some(jeep => jeep.shop === shop)) this.guests.jeeps.push(new Jeep(shop, this.view.makeJeep()));
+      // een station zonder verblijf ernaast (of met een te klein verblijf): een bordje erboven, en de bouwer legt het één keer uit
+      const idle = stations.find(shop => !this.jeepRoute(shop));
+      if (idle && !this.told.has('safari')) {
+        this.told.add('safari');
+        this.lines.push(say.safariWhere());
+      }
+    }
+    // de safaripoort zwaait open als de jeep eraan komt, met zwaailichten en een piepje
+    for (const at of this.view.liftSafariGates(this.guests.jeeps.filter(jeep => jeep.driving).flatMap(jeep => [jeep.gx, jeep.gy]), dt)) sfx('gate.open', { volume: 0.6, at });
+    for (const jeep of this.guests.jeeps) {
+      if (jeep.departed) {
+        jeep.departed = false;
+        sfx('ride.horn', { volume: 0.6, at: [jeep.gx, jeep.gy] });
+      }
+      // het brommen van de motor, zolang hij rijdt
+      if (jeep.driving) sfx('ride.jeep', { volume: 0.25 + 0.2 * jeep.pace, every: 1.9, at: [jeep.gx, jeep.gy] });
+    }
   }
 
   // ------------------------------------------------------------ de dierenshow
@@ -8534,6 +8834,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     stats.sold = this.sold;
     stats.soldAt = this.soldAt;
     stats.soldAll = this.soldAll;
+    stats.rode = { ...this.rides };
+    stats.tunnels = this.grid.terrain.reduce((n, kind) => n + (kind === TUBE ? 1 : 0), 0);
     stats.keepers = this.workers.length;
     // een kraam telt pas als hij aan het pad staat, anders kan er niemand bij
     for (const s of this.shops) {
@@ -8731,6 +9033,10 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         void ready.then(() => {
           this.level++;
           this.fresh = new Set(soon);
+          // een hele wereld af: vuurwerk boven het park. Na het allerlaatste level een grote show
+          if (this.level % LEVELS_PER_WORLD === 0) this.startFireworks(this.level >= LEVELS.length ? FIREWORK.finale : FIREWORK.world);
+          // de glazen tunnel komt vrij: de bouwer legt uit waar hij hoort
+          if (this.level === PATH_FROM.seatunnel) this.lines.push(say.tunnelNew());
           this.fed = 0;
           this.cleaned = 0;
           this.born = 0;
@@ -8739,6 +9045,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
           this.tidied = 0;
           this.sold = {};
           this.soldAt = {};
+          this.rides = {};
           this.soldAll = 0;
           this.celebrating = false;
           this.option.animal = level.reward;
@@ -8804,19 +9111,47 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       const key = g.wish.kind + (g.wish.product ?? '');
       if (bubble.dataset.wish !== key) {
         bubble.dataset.wish = key;
-        bubble.innerHTML =
-          g.wish.kind === 'fav' && g.fav ? speciesIcon(g.fav) + icon('heart', 'badge')
-          : g.wish.kind === 'dark' ? icon('lantern')
-          : g.wish.kind === 'astray' ? icon('question') + icon('signpost', 'badge')
-          : g.wish.kind === 'wide' ? icon('wide')
-          : g.wish.kind === 'pet' ? icon('petting')
-          : g.wish.product ? this.productIcon(g.wish.product)
-          : icon(NEED_KIND[g.wish.kind] ?? 'smile_bad');
+        bubble.innerHTML = this.guestWishIcon(g.wish, g.fav);
       }
       bubble.classList.toggle('lacking', g.wish.lacking);
       bubble.hidden = false;
       bubble.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%) scale(0.8)`;
     }
+  }
+
+  /** Het plaatje van een wens van een gast: in het wolkje boven zijn hoofd en in het overzicht bij de poort. */
+  private guestWishIcon(wish: GuestWish, fav: string | null = null): string {
+    return wish.kind === 'fav' && fav ? speciesIcon(fav) + icon('heart', 'badge')
+      : wish.kind === 'dark' ? icon('lantern')
+      : wish.kind === 'astray' ? icon('question') + icon('signpost', 'badge')
+      : wish.kind === 'wide' ? icon('wide')
+      : wish.kind === 'pet' ? icon('petting')
+      : wish.product ? this.productIcon(wish.product)
+      : icon(NEED_KIND[wish.kind] ?? 'smile_bad');
+  }
+
+  /**
+   * Wat de gasten die nu in het park zijn missen, voor het overzicht bij de poort: per ding hoeveel gasten het willen,
+   * met erachter wat er aan de hand is. Er is nog geen kraam voor (erbij bouwen), de kraam verkoopt het niet, of het
+   * is er te druk (een kraam erbij). Het meest gemiste staat bovenaan.
+   */
+  private missedRows(): { icon: string; n: number; tail?: string; color?: string }[] {
+    const seen = new Map<string, { icon: string; n: number; why: 'build' | 'sell' | 'busy' | 'other' }>();
+    for (const q of this.guests.guests) {
+      const w = q.wish;
+      if (!w?.lacking || w.kind === 'fav' || w.kind === 'pet') continue;
+      const kind = NEED_KIND[w.kind];
+      const why = w.busy ? 'busy' : w.product && kind && this.shops.some(sh => sh.kind === kind) ? 'sell' : kind ? 'build' : 'other';
+      const key = `${why}:${w.product ?? w.kind}`;
+      const row = seen.get(key) ?? { icon: this.guestWishIcon(w, q.fav), n: 0, why };
+      row.n++;
+      seen.set(key, row);
+    }
+    const color = { build: '#f08a24', sell: '#4a90e2', busy: '#e0584f', other: '#9a8f80' };
+    return [...seen.values()]
+      .sort((p, q) => q.n - p.n)
+      .slice(0, 6)
+      .map(r => ({ icon: r.icon, n: r.n, color: color[r.why], tail: r.why === 'other' ? undefined : `<span class="tag ${r.why}">${t(`park.missed.${r.why}`)}</span>` }));
   }
 
   update(dt: number): void {
@@ -8893,7 +9228,14 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     for (const a of this.animals) a.update(dt, this);
     this.updateCare(dt);
     // eerst de attracties een stukje verder, dan de gasten: wie erop zit, zit zo precies op zijn zitje
-    for (const shop of this.shops) if (shop.ride) rideStep(shop.kind, shop.ride, dt, shop.aboard ?? 0);
+    // als het park dicht is en iedereen slaapt, vallen de attracties stil (zie rideStep); om zeven uur gaan ze weer
+    const rest = this.closed();
+    for (const shop of this.shops) {
+      if (!shop.ride) continue;
+      rideStep(shop.kind, shop.ride, dt, shop.aboard ?? 0, rest, shop.used ?? 0);
+      if (isLap(shop.kind)) this.rideSound(shop, shop.kind, shop.ride);
+    }
+    this.tunnelSound(dt);
     this.guests.update(dt);
     this.road.update(dt, this.night);
     this.animateToys(dt);
@@ -8929,6 +9271,7 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.events(dt);
     this.updateShows(dt);
     this.updateLifts(dt);
+    this.updateJeeps(dt);
     this.updateGuestFun(dt);
 
     for (const p of this.puddles) {
