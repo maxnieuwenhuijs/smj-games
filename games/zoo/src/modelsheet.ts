@@ -254,7 +254,9 @@ const SHOP_SETS: Record<string, ShopKind[]> = {
   gebouwen: ['toilet', 'restaurant', 'shelter', 'station'],
   klein: ['bench', 'flowers', 'bin', 'umbrellas'],
   // (het hoogste achteraan, op de eerste rij: anders staat het voor de rest)
-  speeltuin: ['slide', 'trampoline', 'swing', 'seesaw', 'springer', 'springer', 'springer'],
+  speeltuin: ['climber', 'slide', 'trampoline', 'swing', 'seesaw', 'springer', 'springer', 'springer'],
+  // de grote speeltuin
+  speeltuin2: ['pirate', 'zipline', 'crawlhill', 'bouncy', 'splash', 'sandbox', 'roundabout', 'nestswing', 'ballpit'],
   attracties: ['ferris', 'tower', 'carousel', 'bumper', 'fountain', 'show', 'cablecar'],
   // de grote attracties van het eind
   groot: ['coaster', 'flume', 'ship', 'swinger', 'airballoon', 'safari'],
@@ -306,7 +308,7 @@ const items = (GROUPS[groupName] ?? []).filter(item => !only || only.includes(it
 // reuzenrad van acht tegels) niet naast een hele rij andere dingen. `rowGap`: zoveel ruimte tussen twee rijen (iets
 // hoogs op de voorste rij staat anders voor de rij erachter).
 const LOOK: Record<string, { tall?: number; gap?: number; row?: number; wide?: number; rowGap?: number }> = {
-  kramen: { tall: 3.2 }, gebouwen: { tall: 3, gap: 2, wide: 9 }, speeltuin: { tall: 3.6, gap: 2, wide: 8 }, attracties: { tall: 8.6, gap: 2, wide: 14, rowGap: 4 }, afval: { tall: 0.5 }, klein: { tall: 1.2 },
+  kramen: { tall: 3.2 }, gebouwen: { tall: 3, gap: 2, wide: 9 }, speeltuin: { tall: 3.6, gap: 2, wide: 8 }, speeltuin2: { tall: 3.4, gap: 2, wide: 9 }, attracties: { tall: 8.6, gap: 2, wide: 14, rowGap: 4 }, afval: { tall: 0.5 }, klein: { tall: 1.2 },
   voer: { tall: 1.4 }, hekken: { tall: 1.4 }, slijtage: { tall: 1.4, row: 3 }, trein: { tall: 1.2, row: 1 }, spoor: { tall: 1.2 }, kabelbaan: { tall: 3.4 }, parkjes: { tall: 0.7, gap: 0, row: 5 }, grond: { tall: 0.4, gap: 0, row: 7 }, gezichten: { tall: 0.8, gap: 0, row: 8 },
   poppetjes: { tall: 1.2, gap: 0, row: 8 },
 };

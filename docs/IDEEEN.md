@@ -101,7 +101,7 @@ Een lijst om uit te kiezen. Achter wat er al in het spel zit, staat **Gebouwd.**
 74. **Restaurant** met tafels waar gasten samen eten. *Middel.* **Gebouwd.**
 75. **Reuzenrad en botsauto's** als grote attracties. *Groot.* **Gebouwd.**
 76. **Slingers, vlaggetjes en lichtsnoeren** tussen palen. *Klein.* **Gebouwd.**
-77. **Eigen naambord** boven de ingang met de naam van het park. *Klein.*
+77. **Eigen naambord** boven de ingang met de naam van het park. *Klein.* **Gebouwd.**
 78. **Kopiëren en plakken** van een heel verblijf. *Middel.*
 79. **Blauwdrukken**: kant-en-klare verblijven voor wie niet wil puzzelen. *Klein.*
 80. **Park van bovenaf**: een kaart om snel ergens heen te springen. *Klein.*
@@ -134,3 +134,19 @@ Een lijst om uit te kiezen. Achter wat er al in het spel zit, staat **Gebouwd.**
 98. **Meer talen**: Duits, Frans en Spaans (tekst en stem). *Groot.*
 99. **Als app op het beginscherm** die ook zonder internet werkt. *Middel.*
 100. **Namen inspreken voor elke naam** via de namenserver (ligt klaar, moet nog aangezet worden). *Klein.*
+
+## Speeltuin: meer om op te spelen (27 november)
+
+Grotere en drukkere speeltoestellen, vooral voor de kleintjes. Elk toestel heeft een eigen bezoek in `rides.ts`, net als de glijbaan en het klimkasteel.
+
+1. **Klimkasteel** van 10 bij 3: vier torentjes, een ladder, een wiebelbrug, een kruiptunnel, een evenwichtsbalk en een glijbaan; tien kinderen tegelijk. *Groot.* **Gebouwd.**
+2. **Zandbak** met emmertjes, schepjes en een kleine graafmachine waar een kind op zit en echt zand schept. *Middel.* **Gebouwd.**
+3. **Waterspeeltuin**: een pomp waar je aan zwengelt, goten met sluisjes en een fonteintje dat uit de grond spuit; kinderen springen erdoorheen. *Groot.* **Gebouwd.**
+4. **Tokkelbaan**: een kabel tussen twee palen; een kind hangt aan een schijf en zoeft naar de overkant. *Middel.* **Gebouwd.**
+5. **Springkussen** in de vorm van een kasteel of een olifant, dat deint als er kinderen op springen. *Middel.* **Gebouwd.**
+6. **Piratenschip** om in te klimmen, met een mast, een uitkijkmand, een loopplank en een stuurwiel. *Groot.* **Gebouwd.**
+7. **Draaimolentje** voor de kleintjes: een plateau met stangen dat een kind zelf rond duwt en dan meerijdt. *Klein.* **Gebouwd.**
+8. **Nestschommel**: een grote ronde schommel waar drie kinderen tegelijk in liggen. *Klein.* **Gebouwd.**
+9. **Ballenbak** onder een tentje, waar je kinderen tussen de gekleurde ballen ziet duiken. *Middel.* **Gebouwd.**
+10. **Kruipheuvel** met tunnels erdoor en een glijbaantje eraf, begroeid met gras. *Middel.* **Gebouwd.**
+

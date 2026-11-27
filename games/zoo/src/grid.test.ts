@@ -945,3 +945,13 @@ describe('de voeremmer van het aquarium', () => {
     expect(ICON_IDS).toContain('trough_bucket');
   });
 });
+
+describe('het naambord boven de ingang', () => {
+  it('heeft een naam met en zonder de naam van de speler, in beide talen', () => {
+    for (const tr of [nl, en] as Record<string, string>[]) {
+      expect(tr['park.sign']).toBeTruthy();
+      expect(tr['park.sign.named']).toContain('{name}');
+    }
+    expect(nl['park.sign.named'].replace('{name}', 'Sam')).toBe('Dierentuin van Sam');
+  });
+});

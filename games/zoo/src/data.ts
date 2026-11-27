@@ -12,6 +12,10 @@ export type FoodId = 'veg' | 'hay' | 'fruit' | 'grain' | 'meat' | 'leaves' | 'fi
 export type BedKind = 'straw' | 'shed' | 'rock' | 'shade' | 'nest' | 'cave' | 'climb' | 'coral';
 export type ShopKind = 'foodstall' | 'drinkstall' | 'bench' | 'toilet' | 'icecream' | 'balloon' | 'flowers' | 'bin' | 'souvenir' | 'playground' | 'hats' | 'fountain' | 'carousel'
   | 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline'
+  // het klimkasteel: een groot klimtoestel van 10 bij 3 voor de kleintjes
+  | 'climber'
+  // de grote speeltuin: zandbak, waterspeeltuin, tokkelbaan, springkussen, piratenschip, draaimolentje, nestschommel, ballenbak en kruipheuvel
+  | 'sandbox' | 'splash' | 'zipline' | 'bouncy' | 'pirate' | 'roundabout' | 'nestswing' | 'ballpit' | 'crawlhill'
   // uitkijktoren, restaurant, reuzenrad, botsauto's, schuilhut, treinhalte en een bak met paraplu's
   | 'tower' | 'restaurant' | 'ferris' | 'bumper' | 'shelter' | 'station' | 'umbrellas'
   // de tribune bij dieren die kunstjes kennen (dolfijnen, zeehonden, olifanten, ...): daar is af en toe een dierenshow
@@ -456,7 +460,7 @@ export function toyGap(sp: SpeciesId, done: number, tiles: number, group: number
  * glijbaan, later de schommel, de wipwap, de wipkip en de trampoline). 'playground' bestaat nog als naam voor
  * 'iets om te spelen' (de wens van een gast) en voor oude parken, waar hij bij het laden een glijbaan wordt.
  */
-export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'slide', 'swing', 'seesaw', 'springer', 'trampoline', 'icecream', 'flowers', 'bin', 'umbrellas', 'shelter', 'balloon', 'hats', 'souvenir', 'candy', 'restaurant', 'fountain', 'tower', 'carousel', 'station', 'bumper', 'ferris', 'show', 'cablecar', 'facepaint', 'swinger', 'ship', 'airballoon', 'flume', 'safari', 'coaster'];
+export const SHOPS: ShopKind[] = ['foodstall', 'drinkstall', 'toilet', 'bench', 'slide', 'swing', 'seesaw', 'springer', 'trampoline', 'climber', 'sandbox', 'roundabout', 'nestswing', 'ballpit', 'splash', 'bouncy', 'crawlhill', 'zipline', 'pirate', 'icecream', 'flowers', 'bin', 'umbrellas', 'shelter', 'balloon', 'hats', 'souvenir', 'candy', 'restaurant', 'fountain', 'tower', 'carousel', 'station', 'bumper', 'ferris', 'show', 'cablecar', 'facepaint', 'swinger', 'ship', 'airballoon', 'flume', 'safari', 'coaster'];
 /** Waar een gast naar kijkt (zin in iets moois) en waar hij in rijdt (zin in een ritje). De kabelbaan is allebei. */
 export const LOOKS: ShopKind[] = ['fountain', 'tower', 'cablecar', 'airballoon'];
 export const RIDES: ShopKind[] = ['carousel', 'ferris', 'bumper', 'station', 'cablecar', 'swinger', 'ship', 'airballoon', 'flume', 'coaster', 'safari'];
@@ -487,7 +491,7 @@ export const TRAIN = { wagons: 3, seats: 3, gap: 0.95, half: 0.45, speed: 1.5, s
 /** Kramen waar een gast iets koopt voor één munt. */
 export const STALLS: ShopKind[] = ['foodstall', 'drinkstall', 'icecream', 'balloon', 'hats', 'souvenir', 'facepaint', 'candy'];
 /** Alles waar kinderen op spelen: de speeltuin en de losse toestellen. Een kind dat wil spelen kiest er zelf een. */
-export const PLAY: ShopKind[] = ['playground', 'slide', 'swing', 'seesaw', 'springer', 'trampoline'];
+export const PLAY: ShopKind[] = ['playground', 'slide', 'swing', 'seesaw', 'springer', 'trampoline', 'climber', 'sandbox', 'roundabout', 'nestswing', 'ballpit', 'splash', 'bouncy', 'crawlhill', 'zipline', 'pirate'];
 /**
  * Hoeveel gasten één kraam, wc, speeltuin of bankje aankan. Zijn er meer gasten in het park, dan is het er
  * te druk en moet er een bij: zo groeit het park mee met het aantal gasten.
@@ -526,7 +530,7 @@ export const FENCE_COLORS: Record<1 | 3 | 4 | 5 | 7, number[]> = {
  * hij daar niet, dan is hij vierkant. Wat op een rand staat (zie EDGE_SHOPS) neemt geen tegel in.
  */
 export const SHOP_SIZE: Record<ShopKind, number> = {
-  foodstall: 2, drinkstall: 2, toilet: 2, playground: 2, slide: 2, swing: 2, seesaw: 2, springer: 1, trampoline: 2, icecream: 2, balloon: 2, hats: 2, souvenir: 2, bench: 1, flowers: 1, bin: 1, fountain: 3, carousel: 3,
+  foodstall: 2, drinkstall: 2, toilet: 2, playground: 2, slide: 2, swing: 2, seesaw: 2, springer: 1, trampoline: 2, climber: 10, sandbox: 2, splash: 3, zipline: 6, bouncy: 3, pirate: 4, roundabout: 2, nestswing: 2, ballpit: 2, crawlhill: 3, icecream: 2, balloon: 2, hats: 2, souvenir: 2, bench: 1, flowers: 1, bin: 1, fountain: 3, carousel: 3,
   tower: 2, restaurant: 3, ferris: 8, bumper: 4, shelter: 2, station: 2, umbrellas: 1, show: 2, cablecar: 2, facepaint: 2,
   swinger: 4, ship: 6, airballoon: 3, flume: 8, coaster: 8, candy: 2, safari: 2,
 };
@@ -538,7 +542,7 @@ export const SHOP_SIZE: Record<ShopKind, number> = {
  */
 export const SHOP_DEEP: Partial<Record<ShopKind, number>> = {
   foodstall: 1, drinkstall: 1, icecream: 1, balloon: 1, hats: 1, souvenir: 1, facepaint: 1, candy: 1,
-  ferris: 2, bumper: 3, slide: 3, swing: 1, seesaw: 1, restaurant: 2, ship: 2, flume: 3, coaster: 4,
+  ferris: 2, bumper: 3, slide: 3, swing: 1, seesaw: 1, restaurant: 2, ship: 2, flume: 3, coaster: 4, climber: 3, splash: 2, zipline: 2, pirate: 3,
 };
 /** Wat je op de rand van een tegel zet, net als een hek: een bankje, bloembak, afvalbak of paraplubak neemt geen tegel in. */
 export const EDGE_SHOPS: ShopKind[] = ['bench', 'flowers', 'bin', 'umbrellas'];
@@ -681,7 +685,7 @@ export const HOUR_SECONDS = 120;
 /** Wat je terugkrijgt als je iets weghaalt of een dier laat verhuizen: de helft, naar beneden afgerond. */
 export const refund = (price: number): number => Math.floor(price / 2);
 export const SHOP_PRICE: Record<ShopKind, number> = {
-  foodstall: 4, drinkstall: 4, bench: 2, toilet: 5, icecream: 8, balloon: 12, flowers: 2, bin: 2, souvenir: 16, playground: 6, slide: 6, swing: 5, seesaw: 4, springer: 3, trampoline: 8, hats: 14,
+  foodstall: 4, drinkstall: 4, bench: 2, toilet: 5, icecream: 8, balloon: 12, flowers: 2, bin: 2, souvenir: 16, playground: 6, slide: 6, swing: 5, seesaw: 4, springer: 3, trampoline: 8, climber: 20, sandbox: 4, roundabout: 5, nestswing: 6, ballpit: 8, splash: 12, bouncy: 14, crawlhill: 10, zipline: 16, pirate: 25, hats: 14,
   // de grote attracties: daar spaar je voor
   fountain: 30, carousel: 60,
   tower: 25, restaurant: 30, ferris: 90, bumper: 50, shelter: 10, station: 20, umbrellas: 6, show: 30,
@@ -1051,7 +1055,7 @@ export const murkyWater = (murk: number): boolean => murk >= MURK.dirty;
 
 /** Vanaf hoeveel gehaalde levels iets meedoet. */
 export const FEATURE = {
-  paths: 3, foodstall: 4, drinkstall: 5, toilet: 7, bench: 8, playground: 9, slide: 9, swing: 12, seesaw: 16, springer: 19, trampoline: 23, icecream: 11, flowers: 14, bin: 5, hats: 22, souvenir: 26,
+  paths: 3, foodstall: 4, drinkstall: 5, toilet: 7, bench: 8, playground: 9, slide: 9, swing: 12, seesaw: 16, springer: 19, trampoline: 23, climber: 26, sandbox: 10, roundabout: 14, nestswing: 17, ballpit: 21, splash: 24, bouncy: 28, crawlhill: 30, zipline: 33, pirate: 37, icecream: 11, flowers: 14, bin: 5, hats: 22, souvenir: 26,
   /** De grote attracties: een fontein om naar te kijken en een draaimolen om in te rijden. */
   fountain: 15, carousel: 25,
   tower: 20, restaurant: 24, ferris: 35, bumper: 30, shelter: 10, station: 27, umbrellas: 10,
