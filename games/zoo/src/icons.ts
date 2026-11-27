@@ -489,6 +489,12 @@ const ICONS = {
     `<path d="M3 18 H45 L41 40 H7Z" fill="#a9adb3" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><rect x="6" y="20" width="36" height="4" rx="2" fill="${INK}" opacity=".3"/><path d="M12 30 h24" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>`,
   trough_silo:
     `<rect x="16" y="12" width="16" height="26" rx="3" fill="#d9dde2" stroke="${INK}" stroke-width="2"/><path d="M13 13 L24 3 L35 13Z" fill="${RED}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><path d="M16 20 H32 M16 28 H32" stroke="#a9adb3" stroke-width="2"/><path d="M10 38 H38 L36 46 H12Z" fill="${WOOD}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`,
+  // de voeremmer van het aquarium: een blauwe emmer met een hengsel, vis erin, aan een haak over de rand van het glas
+  trough_bucket:
+    `<rect x="3" y="14" width="7" height="32" rx="1.5" fill="#cfeaf7" stroke="${INK}" stroke-width="2"/><path d="M6.5 14 V9 H20 V15" fill="none" stroke="#8a8f98" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path d="M15 19 Q29 2 43 19" fill="none" stroke="#8a8f98" stroke-width="2.5" stroke-linecap="round"/>` +
+    `<path d="M24 14 Q29 9 33 14 L36 11 V18 L33 15 Q29 20 24 14Z" fill="#7fb0d9" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"/>` +
+    `<path d="M13 18 H45 L41 42 H17Z" fill="#3f8fd0" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><rect x="12" y="16.5" width="34" height="4" rx="2" fill="#f7f4ec" stroke="${INK}" stroke-width="1.6"/><path d="M19 28 H39" stroke="#7fbde8" stroke-width="2" stroke-linecap="round"/>`,
   // een kwast met verf: de kleur van het hek kiezen
   // het hek een kleur geven: een schilderspalet met klodders verf
   paint:
