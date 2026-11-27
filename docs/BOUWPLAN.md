@@ -1052,6 +1052,10 @@ De proefspeler bouwt vaste verblijven van 3 bij 3. Sinds grote dieren elk apart 
 - **Wat de gasten missen:** in het overzicht bij de poort staat een vak met wat de gasten die nu in het park zijn missen, het meest gemiste bovenaan (hooguit zes): het plaatje van wat ze willen, hoeveel gasten, en een label. Oranje "erbij bouwen": er is nog geen kraam of gebouw voor. Blauw "niet te koop": de kraam is er wel, maar verkoopt dit niet. Rood "te druk": er staat een rij, er moet er een bij.
 - **Nog niet:** de nieuwe zin van de bouwer over de paal (`say.cable.path`) is nog niet ingesproken; tot dan praat hij op het klokje. Draai `node tools/voice/build.mjs all`.
 
+### Het naambord boven de ingang (27 november)
+
+Boven het bord met de sterren staat nu een houten naambord met de naam van het park: "Dierentuin van Sam" als de speler zijn naam heeft ingevuld, anders "Dierentuin" (`park.sign`, `park.sign.named`; in het Engels "Sam's Zoo"). De naam staat aan beide kanten, zodat je hem ook leest als je het beeld draait, met een vlaggetje aan elke kant; de lantaarn van de ingang hangt eronder. Een lange naam wordt kleiner geschreven, zodat hij altijd op het bord past (`setParkName` in `view.ts`, `parkName` in `game.ts`).
+
 ### De grote speeltuin (27 november)
 
 Negen nieuwe toestellen bij Attracties in de groep Speeltuin, allemaal met een eigen model, eigen bewegingen en eigen armen en benen voor de kinderen. Ze werken op dezelfde manier (`PLAYS` in `rides.ts`): een kind loopt naar zijn plekje (`to`), speelt daar een poosje (`spot`, dat beweegt met het toestel) en loopt via een eigen terugweg naar het pad (`from`). Op en van het plekje gaat het met een hupje, omdat het plekje zelf kan bewegen. Prijzen en levels staan in de tabel bij Speeltoestellen.

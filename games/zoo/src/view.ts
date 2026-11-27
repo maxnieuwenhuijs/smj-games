@@ -4884,6 +4884,73 @@ export class View {
 
   /** De ingang: het bord met de ster in het midden, waar later de sterren van het park op komen. */
   private entrance!: { gate: THREE.Group; star: THREE.Mesh; x: number; z: number };
+  /** Het naambord boven de ingang: het bord zelf, het plaatje met de naam erop en de naam die er nu op staat. */
+  private nameBoard: { group: THREE.Group; tex: THREE.CanvasTexture; canvas: HTMLCanvasElement; text: string } | null = null;
+
+  /**
+   * Het naambord boven de ingang, met de naam van het park (bijvoorbeeld "Dierentuin van Sam"): een houten bord op
+   * twee palen boven het bord met de sterren (de lantaarn van de ingang hangt ertussen), de naam aan beide kanten, en
+   * een vlaggetje aan elke kant. Een lange naam
+   * wordt kleiner geschreven, zodat hij altijd op het bord past.
+   */
+  setParkName(text: string): void {
+    if (typeof document === 'undefined') return;
+    const { gate, x, z } = this.entrance;
+    if (!this.nameBoard) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 112;
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 4;
+      const group = new THREE.Group();
+      const W2 = 2.3, H2 = 0.5, Y = 2.55;
+      // de palen omhoog vanaf de ingang, en het bord met een donkere rand
+      const wood = merge([
+        // (de palen houden op onder het bord, zodat ze niet voor de letters langs lopen)
+        ...[-0.12, 1.12].map(dx => boxAt(0.12, Y - H2 / 2 - 0.05 - 1.45, 0.12, x - 0.5 + dx, (Y - H2 / 2 - 0.05 + 1.45) / 2, z)),
+        boxAt(W2 + 0.1, H2 + 0.1, 0.1, x, Y, z),
+      ]);
+      const frame = new THREE.Mesh(wood, WOOD_MAT);
+      frame.castShadow = true;
+      const face = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 });
+      const front = new THREE.Mesh(new THREE.PlaneGeometry(W2, H2), face);
+      front.position.set(x, Y, z + 0.056);
+      // aan de achterkant staat de naam ook, zodat je hem leest als je het beeld draait
+      const back = new THREE.Mesh(new THREE.PlaneGeometry(W2, H2), face);
+      back.position.set(x, Y, z - 0.056);
+      back.rotation.y = Math.PI;
+      // een vlaggetje aan elke kant, en een bolletje op de palen
+      const trim = painted(
+        [0xe0584f, ...[-1, 1].map(s => new THREE.ConeGeometry(0.12, 0.32, 3).rotateZ(s * -Math.PI / 2).scale(1, 1, 0.15).translate(x + s * (W2 / 2 + 0.2), Y + 0.32, z))],
+        [0x8a8f98, ...[-1, 1].map(s => tube(0.015, 0.015, 0.5, x + s * (W2 / 2 + 0.04), Y + 0.25, z))],
+        [0xffd23f, ...[-1, 1].map(s => ball(0.05, x + s * (W2 / 2 + 0.04), Y + 0.52, z))],
+      );
+      group.add(frame, front, back, new THREE.Mesh(trim, PAINT_MAT));
+      gate.add(group);
+      this.nameBoard = { group, tex, canvas, text: '' };
+    }
+    const board = this.nameBoard;
+    if (board.text === text) return;
+    board.text = text;
+    const ctx = board.canvas.getContext('2d')!, w = board.canvas.width, h = board.canvas.height;
+    ctx.fillStyle = '#f7ead2';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#c58a4b';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(9, 9, w - 18, h - 18);
+    let size = 64;
+    ctx.font = `800 ${size}px system-ui, sans-serif`;
+    while (ctx.measureText(text).width > w - 60 && size > 22) {
+      size -= 2;
+      ctx.font = `800 ${size}px system-ui, sans-serif`;
+    }
+    ctx.fillStyle = '#6b3f1d';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, w / 2, h / 2 + 3);
+    board.tex.needsUpdate = true;
+  }
   private entranceStars: THREE.Mesh[] = [];
 
   /**

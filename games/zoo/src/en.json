@@ -1179,6 +1179,8 @@
   "say.way.tip": "A visitor is lost. Drag your finger from the visitor to the animals!",
   "parade.drum": "Parade",
   "park.title": "Your park",
+  "park.sign": "Zoo",
+  "park.sign.named": "{name}'s Zoo",
   "park.stars": "Your park's stars",
   "park.happy": "Happy animals",
   "park.guests": "Guests",

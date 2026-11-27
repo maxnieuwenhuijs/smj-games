@@ -101,7 +101,7 @@ Een lijst om uit te kiezen. Achter wat er al in het spel zit, staat **Gebouwd.**
 74. **Restaurant** met tafels waar gasten samen eten. *Middel.* **Gebouwd.**
 75. **Reuzenrad en botsauto's** als grote attracties. *Groot.* **Gebouwd.**
 76. **Slingers, vlaggetjes en lichtsnoeren** tussen palen. *Klein.* **Gebouwd.**
-77. **Eigen naambord** boven de ingang met de naam van het park. *Klein.*
+77. **Eigen naambord** boven de ingang met de naam van het park. *Klein.* **Gebouwd.**
 78. **Kopiëren en plakken** van een heel verblijf. *Middel.*
 79. **Blauwdrukken**: kant-en-klare verblijven voor wie niet wil puzzelen. *Klein.*
 80. **Park van bovenaf**: een kaart om snel ergens heen te springen. *Klein.*

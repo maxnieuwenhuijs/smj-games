@@ -2191,6 +2191,11 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     this.sayNow(say.staffHow());
   }
 
+  /** De naam van het park op het bord boven de ingang: met de naam van de speler, als die is ingevuld. */
+  parkName(): string {
+    return this.player ? t('park.sign.named', { name: this.player }) : t('park.sign');
+  }
+
   // --- wat het personeel van het park moet weten
   feedJobs(): { trough: TroughObj; food: FoodId }[] {
     const jobs: { trough: TroughObj; food: FoodId }[] = [];
@@ -8875,6 +8880,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
       this.hud.setStars(shown);
       this.view.setEntranceStars(shown);
     }
+    // het naambord boven de ingang (doet niets als de naam al klopt)
+    this.view.setParkName(this.parkName());
   }
 
   /** Tik op de sterren: met plaatjes zien wat goed gaat (groen) en wat beter kan (oranje). */

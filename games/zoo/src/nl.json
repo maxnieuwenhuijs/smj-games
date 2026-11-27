@@ -1179,6 +1179,8 @@
   "say.way.tip": "Een gast is de weg kwijt. Sleep met je vinger van de gast naar de dieren!",
   "parade.drum": "Optocht",
   "park.title": "Jouw park",
+  "park.sign": "Dierentuin",
+  "park.sign.named": "Dierentuin van {name}",
   "park.stars": "Sterren van je park",
   "park.happy": "Blije dieren",
   "park.guests": "Gasten",
