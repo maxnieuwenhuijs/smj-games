@@ -9,7 +9,7 @@ import {
 import {
   BUMPER, CAROUSEL, CAROUSEL_SEATS, FERRIS, FOUNTAIN, SEESAW, SLIDE, SPRINGER, SWINGSET, TOWER, TRAMPOLINE, carouselAt, carouselLift, ferrisAngle, ferrisSway, fountainJet,
   AIRBALLOON, COASTER, FLUME, SHIP, SWINGER, balloonAt, lapTime, newSpot, shipAngle, swingerLean, swingerTop, trackAt, trackDist, trackOf, trainCar, type Track, type TrackSpot,
-  newRide, seesawTilt, springerTilt, swingAngle, trampolineDip, type RideState,
+  newRide, seesawTilt, springerTilt, swingAngle, trampolineDip, type RideState, CLIMBER, climberBridge, climberChute,
 } from './rides';
 import { BASE_LAND, Grid, H, SIDES, W, edgeKey, tileXY, type Edge, type EdgeKind, type Land, type Side } from './grid';
 import { SIDE_DX, SIDE_DY, railLinks, railPieces, type RailPiece } from './rails';
@@ -672,6 +672,7 @@ const SHOP_PARTS: Record<ShopKind, Part[]> = {
   seesaw: [],
   springer: [],
   trampoline: [],
+  climber: [],
   // en de nieuwere gebouwen: uitkijktoren, restaurant, reuzenrad, botsauto's, schuilhut, treinhalte, paraplu's
   tower: [],
   restaurant: [],
@@ -1629,6 +1630,135 @@ RIDE_BUILD.trampoline = (group, mat) => {
   cloth.receiveShadow = !mat;
   group.add(cloth);
   group.userData.cloth = cloth;
+};
+
+// Klimkasteel (10 bij 3 tegels): vier houten torentjes op een rij, elk met een gekleurd dak, verbonden door een
+// wiebelbrug, een kruiptunnel met ruitjes en een evenwichtsbalk, met vooraan een ladder en rechts een lange glijbaan.
+// Achter toren 2 zit een klimmuur met gekleurde knoppen, achter toren 3 een brandweerpaal. De brug, het stuurwiel en
+// de vlag bewegen (zie RIDE_BUILD en animateRide).
+const CB = CLIMBER;
+/** Hoe hoog het dak van elk torentje begint, boven de vloer: hoog genoeg voor een kind eronder. */
+const CLIMB_ROOF = 0.92;
+const CLIMB_ROOFS = [0xe0584f, 0x4a90e2, 0xffd23f, 0x6cc04a];
+/** Een plank of strook schuin van a naar b (x en h veranderen, z blijft): `w` breed (langs z), `t` dik. */
+const slab = (a: [number, number], b: [number, number], z: number, w: number, t: number): THREE.BufferGeometry => {
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  return new THREE.BoxGeometry(len, t, w).rotateZ(Math.atan2(b[1] - a[1], b[0] - a[0])).translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, z);
+};
+/** De glijbaan in stukjes langs x: de bovenkant volgt climberChute. `w` breed, `t` dik, `dy` hoger en `dz` opzij. */
+const climbChute = (w: number, t: number, dy: number, dz = 0): THREE.BufferGeometry[] => {
+  const out: THREE.BufferGeometry[] = [], n = 10;
+  for (let i = 0; i < n; i++) {
+    const x0 = CB.slideTop + ((CB.slideEnd - CB.slideTop) * i) / n, x1 = CB.slideTop + ((CB.slideEnd - CB.slideTop) * (i + 1)) / n;
+    out.push(slab([x0 - 0.01, climberChute(x0) - t / 2 + dy], [x1 + 0.01, climberChute(x1) - t / 2 + dy], CB.z + dz, w, t));
+  }
+  return out;
+};
+const CLIMB_TUBE_MAT = new THREE.MeshStandardMaterial({ color: 0x9fd8f5, roughness: 0.25, transparent: true, opacity: 0.38, depthWrite: false });
+SHOP_PARTS.climber = [
+  playFloor(10, 3),
+  // de torentjes: vier palen tot onder het dak, een vloer, en een hekje achter en voor (vooraan bij toren 1 de opening van de ladder)
+  [mergeGeometries(CB.towers.flatMap(([x, h, r], i) => [
+    ...CORNERS.map(([sx, sz]) => boxAt(0.095, h + CLIMB_ROOF, 0.095, x + sx * r, (h + CLIMB_ROOF) / 2, CB.z + sz * r)),
+    boxAt(r * 2 + 0.1, 0.08, r * 2 + 0.1, x, h - 0.04, CB.z),
+    // een dwarsbalk onder de vloer, zodat het torentje stevig staat
+    boxAt(r * 2, 0.06, 0.06, x, h * 0.45, CB.z - r), boxAt(0.06, 0.06, r * 2, x - r, h * 0.45, CB.z), boxAt(0.06, 0.06, r * 2, x + r, h * 0.45, CB.z),
+    boxAt(r * 2, 0.04, 0.04, x, h + 0.42, CB.z - r), boxAt(r * 2, 0.04, 0.04, x, h + 0.22, CB.z - r),
+    ...(i === 0 ? [-1, 1].map(s => boxAt(r * 0.6, 0.04, 0.04, x + s * r * 0.7, h + 0.42, CB.z + r)) : [boxAt(r * 2, 0.04, 0.04, x, h + 0.42, CB.z + r)]),
+  ]))!, WOOD_MAT],
+  // gekleurde planken tegen het hekje achter elk torentje, en vooraan een plank met een rondje erin
+  [painted(...CB.towers.map(([x, h, r], i): [number, ...THREE.BufferGeometry[]] => [CLIMB_ROOFS[i], boxAt(r * 2 - 0.08, 0.2, 0.025, x, h + 0.12, CB.z - r - 0.02), ...(i ? [boxAt(r * 1.2, 0.18, 0.025, x, h + 0.12, CB.z + r + 0.02)] : [])]),
+    [0xf7f4ec, ...CB.towers.slice(1).map(([x, h, r]) => new THREE.TorusGeometry(0.06, 0.018, 4, 10).translate(x, h + 0.12, CB.z + r + 0.04))],
+  ), PAINT_MAT],
+  // de daken: een puntdak op elk torentje, de grote toren het hoogst, met een bolletje erop
+  [painted(...CB.towers.map(([x, h, r], i): [number, ...THREE.BufferGeometry[]] => [CLIMB_ROOFS[i],
+    new THREE.ConeGeometry(r * 1.5, i === 2 ? 0.75 : 0.5, 4).rotateY(Math.PI / 4).translate(x, h + CLIMB_ROOF + (i === 2 ? 0.375 : 0.25), CB.z)]),
+    [0xffd23f, ...CB.towers.map(([x, h], i) => ball(0.05, x, h + CLIMB_ROOF + (i === 2 ? 0.78 : 0.53), CB.z))],
+  ), PAINT_MAT],
+  // de ladder vooraan bij toren 1: twee bomen en vijf sporten
+  [painted(
+    [0xe0584f, ...[-0.15, 0.15].map(dx => beam(0.045, [CB.towers[0][0] + dx, 0, CB.ladderFoot + 0.04], [CB.towers[0][0] + dx, CB.towers[0][1] + 0.4, CB.z + CB.towers[0][2] * 0.75]))],
+    [0xf7f4ec, ...[0.17, 0.34, 0.51, 0.68, 0.85].map(k => beam(0.03, [CB.towers[0][0] - 0.15, CB.towers[0][1] * k, THREE.MathUtils.lerp(CB.ladderFoot + 0.04, CB.z + CB.towers[0][2] * 0.75, k)], [CB.towers[0][0] + 0.15, CB.towers[0][1] * k, THREE.MathUtils.lerp(CB.ladderFoot + 0.04, CB.z + CB.towers[0][2] * 0.75, k)]))],
+  ), MATTE_MAT],
+  // de kruiptunnel: gekleurde ringen om een doorzichtige buis, van toren 2 licht omhoog naar toren 3
+  [painted([0x6cc04a, ...Array.from({ length: 6 }, (_, i) => {
+    const k = (i + 0.5) / 6, x0 = CB.towers[1][0] + CB.towers[1][2], x1 = CB.towers[2][0] - CB.towers[2][2];
+    return new THREE.TorusGeometry(CB.tube + 0.02, 0.03, 5, 14).rotateY(Math.PI / 2).translate(THREE.MathUtils.lerp(x0, x1, k), THREE.MathUtils.lerp(CB.towers[1][1], CB.towers[2][1], k) + CB.tube, CB.z);
+  })]), PAINT_MAT],
+  [(() => {
+    const x0 = CB.towers[1][0] + CB.towers[1][2], x1 = CB.towers[2][0] - CB.towers[2][2], h0 = CB.towers[1][1] + CB.tube, h1 = CB.towers[2][1] + CB.tube;
+    return new THREE.CylinderGeometry(CB.tube, CB.tube, Math.hypot(x1 - x0, h1 - h0), 14, 1, true).rotateZ(-Math.PI / 2 + Math.atan2(h1 - h0, x1 - x0)).translate((x0 + x1) / 2, (h0 + h1) / 2, CB.z);
+  })(), CLIMB_TUBE_MAT, false],
+  // de evenwichtsbalk van toren 3 naar toren 4, met een touw om je aan vast te houden en een paal eronder
+  [painted(
+    [0xc58a4b, slab([CB.towers[2][0] + CB.towers[2][2], CB.towers[2][1] - 0.04], [CB.towers[3][0] - CB.towers[3][2], CB.towers[3][1] - 0.04], CB.z, 0.12, 0.08)],
+    [0xa8743f, boxAt(0.07, (CB.towers[2][1] + CB.towers[3][1]) / 2, 0.07, (CB.towers[2][0] + CB.towers[3][0]) / 2, (CB.towers[2][1] + CB.towers[3][1]) / 4 - 0.04, CB.z)],
+    [0x8a6a4a, beam(0.022, [CB.towers[2][0] + CB.towers[2][2], CB.towers[2][1] + 0.42, CB.z - 0.2], [CB.towers[3][0] - CB.towers[3][2], CB.towers[3][1] + 0.42, CB.z - 0.2])],
+  ), MATTE_MAT],
+  // de glijbaan: een gele baan met blauwe randen, van toren 4 naar rechts omlaag
+  [painted([0xffd23f, ...climbChute(0.42, 0.04, 0)], [0x4a90e2, ...climbChute(0.04, 0.12, 0.05, -0.22), ...climbChute(0.04, 0.12, 0.05, 0.22)]), PAINT_MAT],
+  [mergeGeometries([boxAt(0.06, CB.bendH, 0.06, CB.slideBend, CB.bendH / 2, CB.z - 0.18), boxAt(0.06, CB.bendH, 0.06, CB.slideBend, CB.bendH / 2, CB.z + 0.18)])!, METAL],
+  // de klimmuur achter toren 2, met gekleurde knoppen, en de brandweerpaal achter toren 3
+  [painted(
+    [0x8fb4d9, boxAt(0.7, CB.towers[1][1], 0.05, CB.towers[1][0], CB.towers[1][1] / 2, CB.z - CB.towers[1][2] - 0.06)],
+    ...[0xe0584f, 0xffd23f, 0x6cc04a, 0xf06aa6].map((c, i): [number, ...THREE.BufferGeometry[]] => [c, ...[0, 1, 2].map(j => dot(0.04, CB.towers[1][0] - 0.24 + ((i * 3 + j) % 5) * 0.12, 0.15 + ((i * 7 + j * 3) % 8) * 0.12, CB.z - CB.towers[1][2] - 0.1))]),
+    [0x8a8f98, tube(0.025, 0.025, CB.towers[2][1] + 0.6, CB.towers[2][0] + 0.25, (CB.towers[2][1] + 0.6) / 2, CB.z - CB.towers[2][2] - 0.18), beam(0.03, [CB.towers[2][0] + 0.25, CB.towers[2][1] + 0.58, CB.z - CB.towers[2][2] - 0.18], [CB.towers[2][0] + 0.25, CB.towers[2][1] + 0.58, CB.z - CB.towers[2][2]])],
+  ), MATTE_MAT],
+  // een klimnet vooraan tegen de grote toren: van de grond schuin omhoog naar de vloer, touwen in ruitjes
+  [(() => {
+    const [x, h, r] = CB.towers[2], z0 = CB.z + r + 0.55, z1 = CB.z + r + 0.02, ropes: THREE.BufferGeometry[] = [];
+    for (let i = 0; i <= 4; i++) {
+      const dx = -r + (i * 2 * r) / 4;
+      ropes.push(beam(0.022, [x + dx, 0.02, z0], [x + dx, h, z1]));
+    }
+    for (let j = 0; j <= 4; j++) {
+      const k = j / 4;
+      ropes.push(beam(0.022, [x - r, h * k + 0.02, THREE.MathUtils.lerp(z0, z1, k)], [x + r, h * k + 0.02, THREE.MathUtils.lerp(z0, z1, k)]));
+    }
+    return painted([0xe0584f, ...ropes], [0xa8743f, boxAt(r * 2 + 0.1, 0.06, 0.06, x, 0.03, z0)]);
+  })(), MATTE_MAT],
+  // een verrekijker op het hekje van toren 4
+  [painted([0x3d4f5a, tube(0.035, 0.045, 0.2, 0, 0, 0).rotateX(Math.PI / 2 - 0.3).translate(CB.towers[3][0] - 0.1, CB.towers[3][1] + 0.5, CB.z + CB.towers[3][2])], [0xffd23f, tube(0.012, 0.012, 0.08, CB.towers[3][0] - 0.1, CB.towers[3][1] + 0.44, CB.z + CB.towers[3][2])]), PAINT_MAT],
+];
+/** Waar de wiebelbrug om draait: de lijn waar de touwen in het midden hangen. */
+const CLIMB_SWAY = climberBridge(0.5) + 0.45;
+/** De wiebelbrug: planken en touwen langs climberBridge, rond de lijn CLIMB_SWAY (daar draait hij om). */
+const CLIMB_BRIDGE = ((): THREE.BufferGeometry => {
+  const [t1, t2] = CB.towers, x0 = t1[0] + t1[2], x1 = t2[0] - t2[2], n = 7, planks: THREE.BufferGeometry[] = [], ropes: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < n; i++) {
+    const k = (i + 0.5) / n;
+    planks.push(boxAt((x1 - x0) / n - 0.03, 0.035, 0.36, THREE.MathUtils.lerp(x0, x1, k), climberBridge(k) - 0.02, 0));
+  }
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8, b = (i + 1) / 8;
+    for (const side of [-0.19, 0.19]) {
+      ropes.push(beam(0.018, [THREE.MathUtils.lerp(x0, x1, a), climberBridge(a) + 0.4 + CB.sag * 0.4 * Math.sin(Math.PI * a), side], [THREE.MathUtils.lerp(x0, x1, b), climberBridge(b) + 0.4 + CB.sag * 0.4 * Math.sin(Math.PI * b), side]));
+      ropes.push(beam(0.012, [THREE.MathUtils.lerp(x0, x1, a), climberBridge(a), side], [THREE.MathUtils.lerp(x0, x1, a), climberBridge(a) + 0.4 + CB.sag * 0.4 * Math.sin(Math.PI * a), side]));
+    }
+  }
+  return painted([0xc58a4b, ...planks], [0x8a6a4a, ...ropes]).translate(0, -CLIMB_SWAY, 0);
+})();
+/** Het stuurwiel op het hekje van de grote toren: een rode ring met spaken en handvatten, rond zijn eigen as. */
+const CLIMB_WHEEL = painted(
+  [0xe0584f, new THREE.TorusGeometry(0.14, 0.022, 5, 14)],
+  [0xffd23f, ...[0, 1, 2, 3].map(i => boxAt(0.27, 0.02, 0.02, 0, 0, 0).rotateZ((i * Math.PI) / 4)), ...Array.from({ length: 8 }, (_, i) => dot(0.025, Math.cos((i * Math.PI) / 4) * 0.18, Math.sin((i * Math.PI) / 4) * 0.18, 0))],
+  [0x8a8f98, tube(0.03, 0.03, 0.06, 0, 0, -0.03).rotateX(Math.PI / 2)],
+);
+/** De vlag op het dak van de grote toren: een paaltje en een wimpel die vanaf de paal wappert. */
+const CLIMB_FLAG = painted([0xe0584f, new THREE.ConeGeometry(0.1, 0.34, 3).rotateZ(-Math.PI / 2).scale(1, 1, 0.12).translate(0.17, 0.28, 0)], [0x8a8f98, tube(0.012, 0.012, 0.4, 0, 0.2, 0)]);
+RIDE_BUILD.climber = (group, mat) => {
+  const bridge = piece(CLIMB_BRIDGE, MATTE_MAT, mat);
+  // de brug hangt aan zijn touwen en wiebelt opzij, om de lijn tussen de twee torentjes
+  bridge.position.set(0, CLIMB_SWAY, CB.z);
+  bridge.userData.noShade = true;
+  const wheel = piece(CLIMB_WHEEL, PAINT_MAT, mat);
+  wheel.position.set(CB.towers[2][0], CB.towers[2][1] + 0.5, CB.z + CB.towers[2][2] + 0.04);
+  wheel.userData.noShade = true;
+  const flag = piece(CLIMB_FLAG, PAINT_MAT, mat);
+  flag.position.set(CB.towers[2][0], CB.towers[2][1] + CLIMB_ROOF + 0.8, CB.z);
+  flag.userData.noShade = true;
+  group.add(bridge, wheel, flag);
+  Object.assign(group.userData, { bridge, wheel, flag });
 };
 
 // Schuilhut: vier palen, een schuin dak, wanden links en achter en een bank langs de achterwand.
@@ -3608,6 +3738,13 @@ function poseRide(group: THREE.Object3D, kind: ShopKind, s: RideState): void {
     const [pitch, roll] = springerTilt(s);
     (u.rocker as THREE.Object3D).rotation.set(pitch, 0, roll);
   } else if (kind === 'trampoline') (u.cloth as THREE.Object3D).position.y = TRAMPOLINE.mat - trampolineDip(s);
+  else if (kind === 'climber') {
+    // de wiebelbrug zwaait opzij (met kinderen erop flink, leeg een heel klein beetje), het stuurwiel draait heen en
+    // weer als er kinderen zijn, en de vlag wappert altijd
+    (u.bridge as THREE.Object3D).rotation.x = (0.015 + 0.075 * s.amp) * Math.sin(s.spin * 1.7) * (s.wake ?? 1);
+    (u.wheel as THREE.Object3D).rotation.z = 1.2 * s.amp * Math.sin(s.spin * 0.8);
+    (u.flag as THREE.Object3D).rotation.y = 0.35 * Math.sin(s.clock * 2.6) + 0.15 * Math.sin(s.clock * 4.1);
+  }
 }
 
 // Een slinger van a naar b die een beetje doorhangt: het touw, en de vlaggetjes of lampjes die eraan hangen.

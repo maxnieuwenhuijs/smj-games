@@ -254,7 +254,7 @@ const SHOP_SETS: Record<string, ShopKind[]> = {
   gebouwen: ['toilet', 'restaurant', 'shelter', 'station'],
   klein: ['bench', 'flowers', 'bin', 'umbrellas'],
   // (het hoogste achteraan, op de eerste rij: anders staat het voor de rest)
-  speeltuin: ['slide', 'trampoline', 'swing', 'seesaw', 'springer', 'springer', 'springer'],
+  speeltuin: ['climber', 'slide', 'trampoline', 'swing', 'seesaw', 'springer', 'springer', 'springer'],
   attracties: ['ferris', 'tower', 'carousel', 'bumper', 'fountain', 'show', 'cablecar'],
   // de grote attracties van het eind
   groot: ['coaster', 'flume', 'ship', 'swinger', 'airballoon', 'safari'],

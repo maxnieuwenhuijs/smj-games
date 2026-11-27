@@ -451,6 +451,11 @@ const ICONS = {
     `<path d="M24 44 q-6 -3 0 -6 q6 -3 0 -6 q-6 -3 0 -5" fill="none" stroke="#8a857a" stroke-width="3" stroke-linecap="round"/><ellipse cx="22" cy="20" rx="14" ry="8" fill="${RED}"/><circle cx="37" cy="13" r="7" fill="${RED}"/><path d="M43 13 l5 2 l-5 2Z" fill="${SUN}"/><circle cx="38.5" cy="11.5" r="1.5" fill="#fff"/><path d="M8 18 l-5 -6 l8 2Z" fill="${SUN}"/><path d="M26 10 v-6" stroke="#3d4f5a" stroke-width="3" stroke-linecap="round"/><rect x="18" y="42" width="12" height="4" rx="2" fill="#3d4f5a"/>`,
   trampoline:
     `<ellipse cx="24" cy="30" rx="21" ry="9" fill="#4a90e2"/><ellipse cx="24" cy="29" rx="16" ry="6" fill="#3d4f5a"/><path d="M8 34 V44 M40 34 V44 M24 39 V46" stroke="#8a857a" stroke-width="3.5" stroke-linecap="round"/><circle cx="24" cy="10" r="5" fill="${SUN}"/><path d="M17 19 q7 -4 14 0" fill="none" stroke="${SUN}" stroke-width="3" stroke-linecap="round"/>`,
+  // het klimkasteel: twee torentjes met een rood en een blauw dak, een brug ertussen en een gele glijbaan
+  climber:
+    `<path d="M4 44 V20 M14 44 V20 M30 44 V16 M42 44 V16" stroke="${WOOD_D}" stroke-width="3" stroke-linecap="round"/><path d="M3 22 H15 M29 18 H43" stroke="${WOOD}" stroke-width="4" stroke-linecap="round"/>` +
+    `<path d="M2 20 L9 9 L16 20Z" fill="${RED}"/><path d="M28 16 L36 4 L44 16Z" fill="#4a90e2"/><path d="M15 23 Q22 29 29 19" fill="none" stroke="#8a6a4a" stroke-width="3" stroke-linecap="round"/>` +
+    `<path d="M15 23 Q22 30 29 19 M17 25 V30 M22 27 V31 M27 23 V28" fill="none" stroke="#8a6a4a" stroke-width="1.6" stroke-linecap="round" opacity=".7"/><path d="M42 20 Q44 36 47 44" fill="none" stroke="${SUN}" stroke-width="5" stroke-linecap="round"/><path d="M6 44 l3 -10 M12 44 l-3 -10 M7 40 h4" stroke="${RED}" stroke-width="2" stroke-linecap="round"/>`,
   // het aquarium: een glazen wand, koraal, een hoepel en het plaatje van de afdeling
   glass:
     `<rect x="5" y="10" width="38" height="30" rx="2" fill="#bfe6f7" opacity=".75"/><path d="M5 10 H43 V40 H5Z" fill="none" stroke="#7fa6bb" stroke-width="4" stroke-linejoin="round"/><path d="M12 32 L22 17 M22 34 L28 25" stroke="#fff" stroke-width="3" stroke-linecap="round"/>`,

@@ -134,3 +134,19 @@ Een lijst om uit te kiezen. Achter wat er al in het spel zit, staat **Gebouwd.**
 98. **Meer talen**: Duits, Frans en Spaans (tekst en stem). *Groot.*
 99. **Als app op het beginscherm** die ook zonder internet werkt. *Middel.*
 100. **Namen inspreken voor elke naam** via de namenserver (ligt klaar, moet nog aangezet worden). *Klein.*
+
+## Speeltuin: meer om op te spelen (27 november)
+
+Grotere en drukkere speeltoestellen, vooral voor de kleintjes. Elk toestel heeft een eigen bezoek in `rides.ts`, net als de glijbaan en het klimkasteel.
+
+1. **Klimkasteel** van 10 bij 3: vier torentjes, een ladder, een wiebelbrug, een kruiptunnel, een evenwichtsbalk en een glijbaan; tien kinderen tegelijk. *Groot.* **Gebouwd.**
+2. **Zandbak** met emmertjes, schepjes en een kleine graafmachine waar een kind op zit en echt zand schept. *Middel.*
+3. **Waterspeeltuin**: een pomp waar je aan zwengelt, goten met sluisjes en een fonteintje dat uit de grond spuit; kinderen springen erdoorheen. *Groot.*
+4. **Tokkelbaan**: een kabel tussen twee palen; een kind hangt aan een schijf en zoeft naar de overkant. *Middel.*
+5. **Springkussen** in de vorm van een kasteel of een olifant, dat deint als er kinderen op springen. *Middel.*
+6. **Piratenschip** om in te klimmen, met een mast, een uitkijkmand, een loopplank en een stuurwiel. *Groot.*
+7. **Draaimolentje** voor de kleintjes: een plateau met stangen dat een kind zelf rond duwt en dan meerijdt. *Klein.*
+8. **Nestschommel**: een grote ronde schommel waar drie kinderen tegelijk in liggen. *Klein.*
+9. **Ballenbak** onder een tentje, waar je kinderen tussen de gekleurde ballen ziet duiken. *Middel.*
+10. **Kruipheuvel** met tunnels erdoor en een glijbaantje eraf, begroeid met gras. *Middel.*
+

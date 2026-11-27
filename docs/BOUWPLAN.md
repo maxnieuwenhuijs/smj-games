@@ -319,6 +319,7 @@ Naast de speeltuin (level 10) zijn er vijf losse toestellen van 2 bij 2 tegels. 
 | Wipwap | 6 | 20 | 2 | De plank wipt, aan elke kant een kind |
 | Wipkip | 5 | 24 | 2 | Twee kippen op een veer die hobbelen |
 | Trampoline | 8 | 29 | 2 | Springen met de armen omhoog |
+| Klimkasteel | 20 | 27 | 10 | Een heel parcours over vier torentjes, en de glijbaan af (zie 'Het klimkasteel') |
 
 Zit er niemand op, dan wiegt het toestel zachtjes; met een kind erop gaat het flink heen en weer. Twee kinderen zitten nooit op hetzelfde zitje. Alle speeltoestellen tellen samen als plek om te spelen (de gastvrouw vraagt pas om meer als het bij allemaal te druk is).
 
@@ -906,6 +907,7 @@ Alle attracties en speeltoestellen zijn opnieuw gemodelleerd, en bijna geen is n
 | Wipwap | 2 bij 1 | 4 | Een plank met zitjes en handvatten. |
 | Wipkip | 1 bij 1 | 3 | Een kip, een paardje of een kikker op een veer (welke hangt af van de plek). |
 | Trampoline | 2 bij 2 | 8 | Je klimt erop langs een trapje. |
+| Klimkasteel | 10 bij 3 | 20 | Vier torentjes met gekleurde daken, een wiebelbrug, een kruiptunnel, een evenwichtsbalk, een klimnet en een glijbaan (zie 'Het klimkasteel'). |
 
 De wc en de schuilhut zijn niet veranderd (2 bij 2). Leeg bewegen de toestellen een beetje, met gasten flink; 's nachts gloeien de lampjes, en het rad en de toren hebben een eigen gloed in de hoogte.
 
@@ -1040,6 +1042,17 @@ De proefspeler bouwt vaste verblijven van 3 bij 3. Sinds grote dieren elk apart 
 - **'s Nachts stil:** als het park dicht is (0 tot 7 uur) en er niemand meer op zit, zakt de fontein in acht tellen helemaal in (`RIDE_WAKE`), en om zeven uur komt hij net zo rustig weer op. De andere attracties staan dan al stil omdat er niemand is, de kabelbaan en de trein slapen zoals eerst.
 - **Wat de gasten missen:** in het overzicht bij de poort staat een vak met wat de gasten die nu in het park zijn missen, het meest gemiste bovenaan (hooguit zes): het plaatje van wat ze willen, hoeveel gasten, en een label. Oranje "erbij bouwen": er is nog geen kraam of gebouw voor. Blauw "niet te koop": de kraam is er wel, maar verkoopt dit niet. Rood "te druk": er staat een rij, er moet er een bij.
 - **Nog niet:** de nieuwe zin van de bouwer over de paal (`say.cable.path`) is nog niet ingesproken; tot dan praat hij op het klokje. Draai `node tools/voice/build.mjs all`.
+
+### Het klimkasteel (27 november)
+
+Een groot klimtoestel voor de kleintjes, bij Attracties in de groep Speeltuin: 10 bij 3 tegels, 20 munten, vanaf level 27 (na 26 gehaalde levels, `FEATURE.climber`). Tien kinderen kunnen er tegelijk op.
+
+- **Hoe het eruitziet:** vier houten torentjes op een rij, elk met een eigen dak (rood, blauw, geel en groen; de gele toren in het midden is de grootste, met een vlag). Vooraan bij de eerste toren een ladder, tussen toren 1 en 2 een wiebelbrug van planken aan touwen, tussen toren 2 en 3 een kruiptunnel van groene ringen om een doorzichtige buis, tussen toren 3 en 4 een evenwichtsbalk met een touw, en aan toren 4 een gele glijbaan. Verder een rood klimnet tegen de grote toren, een klimmuur met gekleurde knoppen achter toren 2, een brandweerpaal, een stuurwiel en een verrekijker.
+- **Wat een kind doet:** de ladder op, over de wiebelbrug (de handen aan de touwen), door de tunnel kruipen, boven op de grote toren even rondkijken (aan het stuurwiel draaien, zwaaien naar de mensen op het pad, of door de handen kijken als een verrekijker), voorzichtig over de balk met de armen wijd opzij, en joehoe de glijbaan af. Daarna loopt het vooraan terug naar het pad.
+- **Om de beurt:** de kinderen beginnen anderhalve tel na elkaar aan de ladder. Wie moet wachten, staat in een rijtje vooraan rechts van de ladder en schuift op. Zo staan er nooit twee op dezelfde sport en lopen ze netjes achter elkaar het parcours af.
+- **Bewegen:** de wiebelbrug zwaait opzij (met kinderen erop flink, leeg een heel klein beetje), het stuurwiel draait heen en weer als er kinderen zijn, en de vlag wappert altijd.
+- **Code:** het bezoek staat in `rides.ts` (`CLIMBER`, `climberPlan`, `climberPose`, met eigen tests in `rides.test.ts`), het model in `view.ts` (`SHOP_PARTS.climber`, `RIDE_BUILD.climber`), armen en benen in `people.ts` (`CLIMB_DO`). Het icoon heet `climber`.
+- **Meer ideeën** voor de speeltuin staan onderaan `docs/IDEEEN.md`.
 
 ## Bekende zwakke punten van de modellen
 

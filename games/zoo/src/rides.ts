@@ -45,7 +45,7 @@ const hash = (a: number, b: number): number => {
 
 // ------------------------------------------------------------ wat een toestel en een gast bijhouden
 /** De toestellen en attracties met een eigen bezoek (zie planVisit). De rest koopt aan een toonbank of heeft eigen regels. */
-export type RideKind = 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline' | 'fountain' | 'tower' | 'carousel' | 'bumper' | 'ferris' | 'restaurant'
+export type RideKind = 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline' | 'climber' | 'fountain' | 'tower' | 'carousel' | 'bumper' | 'ferris' | 'restaurant'
   // de grote attracties van het eind: zweefmolen, schommelschip, luchtballon, wildwaterbaan en achtbaan
   | 'swinger' | 'ship' | 'airballoon' | 'flume' | 'coaster';
 /**
@@ -53,7 +53,7 @@ export type RideKind = 'slide' | 'swing' | 'seesaw' | 'springer' | 'trampoline' 
  * zeggen hetzelfde (rides.test.ts let daarop).
  */
 export const RIDE_SPAN: Record<RideKind, [number, number]> = {
-  slide: [2, 3], swing: [2, 1], seesaw: [2, 1], springer: [1, 1], trampoline: [2, 2], fountain: [3, 3], tower: [2, 2], carousel: [3, 3], bumper: [4, 3], ferris: [8, 2], restaurant: [3, 2],
+  slide: [2, 3], swing: [2, 1], seesaw: [2, 1], springer: [1, 1], trampoline: [2, 2], climber: [10, 3], fountain: [3, 3], tower: [2, 2], carousel: [3, 3], bumper: [4, 3], ferris: [8, 2], restaurant: [3, 2],
   swinger: [4, 4], ship: [6, 2], airballoon: [3, 3], flume: [8, 3], coaster: [8, 4],
 };
 export const RIDE_KINDS = Object.keys(RIDE_SPAN) as RideKind[];
@@ -161,6 +161,8 @@ export interface Visit {
   wait: number;
   ride: number;
   back: number;
+  /** Op het klimkasteel: zo ver rechts van de ladder staat het kind in de rij als het aankomt (zie climberPlan). */
+  q?: number;
 }
 
 /** Zo lang duurt het hele bezoek hooguit; `visitPose` zet `done` zodra de gast weer op het pad staat. */
@@ -1105,6 +1107,232 @@ function playPose(out: RidePose, v: Visit, s: RideState, e: number): RidePose {
   return out;
 }
 
+// ------------------------------------------------------------ het klimkasteel (10 bij 3)
+/**
+ * Het klimkasteel: een groot klimtoestel voor de kleintjes, een parcours van links naar rechts over vier torentjes
+ * (`towers`: midden x, hoogte van de vloer en halve breedte; ze staan allemaal op `z` iets achter het midden). Een
+ * kind klimt de ladder op (vooraan bij toren 1, voet op `ladderFoot`), loopt over de wiebelbrug (die `sag` doorhangt)
+ * naar toren 2, kruipt door de tunnel naar de grote toren 3, kijkt daar `stay` tellen rond of draait aan het stuurwiel
+ * (`spots`), loopt over de evenwichtsbalk naar toren 4 en gaat de glijbaan af (van `slideTop` tot `slideEnd`, onderaan
+ * `endH` hoog). Daarna loopt het vooraan terug naar het pad. `seats`: zoveel kinderen tegelijk. `climb`, `crawl`,
+ * `beam`, `bridge`: zo snel gaat het op de ladder, in de tunnel, op de balk en op de brug (tegels per tel); `sit`,
+ * `glide` en `rise` zijn de tellen voor gaan zitten, glijden en opstaan. `speed`: zo snel wiegen de brug en de vlag.
+ * `gap`: zoveel tellen na elkaar beginnen twee kinderen aan de ladder; wie moet wachten staat in de rij, `queue`
+ * tegels achter de vorige (hooguit `queueMax` van de ladder).
+ */
+export const CLIMBER = {
+  seats: 10, z: -0.1,
+  towers: [[-3.9, 0.8, 0.4], [-1.6, 1.1, 0.4], [0.9, 1.3, 0.48], [3.0, 1.0, 0.4]] as [number, number, number][],
+  ladderFoot: 0.95, sag: 0.12, tube: 0.24,
+  spots: [[0.68, 0.22], [1.12, 0.22], [0.62, -0.38], [1.18, -0.38], [0.9, -0.08]] as [number, number][],
+  slideTop: 3.42, slideBend: 4.35, slideEnd: 4.78, bendH: 0.3, endH: 0.2,
+  stay: 3.5, climb: 0.7, crawl: 0.55, beam: 0.6, bridge: 0.85, sit: 0.3, glide: 1.1, rise: 0.45, speed: 1.6,
+  gap: 1.6, queue: 0.34, queueMax: 3.2,
+};
+/** Wat een kind op het klimkasteel doet, als `w` in zijn houding (people.ts kijkt ernaar): op de balk, in de tunnel of op de brug. */
+export const CLIMB_DO = { beam: 1, crawl: 2, bridge: 3 } as const;
+
+/** Hoe hoog de glijbaan van het klimkasteel is op plek `x`: schuin van toren 4 tot de knik, en dan bijna vlak tot het eind. */
+export function climberChute(x: number): number {
+  const C = CLIMBER, top = C.towers[3][1];
+  if (x <= C.slideTop) return top;
+  if (x <= C.slideBend) return lerp(top, C.bendH, (x - C.slideTop) / (C.slideBend - C.slideTop));
+  return lerp(C.bendH, C.endH, clamp01((x - C.slideBend) / (C.slideEnd - C.slideBend)));
+}
+
+/** Hoe hoog de wiebelbrug is op deel `t` (0 = bij toren 1, 1 = bij toren 2): hij loopt iets op en hangt in het midden door. */
+export const climberBridge = (t: number): number => lerp(CLIMBER.towers[0][1], CLIMBER.towers[1][1], t) - CLIMBER.sag * Math.sin(Math.PI * t);
+
+// Het parcours als rijtje stukken, net als WAY steeds opnieuw gevuld (er wordt tijdens het spelen niets aangemaakt).
+// Per stuk: waar het naartoe gaat (x, h, z), de houding (een nummer in CLIMB_ACTS), hoe lang het duurt en wat het
+// kind erbij doet (CLIMB_DO, of 0). Het eerste stuk heeft alleen een beginpunt.
+const CLIMB_ACTS: RideAct[] = ['walk', 'climb', 'sit', 'slide', 'stand'];
+const LEG = 6;
+const LEGS: number[] = [];
+let legN = 0;
+
+function legFrom(x: number, h: number, z: number): void {
+  legN = 0;
+  legTo(x, h, z, 0, 0, 0);
+}
+
+/** Een stuk erbij naar (x, h, z): `speed` tegels per tel, of met een negatieve `speed` precies zoveel tellen. */
+function legTo(x: number, h: number, z: number, act: number, speed: number, act2: number): void {
+  const i = legN * LEG;
+  let secs = 0;
+  if (legN > 0) {
+    const len = Math.hypot(x - LEGS[i - LEG], h - LEGS[i - LEG + 1], z - LEGS[i - LEG + 2]);
+    secs = speed < 0 ? -speed : len / speed;
+  }
+  LEGS[i] = x;
+  LEGS[i + 1] = h;
+  LEGS[i + 2] = z;
+  LEGS[i + 3] = act;
+  LEGS[i + 4] = secs;
+  LEGS[i + 5] = act2;
+  legN++;
+}
+
+/** De punten van de route in WAY als gewone stukken lopen (het eerste punt slaat hij over: daar staat het kind al). */
+function legsFromWay(): void {
+  for (let k = 1; k < wayN; k++) legTo(WAY[k * 3], WAY[k * 3 + 1], WAY[k * 3 + 2], 0, RIDE_WALK, 0);
+}
+
+/** Hoe lang alle stukken samen duren. */
+function legsTime(): number {
+  let t = 0;
+  for (let k = 1; k < legN; k++) t += LEGS[k * LEG + 4];
+  return t;
+}
+
+/** Zet `out` op `t` tellen langs de stukken. Geeft true als het eind bereikt is. */
+function legsAt(out: RidePose, t: number): boolean {
+  let left = Math.max(0, t);
+  for (let k = 1; k < legN; k++) {
+    const i = k * LEG, secs = LEGS[i + 4];
+    if (left > secs && k + 1 < legN) {
+      left -= secs;
+      continue;
+    }
+    const u = secs > 1e-6 ? Math.min(1, left / secs) : 1, act = CLIMB_ACTS[LEGS[i + 3]], what = LEGS[i + 5];
+    const x0 = LEGS[i - LEG], h0 = LEGS[i - LEG + 1], z0 = LEGS[i - LEG + 2], dx = LEGS[i] - x0, dz = LEGS[i + 2] - z0;
+    const face = Math.hypot(dx, dz) > 1e-6 ? Math.atan2(dx, dz) : out.face;
+    if (act === 'slide') {
+      // de glijbaan af: steeds sneller, achterover en de armen in de lucht
+      const x = lerp(x0, LEGS[i], Math.pow(u, 1.6));
+      put(out, x, climberChute(x) + 0.03, LEGS[i + 2], Math.PI / 2, 'slide');
+      out.pitch = x < CLIMBER.slideBend ? -0.3 : -0.3 * (1 - (x - CLIMBER.slideBend) / (CLIMBER.slideEnd - CLIMBER.slideBend));
+      out.u = u;
+    } else {
+      put(out, lerp(x0, LEGS[i], u), lerp(h0, LEGS[i + 1], u), lerp(z0, LEGS[i + 2], u), act === 'sit' || act === 'stand' ? Math.PI / 2 : face, act);
+      // gaan zitten boven aan de glijbaan, en onderaan weer opstaan
+      if (act === 'sit') out.sit = ease(u);
+      if (act === 'stand') out.sit = 1 - ease(u / 0.7);
+      // in de tunnel kruipt het kind voorover op handen en knieën
+      if (what === CLIMB_DO.crawl) out.pitch = 1.15;
+    }
+    out.w = what;
+    return left >= secs;
+  }
+  put(out, LEGS[0], LEGS[1], LEGS[2], out.face, 'stand');
+  return true;
+}
+
+/** Het plekje van kind `seat` boven op de grote toren: er zijn er vijf, en wie later komt staat een stapje opzij. */
+function climbSpot(seat: number): [number, number] {
+  const [sx, sz] = CLIMBER.spots[seat % CLIMBER.spots.length];
+  return pair(sx + (seat >= CLIMBER.spots.length ? 0.1 : 0), sz);
+}
+
+/** Een eigen baantje per kind, een klein stukje opzij: zo lopen ze niet precies door elkaar heen. */
+const climbLane = (seat: number): number => ((seat % 3) - 1) * 0.06;
+
+/** Van het pad naar zijn plek in de rij vooraan: `v.q` tegels rechts van de voet van de ladder (0 = meteen bij de ladder). */
+function climberWalk(v: Visit): void {
+  wayIn(v, RIDE_SPAN.climber[0], RIDE_SPAN.climber[1], CLIMBER.towers[0][0] + (v.q ?? 0), CLIMBER.ladderFoot);
+  legFrom(v.fx, 0, v.fz);
+  legsFromWay();
+}
+
+/** Het parcours tot de grote toren: de ladder op, over de brug, door de tunnel en naar zijn plekje op toren 3. */
+function climberUp(v: Visit): void {
+  const C = CLIMBER, [t1, t2, t3] = C.towers, z = C.z + climbLane(v.seat), [sx, sz] = climbSpot(v.seat);
+  legFrom(t1[0], 0, C.ladderFoot);
+  // de ladder op en de vloer van toren 1 over
+  legTo(t1[0], t1[1], t1[2] * 0.75, 1, C.climb, 0);
+  legTo(t1[0], t1[1], z, 0, RIDE_WALK, 0);
+  legTo(t1[0] + t1[2], t1[1], z, 0, RIDE_WALK, 0);
+  // de wiebelbrug: in stukjes, want hij hangt door
+  const x0 = t1[0] + t1[2], x1 = t2[0] - t2[2];
+  for (let k = 1; k <= 6; k++) legTo(lerp(x0, x1, k / 6), climberBridge(k / 6), z, 0, C.bridge, CLIMB_DO.bridge);
+  legTo(t2[0] + t2[2] * 0.6, t2[1], z, 0, RIDE_WALK, 0);
+  // door de tunnel kruipen, licht omhoog naar de grote toren
+  legTo(t3[0] - t3[2] + 0.05, t3[1], C.z, 1, C.crawl, CLIMB_DO.crawl);
+  legTo(sx, t3[1], sz, 0, RIDE_WALK, 0);
+}
+
+/** Het tweede stuk: van zijn plekje over de balk naar toren 4, de glijbaan af en vooraan terug naar het pad. */
+function climberOut(v: Visit): void {
+  const C = CLIMBER, [, , t3, t4] = C.towers, z = C.z + climbLane(v.seat) * 0.5, [sx, sz] = climbSpot(v.seat);
+  legFrom(sx, t3[1], sz);
+  legTo(t3[0] + t3[2] - 0.05, t3[1], z, 0, RIDE_WALK, 0);
+  // de evenwichtsbalk: voorzichtig, met de armen opzij
+  legTo(t4[0] - t4[2], t4[1], z, 0, C.beam, CLIMB_DO.beam);
+  legTo(C.slideTop - 0.04, t4[1], C.z, 0, RIDE_WALK, 0);
+  legTo(C.slideTop, t4[1] + 0.03, C.z, 2, -C.sit, 0);
+  legTo(C.slideEnd - 0.06, C.endH + 0.03, C.z, 3, -C.glide, 0);
+  legTo(C.slideEnd + 0.06, 0, C.z, 4, -C.rise, 0);
+  // vooraan terug, en zo nodig buitenom naar het pad
+  const fx = C.slideEnd - 0.2, fz = RIDE_SPAN.climber[1] / 2 - 0.3;
+  legTo(fx, 0, fz, 0, RIDE_WALK, 0);
+  wayFrom(fx, 0, fz);
+  wayOut(v, RIDE_SPAN.climber[0], RIDE_SPAN.climber[1], fx);
+  legsFromWay();
+}
+
+/**
+ * Een kind wil op het klimkasteel. De kinderen beginnen om de beurt aan de ladder, `gap` tellen na elkaar
+ * (`s.zero` is wanneer de volgende mag): wie moet wachten, gaat vooraan in de rij staan, rechts van de ladder, en
+ * schuift op tot het aan de beurt is. Zo staan er nooit twee op dezelfde sport en lopen ze netjes achter elkaar het
+ * parcours af. In het bezoek: `walk` is naar de rij lopen, `wait` het opschuiven plus het parcours tot de grote
+ * toren, `ride` het rondkijken boven en `back` de rest, met de glijbaan, tot op het pad.
+ */
+function climberPlan(v: Visit, s: RideState, used: number): boolean {
+  const C = CLIMBER;
+  if (!freeSeat(v, used, C.seats)) return false;
+  v.q = 0;
+  climberWalk(v);
+  const need = Math.max(0, s.zero - (s.clock + legsTime()));
+  v.q = Math.min(C.queueMax, (C.queue * need) / C.gap);
+  climberWalk(v);
+  v.walk = legsTime();
+  const line = Math.max(0, s.zero - (s.clock + v.walk), v.q / RIDE_WALK);
+  climberUp(v);
+  v.wait = line + legsTime();
+  v.ride = C.stay;
+  climberOut(v);
+  v.back = legsTime();
+  s.zero = s.clock + v.walk + line + C.gap;
+  return true;
+}
+
+/** Waar kind `seat` staat als het boven op de grote toren rondkijkt. */
+function climberSpot(out: RidePose, seat: number): RidePose {
+  const [sx, sz] = climbSpot(seat);
+  // naar voren kijken, naar het pad: daar staan de mensen naar wie je zwaait
+  put(out, sx, CLIMBER.towers[2][1], sz, Math.atan2(sx - CLIMBER.towers[2][0], sz - CLIMBER.z + 1.2), 'stand');
+  out.on = true;
+  return out;
+}
+
+function climberPose(out: RidePose, v: Visit, e: number): RidePose {
+  const C = CLIMBER, top = v.walk + v.wait, leave = top + v.ride;
+  if (e >= top && e < leave) return climberSpot(out, v.seat);
+  if (e < v.walk) {
+    climberWalk(v);
+    legsAt(out, e);
+    return out;
+  }
+  if (e < top) {
+    climberUp(v);
+    const line = v.wait - legsTime(), q = v.q ?? 0;
+    if (e < v.walk + line) {
+      // in de rij: langzaam opschuiven naar de ladder, met het gezicht ernaartoe
+      const k = (e - v.walk) / line;
+      put(out, C.towers[0][0] + q * (1 - k), 0, C.ladderFoot, -Math.PI / 2, q / line > 0.12 ? 'walk' : 'stand');
+      return out;
+    }
+    legsAt(out, e - v.walk - line);
+    out.on = true;
+    return out;
+  }
+  climberOut(v);
+  out.done = legsAt(out, e - leave);
+  // tot het opstaan onderaan de glijbaan is het kind op het toestel; daarna loopt het terug naar het pad
+  out.on = out.h > 0.02 || out.act !== 'walk';
+  return out;
+}
+
 // ------------------------------------------------------------ het restaurant (3 bij 2)
 /**
  * Het restaurant: de keuken staat linksachter, de tafels op het terras. `tables`: de tafels (x, z), met aan
@@ -1568,7 +1796,7 @@ function lapPose(out: RidePose, v: Visit, s: RideState, e: number): RidePose {
 // ------------------------------------------------------------ alles bij elkaar
 /** Hoeveel gasten er tegelijk op of in kunnen. */
 export const RIDE_SEATS: Record<RideKind, number> = {
-  slide: SLIDE.slots, swing: SWINGSET.seats, seesaw: SEESAW.seats, springer: SPRINGER.seats, trampoline: TRAMPOLINE.seats, fountain: FOUNTAIN.spread.length,
+  slide: SLIDE.slots, swing: SWINGSET.seats, seesaw: SEESAW.seats, springer: SPRINGER.seats, trampoline: TRAMPOLINE.seats, climber: CLIMBER.seats, fountain: FOUNTAIN.spread.length,
   tower: TOWER.spots.length, carousel: CAROUSEL_SEATS, bumper: BUMPER.cars, ferris: FERRIS.cabins * FERRIS.per, restaurant: RESTAURANT.tables.length * 2,
   ...LAP_SEATS,
 };
@@ -1602,6 +1830,7 @@ export function planVisit(kind: RideKind, s: RideState, used: number, fx: number
   v.fz = fz;
   v.t0 = s.clock;
   v.walk = v.wait = v.ride = v.back = 0;
+  v.q = undefined;
   const ok = isLap(kind) ? lapPlan(v, s, used)
     : kind === 'ferris' ? ferrisPlan(v, s, used)
     : kind === 'carousel' ? carouselPlan(v, s, used)
@@ -1611,6 +1840,7 @@ export function planVisit(kind: RideKind, s: RideState, used: number, fx: number
     : kind === 'slide' ? slidePlan(v, s, used)
     : kind === 'restaurant' ? restaurantPlan(v, used)
     : kind === 'trampoline' ? trampolinePlan(v, used)
+    : kind === 'climber' ? climberPlan(v, s, used)
     : playPlan(v, used);
   return ok ? { ...v } : null;
 }
@@ -1630,6 +1860,7 @@ export function visitPose(out: RidePose, v: Visit, s: RideState): RidePose {
   else if (kind === 'slide') slidePose(out, v, e);
   else if (kind === 'restaurant') restaurantPose(out, v, e);
   else if (kind === 'trampoline') trampolinePose(out, v, s, e);
+  else if (kind === 'climber') climberPose(out, v, e);
   else playPose(out, v, s, e);
   if (e >= visitTime(v)) out.done = true;
   return out;
@@ -1650,6 +1881,7 @@ export function seatPose(out: RidePose, kind: RideKind, seat: number, s: RideSta
   }
   if (kind === 'slide') return slideLap(out, slidePhase(seat, s.clock));
   if (kind === 'restaurant') return restaurantSeat(out, seat);
+  if (kind === 'climber') return climberSpot(out, seat);
   return playSeat(out, kind, seat, s);
 }
 
@@ -1662,7 +1894,7 @@ export function newRide(kind: ShopKind): RideState {
 export const RIDE_WAKE = 8;
 
 /** Hoe snel de speeltoestellen heen en weer gaan (radialen per tel). */
-const PLAY_SPEED: Partial<Record<ShopKind, number>> = { swing: SWINGSET.speed, seesaw: SEESAW.speed, springer: SPRINGER.speed, trampoline: TRAMPOLINE.speed };
+const PLAY_SPEED: Partial<Record<ShopKind, number>> = { swing: SWINGSET.speed, seesaw: SEESAW.speed, springer: SPRINGER.speed, trampoline: TRAMPOLINE.speed, climber: CLIMBER.speed };
 
 /** Schuift `amps[i]` een stukje naar `to`. */
 function nudge(s: RideState, i: number, to: number, rate: number, from = 0): void {
@@ -1720,7 +1952,7 @@ export function rideRunning(kind: ShopKind, s: RideState): boolean {
 
 /** Hoe hoog een toestel ongeveer is, in tegels: zo kun je er ook op tikken waar het boven zijn tegels uitsteekt (zie tallShopUnder in game.ts). */
 export const RIDE_TOP: Partial<Record<ShopKind, number>> = {
-  ferris: FERRIS.hub + FERRIS.radius + 0.2, tower: TOWER.top + 1.9, carousel: 3.1, bumper: 2.4, slide: 3, fountain: 2.2, swing: 1.7, restaurant: 1.7,
+  ferris: FERRIS.hub + FERRIS.radius + 0.2, tower: TOWER.top + 1.9, carousel: 3.1, climber: 2.6, bumper: 2.4, slide: 3, fountain: 2.2, swing: 1.7, restaurant: 1.7,
   swinger: SWINGER.top + 1.3, ship: SHIP.pivot + 0.5, airballoon: 3.2, flume: FLUME.top + 0.5, coaster: COASTER.top + 0.4,
 };
 

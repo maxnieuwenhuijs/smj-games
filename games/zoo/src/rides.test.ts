@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BUMPER, CAROUSEL, CAROUSEL_SEATS, FERRIS, FOUNTAIN, RESTAURANT, RIDE_KINDS, RIDE_SEATS, RIDE_SPAN, SEESAW, SLIDE, SLIDE_LAP, SPRINGER, SWINGSET, TOWER, TRAMPOLINE,
+  BUMPER, CAROUSEL, CAROUSEL_SEATS, CLIMBER, CLIMB_DO, climberBridge, climberChute, FERRIS, FOUNTAIN, RESTAURANT, RIDE_KINDS, RIDE_SEATS, RIDE_SPAN, SEESAW, SLIDE, SLIDE_LAP, SPRINGER, SWINGSET, TOWER, TRAMPOLINE,
   bumperSeat, carouselAt, carouselLift, carouselSeat, chuteHeight, ferrisAngle, ferrisSeat, ferrisSway, fountainJet, fountainSpot, newCars, newPose, newRide,
   planVisit, restaurantSeat, rideLocal, rideRunning, rideStep, rideWorld, seatPose, seesawSeat, slideLap, springerSeat, stepCars, swingSeat, trampolineSeat,
   visitPose, visitTime, type RideKind, type RideState, type Visit,
@@ -601,5 +601,115 @@ describe('het restaurant', () => {
     }
     for (let i = 0; i < spots.length; i++)
       for (let j = i + 1; j < spots.length; j++) expect(Math.hypot(spots[i][0] - spots[j][0], spots[i][1] - spots[j][1])).toBeGreaterThan(0.4);
+  });
+});
+
+describe('het klimkasteel', () => {
+  /** Loopt een heel bezoek af en schrijft op wat het kind doet: per stuk van het parcours het eerste moment. */
+  function walkThrough(fx: number, fz: number, seat = 0): { order: string[]; top: number; inside: boolean; done: boolean; slid: boolean } {
+    const s = newRide('climber'), used = seat ? (1 << seat) - 1 : 0, v = planVisit('climber', s, used, fx, fz)!, p = newPose();
+    const [w, d] = RIDE_SPAN.climber, order: string[] = [];
+    let top = 0, inside = true, slid = false;
+    const mark = (what: string): void => {
+      if (order[order.length - 1] !== what) order.push(what);
+    };
+    for (let t = 0; t < visitTime(v) + 1; t += DT) {
+      visitPose(p, v, s);
+      if (p.on) {
+        top = Math.max(top, p.h);
+        // op het toestel blijft het kind binnen zijn tegels
+        if (Math.abs(p.x) > w / 2 || Math.abs(p.z) > d / 2) inside = false;
+      }
+      if (p.act === 'climb' && p.w === 0 && p.h > 0.05) mark('ladder');
+      if (p.w === CLIMB_DO.bridge) mark('brug');
+      if (p.w === CLIMB_DO.crawl) mark('tunnel');
+      if (p.on && p.act === 'stand' && p.h > CLIMBER.towers[2][1] - 0.01) mark('toren');
+      if (p.w === CLIMB_DO.beam) mark('balk');
+      if (p.act === 'slide') {
+        mark('glijbaan');
+        slid = true;
+        // de glijbaan af: het kind zit op de baan
+        expect(p.h).toBeCloseTo(climberChute(p.x) + 0.03, 6);
+      }
+      if (p.done) break;
+      rideStep('climber', s, DT, p.on ? 1 << v.seat : 0);
+    }
+    return { order, top, inside, done: p.done, slid };
+  }
+
+  it('is groot: tien tegels breed en drie diep, voor tien kinderen tegelijk', () => {
+    expect(RIDE_SPAN.climber).toEqual([10, 3]);
+    expect(RIDE_SEATS.climber).toBe(CLIMBER.seats);
+    expect(CLIMBER.seats).toBeGreaterThanOrEqual(8);
+  });
+
+  it('elk kind doet het hele parcours, in de goede volgorde, en komt weer op het pad', () => {
+    for (const [fx, fz] of [[0, 2], [-3, 2], [4.5, 2], [5.5, 0], [-5.5, -1], [0, -2]]) {
+      const r = walkThrough(fx, fz);
+      expect(r.order.filter(k => k !== 'ladder' || r.order.indexOf('ladder') === r.order.lastIndexOf('ladder')), `van (${fx}, ${fz})`).toEqual(['ladder', 'brug', 'tunnel', 'toren', 'balk', 'glijbaan']);
+      expect(r.inside).toBe(true);
+      expect(r.slid).toBe(true);
+      expect(r.done).toBe(true);
+      // nooit hoger dan de vloer van de grote toren
+      expect(r.top).toBeLessThan(CLIMBER.towers[2][1] + 0.05);
+    }
+  });
+
+  it('kinderen die na elkaar komen, krijgen elk een eigen plekje boven op de grote toren', () => {
+    const p = newPose(), spots = new Set<string>();
+    for (let seat = 0; seat < CLIMBER.seats; seat++) {
+      seatPose(p, 'climber', seat, newRide('climber'));
+      expect(p.h).toBe(CLIMBER.towers[2][1]);
+      // binnen het hekje van de toren
+      expect(Math.abs(p.x - CLIMBER.towers[2][0])).toBeLessThan(CLIMBER.towers[2][2]);
+      expect(Math.abs(p.z - CLIMBER.z)).toBeLessThan(CLIMBER.towers[2][2]);
+      spots.add(`${p.x.toFixed(2)},${p.z.toFixed(2)}`);
+    }
+    expect(spots.size).toBe(CLIMBER.seats);
+  });
+
+  it('kinderen gaan om de beurt de ladder op: wie later komt, wacht in de rij en schuift op', () => {
+    const s = newRide('climber'), visits: Visit[] = [];
+    let used = 0;
+    for (let i = 0; i < 4; i++) {
+      const v = planVisit('climber', s, used, -3.5, 2)!;
+      used |= 1 << v.seat;
+      visits.push(v);
+    }
+    // wanneer elk kind de onderste sport van de ladder verlaat
+    const starts = visits.map(v => {
+      const p = newPose(), probe = newRide('climber');
+      probe.clock = v.t0;
+      for (let t = 0; t < visitTime(v); t += DT) {
+        visitPose(p, v, probe);
+        if (p.act === 'climb' && p.h > 0.02) return t;
+        probe.clock += DT;
+      }
+      return Infinity;
+    });
+    for (let i = 1; i < starts.length; i++) expect(starts[i] - starts[i - 1]).toBeGreaterThan(CLIMBER.gap - 0.1);
+    // het laatste kind staat eerst in de rij, rechts van de ladder, en niet op dezelfde plek als het kind voor hem
+    expect(visits[3].q).toBeGreaterThan(visits[2].q! + 0.2);
+    expect(visits[3].q).toBeLessThanOrEqual(CLIMBER.queueMax);
+  });
+
+  it('de wiebelbrug hangt door en de glijbaan loopt van toren 4 naar beneden', () => {
+    const [t1, t2, , t4] = CLIMBER.towers;
+    expect(climberBridge(0)).toBeCloseTo(t1[1], 9);
+    expect(climberBridge(1)).toBeCloseTo(t2[1], 9);
+    expect(climberBridge(0.5)).toBeLessThan((t1[1] + t2[1]) / 2);
+    expect(climberChute(CLIMBER.slideTop)).toBe(t4[1]);
+    expect(climberChute(CLIMBER.slideEnd)).toBe(CLIMBER.endH);
+    for (let x = CLIMBER.slideTop; x < CLIMBER.slideEnd; x += 0.05) expect(climberChute(x + 0.05)).toBeLessThanOrEqual(climberChute(x));
+    // de glijbaan blijft binnen de tegels
+    expect(CLIMBER.slideEnd + 0.06).toBeLessThan(RIDE_SPAN.climber[0] / 2);
+  });
+
+  it('leeg wiebelt het nauwelijks, met kinderen erop gaat het flink', () => {
+    const s = newRide('climber');
+    run('climber', s, 3);
+    expect(s.amp).toBeLessThan(0.01);
+    run('climber', s, 3, 0b11);
+    expect(s.amp).toBeGreaterThan(0.9);
   });
 });

@@ -5,7 +5,7 @@ import { PLUSH, PRODUCTS, SEEK_REACH, STALLS, type FoodId, type ShopKind } from 
 import { Grid, H, W, tileIndex, tileXY } from './grid';
 import { DARK_FUN, LOOKS, PETTING_GUESTS, PLAY, RIDES, SAFARI, SUIT_COLORS, TRAIN, isPath } from './data';
 import { SHOW_ROWS, SHOW_TIME } from './data';
-import { FOUNTAIN, RIDE_KINDS, RIDE_SEATS, isRide, newPose, planVisit, rideLocal, visitAge, visitOff, visitPose, visitTime, type RideState, type Visit } from './rides';
+import { CLIMB_DO, FOUNTAIN, RIDE_KINDS, RIDE_SEATS, isRide, newPose, planVisit, rideLocal, visitAge, visitOff, visitPose, visitTime, type RideState, type Visit } from './rides';
 import { CABLE, cableAt, cablePassed, cableStop, type CablePath, type CableSeat } from './cable';
 import { isRail } from './data';
 import { railAt, railClaim, railNear, railNext, railSpeed, type RailRoute, type RailStop } from './rails';
@@ -787,7 +787,7 @@ type Idle = 'look' | 'scratch' | 'watch' | 'stretch' | 'talk' | 'selfie' | 'danc
 type MoreIdle = 'yawn' | 'sigh' | 'peek' | 'rainbow' | 'fidget';
 /** Zoveel gasten kan één kraam, wc, bankje of attractie tegelijk helpen; de rest staat in de rij. */
 const AT_ONCE: Partial<Record<ShopKind, number>> = {
-  toilet: 2, bench: 2, playground: 3, carousel: 4, fountain: 6, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2,
+  toilet: 2, bench: 2, playground: 3, carousel: 4, fountain: 6, slide: 2, swing: 2, seesaw: 2, springer: 2, trampoline: 2, climber: 10,
   tower: 4, restaurant: 6, shelter: 6, station: 8, umbrellas: 2, show: SHOW_TIME.seats, safari: 6,
   // op het perron van de kabelbaan wachten er vier, elk in een hoekje; wie in een stoeltje zit, telt niet meer mee
   cablecar: 4,
@@ -808,7 +808,7 @@ const RIDE_POSE = newPose();
 const RIDE_TURN = new THREE.Euler(0, 0, 0, 'YXZ');
 /** Zo lang duurt het voor een gast geholpen is. Op de tribune blijft hij zitten tot de show voorbij is. */
 const SERVE_TIME: Partial<Record<ShopKind, number>> = {
-  foodstall: 6, drinkstall: 6, icecream: 6, balloon: 4, hats: 4, souvenir: 4, toilet: 9, bench: 8, playground: 6, carousel: 8, fountain: 4, slide: 6, swing: 7, seesaw: 7, springer: 6, trampoline: 6,
+  foodstall: 6, drinkstall: 6, icecream: 6, balloon: 4, hats: 4, souvenir: 4, toilet: 9, bench: 8, playground: 6, carousel: 8, fountain: 4, slide: 6, swing: 7, seesaw: 7, springer: 6, trampoline: 6, climber: 20,
   tower: 9, restaurant: 11, ferris: 14, bumper: 10, shelter: 4, station: 4, umbrellas: 2, show: 4, cablecar: 4, facepaint: 7,
   swinger: 16, ship: 20, airballoon: 21, flume: 22, coaster: 20, candy: 6, safari: 4,
 };
@@ -2211,7 +2211,20 @@ export class Guest implements Leader {
       limbs[3].rotation.x = -0.9 + step * 0.5;
       return;
     }
-    if (p.act === 'walk') return;
+    if (p.act === 'walk') {
+      if (visit.kind === 'climber' && p.w === CLIMB_DO.beam) {
+        // op de evenwichtsbalk: voorzichtig, met de armen wijd opzij en wiebelend
+        const wob = Math.sin(this.phase * 0.35 + this.seat) * 0.25;
+        limbs[2].rotation.set(0, 0, -1.35 + wob);
+        limbs[3].rotation.set(0, 0, 1.35 + wob);
+        head.rotation.z = wob * 0.4;
+      } else if (visit.kind === 'climber' && p.w === CLIMB_DO.bridge) {
+        // op de wiebelbrug: de handen aan de touwen
+        limbs[2].rotation.set(-0.5, 0, -0.55);
+        limbs[3].rotation.set(-0.5, 0, 0.55);
+      }
+      return;
+    }
     switch (visit.kind) {
       case 'ferris':
         this.legs(-1.3 * k);
@@ -2315,6 +2328,31 @@ export class Guest implements Leader {
         m.position.y -= bum * 0.16 * m.scale.y;
         this.legs(0.5 * (1 - jump) * (1 - bum) - 1.45 * bum);
         this.arms(-2.7 * jump * (1 - bum) - 0.5 * bum);
+        break;
+      }
+      case 'climber': {
+        // de glijbaan af met de armen in de lucht; boven op de grote toren draaien de een aan het stuurwiel, zwaait een
+        // ander naar de mensen op het pad en kijkt een derde door zijn handen als een verrekijker
+        this.legs((p.act === 'sit' || p.act === 'slide' ? -1.35 : 0) * k);
+        if (p.act === 'slide') {
+          if (!this.rideMark) this.cue = 'guest.whee';
+          this.rideMark = 1;
+          this.arms(-2.8);
+          break;
+        }
+        this.rideMark = 0;
+        if (!p.on || p.act !== 'stand' || p.h < 1) break;
+        const turn = this.seat % 3;
+        if (turn === 0) {
+          limbs[2].rotation.x = -1.45 + Math.sin(this.phase * 0.5) * 0.35;
+          limbs[3].rotation.x = -1.45 - Math.sin(this.phase * 0.5) * 0.35;
+        } else if (turn === 1) this.wave(limbs[2], -2.4);
+        else {
+          this.arms(-2.25);
+          limbs[2].rotation.z = -0.5;
+          limbs[3].rotation.z = 0.5;
+          this.spy();
+        }
         break;
       }
       case 'restaurant':
