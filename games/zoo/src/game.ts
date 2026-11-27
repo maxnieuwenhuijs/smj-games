@@ -4906,8 +4906,19 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
     const a = pickEscaper(options.map(item => ({ item, chance: escapeChance(item.species, !!item.needsFence, item.happy) })), forGoal);
     if (!a) return;
     const region = this.grid.enclosureAt(...tileXY(a.tile))!;
-    const way = how ?? escapeWay(a.species, !!a.needsFence) ?? 'slip';
     const inside = new Set(region.tiles);
+    // wie duwt, duwt het hek altijd echt kapot: dus alleen tegen een hek dat kapot kan (hout, net, glas, het witte
+    // hekje). Zit het dier alleen achter steen, poorten of ruiten, dan wringt het zich ergens door in plaats van te duwen
+    const breakable = region.tiles.some(i => {
+      const [x, y] = tileXY(i);
+      return [[0, -1], [1, 0], [0, 1], [-1, 0]].some(([dx, dy]) => {
+        const nx = x + dx, ny = y + dy;
+        if (!this.grid.inBounds(nx, ny) || inside.has(tileIndex(nx, ny)) || this.grid.enclosureAt(nx, ny) || this.taken(nx, ny)) return false;
+        return pushable(this.grid.getEdge(dx ? { o: 'v', x: x + Math.max(0, dx), y } : { o: 'h', x, y: y + Math.max(0, dy) }));
+      });
+    });
+    const wanted = how ?? escapeWay(a.species, !!a.needsFence) ?? 'slip';
+    const way: EscapeWay = wanted === 'push' && !breakable ? 'slip' : wanted;
     let best: { x: number; y: number; d: number; e: Edge; score: number } | null = null;
     for (const i of region.tiles) {
       const [x, y] = tileXY(i);
@@ -4916,7 +4927,8 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
         if (!this.grid.inBounds(nx, ny) || inside.has(tileIndex(nx, ny)) || this.grid.enclosureAt(nx, ny) || this.taken(nx, ny)) continue;
         const e: Edge = dx ? { o: 'v', x: x + Math.max(0, dx), y } : { o: 'h', x, y: y + Math.max(0, dy) };
         const kind = this.grid.getEdge(e);
-        // het hek dicht bij het dier; wie duwt, kiest liefst een hek dat kapot kan (geen steen), wie glipt liefst een poort
+        if (way === 'push' && !pushable(kind)) continue;
+        // het hek dicht bij het dier; wie glipt, kiest liefst een poort
         const likes = (way === 'push' && pushable(kind)) || (way === 'slip' && (kind === 2 || kind === 8));
         const score = Math.hypot(x + 0.5 - a.gx, y + 0.5 - a.gy) + Math.random() * 0.8 - (likes ? 1.5 : 0);
         if (!best || score < best.score) best = { x: nx, y: ny, d: dx + dy, e, score };
