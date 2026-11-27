@@ -348,10 +348,27 @@
  "fence": [
   "fence-1-1fa13d.mp3"
  ],
+ "firework.bang": [
+  "firework.bang-1-dc162d.mp3",
+  "firework.bang-2-dc162d.mp3",
+  "firework.bang-3-dc162d.mp3"
+ ],
+ "firework.big": [
+  "firework.big-1-c5704a.mp3",
+  "firework.big-2-c5704a.mp3"
+ ],
+ "firework.launch": [
+  "firework.launch-1-f40988.mp3",
+  "firework.launch-2-f40988.mp3"
+ ],
  "flush": [
   "flush-1-5c0550.mp3",
   "flush-2-5c0550.mp3",
   "flush-3-5c0550.mp3"
+ ],
+ "gate.open": [
+  "gate.open-1-d3ee0d.mp3",
+  "gate.open-2-d3ee0d.mp3"
  ],
  "guest.aah": [
   "guest.aah-1-ce0580.mp3",
@@ -535,6 +552,13 @@
  "pour": [
   "pour-1-b9eb8e.mp3"
  ],
+ "ride.bell": [
+  "ride.bell-1-80e14f.mp3"
+ ],
+ "ride.bigsplash": [
+  "ride.bigsplash-1-f411b4.mp3",
+  "ride.bigsplash-2-f411b4.mp3"
+ ],
  "ride.boing": [
   "ride.boing-1-25cdb8.mp3",
   "ride.boing-2-25cdb8.mp3",
@@ -545,9 +569,35 @@
   "ride.bump-2-0ed647.mp3",
   "ride.bump-3-0ed647.mp3"
  ],
+ "ride.burner": [
+  "ride.burner-1-7a608f.mp3",
+  "ride.burner-2-7a608f.mp3"
+ ],
+ "ride.chain": [
+  "ride.chain-1-7ed94c.mp3",
+  "ride.chain-2-7ed94c.mp3"
+ ],
  "ride.creak": [
   "ride.creak-1-35ca0f.mp3",
   "ride.creak-2-35ca0f.mp3"
+ ],
+ "ride.horn": [
+  "ride.horn-1-0dbaf1.mp3"
+ ],
+ "ride.jeep": [
+  "ride.jeep-1-9fb8cd.mp3",
+  "ride.jeep-2-9fb8cd.mp3"
+ ],
+ "ride.organ": [
+  "ride.organ-1-69521e.mp3"
+ ],
+ "ride.rush": [
+  "ride.rush-1-44946a.mp3",
+  "ride.rush-2-44946a.mp3"
+ ],
+ "ride.swoosh": [
+  "ride.swoosh-1-528607.mp3",
+  "ride.swoosh-2-528607.mp3"
  ],
  "road.bell": [
   "road.bell-1-1f618b.mp3",
@@ -597,6 +647,10 @@
  ],
  "train.toot": [
   "train.toot-1-b2c12c.mp3"
+ ],
+ "tunnel.bubbles": [
+  "tunnel.bubbles-1-248696.mp3",
+  "tunnel.bubbles-2-248696.mp3"
  ],
  "walk.step": [
   "walk.step-1-f26915.mp3"
