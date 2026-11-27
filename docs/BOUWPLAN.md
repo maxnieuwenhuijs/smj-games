@@ -320,6 +320,15 @@ Naast de speeltuin (level 10) zijn er vijf losse toestellen van 2 bij 2 tegels. 
 | Wipkip | 5 | 24 | 2 | Twee kippen op een veer die hobbelen |
 | Trampoline | 8 | 29 | 2 | Springen met de armen omhoog |
 | Klimkasteel | 20 | 27 | 10 | Een heel parcours over vier torentjes, en de glijbaan af (zie 'Het klimkasteel') |
+| Zandbak | 4 | 11 | 4 | Scheppen in het zand, en op de graafmachine (zie 'De grote speeltuin') |
+| Draaimolentje | 5 | 15 | 4 | Aan de stang op een draaiend plateau |
+| Nestschommel | 6 | 18 | 3 | Met zijn drieen half liggend in een groot nest dat zwaait |
+| Ballenbak | 8 | 22 | 4 | Tussen de ballen: ballen gooien en onderduiken |
+| Waterspeeltuin | 12 | 25 | 6 | Pompen, en door de fonteintjes springen |
+| Springkussen | 14 | 29 | 5 | Springen in een opgeblazen kasteel |
+| Kruipheuvel | 10 | 31 | 5 | De stapstenen op, de glijbaan af en door de tunnel kruipen |
+| Tokkelbaan | 16 | 34 | 2 | Aan een zitje langs de kabel zoeven, een tegelijk |
+| Piratenschip | 25 | 38 | 6 | De loopplank op, naar het stuurwiel, de boeg of het kraaiennest, en de glijbaan af |
 
 Zit er niemand op, dan wiegt het toestel zachtjes; met een kind erop gaat het flink heen en weer. Twee kinderen zitten nooit op hetzelfde zitje. Alle speeltoestellen tellen samen als plek om te spelen (de gastvrouw vraagt pas om meer als het bij allemaal te druk is).
 
@@ -1042,6 +1051,21 @@ De proefspeler bouwt vaste verblijven van 3 bij 3. Sinds grote dieren elk apart 
 - **'s Nachts stil:** als het park dicht is (0 tot 7 uur) en er niemand meer op zit, zakt de fontein in acht tellen helemaal in (`RIDE_WAKE`), en om zeven uur komt hij net zo rustig weer op. De andere attracties staan dan al stil omdat er niemand is, de kabelbaan en de trein slapen zoals eerst.
 - **Wat de gasten missen:** in het overzicht bij de poort staat een vak met wat de gasten die nu in het park zijn missen, het meest gemiste bovenaan (hooguit zes): het plaatje van wat ze willen, hoeveel gasten, en een label. Oranje "erbij bouwen": er is nog geen kraam of gebouw voor. Blauw "niet te koop": de kraam is er wel, maar verkoopt dit niet. Rood "te druk": er staat een rij, er moet er een bij.
 - **Nog niet:** de nieuwe zin van de bouwer over de paal (`say.cable.path`) is nog niet ingesproken; tot dan praat hij op het klokje. Draai `node tools/voice/build.mjs all`.
+
+### De grote speeltuin (27 november)
+
+Negen nieuwe toestellen bij Attracties in de groep Speeltuin, allemaal met een eigen model, eigen bewegingen en eigen armen en benen voor de kinderen. Ze werken op dezelfde manier (`PLAYS` in `rides.ts`): een kind loopt naar zijn plekje (`to`), speelt daar een poosje (`spot`, dat beweegt met het toestel) en loopt via een eigen terugweg naar het pad (`from`). Op en van het plekje gaat het met een hupje, omdat het plekje zelf kan bewegen. Prijzen en levels staan in de tabel bij Speeltoestellen.
+
+- **Zandbak** (2 bij 2): een houten rand met zitplankjes, zand met hoopjes, een zandkasteel, een emmertje met een schep en een gele graafmachine. Drie kinderen zitten te scheppen; een vierde zit op de graafmachine en trekt aan de hendels, en de arm met de schep gaat dan op en neer.
+- **Waterspeeltuin** (3 bij 2): een blauwe tegelvloer met zes fonteintjes die om de beurt uit de grond spuiten, een groene pomp, een goot en een bassin. Een kind pompt (de zwengel gaat op en neer en er stromen druppels door de goot); de anderen springen van fonteintje naar fonteintje en spetteren met hun handen in het water.
+- **Tokkelbaan** (6 bij 2): een torentje met een ladder, een kabel die doorhangt, een paal met een veer en een zachte mat. Een kind gaat klaar zitten op het rode zitje, zoeft met de armen omhoog langs de kabel, landt op de mat en loopt terug. Er hangt er maar een tegelijk aan; de volgende wacht boven op het torentje. Het zitje hangt waar het kind is (`at` in de stand van het toestel) en rolt daarna vanzelf terug.
+- **Springkussen** (3 bij 3): een opgeblazen kasteel met vier torens, opgeblazen wanden en een blazer achterop. Vijf kinderen springen, elk in zijn eigen tempo, met de armen omhoog; het kussen deint mee en je hoort een boing.
+- **Piratenschip** (4 bij 3): een schip op een blauwe zee-mat met een loopplank, een reling, een mast met een kraaiennest en een touwladder, een zeil dat bolt, een vlag, een stuurwiel, een kanon en patrijspoorten. De kinderen gaan naar het stuurwiel (draaien), het kraaiennest (via de touwladder), de boeg (turen door de verrekijker), de reling (zwaaien naar het pad) of het kanon, en gaan daarna de glijbaan van het dek af.
+- **Draaimolentje** (2 bij 2): een rond plateau in vier kleuren met een paal en vier stangen. Het draait alleen met kinderen erop, komt rustig op gang en draait leeg langzaam uit; de kinderen hangen een beetje achterover als het hard gaat.
+- **Nestschommel** (2 bij 2): een A-frame met een groot rond nest aan vier touwen. Drie kinderen zitten half liggend in het nest, de handen aan de touwen, en zwaaien samen heen en weer.
+- **Ballenbak** (2 bij 2): een rond bad met een zachte gestreepte rand vol ballen in zes kleuren, een opstapje en een parasol achterin (zodat je de kinderen ziet). De kinderen gooien ballen omhoog (je ziet ze vliegen) en duiken af en toe onder.
+- **Kruipheuvel** (3 bij 3): een grasheuvel met bloemetjes, stapstenen omhoog, een vlag bovenop, een glijbaan eraf en een oranje tunnel dwars erdoorheen. De kinderen klimmen naar boven, kijken rond of zwaaien, gaan de glijbaan af, en de helft kruipt daarna nog door de tunnel naar de andere kant.
+- **Namen in de code:** `sandbox`, `splash`, `zipline`, `bouncy`, `pirate`, `roundabout`, `nestswing`, `ballpit` en `crawlhill` (de nestschommel en de heuvel heten niet `nest` en `hill`, want die namen hebben de nestslaapplek en het speelheuveltje al). Tests in `rides.test.ts` ('de grote speeltuin').
 
 ### Het klimkasteel (27 november)
 

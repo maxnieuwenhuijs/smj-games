@@ -713,3 +713,44 @@ describe('het klimkasteel', () => {
     expect(s.amp).toBeGreaterThan(0.9);
   });
 });
+
+describe('de grote speeltuin', () => {
+  const KINDS: RideKind[] = ['sandbox', 'splash', 'zipline', 'bouncy', 'pirate', 'roundabout', 'nestswing', 'ballpit', 'crawlhill'];
+
+  it('elk kind speelt op zijn eigen plekje, binnen de tegels van het toestel en nooit onder de grond', () => {
+    for (const kind of KINDS) {
+      const [w, d] = RIDE_SPAN[kind], s = newRide(kind), p = newPose();
+      for (let t = 0; t < 12; t += 0.5) {
+        rideStep(kind, s, 0.5, (1 << RIDE_SEATS[kind]) - 1);
+        const spots = new Set<string>();
+        for (let seat = 0; seat < RIDE_SEATS[kind]; seat++) {
+          seatPose(p, kind, seat, s);
+          expect(Math.abs(p.x), `${kind} ${seat}`).toBeLessThan(w / 2);
+          expect(Math.abs(p.z), `${kind} ${seat}`).toBeLessThan(d / 2);
+          expect(p.h, `${kind} ${seat}`).toBeGreaterThanOrEqual(0);
+          spots.add(`${p.x.toFixed(2)},${p.z.toFixed(2)},${p.h.toFixed(2)}`);
+        }
+        // (in de waterspeeltuin kunnen twee springers heel even langs hetzelfde fonteintje komen, en aan de tokkelbaan
+        // zit maar een kind tegelijk klaar: zie de test hieronder)
+        if (kind !== 'splash' && kind !== 'zipline') expect(spots.size, kind).toBe(RIDE_SEATS[kind]);
+      }
+    }
+  });
+
+  it('aan de tokkelbaan hangt er maar een tegelijk: wie later komt, wacht boven op het torentje', () => {
+    const s = newRide('zipline'), a = planVisit('zipline', s, 0, -2, 1.5)!, b = planVisit('zipline', s, 1 << a.seat, -2, 1.5)!;
+    expect(b.seat).not.toBe(a.seat);
+    expect(b.walk + b.wait).toBeGreaterThanOrEqual(a.walk + a.wait + a.ride);
+  });
+
+  it('het draaimolentje draait alleen met kinderen erop, en de nestschommel zwaait dan pas flink', () => {
+    const r = newRide('roundabout');
+    run('roundabout', r, 4);
+    expect(r.spin).toBeCloseTo(0, 6);
+    run('roundabout', r, 4, 1);
+    expect(r.spin).toBeGreaterThan(1);
+    const n = newRide('nestswing');
+    run('nestswing', n, 4, 1);
+    expect(n.amp).toBeGreaterThan(0.9);
+  });
+});

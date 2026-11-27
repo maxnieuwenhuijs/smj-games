@@ -5,7 +5,7 @@ import { PLUSH, PRODUCTS, SEEK_REACH, STALLS, type FoodId, type ShopKind } from 
 import { Grid, H, W, tileIndex, tileXY } from './grid';
 import { DARK_FUN, LOOKS, PETTING_GUESTS, PLAY, RIDES, SAFARI, SUIT_COLORS, TRAIN, isPath } from './data';
 import { SHOW_ROWS, SHOW_TIME } from './data';
-import { CLIMB_DO, FOUNTAIN, RIDE_KINDS, RIDE_SEATS, isRide, newPose, planVisit, rideLocal, visitAge, visitOff, visitPose, visitTime, type RideState, type Visit } from './rides';
+import { CLIMB_DO, FOUNTAIN, PIRATE, ZIP_START, RIDE_KINDS, RIDE_SEATS, isRide, newPose, planVisit, rideLocal, visitAge, visitOff, visitPose, visitTime, type RideState, type Visit } from './rides';
 import { CABLE, cableAt, cablePassed, cableStop, type CablePath, type CableSeat } from './cable';
 import { isRail } from './data';
 import { railAt, railClaim, railNear, railNext, railSpeed, type RailRoute, type RailStop } from './rails';
@@ -809,6 +809,7 @@ const RIDE_TURN = new THREE.Euler(0, 0, 0, 'YXZ');
 /** Zo lang duurt het voor een gast geholpen is. Op de tribune blijft hij zitten tot de show voorbij is. */
 const SERVE_TIME: Partial<Record<ShopKind, number>> = {
   foodstall: 6, drinkstall: 6, icecream: 6, balloon: 4, hats: 4, souvenir: 4, toilet: 9, bench: 8, playground: 6, carousel: 8, fountain: 4, slide: 6, swing: 7, seesaw: 7, springer: 6, trampoline: 6, climber: 20,
+  sandbox: 10, splash: 11, zipline: 12, bouncy: 9, pirate: 14, roundabout: 9, nestswing: 10, ballpit: 10, crawlhill: 14,
   tower: 9, restaurant: 11, ferris: 14, bumper: 10, shelter: 4, station: 4, umbrellas: 2, show: 4, cablecar: 4, facepaint: 7,
   swinger: 16, ship: 20, airballoon: 21, flume: 22, coaster: 20, candy: 6, safari: 4,
 };
@@ -2197,6 +2198,11 @@ export class Guest implements Leader {
     m.quaternion.setFromEuler(RIDE_TURN.set(p.pitch + this.lean - 0.14 * jolt, turn + p.face + this.twist + look, p.roll + this.tilt + Math.sin(this.phase * 2.6) * 0.16 * jolt));
     this.heading = turn + p.face;
     this.aboard = p.on;
+    if (visit.kind === 'zipline') {
+      // het zitje hangt waar het kind zit: klaar bij het torentje, en zoevend langs de kabel
+      ride.at ??= [];
+      ride.at[visit.seat] = p.on && p.act === 'sit' ? p.x : NaN;
+    }
     this.offRide = visitOff(visit, ride);
     this.rideX = cx + p.x * cos + p.z * sin;
     this.rideY = cy - p.x * sin + p.z * cos;
@@ -2330,6 +2336,118 @@ export class Guest implements Leader {
         this.arms(-2.7 * jump * (1 - bum) - 0.5 * bum);
         break;
       }
+      case 'sandbox':
+        // in het zand: scheppen met de handen, of op de graafmachine aan de hendels trekken
+        this.legs(-1.4 * k);
+        if (!p.on) break;
+        if (p.h > 0.2) {
+          limbs[2].rotation.x = -1.1 - p.u * 0.5;
+          limbs[3].rotation.x = -1.1 + p.u * 0.5;
+        } else {
+          limbs[2].rotation.x = -0.6 - p.u * 1.1;
+          limbs[3].rotation.x = -0.6 - (1 - p.u) * 1.1;
+          head.rotation.x = 0.35;
+        }
+        break;
+      case 'splash':
+        if (!p.on) break;
+        if (this.seat === 0) {
+          // aan de pomp: de zwengel op en neer
+          limbs[2].rotation.x = limbs[3].rotation.x = -1.2 - p.u * 0.8;
+        } else if (p.act === 'jump') {
+          // een sprong door het water, met de armen omhoog en de knieen op
+          if (!this.rideMark && p.u > 0.1 && this.seat % 2) this.cue = 'guest.laugh';
+          this.rideMark = 1;
+          this.arms(-2.6 * p.u - 0.3);
+          this.legs(-0.7 * p.u);
+        } else {
+          // in een fonteintje staan spetteren: de handen in het water en lachend omhoog kijken
+          this.rideMark = 0;
+          limbs[2].rotation.set(-0.4, 0, -0.9 + Math.sin(this.phase * 1.4) * 0.4);
+          limbs[3].rotation.set(-0.4, 0, 0.9 - Math.sin(this.phase * 1.4) * 0.4);
+          head.rotation.x = -0.35;
+        }
+        break;
+      case 'zipline':
+        // klaar op het zitje en zoeven: de handen boven het hoofd aan het touw, de benen bungelen
+        if (p.act !== 'sit' && p.act !== 'stand') break;
+        this.legs((-0.9 + Math.sin(this.phase * 0.5 + this.seat) * 0.25) * k);
+        if (k > 0.5) this.arms(-2.95);
+        if (p.on && p.x > ZIP_START + 0.2 && p.act === 'sit') {
+          if (!this.rideMark) this.cue = 'guest.whee';
+          this.rideMark = 1;
+        } else this.rideMark = 0;
+        break;
+      case 'bouncy':
+        // springen op het kussen: de armen omhoog als je hoog bent, het geluidje als je neerkomt
+        if (!p.on || p.act !== 'jump') break;
+        if (p.u < 0.15 && !this.rideMark) this.cue = 'ride.boing';
+        this.rideMark = p.u < 0.15 ? 1 : 0;
+        this.legs(0.4 * (1 - p.u));
+        this.arms(-2.7 * p.u - 0.2);
+        break;
+      case 'pirate': {
+        // aan het stuurwiel draaien, uitkijken in het kraaiennest, door de verrekijker turen of zwaaien naar het pad
+        if (p.act === 'slide') {
+          if (!this.rideMark) this.cue = 'guest.whee';
+          this.rideMark = 1;
+          this.legs(-1.35);
+          this.arms(-2.8);
+          break;
+        }
+        this.rideMark = 0;
+        this.legs((p.act === 'sit' ? -1.35 : 0) * k);
+        if (!p.on || p.act !== 'stand' || p.h < PIRATE.deck - 0.05) break;
+        const job = visit.seat;
+        if (job === 0) {
+          limbs[2].rotation.x = -1.4 + Math.sin(this.phase * 0.5) * 0.4;
+          limbs[3].rotation.x = -1.4 - Math.sin(this.phase * 0.5) * 0.4;
+        } else if (job === 1 || job === 2) {
+          this.arms(-2.25);
+          limbs[2].rotation.z = -0.5;
+          limbs[3].rotation.z = 0.5;
+          this.spy();
+        } else if (job === 3) this.wave(limbs[2], -2.5);
+        else limbs[3].rotation.x = -1.6 + p.u * 0.3;
+        break;
+      }
+      case 'roundabout':
+        // de handen aan de stang, en als het hard gaat een beetje achterover hangen en juichen
+        if (!p.on) break;
+        this.arms(-1.35);
+        if (p.u > 0.8 && this.seat % 2) head.rotation.x = -0.35;
+        break;
+      case 'nestswing':
+        // half liggend in het nest: de benen naar voren, de handen aan het touw, lachend naar boven
+        this.legs(-1.2 * k);
+        if (!p.on) break;
+        limbs[2].rotation.set(-2.4, 0, -0.35);
+        limbs[3].rotation.set(-2.4, 0, 0.35);
+        head.rotation.x = -0.3;
+        break;
+      case 'ballpit':
+        // tussen de ballen: ballen omhoog gooien, en af en toe onderduiken
+        this.legs(-1.4 * k);
+        if (!p.on) break;
+        if (p.w > 0.2) this.arms(-2.9);
+        else {
+          limbs[2].rotation.x = -0.5 - p.u * 2.2;
+          limbs[3].rotation.x = -0.5 - (1 - p.u) * 2.2;
+        }
+        break;
+      case 'crawlhill':
+        // de glijbaan af met de armen in de lucht; boven op de heuvel zwaaien of rondkijken
+        if (p.act === 'slide') {
+          if (!this.rideMark) this.cue = 'guest.whee';
+          this.rideMark = 1;
+          this.legs(-1.35);
+          this.arms(-2.8);
+          break;
+        }
+        this.rideMark = 0;
+        this.legs((p.act === 'sit' ? -1.35 : 0) * k);
+        if (p.on && p.act === 'stand' && p.h > 0.8 && this.seat % 2 === 0) this.wave(limbs[3], -2.4);
+        break;
       case 'climber': {
         // de glijbaan af met de armen in de lucht; boven op de grote toren draaien de een aan het stuurwiel, zwaait een
         // ander naar de mensen op het pad en kijkt een derde door zijn handen als een verrekijker
