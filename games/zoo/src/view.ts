@@ -1,6 +1,6 @@
 // Het beeld: isometrische camera, tegels, hekken, voerbakken en het voorbeeld van wat je gaat plaatsen.
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   SAFARI, FENCE_COLORS, BEDS, SHOPS, SHOP_SIZE, SHOP_DEEP, onEdge, shopSpan, TERRAINS, type BedKind, type FoodId, type ShopKind, type WorldId, TOYS, type ToyKind, DECORS, type DecorKind, type TroughKind,
   RESTAURANT_TABLES, SHOW_ROWS, STALLS, STRING_HEIGHT, STRING_REACH, TOY_LIFT, TOY_PIVOT, SWING, TRAIN, isPath, type Season, type Sky, PROP, PROPS, type PropKind,
@@ -833,7 +833,7 @@ const leafy = (mat: THREE.MeshStandardMaterial, pink = false): THREE.MeshStandar
 };
 leafy(LEAF_MAT);
 leafy(LEAF2);
-const CHERRY_A = leafy(std(0xf7b6cf, 1), true), CHERRY_B = leafy(std(0xf48fb1, 1), true);
+const CHERRY_B = leafy(std(0xf48fb1, 1), true), CHERRY_C = leafy(std(0xfdeaf2, 1), true);
 // een palm en een cactus blijven het hele jaar groen
 const PALM_MAT = std(0x5fa544, 1), CACTUS_MAT = std(0x468f3e, 1);
 /** Bloesem op sommige bomen: alleen in de lente te zien. */
@@ -886,37 +886,241 @@ function leafTone(mat: THREE.MeshStandardMaterial, i: number): THREE.MeshStandar
 // Kruinen van de loofboom en de den in drie vormen; elke boom kiest er een (zie View.varyTree). De loofboom
 // heeft licht blad bovenop en een paar donkere bollen eronder.
 type Blob = [number, number, number, number];
+// ------------------------------------------------------------ zacht, grillig blad
+// Kruinen, struiken, de heg en de bloemenboog zijn geen losse bollen meer maar één zachte vorm met bobbels van
+// blad, en het licht en donker zit in de vorm zelf (de kleur per hoekpunt, maal de kleur van het materiaal).
+/** Bobbels van blad: een getal tussen -1 en 1 dat rustig verandert met de plek; `k` geeft een ander patroon. */
+const leafLump = (x: number, y: number, z: number, k = 0): number =>
+  Math.sin(x + k * 1.3) * Math.sin(y + k * 2.1) * Math.sin(z + k * 0.7) * 0.65 + Math.sin(x * 0.53 + y * 0.71 + k) * Math.sin(z * 0.61 - y * 0.47 + k * 1.9) * 0.35;
+/**
+ * De kleur van een hoekpunt van blad, als deel van de kleur van het materiaal: `h` is 0 onderin en 1 bovenop, `b`
+ * de bobbel (-1 in een dal, 1 op een bult). Onderin en in de dalen donker, bovenop licht en iets geler.
+ */
+const leafShade = (out: number[], h: number, b: number, dark = 0.4): void => {
+  const k = Math.min(1, Math.max(0, h)), m = Math.min(1, Math.max(0.42, 1 - dark * Math.pow(1 - k, 1.4) + b * 0.17 - 0.08));
+  out.push(m * (0.88 + 0.12 * k), m, m * (1 - 0.2 * k));
+};
+/** Blad met licht en donker in de vorm zelf; kleurt net als het andere blad mee met de seizoenen. */
+const leafMat = (hex: number, pink = false): THREE.MeshStandardMaterial => leafy(new THREE.MeshStandardMaterial({ color: hex, roughness: 1, vertexColors: true }), pink);
+const CROWN_MAT = leafMat(0x72c152), BUSH_MAT = leafMat(0x5fb048), PINE_MAT = leafMat(0x4fa04a), CHERRY_MAT = leafMat(0xfab5ce, true);
+interface LeafLook { detail?: number; bumps?: number; grain?: number; soft?: number; seed?: number; dark?: number }
+/**
+ * De vorm van een kruin of struik: de bollen in `blobs` smelten in elkaar over tot één zachte vorm. `at` geeft voor
+ * een richting vanuit het midden `c` het punt op het oppervlak en de bobbel daar; `low` en `high`: onder- en bovenkant.
+ */
+function canopyShape(blobs: Blob[], look: LeafLook = {}): { at: (dx: number, dy: number, dz: number) => [number, number, number, number]; c: P3; low: number; high: number } {
+  const { bumps = 0.09, grain = 9, soft = 3.2, seed = 0 } = look;
+  let cx = 0, cy = 0, cz = 0, w = 0, far = 0, low = Infinity, high = -Infinity;
+  for (const [r, x, y, z] of blobs) {
+    const m = r * r * r;
+    cx += x * m;
+    cy += y * m;
+    cz += z * m;
+    w += m;
+    low = Math.min(low, y - r);
+    high = Math.max(high, y + r);
+  }
+  cx /= w;
+  cy /= w;
+  cz /= w;
+  for (const [r, x, y, z] of blobs) far = Math.max(far, Math.hypot(x - cx, y - cy, z - cz) + r * 1.4);
+  const field = (px: number, py: number, pz: number): number => {
+    let f = 0;
+    for (const [r, x, y, z] of blobs) f += Math.exp(-soft * (((px - x) ** 2 + (py - y) ** 2 + (pz - z) ** 2) / (r * r) - 1));
+    return f;
+  };
+  const at = (dx: number, dy: number, dz: number): [number, number, number, number] => {
+    // van buiten naar binnen tot we de vorm raken, en dan precies zoeken
+    const step = far / 48;
+    let t = far;
+    while (t > step && field(cx + dx * t, cy + dy * t, cz + dz * t) < 1) t -= step;
+    let a = t, b = t + step;
+    for (let i = 0; i < 7; i++) {
+      const m = (a + b) / 2;
+      if (field(cx + dx * m, cy + dy * m, cz + dz * m) >= 1) a = m;
+      else b = m;
+    }
+    // grote bobbels met kleinere eroverheen
+    const bump = leafLump(dx * grain, dy * grain, dz * grain, seed) * 0.7 + leafLump(dx * grain * 2.3, dy * grain * 2.3, dz * grain * 2.3, seed + 5) * 0.3, out = a * (1 + bumps * bump);
+    return [cx + dx * out, cy + dy * out, cz + dz * out, bump];
+  };
+  return { at, c: [cx, cy, cz], low, high };
+}
+/** Een kruin of struik als één zachte vorm (zie canopyShape), met licht en donker in de kleur per hoekpunt. */
+function canopy(blobs: Blob[], look: LeafLook = {}): THREE.BufferGeometry {
+  const ico = new THREE.IcosahedronGeometry(1, look.detail ?? 5);
+  ico.deleteAttribute('uv');
+  ico.deleteAttribute('normal');
+  const geo = mergeVertices(ico, 1e-4), pos = geo.getAttribute('position'), shape = canopyShape(blobs, look), colors: number[] = [];
+  for (let i = 0; i < pos.count; i++) {
+    const [x, y, z, b] = shape.at(pos.getX(i), pos.getY(i), pos.getZ(i));
+    pos.setXYZ(i, x, y, z);
+    leafShade(colors, (y - shape.low) / (shape.high - shape.low), b, look.dark);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+/**
+ * Een omwentelingsvorm rond de y-as met bobbels: `at(v, a)` geeft op deel v (0 tot 1) en hoek a de straal, de
+ * hoogte, de bobbel en hoe licht het daar is (0 donker tot 1 licht).
+ */
+function lathe(rows: number, cols: number, at: (v: number, a: number) => [number, number, number, number], dark = 0.4): THREE.BufferGeometry {
+  const pos: number[] = [], colors: number[] = [], idx: number[] = [];
+  for (let i = 0; i <= rows; i++)
+    for (let j = 0; j < cols; j++) {
+      const a = (j / cols) * Math.PI * 2, [r, y, b, h] = at(i / rows, a);
+      pos.push(Math.sin(a) * r, y, Math.cos(a) * r);
+      leafShade(colors, h, b, dark);
+    }
+  for (let i = 0; i < rows; i++)
+    for (let j = 0; j < cols; j++) {
+      const j2 = (j + 1) % cols, a = i * cols + j, b = (i + 1) * cols + j, c = (i + 1) * cols + j2, d = i * cols + j2;
+      idx.push(a, d, b, d, c, b);
+    }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+/**
+ * Een slinger van blad langs een rij punten: om elk punt een ring van `ring` hoekpunten. `side` staat overal dwars
+ * op de lijn; `radius(s, a)` geeft op deel s van de lijn en hoek a de dikte en de bobbel. Geeft ook `at(i, a)`: het
+ * punt op de slinger bij punt i en hoek a, en de richting naar buiten (om er een bloem op te zetten).
+ */
+function leafVine(pts: P3[], closed: boolean, side: P3, ring: number, radius: (s: number, a: number) => [number, number], dark = 0.4): { geo: THREE.BufferGeometry; at: (i: number, a: number) => [P3, P3] } {
+  const n = pts.length, S = new THREE.Vector3(...side), pos: number[] = [], bumps: number[] = [], colors: number[] = [], idx: number[] = [];
+  const at = (i: number, a: number): [P3, P3] => {
+    const p0 = pts[closed ? (i - 1 + n) % n : Math.max(0, i - 1)], p1 = pts[closed ? (i + 1) % n : Math.min(n - 1, i + 1)];
+    const t = new THREE.Vector3(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]).normalize(), n1 = new THREE.Vector3().crossVectors(S, t).normalize();
+    const [rad, bump] = radius(i / (closed ? n : n - 1), a), c = Math.cos(a), d = Math.sin(a), out: P3 = [n1.x * c + S.x * d, n1.y * c + S.y * d, n1.z * c + S.z * d];
+    bumps.push(bump);
+    return [[pts[i][0] + out[0] * rad, pts[i][1] + out[1] * rad, pts[i][2] + out[2] * rad], out];
+  };
+  for (let i = 0; i < n; i++) for (let j = 0; j < ring; j++) pos.push(...at(i, (j / ring) * Math.PI * 2)[0]);
+  let low = Infinity, high = -Infinity;
+  for (let i = 1; i < pos.length; i += 3) {
+    low = Math.min(low, pos[i]);
+    high = Math.max(high, pos[i]);
+  }
+  for (let i = 0; i < pos.length / 3; i++) leafShade(colors, high > low + 0.1 ? (pos[i * 3 + 1] - low) / (high - low) : 0.75, bumps[i], dark);
+  for (let i = 0; i < (closed ? n : n - 1); i++)
+    for (let j = 0; j < ring; j++) {
+      const i2 = (i + 1) % n, j2 = (j + 1) % ring, a = i * ring + j, b = i2 * ring + j, c = i2 * ring + j2, d = i * ring + j2;
+      idx.push(a, d, b, d, c, b);
+    }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return { geo, at };
+}
+/** `n` richtingen netjes verdeeld over een bol, van hoogte `from` (1 = recht omhoog) tot `to` (-1 = recht omlaag). */
+const spiral = (n: number, from = 1, to = 0): P3[] => Array.from({ length: n }, (_, i): P3 => {
+  const y = from + ((i + 0.5) / n) * (to - from), r = Math.sqrt(Math.max(0, 1 - y * y)), a = i * 2.39996;
+  return [Math.cos(a) * r, y, Math.sin(a) * r];
+});
+
+// De kruin van een loofboom: drie vormen, elk een paar bollen die in elkaar overlopen.
 const TREE_BLOBS: Blob[][] = [
-  [[0.36, 0, 0.95, 0], [0.27, 0.22, 1.2, 0.08], [0.23, -0.18, 1.2, -0.12], [0.2, 0.02, 1.43, -0.02], [0.2, -0.06, 1.0, 0.27], [0.19, 0.1, 1.02, -0.27]],
-  [[0.32, 0, 0.92, 0], [0.28, 0.02, 1.24, 0.02], [0.19, 0, 1.52, 0], [0.2, 0.2, 1.06, 0.14], [0.19, -0.2, 1.1, -0.12], [0.15, 0.08, 1.4, -0.14]],
-  [[0.34, -0.14, 0.9, 0.06], [0.32, 0.18, 0.94, -0.08], [0.25, 0.02, 1.16, 0], [0.2, -0.02, 0.96, 0.28], [0.19, 0.04, 1.0, -0.28], [0.17, -0.22, 1.16, -0.1]],
+  [[0.36, 0, 0.95, 0], [0.27, 0.22, 1.2, 0.08], [0.23, -0.18, 1.2, -0.12], [0.2, 0.02, 1.43, -0.02], [0.2, -0.06, 1.0, 0.27], [0.19, 0.1, 1.02, -0.27], [0.3, -0.2, 0.84, 0.12], [0.26, 0.22, 0.82, -0.14]],
+  [[0.32, 0, 0.92, 0], [0.28, 0.02, 1.24, 0.02], [0.19, 0, 1.52, 0], [0.2, 0.2, 1.06, 0.14], [0.19, -0.2, 1.1, -0.12], [0.3, 0.08, 0.78, -0.1], [0.2, -0.16, 1.06, 0.14]],
+  [[0.34, -0.14, 0.9, 0.06], [0.32, 0.18, 0.94, -0.08], [0.25, 0.02, 1.16, 0], [0.2, -0.02, 0.96, 0.28], [0.19, 0.04, 1.0, -0.28], [0.26, -0.3, 0.76, -0.1], [0.26, 0.28, 0.78, 0.14]],
 ];
-const TREE_SHADE_BLOBS: Blob[][] = [
-  [[0.3, -0.2, 0.84, 0.12], [0.26, 0.22, 0.82, -0.14], [0.18, 0.06, 0.76, 0.3]],
-  [[0.3, 0.08, 0.78, -0.1], [0.2, -0.16, 1.06, 0.14], [0.18, -0.2, 0.8, -0.14]],
-  [[0.26, -0.3, 0.76, -0.1], [0.26, 0.28, 0.78, 0.14], [0.2, 0, 0.74, 0.26], [0.18, 0.06, 0.76, -0.3]],
+const treeLook = (i: number): LeafLook => ({ detail: 6, bumps: 0.17, grain: 8, seed: 1 + i * 3, dark: 0.48 });
+const TREE_SHAPES = TREE_BLOBS.map((blobs, i) => canopyShape(blobs, treeLook(i)));
+const TREE_CROWNS = TREE_BLOBS.map((blobs, i) => canopy(blobs, treeLook(i)));
+/** Kleine ronde dingen op een kruin (appels, bloesem): op het oppervlak, in de gegeven richtingen. */
+const onCrown = (shape: { at: (dx: number, dy: number, dz: number) => [number, number, number, number] }, dirs: P3[], r: number): THREE.BufferGeometry =>
+  merge(dirs.map(d => {
+    const [x, y, z] = shape.at(...d);
+    return new THREE.SphereGeometry(r, 6, 4).translate(x, y, z);
+  }));
+// appels rondom, halverwege de kruin: de helft van de loofbomen draagt ze (zie varyTree)
+const TREE_APPLES = TREE_SHAPES.map(shape => onCrown(shape, spiral(10, 0.4, -0.5), 0.045));
+const APPLE_MAT = std(0xd8362e, 0.5);
+// bloesem: kleine roze bolletjes over de bovenkant van de kruin (alleen in de lente te zien)
+const TREE_BLOSSOMS = TREE_SHAPES.map(shape => onCrown(shape, spiral(26, 0.96, -0.25), 0.05));
+// De den: per vorm de lagen, [breedte, hoogte, midden, draaiing]. Elke laag is een rok met een golvende rand,
+// bovenaan licht en naar de rand toe donker.
+const PINE_TIERS: [number, number, number, number][][] = [
+  [[0.42, 0.5, 0.5, 0], [0.34, 0.46, 0.8, 0.5], [0.25, 0.42, 1.08, 1], [0.15, 0.36, 1.34, 1.5]],
+  [[0.34, 0.55, 0.56, 0], [0.28, 0.5, 0.9, 0.5], [0.21, 0.46, 1.22, 1], [0.14, 0.4, 1.5, 1.5], [0.08, 0.3, 1.72, 2]],
+  [[0.46, 0.6, 0.56, 0], [0.36, 0.55, 0.94, 0.5], [0.24, 0.48, 1.28, 1]],
 ];
-const TREE_CROWNS = TREE_BLOBS.map(blobs => merge(blobs.map(b => ball(...b))));
-const TREE_SHADES = TREE_SHADE_BLOBS.map(blobs => merge(blobs.map(b => ball(...b))));
-// bloesem: kleine roze bolletjes boven op elke bol van de kruin
-const TREE_BLOSSOMS = TREE_BLOBS.map(blobs => merge(blobs.flatMap(([r, x, y, z], i) => [0, 1, 2, 3].map(k => {
-  const a = k * 1.7 + i * 0.9, lift = 0.3 + 0.35 * (k % 2), out = r * Math.cos(lift);
-  return ball(0.06, x + Math.cos(a) * out, y + r * Math.sin(lift), z + Math.sin(a) * out);
-}))));
-// een laag van een den: een kegel met een bredere rok eronder, een stukje gedraaid, zodat de takken in lagen uitsteken
-const pineTier = (r: number, h: number, y: number, turn = 0): THREE.BufferGeometry =>
-  merge([cone(r, h, 0, y, 0, 9).rotateY(turn), cone(r * 1.12, h * 0.5, 0, y - h * 0.27, 0, 9).rotateY(turn + 0.35)]);
-const PINE_CROWNS = [
-  merge([pineTier(0.42, 0.5, 0.5), pineTier(0.34, 0.46, 0.8, 0.5), pineTier(0.25, 0.42, 1.08, 1), pineTier(0.15, 0.36, 1.34, 1.5)]),
-  merge([pineTier(0.34, 0.55, 0.56), pineTier(0.28, 0.5, 0.9, 0.5), pineTier(0.21, 0.46, 1.22, 1), pineTier(0.14, 0.4, 1.5, 1.5), pineTier(0.08, 0.3, 1.72, 2)]),
-  merge([pineTier(0.46, 0.6, 0.56), pineTier(0.36, 0.55, 0.94, 0.5), pineTier(0.24, 0.48, 1.28, 1)]),
+const pineTier = ([r, h, y, turn]: [number, number, number, number]): THREE.BufferGeometry => {
+  const base = y - h / 2;
+  return lathe(8, 14, (v, a) => {
+    // eerst de onderkant van de rok (donker), dan van de golvende rand omhoog naar de punt
+    if (v < 0.2) return [r * 0.96 * (v / 0.2), base + 0.07 * (1 - v / 0.2), -0.8, 0];
+    const u = (v - 0.2) / 0.8, wave = Math.cos(7 * a + turn * 3), edge = (1 - u) * (1 - u);
+    return [r * Math.pow(1 - u, 1.1) * (1 + 0.14 * edge * wave) + 0.004, base + h * Math.pow(u, 0.85) - 0.03 * edge * (1 - wave), wave * edge * 0.7, 0.2 + 0.8 * u];
+  }, 0.5);
+};
+const PINE_CROWNS = PINE_TIERS.map(tiers => merge(tiers.map(pineTier)));
+// De kersenboom: één zachte roze kruin.
+const CHERRY_BLOBS: Blob[] = [
+  [0.38, 0, 0.9, 0], [0.26, -0.22, 1.08, -0.1], [0.26, 0.22, 1.16, 0.06], [0.16, 0.05, 1.36, -0.05], [0.18, -0.06, 1.24, 0.2],
+  [0.2, 0.26, 0.86, -0.16], [0.2, 0.05, 0.98, 0.3], [0.2, -0.3, 0.84, 0.12], [0.17, 0.28, 0.95, 0.2], [0.17, -0.02, 1.02, -0.3],
 ];
+const CHERRY_LOOK: LeafLook = { detail: 6, bumps: 0.16, grain: 8.5, seed: 5, dark: 0.32 };
+const CHERRY_SHAPE = canopyShape(CHERRY_BLOBS, CHERRY_LOOK);
+// De heg: een lange bolle rug met bobbels, precies een tegel lang; de bobbels sluiten aan op de heg ernaast.
+const HEDGE_W = 0.17, HEDGE_H = 0.5;
+/** Het punt op de heg op plek x (-0,5 tot 0,5) en deel p van de dwarsdoorsnede (0 = voor onderaan, 1 = achter onderaan). */
+const hedgeAt = (x: number, p: number): [number, number, number, number] => {
+  const phi = p * Math.PI, c = Math.cos(phi), w = Math.PI * 2 * x;
+  const b = 0.45 * Math.sin(w * 2 + 3 * phi) * Math.sin(4 * phi + w) + 0.33 * Math.sin(w * 5 - 5 * phi + 1) + 0.24 * Math.sin(w * 3 + 7 * phi + 2) + 0.2 * Math.sin(w * 8 + 9 * phi), k = 1 + 0.12 * b;
+  // (een geknipte heg: bijna recht aan de zijkanten en vlak bovenop, met ronde hoeken)
+  return [x, Math.pow(Math.sin(phi), 0.36) * HEDGE_H * k, Math.sign(c) * Math.pow(Math.abs(c), 0.36) * HEDGE_W * k, b];
+};
+function hedgeGeo(): THREE.BufferGeometry {
+  const nx = 24, np = 14, pos: number[] = [], colors: number[] = [], idx: number[] = [];
+  for (let i = 0; i <= nx; i++)
+    for (let j = 0; j <= np; j++) {
+      const [x, y, z, b] = hedgeAt(i / nx - 0.5, j / np);
+      pos.push(x, y, z);
+      leafShade(colors, y / HEDGE_H, b, 0.45);
+    }
+  for (let i = 0; i < nx; i++)
+    for (let j = 0; j < np; j++) {
+      const a = i * (np + 1) + j, b = a + np + 1, c = b + 1, d = a + 1;
+      idx.push(a, b, d, b, c, d);
+    }
+  // de twee kopse kanten: vlak, zodat een rij heggen netjes aansluit
+  for (const end of [-0.5, 0.5]) {
+    const first = pos.length / 3;
+    pos.push(end, 0.2, 0);
+    colors.push(0.6, 0.62, 0.55);
+    for (let j = 0; j <= np; j++) {
+      const [x, y, z] = hedgeAt(end, j / np);
+      pos.push(x, y, z);
+      colors.push(0.62, 0.66, 0.56);
+    }
+    for (let j = 0; j < np; j++) idx.push(first, end < 0 ? first + 1 + j : first + 2 + j, end < 0 ? first + 2 + j : first + 1 + j);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+// De buxus: een geknipte kegel met een spiraal erin, boven een kort stammetje.
+const topiaryGeo = (): THREE.BufferGeometry => lathe(30, 18, (v, a) => {
+  const y = 0.42 + 1.02 * v, groove = Math.cos(a - v * 19), close = Math.min(1, v / 0.05);
+  const r = (0.29 * Math.pow(1 - v, 0.85) + 0.012) * (0.87 + 0.13 * groove) * close * (1 + 0.03 * leafLump(a * 5, v * 40, 0, 2));
+  return [r, y, groove * 0.9, 0.15 + 0.85 * v];
+}, 0.42);
 /** Welke onderdelen van een boom blad zijn (die krijgen een eigen tint) en welke de kruin (die krijgt een eigen vorm). */
 const TREE_LOOK: Partial<Record<DecorKind, { leaf: number[]; crown: number[] }>> = {
-  tree: { leaf: [1, 2], crown: [1, 2] },
+  tree: { leaf: [1], crown: [1, 2] },
   pine: { leaf: [1], crown: [1] },
   palm: { leaf: [1], crown: [] },
-  cherry: { leaf: [1, 2], crown: [1, 2] },
+  cherry: { leaf: [1, 3], crown: [1, 3] },
   bamboogrove: { leaf: [0, 1], crown: [] },
   topiary: { leaf: [2], crown: [2] },
   cactus: { leaf: [0, 1], crown: [] },
@@ -2570,28 +2774,54 @@ const palmFrond = (i: number): THREE.BufferGeometry => {
 };
 const PALM_TRUNK: [P3, number][] = [[[0, 0, 0], 0.085], [[0.035, 0.3, 0], 0.078], [[0.05, 0.6, 0], 0.07], [[0.035, 0.88, 0], 0.062], [[0, 1.1, 0], 0.055]];
 // een roos: een knop met een donker hartje
-const rose = (x: number, y: number, z: number, color: number, heart: number): THREE.BufferGeometry[] => [
-  // vijf open blaadjes rondom, een donkerder hart en een knopje in het midden
-  ...[0, 1, 2, 3, 4].map(k => paint(blob(0.04, 1, 0.55, 1, x + Math.cos(k * 1.257 + x * 5) * 0.045, y - 0.008, z + Math.sin(k * 1.257 + x * 5) * 0.045, 0), color)),
-  paint(blob(0.05, 1, 0.9, 1, x, y + 0.012, z, 0), heart),
-  paint(dot(0.022, x, y + 0.05, z), color),
-];
-// een perkje: aarde met een bolling, in een lage rand van planken met vier paaltjes
-const flowerBed = (w: number, d: number): Part => [painted(
-  [0x4f3823, boxAt(w - 0.02, 0.05, d - 0.02, 0, 0.025, 0), blob(0.5, w * 0.9, 0.07, d * 0.8, 0, 0.045, 0, 0)],
-  [0xb07c45, ...[-1, 1].flatMap(k => [boxAt(w, 0.07, 0.028, 0, 0.035, k * (d / 2)), boxAt(0.028, 0.07, d, k * (w / 2), 0.035, 0)])],
-  [0x8a5a2c, ...[-1, 1].flatMap(kx => [-1, 1].map(kz => boxAt(0.05, 0.095, 0.05, kx * (w / 2), 0.0475, kz * (d / 2))))],
-), MATTE_MAT, false];
-// een tulp: een kelkje op een steel
-const tulip = (x: number, y: number, z: number, color: number, inside: number): THREE.BufferGeometry[] => [
-  // drie blaadjes die samen een kelk maken, met een donkerder hartje
-  ...[0, 1, 2].map(k => paint(blob(0.04, 0.85, 1.6, 0.85, x + Math.cos(k * 2.09 + x * 7) * 0.024, y + 0.005, z + Math.sin(k * 2.09 + x * 7) * 0.024, 0), color)),
-  paint(dot(0.026, x, y + 0.03, z), inside),
-];
-const TULIPS: [number, number, number, number, number][] = [-0.3, -0.15, 0, 0.15, 0.3].flatMap((x, i): [number, number, number, number, number][] => [
-  [x, 0.34, -0.08, [0xe0584f, 0xffd23f][i % 2], [0xb8403a, 0xe0a92a][i % 2]],
-  [x, 0.32, 0.08, [0xffd23f, 0xb06ad9][i % 2], [0xe0a92a, 0x8a4cb5][i % 2]],
+const petal = (r: number, sx: number, sy: number, sz: number): THREE.BufferGeometry => new THREE.SphereGeometry(r, 6, 4).scale(sx, sy, sz);
+/** Een open bloem die omhoog kijkt, het midden op nul: `n` ronde blaadjes om een hart. */
+const flower = (r: number, color: number, heart: number, n = 5): THREE.BufferGeometry => merge([
+  ...Array.from({ length: n }, (_, k) => paint(petal(r * 0.58, 1, 0.38, 0.78).translate(r * 0.62, 0, 0).rotateY((k * Math.PI * 2) / n), color)),
+  paint(petal(r * 0.4, 1, 0.7, 1).translate(0, r * 0.14, 0), heart),
 ]);
+/** Een roos die omhoog kijkt: vijf open blaadjes, drie rechtop daarbinnen en een knop in het midden. */
+const rose = (r: number, color: number, heart: number): THREE.BufferGeometry => merge([
+  ...[0, 1, 2, 3, 4].map(k => paint(petal(r * 0.6, 1, 0.42, 0.8).translate(r * 0.6, 0, 0).rotateZ(0.25).rotateY(k * 1.257), color)),
+  ...[0, 1, 2].map(k => paint(petal(r * 0.45, 1, 0.75, 0.7).translate(r * 0.26, r * 0.28, 0).rotateY(k * 2.094 + 0.5), heart)),
+  paint(petal(r * 0.3, 1, 1.1, 1).translate(0, r * 0.45, 0), color),
+]);
+/** Zet een vorm die omhoog kijkt op punt `p`, gekanteld naar richting `d`. */
+const aim = (g: THREE.BufferGeometry, p: P3, d: P3): THREE.BufferGeometry =>
+  g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, new THREE.Vector3(d[0], d[1], d[2]).normalize())).translate(p[0], p[1], p[2]);
+// een perkje: een ovaal bergje aarde; de rand van laag groen eromheen komt er als laatste onderdeel bij (bedRim)
+const flowerBed = (w: number, d: number): Part => [painted(
+  [0x4f3823, blob(0.5, w, 0.11, d, 0, 0.01, 0, 2)],
+  [0x3f2c1b, blob(0.5, w * 1.05, 0.05, d * 1.1, 0, 0, 0, 2)],
+), MATTE_MAT, false];
+const bedRim = (w: number, d: number, seed: number): Part => [leafVine(
+  Array.from({ length: 30 }, (_, i): P3 => [Math.cos((i / 30) * Math.PI * 2) * w * 0.5, 0.035, Math.sin((i / 30) * Math.PI * 2) * d * 0.5]), true, [0, 1, 0], 6,
+  (t, a) => {
+    const b = Math.sin(Math.PI * 2 * 6 * t + a + seed) * 0.6 + Math.sin(Math.PI * 2 * 11 * t - 2 * a + seed * 2) * 0.4;
+    return [0.04 * (1 + 0.3 * b), b];
+  }, 0.25).geo, BUSH_MAT, false];
+// de rozenstruik: een lage zachte struik, met de rozen op het oppervlak
+const ROSE_BLOBS: Blob[] = [[0.17, -0.3, 0.2, -0.02], [0.19, -0.09, 0.23, 0.03], [0.18, 0.13, 0.22, -0.03], [0.16, 0.33, 0.2, 0.02]];
+const ROSE_LOOK: LeafLook = { detail: 5, bumps: 0.17, grain: 10, seed: 3, dark: 0.45 };
+const ROSE_SHAPE = canopyShape(ROSE_BLOBS, ROSE_LOOK);
+const ROSES: [number, number, number, number, number][] = [
+  [-0.32, 0.4, -0.05, 0xd8362e, 0xa82a24], [0.12, 0.43, -0.08, 0xd8362e, 0xa82a24], [0.36, 0.38, 0.05, 0xd8362e, 0xa82a24], [-0.02, 0.37, 0.17, 0xd8362e, 0xa82a24],
+  [-0.1, 0.45, 0.07, 0xf06aa6, 0xd04a86], [0.24, 0.42, 0.1, 0xf06aa6, 0xd04a86], [-0.4, 0.34, 0.1, 0xf06aa6, 0xd04a86],
+  [-0.22, 0.41, 0.11, 0xf7f4ec, 0xf3d9a8], [0.02, 0.44, -0.1, 0xf7f4ec, 0xf3d9a8], [0.3, 0.38, -0.12, 0xf7f4ec, 0xf3d9a8],
+];
+// een tulp: een gladde kelk met een donkerder hartje bovenin
+const tulip = (x: number, y: number, z: number, color: number, inside: number): THREE.BufferGeometry[] => [
+  paint(new THREE.SphereGeometry(0.047, 7, 5).scale(0.85, 1.4, 0.85).translate(x, y, z), color),
+  paint(petal(0.026, 1, 0.6, 1).translate(x, y + 0.052, z), inside),
+];
+const TULIPS: [number, number, number, number, number][] = [
+  ...[-0.3, -0.15, 0, 0.15, 0.3].flatMap((x, i): [number, number, number, number, number][] => [
+    [x, 0.34, -0.115, [0xe0584f, 0xffd23f][i % 2], [0xb8403a, 0xe0a92a][i % 2]],
+    [x, 0.32, 0.115, [0xffd23f, 0xb06ad9][i % 2], [0xe0a92a, 0x8a4cb5][i % 2]],
+  ]),
+  // de middelste rij staat er net tussenin en is iets hoger: roze en wit
+  ...[-0.225, -0.075, 0.075, 0.225].map((x, i): [number, number, number, number, number] => [x, 0.39, 0, [0xf06aa6, 0xf7f4ec][i % 2], [0xd04a86, 0xf3d9a8][i % 2]]),
+];
 // paddenstoelen: een steel, een bolle hoed en witte stippen. [x, z, hoe hoog de steel is, hoe breed de hoed is]
 const SHROOMS: [number, number, number, number][] = [[-0.16, 0.06, 0.2, 0.17], [0.14, -0.1, 0.14, 0.13], [0.1, 0.2, 0.1, 0.1], [-0.07, -0.22, 0.07, 0.075]];
 const shroomDots = ([x, z, h, r]: [number, number, number, number], n: number): THREE.BufferGeometry[] => [0, 1, 2, 3, 4].map(k => {
@@ -2601,8 +2831,8 @@ const shroomDots = ([x, z, h, r]: [number, number, number, number], n: number): 
 // een zonnebloem kijkt naar voren: een krans van blaadjes rond een bruin hart
 const sunPetals = (x: number, y: number): THREE.BufferGeometry[] => [
   // twee kransen: lange gele blaadjes en daartussen kortere, iets donkerder
-  ...Array.from({ length: 12 }, (_, k) => paint(blob(0.05, 0.55, 1.35, 0.3, 0, 0.125, 0, 0).rotateZ((k * Math.PI * 2) / 12).translate(x, y, 0.03), 0xffd23f)),
-  ...Array.from({ length: 12 }, (_, k) => paint(blob(0.045, 0.5, 1.2, 0.3, 0, 0.1, 0, 0).rotateZ(((k + 0.5) * Math.PI * 2) / 12).translate(x, y, 0.022), 0xf2a71d)),
+  ...Array.from({ length: 12 }, (_, k) => paint(petal(0.05, 0.55, 1.35, 0.3).translate(0, 0.125, 0).rotateZ((k * Math.PI * 2) / 12).translate(x, y, 0.03), 0xffd23f)),
+  ...Array.from({ length: 12 }, (_, k) => paint(petal(0.045, 0.5, 1.2, 0.3).translate(0, 0.1, 0).rotateZ(((k + 0.5) * Math.PI * 2) / 12).translate(x, y, 0.022), 0xf2a71d)),
 ];
 const SUNS: [number, number][] = [[-0.26, 0.7], [0, 0.78], [0.26, 0.86]];
 // een pompoen: een platte bol met banen
@@ -2610,8 +2840,21 @@ const pumpkin = (r: number, x: number, z: number): THREE.BufferGeometry =>
   striped(new THREE.SphereGeometry(r, 10, 6).scale(1, 0.78, 1), [0xf08a24, 0xe27a1c], 10).translate(x, r * 0.74, z);
 // bamboe: [x, hoogte, z] van elke stengel
 const BAMBOO: [number, number, number][] = [[-0.24, 1.2, -0.1], [-0.08, 1.4, 0.12], [0.1, 1.1, -0.14], [0.24, 1.3, 0.06], [0, 0.9, 0.24], [-0.22, 0.72, 0.2], [0.2, 0.66, -0.26]];
+// een blad aan een steel: lang, plat en rond, schuin omhoog vanaf de grond
+const longLeaf = (x: number, z: number, len: number, lean: number, turn = 0): THREE.BufferGeometry =>
+  petal(len / 2, 0.3, 1, 0.1).translate(0, len / 2, 0).rotateZ(lean).rotateY(turn).translate(x, 0.04, z);
 // de boog van de bloemenboog: een halve cirkel van zes stukken op twee palen
 const ARCH: P3[] = Array.from({ length: 7 }, (_, i): P3 => [-Math.cos((i * Math.PI) / 6) * 0.4, 0.92 + Math.sin((i * Math.PI) / 6) * 0.4, 0]);
+// de slinger van blad over de bloemenboog: langs de linkerpaal omhoog, over de boog en langs de rechterpaal omlaag
+const ARCH_PATH: P3[] = [
+  ...[0.04, 0.2, 0.38, 0.56, 0.74].map((y): P3 => [-0.4, y, 0]),
+  ...Array.from({ length: 13 }, (_, i): P3 => [-Math.cos((i * Math.PI) / 12) * 0.4, 0.92 + Math.sin((i * Math.PI) / 12) * 0.4, 0]),
+  ...[0.74, 0.56, 0.38, 0.2, 0.04].map((y): P3 => [0.4, y, 0]),
+];
+const ARCH_VINE = leafVine(ARCH_PATH, false, [0, 0, 1], 9, (t, a) => {
+  const b = Math.sin(Math.PI * 2 * 7 * t + 2 * a) * 0.5 + Math.sin(Math.PI * 2 * 11 * t - 3 * a + 1) * 0.5, ends = Math.min(1, t / 0.05, (1 - t) / 0.05);
+  return [0.115 * (1 + 0.24 * b) * (0.35 + 0.65 * ends), b];
+}, 0.42);
 // een wiek: een lat met een licht zeil van latjes ernaast
 const sail = (i: number): THREE.BufferGeometry[][] => [
   [boxAt(0.47, 0.035, 0.025, 0.235, 0, 0), boxAt(0.02, 0.13, 0.02, 0.17, 0.065, 0), boxAt(0.02, 0.13, 0.02, 0.3, 0.065, 0), boxAt(0.02, 0.13, 0.02, 0.44, 0.065, 0)],
@@ -2633,13 +2876,13 @@ const totemEyes = (y: number): THREE.BufferGeometry[][] => [
 const DECOR_PARTS: Record<DecorKind, Part[]> = {
   tree: [
     [trunk(0.62, 0.1), WOOD_MAT],
-    [TREE_CROWNS[0], LEAF_MAT],
-    [TREE_SHADES[0], LEAF2],
+    [TREE_CROWNS[0], CROWN_MAT],
+    [TREE_APPLES[0], APPLE_MAT],
   ],
   pine: [
     [merge([new THREE.CylinderGeometry(0.05, 0.07, 0.32, 7).translate(0, 0.16, 0), prism(0.08, 0.12, 0.05, 0, 0.025, 0, 6),
       ...[0.6, 2.7, 4.8].map(a => rod(0.03, [Math.cos(a) * 0.03, 0.1, Math.sin(a) * 0.03], [Math.cos(a) * 0.15, 0.005, Math.sin(a) * 0.15], 5, 0.014))]), WOOD_MAT],
-    [PINE_CROWNS[0], LEAF2],
+    [PINE_CROWNS[0], PINE_MAT],
   ],
   // palm: een gebogen stam, zes bladeren die naar beneden hangen en kokosnoten
   palm: [
@@ -2653,35 +2896,37 @@ const DECOR_PARTS: Record<DecorKind, Part[]> = {
   ],
   // lang en smal: een heg is precies een tegel lang, zodat een rij heggen één geheel wordt
   hedge: [
-    [merge([
-      boxAt(1, 0.36, 0.28, 0, 0.18, 0),
-      ...[-0.44, -0.2, 0.06, 0.3].flatMap((x, i) => [blob(0.1, 1.3, 0.9, 0.7, x, 0.16 + (i % 2) * 0.08, 0.14, 0), blob(0.1, 1.3, 0.9, 0.7, x + 0.12, 0.24 - (i % 2) * 0.08, -0.14, 0)]),
-    ]), LEAF2],
-    [merge([
-      ...[-0.375, -0.125, 0.125, 0.375].map((x, i) => blob(0.17, 1, 0.6 + (i % 2) * 0.14, 0.95, x, 0.4, 0)),
-      ...[-0.3, -0.05, 0.2, 0.45].flatMap((x, i) => [blob(0.075, 1.2, 0.8, 0.7, x, 0.3 - (i % 2) * 0.1, 0.15, 0), blob(0.075, 1.2, 0.8, 0.7, x - 0.14, 0.2 + (i % 2) * 0.1, -0.15, 0)]),
-    ]), LEAF_MAT],
-    // witte bloesempjes tussen het blad
-    [merge([[-0.38, 0.47, 0.08], [-0.16, 0.5, -0.07], [0.08, 0.48, 0.09], [0.34, 0.5, -0.05], [-0.26, 0.28, 0.17], [0.22, 0.3, 0.17], [0, 0.26, -0.17], [0.42, 0.24, -0.17]].map(([x, y, z]) => dot(0.028, x, y, z))), std(0xfff4f0, 0.8)],
+    [hedgeGeo(), BUSH_MAT],
+    // witte bloemetjes tussen het blad
+    [merge([[-0.38, 0.5, 0xf7f4ec], [-0.2, 0.38, 0xf7f4ec], [-0.04, 0.56, 0xf06aa6], [0.14, 0.42, 0xf7f4ec], [0.3, 0.6, 0xf7f4ec], [0.42, 0.34, 0xf06aa6], [-0.3, 0.22, 0xf06aa6], [0.04, 0.2, 0xf7f4ec], [0.24, 0.78, 0xf7f4ec], [-0.14, 0.8, 0xf06aa6]].map(([x, p, color]) => {
+      const [, y, z] = hedgeAt(x, p), phi = p * Math.PI;
+      return aim(flower(0.04, color, 0xffd23f), [x, y, z], [0, Math.sin(phi), Math.cos(phi)]);
+    })), PAINT_MAT, false],
   ],
   roses: [
     flowerBed(0.94, 0.36),
-    [merge([ball(0.17, -0.3, 0.2, -0.02), ball(0.19, -0.09, 0.23, 0.03), ball(0.18, 0.13, 0.22, -0.03), ball(0.16, 0.33, 0.2, 0.02)]), LEAF2],
-    [merge([blob(0.09, 1, 0.7, 1, -0.22, 0.34, -0.06), blob(0.09, 1, 0.7, 1, 0.02, 0.37, 0.08), blob(0.08, 1, 0.7, 1, 0.26, 0.34, -0.08), blob(0.07, 1, 0.7, 1, -0.38, 0.28, 0.08), blob(0.07, 1, 0.7, 1, 0.4, 0.28, 0.07)]), LEAF_MAT],
-    [merge([
-      ...rose(-0.32, 0.4, -0.05, 0xd8362e, 0xa82a24), ...rose(0.12, 0.43, -0.08, 0xd8362e, 0xa82a24), ...rose(0.36, 0.38, 0.05, 0xd8362e, 0xa82a24), ...rose(-0.02, 0.37, 0.17, 0xd8362e, 0xa82a24),
-      ...rose(-0.1, 0.45, 0.07, 0xf06aa6, 0xd04a86), ...rose(0.24, 0.42, 0.1, 0xf06aa6, 0xd04a86), ...rose(-0.4, 0.34, 0.1, 0xf06aa6, 0xd04a86),
-      ...rose(-0.22, 0.41, 0.11, 0xf7f4ec, 0xf3d9a8), ...rose(0.02, 0.44, -0.1, 0xf7f4ec, 0xf3d9a8), ...rose(0.3, 0.38, -0.12, 0xf7f4ec, 0xf3d9a8),
-    ]), PAINT_MAT],
+    [canopy(ROSE_BLOBS, ROSE_LOOK), BUSH_MAT],
+    [merge(ROSES.map(([x, y, z, color, heart]) => {
+      const c = ROSE_SHAPE.c, d: P3 = [x - c[0], y - c[1], z - c[2]], len = Math.hypot(...d), [px, py, pz] = ROSE_SHAPE.at(d[0] / len, d[1] / len, d[2] / len);
+      return aim(rose(0.07, color, heart), [px, py, pz], [d[0] / len, d[1] / len + 0.7, d[2] / len]);
+    })), PAINT_MAT],
+    // witte bloemetjes langs de rand
+    [merge([[-0.38, 0.11], [-0.16, 0.14], [0.08, 0.14], [0.3, 0.12], [-0.28, -0.13], [0.0, -0.15], [0.26, -0.13]].map(([x, z]) => flower(0.035, 0xf7f4ec, 0xffd23f).translate(x, 0.09, z))), PAINT_MAT, false],
+    bedRim(0.94, 0.36, 1),
   ],
   tulips: [
     flowerBed(0.94, 0.38),
     [merge(TULIPS.flatMap(([x, y, z], i) => [
-      boxAt(0.025, y - 0.06, 0.025, x, y / 2 - 0.005, z),
-      new THREE.ConeGeometry(0.04, 0.24, 4).scale(1, 1, 0.35).rotateZ(i % 2 ? 0.4 : -0.4).translate(x + (i % 2 ? -0.04 : 0.04), 0.15, z),
-      new THREE.ConeGeometry(0.032, 0.17, 4).scale(1, 1, 0.35).rotateZ(i % 2 ? -0.5 : 0.5).translate(x + (i % 2 ? 0.035 : -0.035), 0.12, z + 0.01),
+      rod(0.012, [x, 0.03, z], [x, y - 0.03, z], 5),
+      longLeaf(x + (i % 2 ? -0.012 : 0.012), z, 0.24, i % 2 ? 0.4 : -0.4, i * 0.7), longLeaf(x + (i % 2 ? 0.012 : -0.012), z + 0.01, 0.17, i % 2 ? -0.5 : 0.5, i * 0.7),
     ])), STEM_MAT],
     [merge(TULIPS.flatMap(([x, y, z, color, inside]) => tulip(x, y, z, color, inside))), PAINT_MAT],
+    // blauwe druifjes langs de rand
+    [painted(
+      [0x5fa544, ...[-0.36, -0.22, -0.08, 0.08, 0.22, 0.36].map((x, i) => rod(0.008, [x, 0.04, i % 2 ? -0.15 : 0.15], [x, 0.15, i % 2 ? -0.15 : 0.15], 4))],
+      [0x6a7be0, ...[-0.36, -0.22, -0.08, 0.08, 0.22, 0.36].map((x, i) => petal(0.03, 1, 2, 1).translate(x, 0.19, i % 2 ? -0.15 : 0.15))],
+    ), PAINT_MAT],
+    bedRim(0.94, 0.38, 2),
   ],
   mushrooms: [
     [merge(SHROOMS.flatMap(([x, z, h, r], n) => [tube(r * 0.28, r * 0.4, h, x, h / 2, z), tube(r * 0.9, r * 0.5, 0.02, x, h, z), tube(r * 0.44, r * 0.36, 0.018, x, h * 0.7, z), ...shroomDots([x, z, h, r], n)])), WHITE_MAT],
@@ -2689,6 +2934,8 @@ const DECOR_PARTS: Record<DecorKind, Part[]> = {
     // een paar sprietjes gras eromheen
     [merge([[-0.3, 0.16, 0.14, 0.3], [-0.26, 0.2, 0.1, -0.2], [0.28, -0.02, 0.13, -0.3], [0.24, 0.06, 0.09, 0.25], [0.02, 0.3, 0.11, 0.2], [-0.18, -0.16, 0.1, -0.3]].map(([x, z, h, lean], i) =>
       new THREE.ConeGeometry(0.03, h, 4).translate(0, h / 2, 0).rotateZ(lean).rotateY(i * 1.3).translate(x, 0, z))), LEAF_MAT, false],
+    // een paar madeliefjes ertussen
+    [merge([...bloom(0.3, 0.07, 0.16, 0xf7f4ec, 0.035), ...bloom(-0.3, 0.06, -0.08, 0xf7f4ec, 0.03), ...bloom(0.0, 0.06, 0.34, 0xf7f4ec, 0.03)]), PAINT_MAT, false],
   ],
   // vijver: een rand van keien met riet erachter; het water, de bladeren en de waterlelie (met een kikker) bewegen los
   pond: [
@@ -2767,15 +3014,13 @@ const DECOR_PARTS: Record<DecorKind, Part[]> = {
   ],
   topiary: [
     [painted(
-      [0xc9553f, tube(0.18, 0.13, 0.2, 0, 0.1, 0)], [0xb5472f, tube(0.2, 0.2, 0.045, 0, 0.19, 0), tube(0.15, 0.15, 0.025, 0, 0.012, 0)],
-      [0xe0876a, tube(0.166, 0.152, 0.02, 0, 0.1, 0)], [0x5a3d22, tube(0.165, 0.165, 0.012, 0, 0.214, 0)],
+      [0xc9553f, new THREE.CylinderGeometry(0.18, 0.13, 0.2, 20).translate(0, 0.1, 0)],
+      [0xb5472f, new THREE.CylinderGeometry(0.2, 0.2, 0.045, 20).translate(0, 0.19, 0), new THREE.CylinderGeometry(0.15, 0.15, 0.025, 20).translate(0, 0.012, 0)],
+      [0xe0876a, new THREE.CylinderGeometry(0.166, 0.152, 0.02, 20).translate(0, 0.1, 0)],
+      [0x5a3d22, new THREE.CylinderGeometry(0.165, 0.165, 0.012, 20).translate(0, 0.214, 0)],
     ), MATTE_MAT],
-    [boxAt(0.07, 0.4, 0.07, 0, 0.36, 0), WOOD_MAT],
-    // drie bollen boven elkaar, elk met kleine bolletjes eromheen zodat ze er geknipt en vol uitzien
-    [merge([
-      ball(0.3, 0, 0.7, 0), ball(0.2, 0, 1.08, 0), ball(0.12, 0, 1.34, 0),
-      ...around(7, 0.23, (x, z, i) => ball(0.1, x, 0.66 + (i % 2) * 0.12, z)), ...around(5, 0.15, (x, z, i) => ball(0.075, x, 1.05 + (i % 2) * 0.08, z)),
-    ]), LEAF2],
+    [new THREE.CylinderGeometry(0.03, 0.04, 0.3, 8).translate(0, 0.33, 0), WOOD_MAT],
+    [topiaryGeo(), BUSH_MAT],
   ],
   lantern: [
     [mergeGeometries([
@@ -2899,25 +3144,33 @@ const DECOR_PARTS: Record<DecorKind, Part[]> = {
   sunflowers: [
     flowerBed(0.94, 0.32),
     [merge(SUNS.flatMap(([x, y]) => [
-      boxAt(0.035, y - 0.04, 0.035, x, y / 2, 0),
-      blob(0.11, 1, 0.18, 0.6, 0.1, 0, 0, 0).rotateZ(0.5).translate(x, y * 0.4, 0), blob(0.11, 1, 0.18, 0.6, -0.1, 0, 0, 0).rotateZ(-0.5).translate(x, y * 0.56, 0),
-      blob(0.07, 1, 0.18, 0.6, 0.06, 0, 0, 0).rotateZ(0.7).translate(x, y * 0.74, 0.01),
+      rod(0.018, [x, 0.03, 0], [x, y, 0], 6),
+      petal(0.11, 1, 0.16, 0.6).translate(0.1, 0, 0).rotateZ(0.5).translate(x, y * 0.4, 0), petal(0.11, 1, 0.16, 0.6).translate(-0.1, 0, 0).rotateZ(-0.5).translate(x, y * 0.56, 0),
+      petal(0.07, 1, 0.16, 0.6).translate(0.06, 0, 0).rotateZ(0.7).translate(x, y * 0.74, 0.01),
       // de kelk achter de bloem
-      new THREE.CylinderGeometry(0.07, 0.03, 0.05, 7).rotateX(Math.PI / 2).translate(x, y, -0.01),
+      new THREE.CylinderGeometry(0.07, 0.03, 0.05, 10).rotateX(Math.PI / 2).translate(x, y, -0.01),
     ])), STEM_MAT],
     [merge(SUNS.flatMap(([x, y]) => sunPetals(x, y))), PAINT_MAT],
     [painted(
-      [0x6b4a2a, ...SUNS.map(([x, y]) => blob(0.095, 1, 1, 0.42, x, y, 0.04))],
-      [0x4a3320, ...SUNS.map(([x, y]) => blob(0.055, 1, 1, 0.5, x, y, 0.062, 0))],
+      [0x6b4a2a, ...SUNS.map(([x, y]) => new THREE.SphereGeometry(0.095, 10, 6).scale(1, 1, 0.42).translate(x, y, 0.04))],
+      [0x4a3320, ...SUNS.map(([x, y]) => new THREE.SphereGeometry(0.055, 8, 5).scale(1, 1, 0.5).translate(x, y, 0.062))],
     ), MATTE_MAT],
+    // lage goudsbloemen aan de voet van de zonnebloemen
+    [merge([-0.36, -0.13, 0.13, 0.36].flatMap((x, i) => [
+      paint(petal(0.07, 1.3, 0.6, 1).translate(x, 0.09, i % 2 ? -0.06 : 0.07), 0x5fa544),
+      flower(0.05, i % 2 ? 0xffd23f : 0xf08a24, i % 2 ? 0xf08a24 : 0xffd23f, 7).translate(x - 0.03, 0.15, i % 2 ? -0.06 : 0.08),
+      flower(0.04, i % 2 ? 0xf08a24 : 0xffd23f, i % 2 ? 0xffd23f : 0xf08a24, 7).translate(x + 0.05, 0.14, i % 2 ? -0.09 : 0.05),
+    ])), PAINT_MAT],
+    bedRim(0.94, 0.32, 3),
   ],
   cherry: [
     [trunk(0.6, 0.095), std(0x7a4f2c, 1)],
-    [merge([ball(0.38, 0, 0.9, 0), ball(0.26, 0.22, 1.16, 0.06), ball(0.18, -0.06, 1.24, 0.2), ball(0.2, 0.05, 0.98, 0.3), ball(0.17, 0.28, 0.95, 0.2)]), CHERRY_A],
-    [merge([ball(0.26, -0.22, 1.08, -0.1), ball(0.16, 0.05, 1.36, -0.05), ball(0.2, 0.26, 0.86, -0.16), ball(0.2, -0.3, 0.84, 0.12), ball(0.17, -0.02, 1.02, -0.3)]), CHERRY_B],
+    [canopy(CHERRY_BLOBS, CHERRY_LOOK), CHERRY_MAT],
     // blaadjes die op de grond gevallen zijn
     [merge([[-0.34, 0.2], [-0.2, 0.36], [0.1, 0.4], [0.34, 0.22], [0.4, -0.1], [0.2, -0.34], [-0.12, -0.38], [-0.4, -0.12], [0.06, 0.24], [-0.24, -0.2]].map(([x, z], i) =>
-      blob(0.035, 1.3, 0.25, 0.8, 0, 0, 0, 0).rotateY(i * 1.1).translate(x, 0.012, z))), CHERRY_B, false],
+      petal(0.035, 1.3, 0.25, 0.8).rotateY(i * 1.1).translate(x, 0.012, z))), CHERRY_B, false],
+    // losse bloesems over de hele kruin, bijna wit
+    [onCrown(CHERRY_SHAPE, spiral(34, 0.97, -0.55), 0.036), CHERRY_C],
   ],
   // pompoenen: platte bollen met banen en een steeltje, op een paar grote bladeren
   pumpkins: [
@@ -2962,15 +3215,17 @@ const DECOR_PARTS: Record<DecorKind, Part[]> = {
   ],
   // bloemenboog: twee palen met een ronde boog, begroeid met blad en bloemen aan twee kanten
   arch: [
-    [merge([boxAt(0.07, 0.94, 0.07, -0.4, 0.47, 0), boxAt(0.07, 0.94, 0.07, 0.4, 0.47, 0), ...ARCH.slice(1).map((p, i) => beam(0.07, ARCH[i], p))]), WHITE_MAT],
-    [merge([
-      ...[1, 2, 3, 4, 5].map(i => ball(0.13 + (i % 2) * 0.02, ARCH[i][0], ARCH[i][1] + 0.02, 0)),
-      ball(0.12, -0.4, 0.9, 0), ball(0.12, 0.4, 0.9, 0), ball(0.1, -0.4, 0.6, 0.02), ball(0.1, 0.4, 0.52, -0.02), ball(0.09, -0.4, 0.3, -0.02), ball(0.08, 0.4, 0.24, 0.02),
-    ]), LEAF_MAT],
-    [blooms([
-      [-0.4, 1.02, 0.11, 0xf06aa6, Math.PI / 2], [0.12, 1.37, 0.12, 0xf06aa6, Math.PI / 2], [0.4, 0.74, 0.1, 0xf7f4ec, Math.PI / 2], [-0.22, 1.3, 0.12, 0xe0584f, Math.PI / 2], [0.33, 1.2, 0.12, 0xe0584f, Math.PI / 2],
-      [-0.33, 1.18, -0.12, 0xf06aa6, -Math.PI / 2], [0.1, 1.37, -0.12, 0xe0584f, -Math.PI / 2], [0.4, 0.86, -0.1, 0xf06aa6, -Math.PI / 2],
-    ], 0.08), PAINT_MAT],
+    [merge([boxAt(0.06, 0.94, 0.06, -0.4, 0.47, 0), boxAt(0.06, 0.94, 0.06, 0.4, 0.47, 0), ...ARCH.slice(1).map((p, i) => beam(0.06, ARCH[i], p))]), WHITE_MAT],
+    [ARCH_VINE.geo, BUSH_MAT],
+    // bloemen op de slinger: aan de voorkant, de achterkant en de buitenkant
+    [merge(([
+      [1, 1.5, 0xf06aa6], [3, 1.2, 0xf7f4ec], [5, 1.7, 0xe0584f], [7, 1.3, 0xf06aa6], [9, 1.8, 0xffd23f], [11, 1.4, 0xf7f4ec], [13, 1.6, 0xe0584f], [15, 1.2, 0xf06aa6], [17, 1.7, 0xf7f4ec], [19, 1.4, 0xe0584f], [21, 1.6, 0xffd23f],
+      [2, 4.6, 0xe0584f], [6, 4.9, 0xf7f4ec], [10, 4.5, 0xf06aa6], [12, 4.8, 0xffd23f], [16, 4.6, 0xf06aa6], [20, 4.9, 0xe0584f],
+      [4, 0.2, 0xffd23f], [8, 0, 0xf06aa6], [11, 0.3, 0xe0584f], [14, -0.2, 0xf7f4ec], [18, 0.1, 0xffd23f],
+    ] as [number, number, number][]).map(([i, a, color]) => {
+      const [at, out] = ARCH_VINE.at(i, a);
+      return aim(flower(0.06, color, color === 0xffd23f ? 0xf08a24 : 0xffd23f), at, out);
+    })), PAINT_MAT],
   ],
   // molen: een witte toren op een stenen voet, met raampjes, een rode kap en vier wieken met zeilen
   windmill: [
@@ -6330,7 +6585,10 @@ export class View {
     const crown = group.children[1] as THREE.Mesh;
     if (kind === 'tree') {
       crown.geometry = TREE_CROWNS[shape];
-      (group.children[2] as THREE.Mesh).geometry = TREE_SHADES[shape];
+      // de helft van de bomen draagt appels
+      const apples = group.children[2] as THREE.Mesh;
+      apples.geometry = TREE_APPLES[shape];
+      apples.visible = hash(x, y, 9) < 0.5;
     }
     if (kind === 'pine') crown.geometry = PINE_CROWNS[shape];
     if (kind === 'tree' && hash(x, y, 8) < 0.4) {
