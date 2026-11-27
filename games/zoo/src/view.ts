@@ -159,6 +159,14 @@ const WORN_GEOS = [
 ];
 // De twee planken van een hek dat een sterk dier omduwt: die vallen om (zie `topple`)
 const FALL_GEO = mergeGeometries([plank(1, 0.5, 0.17, 0), plank(1, 0.5, 0.37, 0)])!;
+/** Een stofwolkje (bolletje met facetjes) en een veertje (smal plaatje), voor het ontsnappen. */
+const PUFF_GEO = new THREE.IcosahedronGeometry(1, 0);
+const PLUME_GEO = new THREE.PlaneGeometry(0.1, 0.035);
+/** Zo lang blijft een veertje: dwarrelen en dan op de grond wegkrimpen. */
+const PLUME_SECONDS = 2.4;
+/** Hoe een hek meebeweegt met een dier dat ontsnapt (zie wobbleFence), en hoe lang dat duurt. */
+export type FenceWobble = 'rattle' | 'lean' | 'bend';
+const WOBBLE_SECONDS: Record<FenceWobble, number> = { rattle: 0.4, lean: 1.2, bend: 1.7 };
 // De poort is van hetzelfde hout, maar hoger en met een deurtje: drie spijlen, een schoor en een klink.
 const GATE_GEO = mergeGeometries([
   boxAt(0.15, 0.72, 0.15, 0, 0.36, 0),
@@ -3587,6 +3595,12 @@ export class View {
   private drops: { mesh: THREE.Mesh; vx: number; vy: number; vz: number; life: number }[] = [];
   /** Planken van een omgeduwd hek die omvallen: `tip` is de kant waarheen, `t` hoe lang het al duurt. */
   private falls: { obj: THREE.Group; plank: THREE.Mesh; mat: THREE.MeshStandardMaterial; tip: number; t: number }[] = [];
+  /** Bij het ontsnappen: stofwolkjes, veertjes en hekken die even meebewegen (zie dust, feathers, wobbleFence). */
+  private puffs: { mesh: THREE.Mesh; vx: number; vy: number; vz: number; t: number; life: number; size: number }[] = [];
+  private puffMats = new Map<number, THREE.Material>();
+  private plumes: { mesh: THREE.Mesh; vx: number; vy: number; vz: number; t: number; phase: number; spin: number }[] = [];
+  private plumeMats = new Map<number, THREE.Material>();
+  private wobbles: { obj: THREE.Object3D; kind: FenceWobble; tip: number; amount: number; t: number }[] = [];
   private dropGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
   private dropMat = new THREE.MeshBasicMaterial({ color: 0xe6f6ff });
   /** Waar het beeld rustig naartoe schuift (de knop 'dier in nood'). */
@@ -4276,6 +4290,115 @@ export class View {
       this.scene.add(mesh);
       this.drops.push({ mesh, vx: (Math.random() - 0.5) * 1.3, vy: 1.2 + Math.random() * 1.1, vz: (Math.random() - 0.5) * 1.3, life: 0.8 });
     }
+  }
+
+  /**
+   * Een stofwolkje op de grond (een dier zet af, landt of rent ergens tegenaan): een paar bolletjes die opzij
+   * wegrollen, groter worden en weer wegkrimpen. `size`: hoe groot (een olifant maakt meer stof dan een konijn).
+   * `color`: op sneeuw en ijs stuift het wit.
+   */
+  dust(gx: number, gy: number, n = 5, size = 1, color = 0xd9c9a8): void {
+    if (this.puffs.length > 60) return;
+    let mat = this.puffMats.get(color);
+    if (!mat) {
+      mat = new THREE.MeshStandardMaterial({ color, roughness: 1, flatShading: true, transparent: true, opacity: 0.8, depthWrite: false });
+      this.puffMats.set(color, mat);
+    }
+    for (let i = 0; i < n; i++) {
+      const mesh = new THREE.Mesh(PUFF_GEO, mat), a = (i / n) * Math.PI * 2 + Math.random() * 0.8, v = (0.35 + Math.random() * 0.4) * size;
+      mesh.position.set(toWorldX(gx) + Math.sin(a) * 0.06, 0.04 + Math.random() * 0.04, toWorldZ(gy) + Math.cos(a) * 0.06);
+      mesh.rotation.set(Math.random() * 3, Math.random() * 3, 0);
+      mesh.scale.setScalar(0.001);
+      mesh.renderOrder = 4;
+      this.scene.add(mesh);
+      this.puffs.push({ mesh, vx: Math.sin(a) * v, vy: 0.12 + Math.random() * 0.12, vz: Math.cos(a) * v, t: 0, life: 0.65 + Math.random() * 0.3, size: (0.05 + Math.random() * 0.03) * (0.6 + size * 0.6) });
+    }
+  }
+
+  /** Een paar veertjes die van een vogel afwaaien en zacht heen en weer dwarrelend naar de grond zweven. */
+  feathers(gx: number, gy: number, height: number, color: number, n = 3): void {
+    if (this.plumes.length > 40) return;
+    let mat = this.plumeMats.get(color);
+    if (!mat) {
+      mat = new THREE.MeshStandardMaterial({ color, roughness: 0.9, side: THREE.DoubleSide });
+      this.plumeMats.set(color, mat);
+    }
+    for (let i = 0; i < n; i++) {
+      const mesh = new THREE.Mesh(PLUME_GEO, mat);
+      mesh.position.set(toWorldX(gx) + (Math.random() - 0.5) * 0.2, height, toWorldZ(gy) + (Math.random() - 0.5) * 0.2);
+      mesh.castShadow = true;
+      this.scene.add(mesh);
+      this.plumes.push({ mesh, vx: (Math.random() - 0.5) * 0.5, vy: 0.3 + Math.random() * 0.4, vz: (Math.random() - 0.5) * 0.5, t: 0, phase: Math.random() * 6, spin: (Math.random() - 0.5) * 6 });
+    }
+  }
+
+  /**
+   * Het hek op deze rand beweegt even mee met een dier dat ontsnapt. `rattle`: kort trillen (een dier klimt erin of
+   * schuurt erlangs); `lean`: ver naar buiten en terugveren (een dier ramt ertegenaan); `bend`: een poosje scheef
+   * openduwen en dan terugveren (een dier wringt zich erdoor). `out`: de kant naar buiten (1 naar hoger x of y, -1 naar
+   * lager), `amount`: hoe hard (een konijn duwt minder dan een neushoorn).
+   */
+  wobbleFence(e: Edge, kind: FenceWobble, out: 1 | -1, amount = 1): void {
+    const prefix = `${edgeKey(e)}:`;
+    // bij een staand hek ('v') wijst de eigen z-as de andere kant op (net als bij topple)
+    const tip = e.o === 'h' ? out : -out;
+    for (const [key, obj] of this.fences) {
+      if (!key.startsWith(prefix)) continue;
+      // eerst om de eigen as draaien (de kant van het hek), dan pas kantelen: zo kantelt het hek om zijn voet
+      obj.rotation.order = 'YXZ';
+      const old = this.wobbles.find(w => w.obj === obj);
+      if (old && !(old.kind === 'bend' && kind === 'rattle')) Object.assign(old, { kind, tip, amount, t: 0 });
+      else if (!old) this.wobbles.push({ obj, kind, tip, amount, t: 0 });
+    }
+  }
+
+  /** Stofwolkjes, veertjes en hekken die meebewegen, elk beeldje. */
+  private stepEscapeFx(dt: number): void {
+    for (const p of this.puffs) {
+      p.t += dt;
+      const u = Math.min(1, p.t / p.life), drag = Math.max(0, 1 - dt * 3);
+      p.vx *= drag;
+      p.vz *= drag;
+      p.mesh.position.x += p.vx * dt;
+      p.mesh.position.y += p.vy * dt;
+      p.mesh.position.z += p.vz * dt;
+      p.mesh.scale.setScalar(p.size * (0.5 + u * 1.4) * Math.min(1, (1 - u) * 3.5));
+      if (u >= 1) this.scene.remove(p.mesh);
+    }
+    if (this.puffs.length) this.puffs = this.puffs.filter(p => p.t < p.life);
+    for (const f of this.plumes) {
+      // eerst een stukje omhoog, dan langzaam vallen en heen en weer wiegen als een blaadje
+      f.t += dt;
+      f.vy = Math.max(-0.32, f.vy - dt * 1.4);
+      const sway = Math.sin(f.t * 4.5 + f.phase);
+      f.mesh.position.x += (f.vx + sway * 0.35) * dt;
+      f.mesh.position.y = Math.max(0.01, f.mesh.position.y + f.vy * dt);
+      f.mesh.position.z += f.vz * dt;
+      f.mesh.rotation.set(sway * 0.7, f.t * f.spin, Math.PI / 2 + sway * 0.4);
+      // op de grond blijven ze nog even liggen en krimpen ze weg
+      const left = PLUME_SECONDS - f.t;
+      if (left < 0.4) f.mesh.scale.setScalar(Math.max(0.001, left / 0.4));
+      if (left <= 0) this.scene.remove(f.mesh);
+    }
+    if (this.plumes.length) this.plumes = this.plumes.filter(f => f.t < PLUME_SECONDS);
+    for (const w of this.wobbles) {
+      w.t += dt;
+      const len = WOBBLE_SECONDS[w.kind], t = w.t;
+      let angle = 0;
+      if (w.kind === 'rattle') angle = Math.sin(t * 46) * 0.06 * (1 - t / len);
+      else if (w.kind === 'lean') {
+        // in een flits naar buiten, dan heen en weer terugveren
+        angle = t < 0.1 ? 0.3 * Math.sin((t / 0.1) * Math.PI / 2) : 0.3 * Math.exp(-(t - 0.1) * 4.2) * Math.cos((t - 0.1) * 15);
+      } else {
+        // openwringen, even zo houden (met een klein trillen), en dan terugveren
+        const open = Math.min(1, t / 0.25), back = Math.max(0, t - 1);
+        angle = back ? 0.4 * Math.exp(-back * 5) * Math.cos(back * 16) : 0.4 * open * open * (3 - 2 * open) + Math.sin(t * 31) * 0.02;
+      }
+      w.obj.rotation.x = w.tip * angle * w.amount;
+      if (t >= len) w.obj.rotation.x = 0;
+    }
+    // een hek dat intussen vervangen is (omgeduwd, gerepareerd) hoeft niet meer te bewegen
+    if (this.wobbles.length) this.wobbles = this.wobbles.filter(w => w.t < WOBBLE_SECONDS[w.kind] && w.obj.parent);
   }
 
   /**
@@ -5926,6 +6049,7 @@ export class View {
       }
     }
     if (this.falls.length) this.falls = this.falls.filter(f => f.t <= 2.2);
+    this.stepEscapeFx(dt);
     if (this.fly) {
       const k = Math.min(1, dt * 5);
       this.target.x += (this.fly.x - this.target.x) * k;

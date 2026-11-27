@@ -2,7 +2,7 @@
 // zieke en ontsnapte dieren, figuren, geluid, levels en opslaan.
 import type * as THREE from 'three';
 import { saveSet, t } from '@smj/shared';
-import { Animal, type AnimalWorld, type TrickSound, type Trough, type WildSpot } from './animal';
+import { Animal, type AnimalWorld, type BoltFx, type TrickSound, type Trough, type WildSpot } from './animal';
 import { miniOpen, playMini, type MiniKind, type MiniOptions } from './minigame';
 import { pickSetup } from './miniask';
 import { cardOpen } from './playcard';
@@ -51,7 +51,7 @@ import { isLamp } from './parkfun';
 import { STAR_EVERY, STAR_FACTORS, STAR_GOOD, STAR_TIP_GAP, nextStars, parkScore, scoreOf, smoothScore, starFactors, starGuests, weakest, type StarFactor, type StarInput } from './stars';
 import { guestCard } from './traits';
 import { BOOK_HEART, KID_MOMENT, KID_MOMENTS, SPLAT_MELT, momentReady, type KidMoment } from './kids';
-import { DAY_HOUR, EDGE_SHIFT, FENCE_TOP, View, toWorldX, toWorldZ, type ParkLight, type TroughMesh } from './view';
+import { DAY_HOUR, EDGE_SHIFT, FENCE_TOP, View, toWorldX, toWorldZ, type FenceWobble, type ParkLight, type TroughMesh } from './view';
 import { CARE_ACTIONS, CATCH, DIRTY, DUST, HOSE, TREAT, dirtyMost, dustAfter, dustPace, dustSpecks, flightTime, isCare, muddyAfter, treatFor, treatReady, type CareAction, dusty } from './care';
 import { CareFx } from './carefx';
 import { WALK, type Box, type WalkGround } from './walk';
@@ -105,6 +105,10 @@ const GUEST_SOUND: Partial<Record<GuestCue, [number, number]>> = {
 /** De geluiden bij de kunstjes van de dieren: [welk geluid, hoe hard, hoe snel afgespeeld]. Trappelen is stampen, maar lichter en vlugger. */
 const TRICK_SOUND: Record<TrickSound, [string, number, number]> = {
   stomp: ['animal.stomp', 0.4, 1], trot: ['animal.stomp', 0.28, 1.35], clap: ['animal.clap', 0.4, 1], slide: ['animal.slide', 0.35, 1], fan: ['animal.fan', 0.4, 1], splash: ['animal.splash', 0.45, 1],
+};
+/** De kleur van de veertjes die een vogel verliest als hij over het hek fladdert (de rest: wit). */
+const FEATHER: Partial<Record<SpeciesId, number>> = {
+  duck: 0xd9cbb0, parrot: 0xe2412f, peacock: 0x2a6fb0, toucan: 0x2b2b2b, owl: 0xa07a52, flamingo: 0xf4a3b8,
 };
 const PAINT_TOOLS = new Set<ToolId>(['terrain', 'fence', 'erase', 'action']);
 const TROUGH_ICON: Record<TroughKind, IconId> = { wood: 'trough_empty', big: 'trough_big', silo: 'trough_silo' };
@@ -1377,6 +1381,58 @@ export class Game implements AnimalWorld, GuestWorld, WorkerWorld {
 
   heart(gx: number, gy: number, height: number): void {
     this.floatAt(icon('heart'), gx, gy, height);
+  }
+
+  /**
+   * Een moment tijdens het ontsnappen: stof bij het afzetten en landen, een hek dat trilt of terugzwiept, veertjes.
+   * Een stenen muur en glas bewegen niet mee; een groot dier maakt meer stof en schudt harder aan het hek.
+   */
+  boltFx(animal: Animal, fx: BoltFx, gx: number, gy: number, height: number, ex: number, ey: number, nx: number, ny: number): void {
+    const size = Math.max(0.35, Math.min(1, animal.top / 1.3)), at: [number, number] = [gx, gy];
+    // het stuk hek: (ex, ey) is het midden ervan en (nx, ny) wijst recht naar buiten
+    const across = Math.abs(nx) > Math.abs(ny);
+    const e: Edge = across ? { o: 'v', x: Math.round(ex), y: Math.floor(ey) } : { o: 'h', x: Math.floor(ex), y: Math.round(ey) };
+    const out: 1 | -1 = (across ? nx : ny) > 0 ? 1 : -1, kind = this.grid.getEdge(e);
+    const rigid = kind === 3 || kind === 5 || kind === 6, net = kind === 4;
+    const [x, y] = [Math.floor(gx), Math.floor(gy)], ground = this.grid.inBounds(x, y) ? TERRAINS[this.grid.terrain[tileIndex(x, y)]] : 'grass';
+    const snowy = ground === 'snow' || ground === 'ice', wet = ground === 'water';
+    const dust = (n: number, k = 1): void => {
+      if (wet) this.view.splash(gx, gy);
+      else this.view.dust(gx, gy, n, size * k, snowy ? 0xf2f6fb : ground === 'mud' || ground === 'swamp' ? 0xa37d58 : undefined);
+    };
+    const wobble = (how: FenceWobble, k: number): void => {
+      if (!rigid) this.view.wobbleFence(e, how, out, Math.min(1, k * (net ? 1.3 : 1)));
+    };
+    if (fx === 'takeoff') {
+      dust(4, 0.8);
+      sfx('ride.boing', { volume: 0.3, rate: 1.5 - size * 0.6, every: 0.3, at });
+    } else if (fx === 'land') {
+      dust(6);
+      sfx('animal.stomp', { volume: 0.2 + size * 0.25, rate: 1.4 - size * 0.5, every: 0.3, at });
+    } else if (fx === 'rattle') {
+      wobble('rattle', 0.5 + size * 0.5);
+      sfx(net ? 'net' : rigid ? 'stone' : 'fence', { volume: 0.25, rate: 1.5, every: 0.15, at });
+    } else if (fx === 'flap' || fx === 'feathers') {
+      this.view.feathers(gx, gy, height, FEATHER[animal.species] ?? 0xf5f1e8, fx === 'feathers' ? 4 : 2);
+      if (fx === 'flap') sfx('animal.fan', { volume: 0.35, rate: 1.4, every: 0.3, at });
+    } else if (fx === 'paw') {
+      dust(3, 0.6);
+      this.trickSound(animal, 'stomp');
+    } else if (fx === 'ram') {
+      wobble('lean', size);
+      this.view.dust(ex, ey, 5, size);
+      sfx('ride.bump', { volume: 0.5 + size * 0.3, rate: 0.8, every: 0.3, at });
+    } else if (fx === 'smash') this.view.dust(ex, ey, 9, size * 1.2);
+    else if (fx === 'bend') {
+      wobble('bend', 0.4 + size * 0.5);
+      sfx('ride.creak', { volume: 0.35, rate: 1.2, every: 0.5, at });
+    } else if (fx === 'squeeze') {
+      wobble('rattle', 0.5);
+      sfx('guest.sniff', { volume: 0.2, rate: 1.4, every: 0.4, at });
+    } else if (fx === 'pop') {
+      dust(4, 0.7);
+      sfx('ride.boing', { volume: 0.25, rate: 1.8, every: 0.3, at });
+    }
   }
 
   messSound(kind: 'poop' | 'pee'): void {
