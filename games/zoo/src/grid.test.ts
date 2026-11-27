@@ -584,7 +584,7 @@ describe('wensen per level: alles wat iemand vraagt, kun je in dat level ook nee
     expect(LOOKS).toContain('cablecar');
     expect(feature('carousel')).toBeLessThanOrEqual(FEATURE.cablecar);
     expect(feature('fountain')).toBeLessThanOrEqual(FEATURE.cablecar);
-    for (const key of ['shop.cablecar', 'say.cable.one', 'say.cable.where', 'say.cable.first', 'guest.doing.cable']) {
+    for (const key of ['shop.cablecar', 'say.cable.one', 'say.cable.where', 'say.cable.needpole', 'say.cable.first', 'guest.doing.cable']) {
       expect((nl as Record<string, string>)[key], key).toBeTruthy();
       expect((en as Record<string, string>)[key], key).toBeTruthy();
     }

@@ -262,6 +262,7 @@ export const say = {
    */
   cableOne: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.cable.one' }),
   cableWhere: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.cable.where' }),
+  cableNeedPole: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.cable.needpole' }),
   cablePole: (): Line => ({ who: 'builder', mood: 'happy', key: 'say.cable.pole' }),
   /** Een tussenpaal staat in een verblijf of niet langs een pad: hij hoort naast een pad, net als een lantaarn. */
   cablePath: (): Line => ({ who: 'builder', mood: 'worried', key: 'say.cable.path' }),
@@ -441,7 +442,7 @@ export function allLines(tr: Tr): { who: FigureId; text: string }[] {
   add(say.keysNew());
   for (const line of [say.climateNew(), say.wildNew(), say.rare(), say.pals(), say.rain(), say.rainbow(), say.celebHappy(), say.lost(), say.found(), say.trainOne(), say.trainGo(), say.trainOld(), say.trainCrossing(), say.ridesBigger(),
     say.dirty(), say.pettingNew(), say.pettingOpen(), say.pettingSmall(), say.pettingGate(), say.murky(), say.dusty(), say.filterTip(), say.showWhere(), say.showFirst(),
-    say.cableOne(), say.cableWhere(), say.cablePath(), say.cablePole(), say.tunnelWhere(), say.tunnelNew(), say.safariWhere(), say.fireworkWorld(), say.fireworkFinale(), say.cableFirst(), say.partyToday(), say.partyGong(), say.partyStart(), say.partyEnd(), say.treatNew(), say.treatFull(), say.treatSick(), say.hoseNew(), say.hoseMud(), say.leavesNew(), say.leavesJump(), say.snowNew(), say.snowman(), say.lampsNew(), say.lampsWave()]) add(line);
+    say.cableOne(), say.cableWhere(), say.cableNeedPole(), say.cablePath(), say.cablePole(), say.tunnelWhere(), say.tunnelNew(), say.safariWhere(), say.fireworkWorld(), say.fireworkFinale(), say.cableFirst(), say.partyToday(), say.partyGong(), say.partyStart(), say.partyEnd(), say.treatNew(), say.treatFull(), say.treatSick(), say.hoseNew(), say.hoseMud(), say.leavesNew(), say.leavesJump(), say.snowNew(), say.snowman(), say.lampsNew(), say.lampsWave()]) add(line);
   for (const key of ['balloon', 'icecream', 'coin', 'thanks'] as const) add(say.kid(key));
   add(say.eventNew());
   add(say.starsNew());

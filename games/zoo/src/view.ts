@@ -6776,7 +6776,8 @@ export class View {
 
   /**
    * Een kabelbaan langs dit pad (zie cablePath): twee kabels (heen en terug) die bij de huisjes laag om een groot
-   * wiel gaan en daartussen hoog over het park hangen, de palen die er vanzelf onder staan (`poles`), de tussenpalen
+   * wiel gaan en daartussen hoog over het park hangen, gewone palen eronder (`poles`: het spel geeft er geen, daar staan
+   * alleen de tussenpalen van de speler; het modellenblad laat ze nog wel zien), de tussenpalen
    * van de speler met hun wielen, en `chairs` stoeltjes. Alles staat op zijn plek in het park. Het spel zet de
    * stoeltjes zelf op hun plek en draait de wielen (`userData.dir`: de kant waar een wiel heen draait).
    */
@@ -6804,7 +6805,7 @@ export class View {
     const ropeMesh = new THREE.Mesh(merge(rope), CABLE_MAT);
     ropeMesh.castShadow = true;
     group.add(ropeMesh);
-    // de palen die vanzelf komen en de tussenpalen van de speler, samen één vorm; de sneeuw erop apart
+    // de gewone palen (als die er zijn) en de tussenpalen van de speler, samen één vorm; de sneeuw erop apart
     const parts = poleParts(), turning: [number, number, number][] = [];
     for (const p of poles) addCablePole(p, parts);
     for (const m of path.masts) addCableMast(m, parts, turning);
